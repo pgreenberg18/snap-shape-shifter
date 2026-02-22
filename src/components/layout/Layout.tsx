@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm } from "@/hooks/useFilm";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Code2,
   Clapperboard,
@@ -9,6 +10,7 @@ import {
   Film,
   Rocket,
   Settings,
+  LogOut,
 } from "lucide-react";
 
 const sidebarRoutes = [
@@ -22,6 +24,7 @@ const sidebarRoutes = [
 const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const { data: film } = useFilm();
+  const { user, signOut } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -78,9 +81,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
               Credits: {film?.credits?.toLocaleString() ?? "—"}
             </span>
 
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground">
-              U
-            </div>
+            <button
+              onClick={signOut}
+              title="Sign out"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
+            >
+              {user?.email?.[0]?.toUpperCase() ?? "U"}
+            </button>
           </div>
         </header>
 
