@@ -626,8 +626,9 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
                   switch (p.type) {
                     case "Scene Heading":
                       return (
-                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
-                          {p.text}
+                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
+                          <span>{p.text}</span>
+                          <span>{scene.scene_number ?? index + 1}</span>
                         </p>
                       );
                     case "Character":
