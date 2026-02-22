@@ -359,6 +359,27 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
   const [scriptText, setScriptText] = useState<string | null>(null);
   const [scriptLoading, setScriptLoading] = useState(false);
 
+  const extractSceneText = (fullText: string): string => {
+    const heading = scene.scene_heading?.trim();
+    if (!heading) return fullText;
+
+    // Find this scene's heading in the full script
+    const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const startMatch = fullText.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
+    if (!startMatch || startMatch.index === undefined) return `[Scene heading "${heading}" not found in script]\n\n${fullText}`;
+
+    const startIdx = startMatch.index;
+
+    // Find the next scene heading (INT. / EXT. / INT./EXT.) after the current one
+    const afterHeading = fullText.substring(startIdx + startMatch[0].length);
+    const nextSceneMatch = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
+    const endIdx = nextSceneMatch && nextSceneMatch.index !== undefined
+      ? startIdx + startMatch[0].length + nextSceneMatch.index
+      : fullText.length;
+
+    return fullText.substring(startIdx, endIdx).trim();
+  };
+
   const loadScript = async () => {
     if (scriptText !== null) {
       setScriptOpen(true);
@@ -369,8 +390,8 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
     try {
       const { data, error } = await supabase.storage.from("scripts").download(storagePath);
       if (error || !data) throw error || new Error("Download failed");
-      const text = await data.text();
-      setScriptText(text);
+      const full = await data.text();
+      setScriptText(extractSceneText(full));
     } catch {
       setScriptText("[Could not load script file]");
     } finally {
@@ -523,25 +544,39 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
         </div>
       )}
 
-      {/* Script Dialog */}
+      {/* Script Dialog — printed page appearance */}
       <Dialog open={scriptOpen} onOpenChange={setScriptOpen}>
-        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ScrollText className="h-5 w-5" />
-              Original Script — {scene.scene_heading || `Scene ${scene.scene_number ?? index + 1}`}
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-3">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ScrollText className="h-4 w-4" />
+              {scene.scene_heading || `Scene ${scene.scene_number ?? index + 1}`}
             </DialogTitle>
-            <DialogDescription>
-              Full screenplay text as uploaded. Scene heading: {scene.scene_heading || "N/A"}
+            <DialogDescription className="text-xs">
+              Original screenplay formatting
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-auto rounded-lg bg-secondary p-6 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+          <div className="flex-1 overflow-auto px-6 pb-6">
             {scriptLoading ? (
-              <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-20">
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading script…
               </div>
             ) : (
-              scriptText || ""
+              <div
+                className="mx-auto bg-white text-black shadow-lg"
+                style={{
+                  fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+                  fontSize: "12px",
+                  lineHeight: "1.5",
+                  padding: "72px 60px 72px 90px",
+                  maxWidth: "612px",        /* US Letter proportions */
+                  minHeight: "792px",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {scriptText || ""}
+              </div>
             )}
           </div>
         </DialogContent>
