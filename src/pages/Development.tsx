@@ -2,12 +2,15 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp,
-  AlertTriangle,
+  AlertTriangle, ScrollText,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -253,7 +256,7 @@ const Development = () => {
                     Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
                   </p>
                   {(analysis.scene_breakdown as any[]).map((scene: any, i: number) => (
-                    <SceneReviewCard key={i} scene={scene} index={i} />
+                    <SceneReviewCard key={i} scene={scene} index={i} storagePath={analysis.storage_path} />
                   ))}
                 </div>
               )}
@@ -349,9 +352,31 @@ const Development = () => {
    Sub-components
    ══════════════════════════════════════════ */
 
-const SceneReviewCard = ({ scene, index }: { scene: any; index: number }) => {
+const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: number; storagePath: string }) => {
   const [expanded, setExpanded] = useState(false);
   const [approved, setApproved] = useState(false);
+  const [scriptOpen, setScriptOpen] = useState(false);
+  const [scriptText, setScriptText] = useState<string | null>(null);
+  const [scriptLoading, setScriptLoading] = useState(false);
+
+  const loadScript = async () => {
+    if (scriptText !== null) {
+      setScriptOpen(true);
+      return;
+    }
+    setScriptLoading(true);
+    setScriptOpen(true);
+    try {
+      const { data, error } = await supabase.storage.from("scripts").download(storagePath);
+      if (error || !data) throw error || new Error("Download failed");
+      const text = await data.text();
+      setScriptText(text);
+    } catch {
+      setScriptText("[Could not load script file]");
+    } finally {
+      setScriptLoading(false);
+    }
+  };
 
   return (
     <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
@@ -479,8 +504,12 @@ const SceneReviewCard = ({ scene, index }: { scene: any; index: number }) => {
             </div>
           )}
 
-          {/* Approve button */}
-          <div className="pt-2 flex justify-end">
+          {/* Actions row */}
+          <div className="pt-2 flex justify-end gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={loadScript}>
+              <ScrollText className="h-3.5 w-3.5" />
+              View Script Page
+            </Button>
             <Button
               variant={approved ? "secondary" : "default"}
               size="sm"
@@ -493,6 +522,30 @@ const SceneReviewCard = ({ scene, index }: { scene: any; index: number }) => {
           </div>
         </div>
       )}
+
+      {/* Script Dialog */}
+      <Dialog open={scriptOpen} onOpenChange={setScriptOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ScrollText className="h-5 w-5" />
+              Original Script — {scene.scene_heading || `Scene ${scene.scene_number ?? index + 1}`}
+            </DialogTitle>
+            <DialogDescription>
+              Full screenplay text as uploaded. Scene heading: {scene.scene_heading || "N/A"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto rounded-lg bg-secondary p-6 font-mono text-sm leading-relaxed whitespace-pre-wrap text-foreground">
+            {scriptLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading script…
+              </div>
+            ) : (
+              scriptText || ""
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
