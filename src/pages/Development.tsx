@@ -356,32 +356,77 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
   const [expanded, setExpanded] = useState(false);
   const [approved, setApproved] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
-  const [scriptText, setScriptText] = useState<string | null>(null);
+  const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
   const [scriptLoading, setScriptLoading] = useState(false);
 
-  const extractSceneText = (fullText: string): string => {
+  const parseFdxScene = (xml: string): { type: string; text: string }[] => {
     const heading = scene.scene_heading?.trim();
-    if (!heading) return fullText;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(xml, "text/xml");
+    const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
 
-    // Find this scene's heading in the full script
+    // Find the paragraph containing this scene's heading
+    let startIdx = -1;
+    let endIdx = paragraphs.length;
+
+    for (let i = 0; i < paragraphs.length; i++) {
+      const p = paragraphs[i];
+      const type = p.getAttribute("Type") || "";
+      const texts = Array.from(p.querySelectorAll("Text"));
+      const content = texts.map((t) => t.textContent || "").join("").trim();
+
+      if (type === "Scene Heading") {
+        if (startIdx === -1 && heading && content.toUpperCase().includes(heading.toUpperCase())) {
+          startIdx = i;
+        } else if (startIdx !== -1) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (startIdx === -1) startIdx = 0;
+
+    const result: { type: string; text: string }[] = [];
+    for (let i = startIdx; i < endIdx; i++) {
+      const p = paragraphs[i];
+      const type = p.getAttribute("Type") || "Action";
+      const texts = Array.from(p.querySelectorAll("Text"));
+      const content = texts.map((t) => t.textContent || "").join("");
+      if (content.trim()) {
+        result.push({ type, text: content });
+      }
+    }
+    return result;
+  };
+
+  const parsePlainTextScene = (fullText: string): { type: string; text: string }[] => {
+    const heading = scene.scene_heading?.trim();
+    if (!heading) return [{ type: "Action", text: fullText }];
+
     const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const startMatch = fullText.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
-    if (!startMatch || startMatch.index === undefined) return `[Scene heading "${heading}" not found in script]\n\n${fullText}`;
+    if (!startMatch || startMatch.index === undefined) return [{ type: "Action", text: fullText }];
 
     const startIdx = startMatch.index;
-
-    // Find the next scene heading (INT. / EXT. / INT./EXT.) after the current one
     const afterHeading = fullText.substring(startIdx + startMatch[0].length);
-    const nextSceneMatch = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
-    const endIdx = nextSceneMatch && nextSceneMatch.index !== undefined
-      ? startIdx + startMatch[0].length + nextSceneMatch.index
+    const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
+    const endIdx = nextScene?.index !== undefined
+      ? startIdx + startMatch[0].length + nextScene.index
       : fullText.length;
 
-    return fullText.substring(startIdx, endIdx).trim();
+    const sceneText = fullText.substring(startIdx, endIdx).trim();
+    // Simple heuristic: lines in ALL CAPS with no period at end are likely characters
+    return sceneText.split("\n").filter((l) => l.trim()).map((line) => {
+      const trimmed = line.trim();
+      if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
+      if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
+      return { type: "Action", text: trimmed };
+    });
   };
 
   const loadScript = async () => {
-    if (scriptText !== null) {
+    if (scriptParagraphs !== null) {
       setScriptOpen(true);
       return;
     }
@@ -391,9 +436,13 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
       const { data, error } = await supabase.storage.from("scripts").download(storagePath);
       if (error || !data) throw error || new Error("Download failed");
       const full = await data.text();
-      setScriptText(extractSceneText(full));
+
+      // Detect FDX (XML) vs plain text
+      const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
+      const parsed = isFdx ? parseFdxScene(full) : parsePlainTextScene(full);
+      setScriptParagraphs(parsed);
     } catch {
-      setScriptText("[Could not load script file]");
+      setScriptParagraphs([{ type: "Action", text: "[Could not load script file]" }]);
     } finally {
       setScriptLoading(false);
     }
@@ -567,15 +616,52 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
                 style={{
                   fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
                   fontSize: "12px",
-                  lineHeight: "1.5",
+                  lineHeight: "1.0",
                   padding: "72px 60px 72px 90px",
-                  maxWidth: "612px",        /* US Letter proportions */
+                  maxWidth: "612px",
                   minHeight: "792px",
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
                 }}
               >
-                {scriptText || ""}
+                {scriptParagraphs?.map((p, i) => {
+                  switch (p.type) {
+                    case "Scene Heading":
+                      return (
+                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Character":
+                      return (
+                        <p key={i} style={{ textTransform: "uppercase", textAlign: "left", paddingLeft: "37%", marginTop: 18, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Parenthetical":
+                      return (
+                        <p key={i} style={{ paddingLeft: "28%", fontStyle: "italic", marginTop: 0, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Dialogue":
+                      return (
+                        <p key={i} style={{ paddingLeft: "17%", paddingRight: "17%", marginTop: 0, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Transition":
+                      return (
+                        <p key={i} style={{ textAlign: "right", textTransform: "uppercase", marginTop: 18, marginBottom: 12 }}>
+                          {p.text}
+                        </p>
+                      );
+                    default: // Action
+                      return (
+                        <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                  }
+                })}
               </div>
             )}
           </div>
