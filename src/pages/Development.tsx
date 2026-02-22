@@ -1,14 +1,35 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Upload, Type } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle } from "lucide-react";
+import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
+import { supabase } from "@/integrations/supabase/client";
 
 const Development = () => {
+  const { data: safety } = useContentSafety();
   const [language, setLanguage] = useState(false);
   const [nudity, setNudity] = useState(false);
   const [violence, setViolence] = useState(false);
+
+  useEffect(() => {
+    if (safety) {
+      setLanguage(safety.language);
+      setNudity(safety.nudity);
+      setViolence(safety.violence);
+    }
+  }, [safety]);
+
+  const updateSafety = async (field: string, value: boolean) => {
+    if (!safety) return;
+    await supabase.from("content_safety").update({ [field]: value }).eq("id", safety.id);
+  };
+
+  const handleToggle = (field: string, setter: (v: boolean) => void) => (val: boolean) => {
+    setter(val);
+    updateSafety(field, val);
+  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
@@ -20,12 +41,8 @@ const Development = () => {
             <Type className="h-8 w-8 text-primary" />
           </div>
           <div className="text-center">
-            <p className="text-lg font-display font-semibold text-foreground">
-              Drop your screenplay here
-            </p>
-            <p className="text-sm text-muted-foreground mt-1">
-              .fdx, .fountain, .pdf — or click to browse
-            </p>
+            <p className="text-lg font-display font-semibold text-foreground">Drop your screenplay here</p>
+            <p className="text-sm text-muted-foreground mt-1">.fdx, .fountain, .pdf — or click to browse</p>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-xs text-muted-foreground">
             <Upload className="h-3.5 w-3.5" />
@@ -60,10 +77,7 @@ const Development = () => {
             <TabsContent value="templates">
               <div className="grid grid-cols-3 gap-3">
                 {["PG — Family Friendly", "PG-13 — Teen Audiences", "R — Mature Content"].map((t) => (
-                  <button
-                    key={t}
-                    className="rounded-lg border border-border bg-secondary p-4 text-sm font-medium text-foreground hover:border-primary/50 transition-colors text-center"
-                  >
+                  <button key={t} className="rounded-lg border border-border bg-secondary p-4 text-sm font-medium text-foreground hover:border-primary/50 transition-colors text-center">
                     {t}
                   </button>
                 ))}
@@ -73,25 +87,17 @@ const Development = () => {
             <TabsContent value="custom">
               <div className="space-y-5">
                 <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                  <Label htmlFor="language" className="text-sm font-medium cursor-pointer">
-                    Language
-                  </Label>
-                  <Switch id="language" checked={language} onCheckedChange={setLanguage} />
+                  <Label htmlFor="language" className="text-sm font-medium cursor-pointer">Language</Label>
+                  <Switch id="language" checked={language} onCheckedChange={handleToggle("language", setLanguage)} />
                 </div>
-
                 <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                  <Label htmlFor="nudity" className="text-sm font-medium cursor-pointer">
-                    Nudity
-                  </Label>
-                  <Switch id="nudity" checked={nudity} onCheckedChange={setNudity} />
+                  <Label htmlFor="nudity" className="text-sm font-medium cursor-pointer">Nudity</Label>
+                  <Switch id="nudity" checked={nudity} onCheckedChange={handleToggle("nudity", setNudity)} />
                 </div>
-
                 <div className="space-y-2">
                   <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                    <Label htmlFor="violence" className="text-sm font-medium cursor-pointer">
-                      Violence
-                    </Label>
-                    <Switch id="violence" checked={violence} onCheckedChange={setViolence} />
+                    <Label htmlFor="violence" className="text-sm font-medium cursor-pointer">Violence</Label>
+                    <Switch id="violence" checked={violence} onCheckedChange={handleToggle("violence", setViolence)} />
                   </div>
                   {violence && (
                     <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-amber-400 text-sm animate-fade-in">
