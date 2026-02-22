@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { mockFilm } from "@/data/dummyData";
+import { useFilm } from "@/hooks/useFilm";
 import {
   Code2,
   Clapperboard,
@@ -21,6 +21,7 @@ const sidebarRoutes = [
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
+  const { data: film } = useFilm();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -69,12 +70,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
         {/* Top Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-6">
           <h1 className="font-display text-base font-semibold tracking-tight">
-            {mockFilm.title}
+            {film?.title ?? "Loading…"}
           </h1>
 
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Credits: {mockFilm.credits.toLocaleString()}
+              Credits: {film?.credits?.toLocaleString() ?? "—"}
             </span>
 
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground">

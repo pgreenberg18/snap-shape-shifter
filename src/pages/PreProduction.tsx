@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { mockCharacters } from "@/data/dummyData";
+import { useCharacters } from "@/hooks/useFilm";
 import {
   Accordion,
   AccordionContent,
@@ -8,9 +8,15 @@ import {
 } from "@/components/ui/accordion";
 import { Lock, Eye, MapPin, Users, AudioLines, Mic } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Tables } from "@/integrations/supabase/types";
 
 const PreProduction = () => {
-  const [selectedChar, setSelectedChar] = useState(mockCharacters[0]);
+  const { data: characters, isLoading } = useCharacters();
+  const [selectedChar, setSelectedChar] = useState<Tables<"characters"> | null>(null);
+
+  const activeChar = selectedChar ?? characters?.[0] ?? null;
+
+  if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   return (
     <div className="flex h-full">
@@ -51,7 +57,7 @@ const PreProduction = () => {
       <div className="w-1/2 overflow-y-auto p-6">
         <h2 className="font-display text-xl font-bold mb-4">Cast Gallery</h2>
         <div className="grid grid-cols-2 gap-4">
-          {mockCharacters.map((char) => (
+          {characters?.map((char) => (
             <div
               key={char.id}
               onClick={() => setSelectedChar(char)}
@@ -60,17 +66,11 @@ const PreProduction = () => {
                 boxShadow: "0 8px 24px -4px hsl(0 0% 0% / 0.5), 0 4px 8px -2px hsl(0 0% 0% / 0.3)",
               }}
             >
-              <img
-                src={char.imageUrl}
-                alt={char.name}
-                className="h-48 w-full object-cover"
-              />
+              <img src={char.image_url ?? ""} alt={char.name} className="h-48 w-full object-cover" />
               <div className="p-3">
                 <p className="font-display font-semibold text-sm">{char.name}</p>
-                <p className="text-xs text-muted-foreground truncate">{char.voiceDescription}</p>
+                <p className="text-xs text-muted-foreground truncate">{char.voice_description}</p>
               </div>
-
-              {/* Hover overlay */}
               <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button size="sm" variant="outline" className="gap-1.5 border-primary/50 text-primary">
                   <Lock className="h-3.5 w-3.5" />
@@ -87,48 +87,33 @@ const PreProduction = () => {
         <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           Voice Casting
         </h3>
-
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <img
-              src={selectedChar.imageUrl}
-              alt={selectedChar.name}
-              className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/30"
-            />
-            <div>
-              <p className="font-display font-semibold text-sm">{selectedChar.name}</p>
-              <p className="text-xs text-muted-foreground">Seed #{selectedChar.voiceGenerationSeed}</p>
+        {activeChar && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <img src={activeChar.image_url ?? ""} alt={activeChar.name} className="h-12 w-12 rounded-full object-cover ring-2 ring-primary/30" />
+              <div>
+                <p className="font-display font-semibold text-sm">{activeChar.name}</p>
+                <p className="text-xs text-muted-foreground">Seed #{activeChar.voice_generation_seed}</p>
+              </div>
             </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">{activeChar.voice_description}</p>
+            <div className="rounded-lg bg-secondary p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AudioLines className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Waveform Preview</span>
+              </div>
+              <div className="flex items-end gap-[2px] h-12">
+                {Array.from({ length: 40 }).map((_, i) => (
+                  <div key={i} className="flex-1 rounded-full bg-primary/40" style={{ height: `${Math.max(8, Math.sin(i * 0.4) * 30 + Math.random() * 20 + 10)}px` }} />
+                ))}
+              </div>
+            </div>
+            <Button className="w-full gap-2">
+              <Mic className="h-4 w-4" />
+              Generate Voice Profile
+            </Button>
           </div>
-
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            {selectedChar.voiceDescription}
-          </p>
-
-          {/* Mock Audio Waveform */}
-          <div className="rounded-lg bg-secondary p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AudioLines className="h-4 w-4 text-primary" />
-              <span className="text-xs font-medium text-muted-foreground">Waveform Preview</span>
-            </div>
-            <div className="flex items-end gap-[2px] h-12">
-              {Array.from({ length: 40 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex-1 rounded-full bg-primary/40"
-                  style={{
-                    height: `${Math.max(8, Math.sin(i * 0.4) * 30 + Math.random() * 20 + 10)}px`,
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <Button className="w-full gap-2">
-            <Mic className="h-4 w-4" />
-            Generate Voice Profile
-          </Button>
-        </div>
+        )}
       </aside>
     </div>
   );
