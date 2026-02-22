@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm } from "@/hooks/useFilm";
-import { useAuth } from "@/hooks/useAuth";
 import {
   Code2,
   Clapperboard,
@@ -10,7 +9,7 @@ import {
   Film,
   Rocket,
   Settings,
-  LogOut,
+  Layers,
 } from "lucide-react";
 
 const sidebarRoutes = [
@@ -21,10 +20,14 @@ const sidebarRoutes = [
   { to: "/release", icon: Rocket, label: "Release" },
 ];
 
+const bottomRoutes = [
+  { to: "/settings/global-assets", icon: Layers, label: "Global Assets" },
+  { to: "/settings/integrations", icon: Settings, label: "Settings" },
+];
+
 const Layout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const { data: film } = useFilm();
-  const { user, signOut } = useAuth();
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -53,19 +56,29 @@ const Layout = ({ children }: { children: ReactNode }) => {
           })}
         </nav>
 
-        {/* Settings at bottom */}
-        <NavLink
-          to="/settings/integrations"
-          title="Settings"
-          className={cn(
-            "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
-            location.pathname.startsWith("/settings")
-              ? "text-primary cinema-glow"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
-          )}
-        >
-          <Settings className="h-5 w-5" />
-        </NavLink>
+        {/* Bottom nav */}
+        <div className="flex flex-col items-center gap-1 mb-2">
+          {bottomRoutes.map((route) => {
+            const isActive =
+              location.pathname === route.to ||
+              location.pathname.startsWith(route.to + "/");
+            return (
+              <NavLink
+                key={route.to}
+                to={route.to}
+                title={route.label}
+                className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
+                  isActive
+                    ? "text-primary cinema-glow"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                )}
+              >
+                <route.icon className="h-5 w-5" />
+              </NavLink>
+            );
+          })}
+        </div>
       </aside>
 
       {/* Right content column */}
@@ -80,14 +93,6 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               Credits: {film?.credits?.toLocaleString() ?? "—"}
             </span>
-
-            <button
-              onClick={signOut}
-              title="Sign out"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-foreground hover:bg-destructive/20 hover:text-destructive transition-colors"
-            >
-              {user?.email?.[0]?.toUpperCase() ?? "U"}
-            </button>
           </div>
         </header>
 

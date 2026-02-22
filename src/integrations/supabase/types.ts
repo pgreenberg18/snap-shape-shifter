@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_generation_templates: {
+        Row: {
+          camera_language: string | null
+          created_at: string
+          id: string
+          image_prompt_base: string | null
+          shot_id: string
+          updated_at: string
+          video_prompt_base: string | null
+        }
+        Insert: {
+          camera_language?: string | null
+          created_at?: string
+          id?: string
+          image_prompt_base?: string | null
+          shot_id: string
+          updated_at?: string
+          video_prompt_base?: string | null
+        }
+        Update: {
+          camera_language?: string | null
+          created_at?: string
+          id?: string
+          image_prompt_base?: string | null
+          shot_id?: string
+          updated_at?: string
+          video_prompt_base?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_generation_templates_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asset_identity_registry: {
+        Row: {
+          asset_type: string
+          created_at: string
+          description: string | null
+          display_name: string
+          film_id: string
+          id: string
+          internal_ref_code: string
+          is_dirty: boolean
+          reference_image_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          asset_type: string
+          created_at?: string
+          description?: string | null
+          display_name: string
+          film_id: string
+          id?: string
+          internal_ref_code: string
+          is_dirty?: boolean
+          reference_image_url?: string | null
+          updated_at?: string
+        }
+        Update: {
+          asset_type?: string
+          created_at?: string
+          description?: string | null
+          display_name?: string
+          film_id?: string
+          id?: string
+          internal_ref_code?: string
+          is_dirty?: boolean
+          reference_image_url?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asset_identity_registry_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           created_at: string
