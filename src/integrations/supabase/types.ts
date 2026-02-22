@@ -188,6 +188,59 @@ export type Database = {
           },
         ]
       }
+      script_analyses: {
+        Row: {
+          ai_generation_notes: Json | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          film_id: string
+          global_elements: Json | null
+          id: string
+          scene_breakdown: Json | null
+          status: string
+          storage_path: string
+          updated_at: string
+          visual_summary: string | null
+        }
+        Insert: {
+          ai_generation_notes?: Json | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          film_id: string
+          global_elements?: Json | null
+          id?: string
+          scene_breakdown?: Json | null
+          status?: string
+          storage_path: string
+          updated_at?: string
+          visual_summary?: string | null
+        }
+        Update: {
+          ai_generation_notes?: Json | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          film_id?: string
+          global_elements?: Json | null
+          id?: string
+          scene_breakdown?: Json | null
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          visual_summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_analyses_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shots: {
         Row: {
           camera_angle: string | null
