@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 
 const corsHeaders = {
@@ -87,7 +86,7 @@ RULES:
 - Every scene MUST have an image_prompt and video_prompt
 - Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness`;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -157,8 +156,6 @@ serve(async (req) => {
     if (fileName.endsWith(".fountain") || fileName.endsWith(".txt")) {
       scriptText = await fileData.text();
     } else {
-      // For binary formats (pdf, docx, fdx, rtf, etc.), extract what text we can
-      // For PDF and other binary formats, we send the raw text extraction
       try {
         scriptText = await fileData.text();
       } catch {
@@ -166,99 +163,111 @@ serve(async (req) => {
       }
     }
 
-    // Truncate if too long (Gemini context window)
+    // Truncate if too long
     const maxChars = 200000;
     if (scriptText.length > maxChars) {
       scriptText = scriptText.substring(0, maxChars) + "\n\n[TRUNCATED - script exceeds maximum length]";
     }
 
-    // Call AI gateway
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-pro",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
+    // Return early to the client so the request doesn't timeout
+    // Process the AI call in the background using waitUntil-style approach
+    const responsePromise = (async () => {
+      try {
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${lovableApiKey}`,
+            "Content-Type": "application/json",
           },
-        ],
-      }),
-    });
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: SYSTEM_PROMPT },
+              {
+                role: "user",
+                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
+              },
+            ],
+          }),
+        });
 
-    if (!aiResponse.ok) {
-      const errStatus = aiResponse.status;
-      let errMsg = "AI analysis failed";
-      if (errStatus === 429) errMsg = "Rate limit exceeded. Please try again later.";
-      if (errStatus === 402) errMsg = "AI credits exhausted. Please add credits.";
+        if (!aiResponse.ok) {
+          const errStatus = aiResponse.status;
+          let errMsg = "AI analysis failed";
+          if (errStatus === 429) errMsg = "Rate limit exceeded. Please try again later.";
+          if (errStatus === 402) errMsg = "AI credits exhausted. Please add credits.";
 
-      await supabase
-        .from("script_analyses")
-        .update({ status: "error", error_message: errMsg })
-        .eq("id", analysis_id);
+          await supabase
+            .from("script_analyses")
+            .update({ status: "error", error_message: errMsg })
+            .eq("id", analysis_id);
+          return;
+        }
 
-      return new Response(JSON.stringify({ error: errMsg }), {
-        status: errStatus,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        const aiResult = await aiResponse.json();
+        const content = aiResult.choices?.[0]?.message?.content;
+
+        if (!content) {
+          await supabase
+            .from("script_analyses")
+            .update({ status: "error", error_message: "No response from AI" })
+            .eq("id", analysis_id);
+          return;
+        }
+
+        // Parse JSON from AI response (may have markdown code fences)
+        let parsed: any;
+        try {
+          const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+          const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
+          parsed = JSON.parse(jsonStr);
+        } catch {
+          await supabase
+            .from("script_analyses")
+            .update({
+              status: "complete",
+              visual_summary: content,
+              scene_breakdown: null,
+              global_elements: null,
+              ai_generation_notes: null,
+            })
+            .eq("id", analysis_id);
+          return;
+        }
+
+        // Store structured result
+        await supabase
+          .from("script_analyses")
+          .update({
+            status: "complete",
+            visual_summary: parsed.visual_summary || null,
+            scene_breakdown: parsed.scene_breakdown || null,
+            global_elements: parsed.global_elements || null,
+            ai_generation_notes: parsed.ai_generation_notes || null,
+          })
+          .eq("id", analysis_id);
+      } catch (e) {
+        console.error("Background AI processing error:", e);
+        await supabase
+          .from("script_analyses")
+          .update({
+            status: "error",
+            error_message: e instanceof Error ? e.message : "Unknown processing error",
+          })
+          .eq("id", analysis_id);
+      }
+    })();
+
+    // Use EdgeRuntime.waitUntil if available (Supabase supports this)
+    // This lets us return immediately while background work continues
+    if (typeof (globalThis as any).EdgeRuntime !== "undefined" && (globalThis as any).EdgeRuntime.waitUntil) {
+      (globalThis as any).EdgeRuntime.waitUntil(responsePromise);
+    } else {
+      // Fallback: just don't await it — Deno will keep the isolate alive for active promises
+      responsePromise.catch((e) => console.error("Background task failed:", e));
     }
 
-    const aiResult = await aiResponse.json();
-    const content = aiResult.choices?.[0]?.message?.content;
-
-    if (!content) {
-      await supabase
-        .from("script_analyses")
-        .update({ status: "error", error_message: "No response from AI" })
-        .eq("id", analysis_id);
-      return new Response(JSON.stringify({ error: "Empty AI response" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Parse JSON from AI response (may have markdown code fences)
-    let parsed: any;
-    try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      // If JSON parsing fails, store as raw text in visual_summary
-      await supabase
-        .from("script_analyses")
-        .update({
-          status: "complete",
-          visual_summary: content,
-          scene_breakdown: null,
-          global_elements: null,
-          ai_generation_notes: null,
-        })
-        .eq("id", analysis_id);
-
-      return new Response(JSON.stringify({ success: true, raw: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Store structured result
-    await supabase
-      .from("script_analyses")
-      .update({
-        status: "complete",
-        visual_summary: parsed.visual_summary || null,
-        scene_breakdown: parsed.scene_breakdown || null,
-        global_elements: parsed.global_elements || null,
-        ai_generation_notes: parsed.ai_generation_notes || null,
-      })
-      .eq("id", analysis_id);
-
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, message: "Analysis started" }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
