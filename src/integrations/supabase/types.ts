@@ -14,7 +14,218 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      characters: {
+        Row: {
+          created_at: string
+          film_id: string
+          id: string
+          image_url: string | null
+          name: string
+          voice_description: string | null
+          voice_generation_seed: number | null
+        }
+        Insert: {
+          created_at?: string
+          film_id: string
+          id?: string
+          image_url?: string | null
+          name: string
+          voice_description?: string | null
+          voice_generation_seed?: number | null
+        }
+        Update: {
+          created_at?: string
+          film_id?: string
+          id?: string
+          image_url?: string | null
+          name?: string
+          voice_description?: string | null
+          voice_generation_seed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "characters_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_safety: {
+        Row: {
+          film_id: string
+          id: string
+          language: boolean
+          mode: string
+          nudity: boolean
+          updated_at: string
+          violence: boolean
+        }
+        Insert: {
+          film_id: string
+          id?: string
+          language?: boolean
+          mode?: string
+          nudity?: boolean
+          updated_at?: string
+          violence?: boolean
+        }
+        Update: {
+          film_id?: string
+          id?: string
+          language?: boolean
+          mode?: string
+          nudity?: boolean
+          updated_at?: string
+          violence?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_safety_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      films: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          time_period: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          time_period?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          time_period?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      integrations: {
+        Row: {
+          api_key_encrypted: string | null
+          created_at: string
+          id: string
+          is_verified: boolean
+          provider_name: string
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          provider_name: string
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          api_key_encrypted?: string | null
+          created_at?: string
+          id?: string
+          is_verified?: boolean
+          provider_name?: string
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      post_production_clips: {
+        Row: {
+          color: string | null
+          created_at: string
+          film_id: string
+          id: string
+          label: string
+          left_pos: number
+          track: string
+          width: number
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          film_id: string
+          id?: string
+          label: string
+          left_pos?: number
+          track: string
+          width?: number
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          film_id?: string
+          id?: string
+          label?: string
+          left_pos?: number
+          track?: string
+          width?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_production_clips_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shots: {
+        Row: {
+          camera_angle: string | null
+          created_at: string
+          film_id: string
+          id: string
+          prompt_text: string | null
+          scene_number: number
+          video_url: string | null
+        }
+        Insert: {
+          camera_angle?: string | null
+          created_at?: string
+          film_id: string
+          id?: string
+          prompt_text?: string | null
+          scene_number: number
+          video_url?: string | null
+        }
+        Update: {
+          camera_angle?: string | null
+          created_at?: string
+          film_id?: string
+          id?: string
+          prompt_text?: string | null
+          scene_number?: number
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shots_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
