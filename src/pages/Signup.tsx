@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Film, Mail, Lock, User, ArrowRight } from "lucide-react";
+import { lovable } from "@/integrations/lovable";
 
 const Signup = () => {
   const [email, setEmail] = useState("");
@@ -145,9 +146,8 @@ const Signup = () => {
             variant="outline"
             className="w-full gap-3 bg-white hover:bg-gray-100 text-gray-800 border-gray-300"
             onClick={async () => {
-              await supabase.auth.signInWithOAuth({
-                provider: "google",
-                options: { redirectTo: window.location.origin + "/development" },
+              await lovable.auth.signInWithOAuth("google", {
+                redirect_uri: window.location.origin + "/development",
               });
             }}
           >
