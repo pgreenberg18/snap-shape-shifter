@@ -1,22 +1,23 @@
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Upload, Type, CheckCircle, FileText, X, Sparkles, Loader2, Film, Eye, Camera, Palette, MapPin, Users } from "lucide-react";
+import {
+  Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
+  Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp,
+  AlertTriangle,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
 import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-const ACCEPTED_EXTENSIONS = [
-  ".fdx", ".fountain", ".rtf", ".pdf", ".docx",
-  ".sexp", ".mmsw", ".fdr", ".txt",
-];
-
+/* ── Constants ── */
+const ACCEPTED_EXTENSIONS = [".fdx", ".fountain", ".rtf", ".pdf", ".docx", ".sexp", ".mmsw", ".fdr", ".txt"];
 const ACCEPTED_LABEL = ".fdx, .fountain, .rtf, .pdf, .docx, .sexp, .mmsw, .fdr";
 
+/* ── Hooks ── */
 const useLatestAnalysis = () =>
   useQuery({
     queryKey: ["script-analysis", FILM_ID],
@@ -38,9 +39,10 @@ const useLatestAnalysis = () =>
     },
   });
 
+/* ── Main Page ── */
 const Development = () => {
   const { data: safety } = useContentSafety();
-  const { data: analysis } = useLatestAnalysis();
+  const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis();
   const queryClient = useQueryClient();
   const [language, setLanguage] = useState(false);
   const [nudity, setNudity] = useState(false);
@@ -89,15 +91,9 @@ const Development = () => {
     if (!uploadedFile || !uploadedPath) return;
     setAnalyzing(true);
 
-    // Create analysis record
     const { data: record, error: insertErr } = await supabase
       .from("script_analyses")
-      .insert({
-        film_id: FILM_ID,
-        file_name: uploadedFile,
-        storage_path: uploadedPath,
-        status: "pending",
-      })
+      .insert({ film_id: FILM_ID, file_name: uploadedFile, storage_path: uploadedPath, status: "pending" })
       .select()
       .single();
 
@@ -107,7 +103,6 @@ const Development = () => {
       return;
     }
 
-    // Invoke the edge function
     const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
       body: { analysis_id: record.id },
     });
@@ -115,9 +110,9 @@ const Development = () => {
     setAnalyzing(false);
 
     if (invokeErr) {
-      toast({ title: "Analysis failed", description: invokeErr.message, variant: "destructive" });
+      toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
     } else {
-      toast({ title: "Analysis started", description: "Your script is being analyzed by AI…" });
+      toast({ title: "Analysis started", description: "Your script is being analyzed — results will appear below." });
       queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
     }
   };
@@ -143,23 +138,17 @@ const Development = () => {
   const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
-      {/* Script Upload Dropzone */}
-      <div>
-        <h2 className="font-display text-2xl font-bold mb-4">Script Upload</h2>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPTED_EXTENSIONS.join(",")}
-          className="hidden"
-          onChange={handleFileChange}
-        />
+    <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
+      {/* ── Step 1: Script Upload ── */}
+      <section>
+        <h2 className="font-display text-2xl font-bold mb-4">1 · Upload Script</h2>
+        <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
         <div
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={handleDrop}
-          className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-16 transition-colors cursor-pointer backdrop-blur-md bg-[hsl(222_12%_16%_/_0.5)] ${
+          className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-16 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
             dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
           }`}
         >
@@ -194,105 +183,117 @@ const Development = () => {
           )}
         </div>
 
-        {/* Analyze Script Button */}
         {uploadedFile && (
-          <Button
-            onClick={handleAnalyze}
-            disabled={isAnalyzing}
-            className="w-full mt-4 gap-2"
-            size="lg"
-          >
+          <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-4 gap-2" size="lg">
             {isAnalyzing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Analyzing Script…
-              </>
+              <><Loader2 className="h-4 w-4 animate-spin" />Analyzing Script…</>
             ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Analyze Script — Visual Breakdown
-              </>
+              <><Sparkles className="h-4 w-4" />Analyze Script — Visual Breakdown</>
             )}
           </Button>
         )}
-      </div>
+      </section>
 
-      {/* Visual Breakdown Results */}
-      {analysis?.status === "complete" && (
-        <div className="space-y-6">
-          {/* Visual Story Summary */}
-          {analysis.visual_summary && (
-            <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <Film className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
+      {/* ── Step 2: Analysis Results / Review Section ── */}
+      {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
+        <section>
+          <h2 className="font-display text-2xl font-bold mb-4">2 · Review Visual Breakdown</h2>
+
+          {/* Loading state */}
+          {isAnalyzing && (
+            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 animate-spin text-primary" />
+              <div className="text-center">
+                <p className="font-display font-semibold text-lg">AI is analyzing your screenplay…</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  This may take 1-3 minutes depending on script length. Results will appear here automatically.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
             </div>
           )}
 
-          {/* Scene Breakdown */}
-          {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Eye className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Scene Visual Breakdown</h3>
-                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                  {(analysis.scene_breakdown as any[]).length} scenes
-                </span>
+          {/* Error state */}
+          {analysis?.status === "error" && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+              <div>
+                <p className="font-display font-semibold text-sm">Analysis Failed</p>
+                <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
               </div>
-              {(analysis.scene_breakdown as any[]).map((scene: any, i: number) => (
-                <SceneCard key={i} scene={scene} />
-              ))}
             </div>
           )}
 
-          {/* Global Elements */}
-          {analysis.global_elements && (
-            <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
-              </div>
-              <GlobalElements data={analysis.global_elements as any} />
-            </div>
-          )}
+          {/* Complete results */}
+          {analysis?.status === "complete" && (
+            <div className="space-y-6">
+              {/* Visual Summary */}
+              {analysis.visual_summary && (
+                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Film className="h-5 w-5 text-primary" />
+                    <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
+                </div>
+              )}
 
-          {/* AI Generation Notes */}
-          {analysis.ai_generation_notes && typeof analysis.ai_generation_notes === "string" && (
-            <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-primary" />
-                <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
-              </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">{analysis.ai_generation_notes as string}</p>
+              {/* Scene-by-Scene Breakdown */}
+              {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                        {(analysis.scene_breakdown as any[]).length} scenes
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
+                  </p>
+                  {(analysis.scene_breakdown as any[]).map((scene: any, i: number) => (
+                    <SceneReviewCard key={i} scene={scene} index={i} />
+                  ))}
+                </div>
+              )}
+
+              {/* Global Elements */}
+              {analysis.global_elements && (
+                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" />
+                    <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
+                  </div>
+                  <GlobalElements data={analysis.global_elements as any} />
+                </div>
+              )}
+
+              {/* AI Generation Notes */}
+              {analysis.ai_generation_notes && typeof analysis.ai_generation_notes === "string" && (
+                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-primary" />
+                    <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{analysis.ai_generation_notes as string}</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </section>
       )}
 
-      {/* Analysis Error */}
-      {analysis?.status === "error" && (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-          <div>
-            <p className="font-display font-semibold text-sm">Analysis Failed</p>
-            <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Content Safety Matrix */}
-      <div>
-        <h2 className="font-display text-2xl font-bold mb-4">Content Safety Matrix</h2>
-        <div className="rounded-xl border border-border bg-card p-6 cinema-inset">
+      {/* ── Step 3: Content Safety Matrix ── */}
+      <section>
+        <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
+        <div className="rounded-xl border border-border bg-card p-6">
           <Tabs defaultValue="auto" className="w-full">
             <TabsList className="w-full bg-secondary mb-6">
               <TabsTrigger value="auto" className="flex-1">Auto</TabsTrigger>
               <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
               <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
             </TabsList>
-
             <TabsContent value="auto">
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
@@ -304,7 +305,6 @@ const Development = () => {
                 </p>
               </div>
             </TabsContent>
-
             <TabsContent value="templates">
               <div className="grid grid-cols-3 gap-3">
                 {["PG — Family Friendly", "PG-13 — Teen Audiences", "R — Mature Content"].map((t) => (
@@ -314,7 +314,6 @@ const Development = () => {
                 ))}
               </div>
             </TabsContent>
-
             <TabsContent value="custom">
               <div className="space-y-5">
                 <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
@@ -341,63 +340,63 @@ const Development = () => {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
+      </section>
     </div>
   );
 };
 
-/* ── Sub-components ── */
+/* ══════════════════════════════════════════
+   Sub-components
+   ══════════════════════════════════════════ */
 
-const SceneCard = ({ scene }: { scene: any }) => {
+const SceneReviewCard = ({ scene, index }: { scene: any; index: number }) => {
   const [expanded, setExpanded] = useState(false);
+  const [approved, setApproved] = useState(false);
 
   return (
-    <div className="rounded-xl border border-border bg-card overflow-hidden">
+    <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+      {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold font-mono">
-            {scene.scene_number}
+            {scene.scene_number ?? index + 1}
           </span>
           <div>
             <p className="font-display font-semibold text-sm">{scene.scene_heading || "Untitled Scene"}</p>
             <p className="text-xs text-muted-foreground">{scene.int_ext} · {scene.time_of_day}</p>
           </div>
         </div>
-        <span className="text-muted-foreground text-xs">{expanded ? "▲" : "▼"}</span>
+        <div className="flex items-center gap-2">
+          {approved && (
+            <span className="text-xs bg-primary/20 text-primary rounded-full px-2 py-0.5 font-medium">Approved</span>
+          )}
+          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+        </div>
       </button>
 
+      {/* Expanded content */}
       {expanded && (
-        <div className="border-t border-border p-4 space-y-4 text-sm">
-          {scene.description && (
-            <p className="text-muted-foreground">{scene.description}</p>
-          )}
+        <div className="border-t border-border p-5 space-y-5 text-sm">
+          {scene.description && <p className="text-muted-foreground">{scene.description}</p>}
 
           {/* Visual Design */}
           {scene.visual_design && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-primary">
-                <Palette className="h-3.5 w-3.5" />
-                <span className="font-semibold text-xs uppercase tracking-wider">Visual Design</span>
-              </div>
+            <Section icon={Palette} label="Visual Design">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {scene.visual_design.atmosphere && <Tag label="Atmosphere" value={scene.visual_design.atmosphere} />}
                 {scene.visual_design.lighting_style && <Tag label="Lighting" value={scene.visual_design.lighting_style} />}
                 {scene.visual_design.color_palette && <Tag label="Palette" value={scene.visual_design.color_palette} />}
                 {scene.visual_design.visual_references && <Tag label="References" value={scene.visual_design.visual_references} />}
               </div>
-            </div>
+            </Section>
           )}
 
           {/* Characters */}
           {scene.characters?.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-primary">
-                <Users className="h-3.5 w-3.5" />
-                <span className="font-semibold text-xs uppercase tracking-wider">Characters</span>
-              </div>
+            <Section icon={Users} label="Characters">
               <div className="space-y-1">
                 {scene.characters.map((c: any, i: number) => (
                   <p key={i} className="text-muted-foreground">
@@ -406,69 +405,107 @@ const SceneCard = ({ scene }: { scene: any }) => {
                   </p>
                 ))}
               </div>
-            </div>
+            </Section>
+          )}
+
+          {/* Wardrobe */}
+          {scene.wardrobe?.length > 0 && (
+            <Section icon={Users} label="Wardrobe">
+              <div className="space-y-1 text-xs">
+                {scene.wardrobe.map((w: any, i: number) => (
+                  <p key={i} className="text-muted-foreground">
+                    <span className="text-foreground font-medium">{w.character}</span>: {w.clothing_style}
+                    {w.condition ? ` (${w.condition})` : ""}
+                    {w.hair_makeup ? ` — ${w.hair_makeup}` : ""}
+                  </p>
+                ))}
+              </div>
+            </Section>
           )}
 
           {/* Cinematic Elements */}
           {scene.cinematic_elements && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-primary">
-                <Camera className="h-3.5 w-3.5" />
-                <span className="font-semibold text-xs uppercase tracking-wider">Cinematic Elements</span>
-              </div>
+            <Section icon={Camera} label="Cinematic Elements">
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {scene.cinematic_elements.camera_feel && <Tag label="Camera" value={scene.cinematic_elements.camera_feel} />}
                 {scene.cinematic_elements.motion_cues && <Tag label="Motion" value={scene.cinematic_elements.motion_cues} />}
               </div>
               {scene.cinematic_elements.shot_suggestions?.length > 0 && (
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-2">
                   <span className="text-foreground">Shots:</span> {scene.cinematic_elements.shot_suggestions.join(" · ")}
                 </p>
               )}
-            </div>
+            </Section>
           )}
 
-          {/* AI Prompts */}
+          {/* Environment & Props */}
+          {(scene.environment_details || scene.key_objects?.length > 0) && (
+            <Section icon={MapPin} label="Environment & Props">
+              {scene.environment_details && <p className="text-xs text-muted-foreground">{scene.environment_details}</p>}
+              {scene.key_objects?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  {scene.key_objects.map((obj: string, i: number) => (
+                    <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">{obj}</span>
+                  ))}
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* AI Generation Prompts */}
           {(scene.image_prompt || scene.video_prompt) && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-1.5 text-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-                <span className="font-semibold text-xs uppercase tracking-wider">AI Generation Prompts</span>
-              </div>
+            <Section icon={Sparkles} label="AI Generation Prompts">
               {scene.image_prompt && (
                 <div className="space-y-1">
                   <p className="text-xs font-mono text-primary/70">IMAGE PROMPT</p>
-                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">
-                    {scene.image_prompt}
-                  </pre>
+                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">{scene.image_prompt}</pre>
                 </div>
               )}
               {scene.video_prompt && (
-                <div className="space-y-1">
+                <div className="space-y-1 mt-2">
                   <p className="text-xs font-mono text-primary/70">VIDEO PROMPT</p>
-                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">
-                    {scene.video_prompt}
-                  </pre>
+                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">{scene.video_prompt}</pre>
                 </div>
               )}
-            </div>
+            </Section>
           )}
 
           {/* Continuity Flags */}
           {scene.continuity_flags?.length > 0 && (
             <div className="flex flex-wrap gap-1.5">
               {scene.continuity_flags.map((flag: string, i: number) => (
-                <span key={i} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5">
-                  {flag}
-                </span>
+                <span key={i} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5">{flag}</span>
               ))}
             </div>
           )}
+
+          {/* Approve button */}
+          <div className="pt-2 flex justify-end">
+            <Button
+              variant={approved ? "secondary" : "default"}
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setApproved(!approved)}
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+              {approved ? "Approved ✓" : "Approve Scene"}
+            </Button>
+          </div>
         </div>
       )}
     </div>
   );
 };
+
+const Section = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
+  <div className="space-y-2">
+    <div className="flex items-center gap-1.5 text-primary">
+      <Icon className="h-3.5 w-3.5" />
+      <span className="font-semibold text-xs uppercase tracking-wider">{label}</span>
+    </div>
+    {children}
+  </div>
+);
 
 const Tag = ({ label, value }: { label: string; value: string }) => (
   <div className="bg-secondary rounded-lg px-3 py-2">
@@ -479,10 +516,10 @@ const Tag = ({ label, value }: { label: string; value: string }) => (
 
 const GlobalElements = ({ data }: { data: any }) => {
   const sections = [
-    { key: "recurring_locations", label: "Recurring Locations", icon: MapPin },
-    { key: "recurring_props", label: "Recurring Props", icon: Eye },
-    { key: "recurring_wardrobe", label: "Recurring Wardrobe", icon: Users },
-    { key: "visual_motifs", label: "Visual Motifs", icon: Palette },
+    { key: "recurring_locations", label: "Recurring Locations" },
+    { key: "recurring_props", label: "Recurring Props" },
+    { key: "recurring_wardrobe", label: "Recurring Wardrobe" },
+    { key: "visual_motifs", label: "Visual Motifs" },
   ];
 
   return (
@@ -495,9 +532,7 @@ const GlobalElements = ({ data }: { data: any }) => {
             <p className="text-xs font-semibold text-foreground mb-1">{label}</p>
             <div className="flex flex-wrap gap-1.5">
               {items.map((item: string, i: number) => (
-                <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">
-                  {item}
-                </span>
+                <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">{item}</span>
               ))}
             </div>
           </div>
