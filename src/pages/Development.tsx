@@ -242,23 +242,7 @@ const Development = () => {
 
               {/* Scene-by-Scene Breakdown */}
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Eye className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                        {(analysis.scene_breakdown as any[]).length} scenes
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
-                  </p>
-                  {(analysis.scene_breakdown as any[]).map((scene: any, i: number) => (
-                    <SceneReviewCard key={i} scene={scene} index={i} storagePath={analysis.storage_path} />
-                  ))}
-                </div>
+                <SceneBreakdownSection scenes={analysis.scene_breakdown as any[]} storagePath={analysis.storage_path} />
               )}
 
               {/* Global Elements */}
@@ -351,10 +335,53 @@ const Development = () => {
 /* ══════════════════════════════════════════
    Sub-components
    ══════════════════════════════════════════ */
+const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storagePath: string }) => {
+  const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
+  const allApproved = approvedSet.size === scenes.length;
 
-const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: number; storagePath: string }) => {
+  const toggleApprove = (i: number) => {
+    setApprovedSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (allApproved) {
+      setApprovedSet(new Set());
+    } else {
+      setApprovedSet(new Set(scenes.map((_, i) => i)));
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Eye className="h-5 w-5 text-primary" />
+          <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
+          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+            {scenes.length} scenes
+          </span>
+        </div>
+        <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5" onClick={toggleAll}>
+          <ThumbsUp className="h-3.5 w-3.5" />
+          {allApproved ? "Unapprove All" : "Approve All"}
+        </Button>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
+      </p>
+      {scenes.map((scene: any, i: number) => (
+        <SceneReviewCard key={i} scene={scene} index={i} storagePath={storagePath} approved={approvedSet.has(i)} onToggleApproved={() => toggleApprove(i)} />
+      ))}
+    </div>
+  );
+};
+
+const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved }: { scene: any; index: number; storagePath: string; approved: boolean; onToggleApproved: () => void }) => {
   const [expanded, setExpanded] = useState(false);
-  const [approved, setApproved] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
   const [scriptLoading, setScriptLoading] = useState(false);
@@ -464,10 +491,15 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
             <p className="text-xs text-muted-foreground">{scene.int_ext} · {scene.time_of_day}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {approved && (
-            <span className="text-xs bg-primary/20 text-primary rounded-full px-2 py-0.5 font-medium">Approved</span>
-          )}
+        <div className="flex items-center gap-3">
+          <div
+            role="checkbox"
+            aria-checked={approved}
+            onClick={(e) => { e.stopPropagation(); onToggleApproved(); }}
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ${approved ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40 hover:border-primary"}`}
+          >
+            {approved && <CheckCircle className="h-3.5 w-3.5" />}
+          </div>
           {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>
       </button>
@@ -584,7 +616,7 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
               variant={approved ? "secondary" : "default"}
               size="sm"
               className="gap-1.5"
-              onClick={() => setApproved(!approved)}
+              onClick={onToggleApproved}
             >
               <ThumbsUp className="h-3.5 w-3.5" />
               {approved ? "Approved ✓" : "Approve Scene"}
@@ -626,9 +658,9 @@ const SceneReviewCard = ({ scene, index, storagePath }: { scene: any; index: num
                   switch (p.type) {
                     case "Scene Heading":
                       return (
-                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12, display: "flex", justifyContent: "space-between" }}>
-                          <span>{p.text}</span>
+                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
                           <span>{scene.scene_number ?? index + 1}</span>
+                          <span style={{ marginLeft: 24 }}>{p.text}</span>
                         </p>
                       );
                     case "Character":
