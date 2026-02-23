@@ -224,12 +224,12 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
-            max_tokens: 65536,
+            max_tokens: 131072,
             messages: [
               { role: "system", content: SYSTEM_PROMPT },
               {
                 role: "user",
-                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip or truncate any scenes. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
+                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip, summarize, or truncate any scenes. There are likely 80-150+ scenes. If the output is long, that is expected and required. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
               },
             ],
           }),
@@ -250,6 +250,12 @@ Deno.serve(async (req) => {
 
         const aiResult = await aiResponse.json();
         const content = aiResult.choices?.[0]?.message?.content;
+        const finishReason = aiResult.choices?.[0]?.finish_reason;
+
+        // Log if the response was truncated
+        if (finishReason && finishReason !== "stop") {
+          console.warn(`AI response finish_reason: ${finishReason} — output may be truncated`);
+        }
 
         if (!content) {
           await supabase
