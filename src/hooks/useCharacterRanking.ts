@@ -19,6 +19,8 @@ export interface CharacterRanking {
   firstPage: number;
   lastPage: number;
   pageDensity: number;
+  /** Actual scene numbers (1-indexed) this character appears in */
+  sceneNumbers: number[];
 }
 
 /* ── Core algorithm ── */
@@ -135,6 +137,12 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
 
     const score = 0.50 * DV + 0.30 * AF + 0.15 * PS + 0.05 * SB;
 
+    // Convert scene indices to 1-indexed scene numbers
+    const sceneNumbers = [...e.appearanceScenes].map((si) => {
+      const scene = scenes[si];
+      return scene?.scene_number ? parseInt(scene.scene_number, 10) : si + 1;
+    }).sort((a, b) => a - b);
+
     return {
       name: e.name.charAt(0).toUpperCase() + e.name.slice(1).toLowerCase(),
       nameNormalized: e.name.toUpperCase(),
@@ -148,6 +156,7 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
       firstPage: e.firstPage === Infinity ? 0 : e.firstPage,
       lastPage: e.lastPage === -1 ? 0 : e.lastPage,
       pageDensity: density,
+      sceneNumbers,
     };
   });
 

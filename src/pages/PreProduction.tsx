@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -44,6 +45,8 @@ const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked">[] = [
 ];
 
 const PreProduction = () => {
+  const navigate = useNavigate();
+  const { projectId, versionId } = useParams();
   const { data: characters, isLoading } = useCharacters();
   const { data: film } = useFilm();
   const filmId = useFilmId();
@@ -329,6 +332,33 @@ const PreProduction = () => {
                     </div>
                   </div>
                 )}
+
+                {/* ═══ SCENE APPEARANCES ═══ */}
+                {(() => {
+                  const ranking = rankings?.find(r => r.nameNormalized === selectedChar.name.toUpperCase());
+                  if (!ranking?.sceneNumbers?.length) return null;
+                  return (
+                    <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Film className="h-4 w-4 text-primary" />
+                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Scenes</h3>
+                        <span className="text-xs text-muted-foreground/50">{ranking.sceneNumbers.length} appearances</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {ranking.sceneNumbers.map((sn) => (
+                          <button
+                            key={sn}
+                            onClick={() => navigate(`/projects/${projectId}/versions/${versionId}/development?scene=${sn}`)}
+                            className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                            title={`Open Scene ${sn} in script`}
+                          >
+                            {sn}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* ═══ CHARACTER METADATA ═══ */}
                 <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">

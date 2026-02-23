@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
@@ -55,6 +56,7 @@ const useLatestAnalysis = (filmId: string | undefined) =>
 
 /* ── Main Page ── */
 const Development = () => {
+  const [searchParams] = useSearchParams();
   const filmId = useFilmId();
   const { data: film } = useFilm();
   const { data: safety } = useContentSafety();
@@ -90,6 +92,22 @@ const Development = () => {
     if (film?.version_name != null) setVersionName(film.version_name ?? "");
     if ((film as any)?.writers != null) setWriters((film as any).writers ?? "");
   }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers]);
+
+  /* Auto-scroll to scene from ?scene= query param */
+  useEffect(() => {
+    const sceneParam = searchParams.get("scene");
+    if (!sceneParam) return;
+    // Wait for scenes to render
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`scene-${sceneParam}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-primary");
+        setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 3000);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchParams, analysis]);
 
   const uploadFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -894,7 +912,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
   };
 
   return (
-    <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : rejected ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"}`}>
+    <div id={`scene-${scene.scene_number ?? index + 1}`} className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : rejected ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button
