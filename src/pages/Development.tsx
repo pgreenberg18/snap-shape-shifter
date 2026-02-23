@@ -208,6 +208,7 @@ const Development = () => {
   const [allScenesApproved, setAllScenesApproved] = useState(false);
   const [contentSafetyRun, setContentSafetyRun] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [reviewStats, setReviewStats] = useState<{ approved: number; rejected: number; pending: number } | null>(null);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
   const [filmTitle, setFilmTitle] = useState("");
@@ -837,6 +838,11 @@ const Development = () => {
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                           {(analysis.scene_breakdown as any[]).length} scenes
                         </span>
+                        {reviewStats && (reviewStats.approved > 0 || reviewStats.rejected > 0) && (
+                          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                            {reviewStats.approved} approved · {reviewStats.rejected} rejected · {reviewStats.pending} pending
+                          </span>
+                        )}
                       </div>
                       <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
                     </div>
@@ -847,6 +853,7 @@ const Development = () => {
                         scenes={analysis.scene_breakdown as any[]}
                         storagePath={analysis.storage_path}
                         onAllApprovedChange={setAllScenesApproved}
+                        onReviewStatsChange={setReviewStats}
                         analysisId={analysis.id}
                       />
                     </div>
@@ -1035,7 +1042,7 @@ const Development = () => {
 /* ══════════════════════════════════════════
    Sub-components
    ══════════════════════════════════════════ */
-const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analysisId }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void; analysisId?: string }) => {
+const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, onReviewStatsChange, analysisId }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void; onReviewStatsChange?: (stats: { approved: number; rejected: number; pending: number }) => void; analysisId?: string }) => {
   const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
   const [rejectedSet, setRejectedSet] = useState<Set<number>>(new Set());
   const [loaded, setLoaded] = useState(false);
@@ -1077,6 +1084,10 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analy
     onAllApprovedChange?.(allApproved);
   }, [allApproved, onAllApprovedChange]);
 
+  useEffect(() => {
+    onReviewStatsChange?.({ approved: approvedSet.size, rejected: rejectedSet.size, pending: scenes.length - approvedSet.size - rejectedSet.size });
+  }, [approvedSet.size, rejectedSet.size, scenes.length, onReviewStatsChange]);
+
   const approveScene = (i: number) => {
     setApprovedSet((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
     setRejectedSet((prev) => { const n = new Set(prev); n.delete(i); return n; });
@@ -1100,14 +1111,7 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analy
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          {reviewedCount > 0 && (
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-              {approvedSet.size} approved · {rejectedSet.size} rejected · {scenes.length - reviewedCount} pending
-            </span>
-          )}
-        </div>
+      <div className="flex items-center justify-end">
         <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5" onClick={toggleAll}>
           <ThumbsUp className="h-3.5 w-3.5" />
           {allApproved ? "Unapprove All" : "Approve All"}
