@@ -848,7 +848,7 @@ const Development = () => {
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="mt-2">
+                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
                       <SceneBreakdownSection
                         scenes={analysis.scene_breakdown as any[]}
                         storagePath={analysis.storage_path}
