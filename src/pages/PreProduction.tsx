@@ -729,6 +729,16 @@ const PreProduction = () => {
                 }}
               >
                 {scriptParagraphs?.map((p, i) => {
+                  const highlightName = (text: string) => {
+                    if (!selectedChar?.name) return text;
+                    const name = selectedChar.name;
+                    const re = new RegExp(`(${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+                    const parts = text.split(re);
+                    if (parts.length === 1) return text;
+                    return parts.map((part, j) =>
+                      re.test(part) ? <mark key={j} style={{ backgroundColor: "#facc15", color: "black", padding: "0 2px", borderRadius: 2 }}>{part}</mark> : part
+                    );
+                  };
                   switch (p.type) {
                     case "Scene Heading":
                       return (
@@ -740,19 +750,19 @@ const PreProduction = () => {
                     case "Character":
                       return (
                         <p key={i} style={{ textTransform: "uppercase", textAlign: "left", paddingLeft: "37%", marginTop: 18, marginBottom: 0 }}>
-                          {p.text}
+                          {highlightName(p.text)}
                         </p>
                       );
                     case "Parenthetical":
                       return (
                         <p key={i} style={{ paddingLeft: "28%", fontStyle: "italic", marginTop: 0, marginBottom: 0 }}>
-                          {p.text}
+                          {highlightName(p.text)}
                         </p>
                       );
                     case "Dialogue":
                       return (
                         <p key={i} style={{ paddingLeft: "17%", paddingRight: "17%", marginTop: 0, marginBottom: 0 }}>
-                          {p.text}
+                          {highlightName(p.text)}
                         </p>
                       );
                     case "Transition":
@@ -764,7 +774,7 @@ const PreProduction = () => {
                     default:
                       return (
                         <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>
-                          {p.text}
+                          {highlightName(p.text)}
                         </p>
                       );
                   }
