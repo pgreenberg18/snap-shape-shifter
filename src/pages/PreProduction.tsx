@@ -679,7 +679,7 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.locations ?? []} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={breakdownAssets?.locations ?? []} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
           <DnDGroupPane items={breakdownAssets?.props ?? []} filmId={filmId} storagePrefix="props" icon={Package} title="Props" emptyMessage="No props extracted yet. Lock your script in Development." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
