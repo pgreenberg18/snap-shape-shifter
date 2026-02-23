@@ -680,7 +680,9 @@ const Development = () => {
       {/* ── Step 2: Analysis Results / Review Section ── */}
       {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">Script Breakdown</h2>
+          {analysis?.status !== "complete" && (
+            <h2 className="font-display text-2xl font-bold mb-4">Script Breakdown</h2>
+          )}
 
           {/* Loading state with progress */}
           {isAnalyzing && <AnalysisProgress status={analysis?.status} />}
