@@ -73,6 +73,37 @@ const PreProduction = () => {
   const [analyzingRef, setAnalyzingRef] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reclassified/dismissed props (persisted per film)
+  const [reclassified, setReclassified] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!filmId) return;
+    try {
+      const raw = localStorage.getItem(`props-reclassified-${filmId}`);
+      if (raw) setReclassified(JSON.parse(raw));
+    } catch {}
+  }, [filmId]);
+
+  const handleReclassify = useCallback((item: string, target: string) => {
+    setReclassified((prev) => {
+      const next = { ...prev, [item]: target };
+      if (filmId) localStorage.setItem(`props-reclassified-${filmId}`, JSON.stringify(next));
+      return next;
+    });
+    if (target === "_dismiss") {
+      toast.success(`"${item}" dismissed — not a prop`);
+    } else {
+      const labels: Record<string, string> = { locations: "Locations", vehicles: "Picture Vehicles" };
+      toast.success(`"${item}" moved to ${labels[target] || target}`);
+    }
+  }, [filmId]);
+
+  // Filter props: remove reclassified items; add reclassified-to items to their target categories
+  const filteredProps = useMemo(() => (breakdownAssets?.props ?? []).filter((p) => !reclassified[p]), [breakdownAssets?.props, reclassified]);
+  const reclassifiedToLocations = useMemo(() => Object.entries(reclassified).filter(([, t]) => t === "locations").map(([item]) => item), [reclassified]);
+  const reclassifiedToVehicles = useMemo(() => Object.entries(reclassified).filter(([, t]) => t === "vehicles").map(([item]) => item), [reclassified]);
+  const augmentedLocations = useMemo(() => [...(breakdownAssets?.locations ?? []), ...reclassifiedToLocations].sort(), [breakdownAssets?.locations, reclassifiedToLocations]);
+  const augmentedVehicles = useMemo(() => [...(breakdownAssets?.vehicles ?? []), ...reclassifiedToVehicles].sort(), [breakdownAssets?.vehicles, reclassifiedToVehicles]);
+
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
@@ -679,10 +710,20 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.locations ?? []} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.props ?? []} filmId={filmId} storagePrefix="props" icon={Package} title="Props" emptyMessage="No props extracted yet. Lock your script in Development." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane
+            items={filteredProps} filmId={filmId} storagePrefix="props" icon={Package} title="Props"
+            emptyMessage="No props extracted yet. Lock your script in Development."
+            sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
+            storagePath={scriptAnalysis?.storage_path as string | undefined}
+            reclassifyOptions={[
+              { label: "Locations", value: "locations", icon: MapPin },
+              { label: "Picture Vehicles", value: "vehicles", icon: Car },
+            ]}
+            onReclassify={handleReclassify}
+          />
         </TabsContent>
         <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0">
           <DnDGroupPane
@@ -694,7 +735,7 @@ const PreProduction = () => {
           />
         </TabsContent>
         <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.vehicles ?? []} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
           <StoryboardPanel />

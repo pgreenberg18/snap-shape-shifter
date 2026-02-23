@@ -61,6 +61,7 @@ CRITICAL: You MUST return your response as a JSON object with exactly these four
         }
       ],
       "key_objects": ["crumpled letter", "whiskey glass"],
+      "picture_vehicles": [],
       "environment_details": "cluttered desk, venetian blinds casting shadows, buzzing fluorescent light",
       "cinematic_elements": {
         "camera_feel": "intimate handheld",
@@ -79,11 +80,34 @@ CRITICAL: You MUST return your response as a JSON object with exactly these four
   ]
 }
 
+ELEMENT CLASSIFICATION RULES — Apply these strictly to key_objects and picture_vehicles:
+
+PROPS (key_objects):
+- Any physical object handled, carried, worn, used, or visibly interacted with by a character.
+- Include hero props and recurring items.
+- Exclude set dressing unless actively used by a character.
+- Do NOT include locations, buildings, rooms, or structures (e.g. "beach house", "cabin", "warehouse" are locations, NOT props).
+- Do NOT include visual effects, weather, lighting effects, or atmospheric elements (e.g. "rain", "fog", "explosion", "fire" belong in the effects field, NOT key_objects).
+- Do NOT include abstract concepts, emotions, or sounds.
+- Use singular nouns, capitalize properly.
+
+PICTURE VEHICLES (picture_vehicles):
+- Any vehicle that appears on camera and is story-relevant or requires production planning.
+- Include cars, trucks, motorcycles, boats, aircraft, specialty vehicles.
+- Exclude background traffic unless story-specific.
+- These go in the per-scene "picture_vehicles" array, NOT in key_objects.
+
+EFFECTS (effects.practical / effects.vfx):
+- Weather effects (rain, snow, fog, wind)
+- Fire, smoke, explosions
+- Lighting effects (lightning, flickering lights)
+- Any visual or atmospheric element that isn't a physical prop
+
 CRITICAL COMPLETENESS RULES:
 - You MUST include EVERY SINGLE SCENE from the screenplay. Do not skip, merge, or summarize any scenes.
 - EVERY scene MUST have a non-empty "characters" array. If a character is physically present, heard (voice-over), or referenced by action in the scene, include them. Even establishing shots or cutaways where a character is visible must list them. The ONLY exception is purely abstract/non-narrative sequences (e.g. title cards with no characters).
 - EVERY scene with a character MUST have a corresponding "wardrobe" entry for EACH character in that scene. Describe what they are wearing based on script cues or infer from context (e.g. time of day, location, character role). If the script doesn't specify, describe the most likely wardrobe for the character in that setting. NEVER leave wardrobe empty when characters are present.
-- EVERY scene MUST have a non-empty "key_objects" array. List all props, set dressing items, and objects mentioned in action lines or implied by the setting.
+- EVERY scene MUST have a non-empty "key_objects" array listing only actual physical props handled or used by characters.
 - Character names MUST be consistent throughout. Use the exact same name string every time. Do NOT alternate between "HOWARD WELLS" and "PROFESSOR HOWARD WELLS" — pick one canonical name and use it everywhere.
 - Never invent story events not implied by the script
 - If something is unclear, mark as "Ambiguous / Open Interpretation"

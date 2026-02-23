@@ -132,6 +132,8 @@ export const useBreakdownAssets = () => {
       const vehicleSet = new Set<string>();
 
       const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
+      // Filter out things that aren't actual props (effects, locations, weather, etc.)
+      const NON_PROP_KEYWORDS = ["rain", "snow", "fog", "wind", "lightning", "thunder", "fire", "smoke", "explosion", "flames", "mist", "haze", "storm", "sunlight", "moonlight", "shadow", "shadows", "darkness", "light", "glow", "flicker", "house", "building", "cabin", "mansion", "apartment", "warehouse", "barn", "church", "school", "hospital", "hotel", "motel", "office", "restaurant", "bar", "club", "store", "shop", "beach house", "cottage", "shack", "tower", "castle", "palace", "temple"];
 
       for (const s of scenes) {
         if (s.scene_heading && typeof s.scene_heading === "string" && s.scene_heading !== "N/A") {
@@ -144,7 +146,6 @@ export const useBreakdownAssets = () => {
           const locationName = cleanName || heading;
           if (!locationSet.has(locationName)) {
             locationSet.add(locationName);
-            // Build rich description: INT/EXT context + setting + description + environment details
             const intExt = heading.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0] || "";
             const timeOfDay = s.time_of_day || heading.match(/[-–—]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|SUNSET|SUNRISE)\s*$/i)?.[1] || "";
             const parts: string[] = [];
@@ -162,13 +163,21 @@ export const useBreakdownAssets = () => {
               const lower = p.toLowerCase();
               if (VEHICLE_KEYWORDS.some((v) => lower.includes(v))) {
                 vehicleSet.add(p);
+              } else if (NON_PROP_KEYWORDS.some((np) => lower === np || lower === np + "s")) {
+                // Skip non-props (effects, locations masquerading as props)
               } else {
                 propSet.add(p);
               }
             }
           }
         }
-        // Vehicles field (if AI provides it)
+        // Picture vehicles from dedicated field
+        if (Array.isArray(s.picture_vehicles)) {
+          for (const v of s.picture_vehicles) {
+            if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
+          }
+        }
+        // Legacy vehicles field
         if (Array.isArray(s.vehicles)) {
           for (const v of s.vehicles) {
             if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
