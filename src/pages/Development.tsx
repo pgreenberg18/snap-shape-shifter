@@ -606,6 +606,18 @@ const Development = () => {
                         {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
                       </p>
                     </div>
+                    {analysis.status === "complete" && !scriptLocked && (
+                      <Button
+                        onClick={handleAnalyze}
+                        disabled={isAnalyzing}
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 shrink-0"
+                      >
+                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Reanalyze
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <>
