@@ -33,8 +33,8 @@ interface CategoryMeta {
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { key: "locations", label: "Locations", icon: <MapPin className="h-4 w-4" /> },
   { key: "characters", label: "Characters", icon: <Users className="h-4 w-4" /> },
+  { key: "locations", label: "Locations", icon: <MapPin className="h-4 w-4" /> },
   { key: "wardrobe", label: "Wardrobe", icon: <Shirt className="h-4 w-4" /> },
   { key: "props", label: "Props", icon: <Box className="h-4 w-4" /> },
   { key: "visual_design", label: "Visual Design", icon: <Paintbrush className="h-4 w-4" /> },
@@ -352,17 +352,6 @@ export default function GlobalElementsManager({ data }: Props) {
         );
       })}
 
-      {/* Signature Style – editable */}
-      <div className="rounded-lg border border-border bg-card/50 p-4 space-y-2">
-        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
-        <Textarea
-          value={signatureStyle}
-          onChange={(e) => setSignatureStyle(e.target.value)}
-          placeholder="Describe the overall visual signature style..."
-          className="min-h-[80px] text-sm bg-background resize-y"
-          style={{ fieldSizing: 'content' } as React.CSSProperties}
-        />
-      </div>
 
       {/* Merge dialog */}
       <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
