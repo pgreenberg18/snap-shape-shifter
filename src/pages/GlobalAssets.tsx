@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { FILM_ID, useShots } from "@/hooks/useFilm";
+import { useFilmId, useShots } from "@/hooks/useFilm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,14 +36,14 @@ const ASSET_LABELS = {
 
 type AssetType = "actor" | "prop" | "location";
 
-const useAssetRegistry = () =>
+const useAssetRegistry = (filmId: string | undefined) =>
   useQuery({
-    queryKey: ["asset-registry", FILM_ID],
+    queryKey: ["asset-registry", filmId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("asset_identity_registry")
         .select("*")
-        .eq("film_id", FILM_ID)
+        .eq("film_id", filmId!)
         .order("asset_type")
         .order("created_at");
       if (error) throw error;
@@ -52,7 +52,8 @@ const useAssetRegistry = () =>
   });
 
 const GlobalAssets = () => {
-  const { data: assets, isLoading } = useAssetRegistry();
+  const filmId = useFilmId();
+  const { data: assets, isLoading } = useAssetRegistry(filmId);
   const { data: shots } = useShots();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -67,7 +68,7 @@ const GlobalAssets = () => {
       const { error } = await supabase
         .from("asset_identity_registry")
         .update({ is_dirty: false })
-        .eq("film_id", FILM_ID)
+        .eq("film_id", filmId!)
         .eq("is_dirty", true);
       if (error) throw error;
     },
@@ -116,7 +117,7 @@ const GlobalAssets = () => {
             <DialogHeader>
               <DialogTitle>Add Global Asset</DialogTitle>
             </DialogHeader>
-            <AddAssetForm onSuccess={() => { setAddOpen(false); queryClient.invalidateQueries({ queryKey: ["asset-registry"] }); }} />
+            <AddAssetForm filmId={filmId!} onSuccess={() => { setAddOpen(false); queryClient.invalidateQueries({ queryKey: ["asset-registry"] }); }} />
           </DialogContent>
         </Dialog>
       </div>
@@ -263,7 +264,7 @@ const AssetCard = ({
 };
 
 /* ── Add Asset Form ── */
-const AddAssetForm = ({ onSuccess }: { onSuccess: () => void }) => {
+const AddAssetForm = ({ onSuccess, filmId }: { onSuccess: () => void; filmId: string }) => {
   const [type, setType] = useState<AssetType>("actor");
   const [name, setName] = useState("");
   const [refCode, setRefCode] = useState("");
@@ -278,7 +279,7 @@ const AddAssetForm = ({ onSuccess }: { onSuccess: () => void }) => {
     const { error } = await supabase
       .from("asset_identity_registry")
       .insert({
-        film_id: FILM_ID,
+        film_id: filmId!,
         asset_type: type,
         display_name: name,
         internal_ref_code: refCode.toUpperCase().replace(/\s+/g, "_"),

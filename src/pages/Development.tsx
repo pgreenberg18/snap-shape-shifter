@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
+import { useContentSafety, useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import { useToast } from "@/hooks/use-toast";
@@ -30,20 +30,21 @@ const ACCEPTED_EXTENSIONS = [".fdx", ".fountain", ".rtf", ".pdf", ".docx", ".sex
 const ACCEPTED_LABEL = ".fdx, .fountain, .rtf, .pdf, .docx, .sexp, .mmsw, .fdr";
 
 /* ── Hooks ── */
-const useLatestAnalysis = () =>
+const useLatestAnalysis = (filmId: string | undefined) =>
   useQuery({
-    queryKey: ["script-analysis", FILM_ID],
+    queryKey: ["script-analysis", filmId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("script_analyses")
         .select("*")
-        .eq("film_id", FILM_ID)
+        .eq("film_id", filmId!)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
+    enabled: !!filmId,
     refetchInterval: (query) => {
       const d = query.state.data;
       if (d && (d.status === "pending" || d.status === "analyzing")) return 3000;
@@ -53,8 +54,9 @@ const useLatestAnalysis = () =>
 
 /* ── Main Page ── */
 const Development = () => {
+  const filmId = useFilmId();
   const { data: safety } = useContentSafety();
-  const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis();
+  const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis(filmId);
   const queryClient = useQueryClient();
   const [language, setLanguage] = useState(false);
   const [nudity, setNudity] = useState(false);
@@ -75,7 +77,7 @@ const Development = () => {
       return;
     }
     setUploading(true);
-    const path = `${FILM_ID}/${Date.now()}_${file.name}`;
+    const path = `${filmId}/${Date.now()}_${file.name}`;
     const { error } = await supabase.storage.from("scripts").upload(path, file);
     setUploading(false);
     if (error) {
@@ -106,7 +108,7 @@ const Development = () => {
 
     const { data: record, error: insertErr } = await supabase
       .from("script_analyses")
-      .insert({ film_id: FILM_ID, file_name: uploadedFile, storage_path: uploadedPath, status: "pending" })
+      .insert({ film_id: filmId!, file_name: uploadedFile, storage_path: uploadedPath, status: "pending" })
       .select()
       .single();
 
