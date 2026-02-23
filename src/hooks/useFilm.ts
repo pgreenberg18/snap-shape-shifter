@@ -106,5 +106,65 @@ export const useIntegrations = () =>
     },
   });
 
+/** Extract unique locations, props, and wardrobe from the latest script breakdown */
+export const useBreakdownAssets = () => {
+  const filmId = useFilmId();
+  return useQuery({
+    queryKey: ["breakdown-assets", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("script_analyses")
+        .select("scene_breakdown")
+        .eq("film_id", filmId!)
+        .eq("status", "complete")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      if (!data?.scene_breakdown || !Array.isArray(data.scene_breakdown)) {
+        return { locations: [] as string[], props: [] as string[], wardrobe: [] as { character: string; clothing: string }[] };
+      }
+      const scenes = data.scene_breakdown as any[];
+      const locationSet = new Set<string>();
+      const propSet = new Set<string>();
+      const wardrobeMap = new Map<string, string>();
+
+      for (const s of scenes) {
+        // Locations from setting field
+        if (s.setting && typeof s.setting === "string" && s.setting !== "N/A") {
+          locationSet.add(s.setting);
+        }
+        // Props from key_objects
+        if (Array.isArray(s.key_objects)) {
+          for (const p of s.key_objects) {
+            if (typeof p === "string" && p.length > 1) propSet.add(p);
+          }
+        }
+        // Wardrobe
+        if (Array.isArray(s.wardrobe)) {
+          for (const w of s.wardrobe) {
+            const char = typeof w === "string" ? "Unknown" : (w?.character || w?.name || "Unknown");
+            const clothing = typeof w === "string" ? w : (w?.clothing_style || w?.condition || "");
+            if (clothing) {
+              const key = `${char}::${clothing}`;
+              if (!wardrobeMap.has(key)) wardrobeMap.set(key, key);
+            }
+          }
+        }
+      }
+
+      return {
+        locations: [...locationSet].sort(),
+        props: [...propSet].sort(),
+        wardrobe: [...wardrobeMap.keys()].map((k) => {
+          const [character, clothing] = k.split("::");
+          return { character, clothing };
+        }),
+      };
+    },
+    enabled: !!filmId,
+  });
+};
+
 /** @deprecated Use useFilmId() instead */
 export const FILM_ID = "00000000-0000-0000-0000-000000000001";

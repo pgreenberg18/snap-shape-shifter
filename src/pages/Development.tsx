@@ -166,14 +166,60 @@ const Development = () => {
   const handleLockScript = async () => {
     if (!filmId) return;
     setLocking(true);
+
+    // 1. Lock the film
     const { error } = await supabase.from("films").update({ script_locked: true } as any).eq("id", filmId);
-    setLocking(false);
     if (error) {
+      setLocking(false);
       toast({ title: "Lock failed", description: error.message, variant: "destructive" });
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
-      toast({ title: "Script Locked", description: "Your script breakdown is now finalized and propagated to production phases." });
+      return;
     }
+
+    // 2. Auto-populate characters from breakdown
+    if (analysis?.scene_breakdown && Array.isArray(analysis.scene_breakdown)) {
+      try {
+        // Extract unique character names from all scenes
+        const nameSet = new Set<string>();
+        for (const scene of analysis.scene_breakdown as any[]) {
+          if (!Array.isArray(scene.characters)) continue;
+          for (const c of scene.characters) {
+            let raw = typeof c === "string" ? c : c?.name;
+            if (!raw || typeof raw !== "string") continue;
+            // Normalize: strip age hints, parentheticals, duplicates
+            raw = raw.replace(/\s*\(.*?\)\s*/g, "").replace(/^"|"$/g, "").trim().toUpperCase();
+            if (raw && raw.length > 1 && !raw.includes("TEAM") && !raw.includes("OFFICERS") && !raw.includes("UNSEEN") && !raw.includes("SILHOUETTE")) {
+              nameSet.add(raw);
+            }
+          }
+        }
+
+        if (nameSet.size > 0) {
+          // Check which characters already exist
+          const { data: existing } = await supabase
+            .from("characters")
+            .select("name")
+            .eq("film_id", filmId);
+          const existingNames = new Set((existing ?? []).map((c) => c.name.toUpperCase()));
+          const newChars = [...nameSet]
+            .filter((n) => !existingNames.has(n))
+            .map((name) => ({
+              film_id: filmId,
+              name: name.charAt(0) + name.slice(1).toLowerCase(), // Title case
+            }));
+
+          if (newChars.length > 0) {
+            await supabase.from("characters").insert(newChars);
+            queryClient.invalidateQueries({ queryKey: ["characters"] });
+          }
+        }
+      } catch (e) {
+        console.error("Failed to auto-populate characters:", e);
+      }
+    }
+
+    setLocking(false);
+    queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+    toast({ title: "Script Locked", description: "Breakdown finalized. Characters and assets propagated to Pre-Production." });
   };
 
   const handleUnlockScript = async () => {
