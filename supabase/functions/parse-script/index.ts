@@ -35,6 +35,7 @@ You MUST return your response as a JSON object with exactly these four keys:
       "characters": [
         {
           "name": "JOHN",
+          "character_introduction": "Only include on the FIRST scene this character appears in. Describe their physical appearance as written in the script: build, height, age, ethnicity, distinguishing features, hair. If the script gives a character description when they are first introduced, use it verbatim. Leave empty string for subsequent appearances.",
           "emotional_tone": "anxious",
           "physical_behavior": "pacing, fidgeting",
           "key_expressions": "furrowed brow, darting eyes"

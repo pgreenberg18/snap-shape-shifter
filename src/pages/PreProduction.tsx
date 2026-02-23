@@ -419,9 +419,9 @@ const PreProduction = () => {
                     </div>
                     <div>
                       <h2 className="font-display text-lg font-bold text-foreground">{selectedChar.name}</h2>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedChar.image_url ? "Identity locked — regenerate to change" : "Run a Casting Call to begin"}
-                      </p>
+                      {selectedChar.image_url && (
+                        <p className="text-xs text-muted-foreground">Identity locked — regenerate to change</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -792,11 +792,18 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   description: string; sex: string; ageMin: number | null; ageMax: number | null; isChild: boolean;
 } | null {
   const nameUpper = charName.toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
-  const descriptions: string[] = [];
+  const nameLower = charName.toLowerCase();
   let sex = "Unknown";
   let ageMin: number | null = null;
   let ageMax: number | null = null;
   let isChild = false;
+
+  // ── 1. Find FIRST appearance and gather introduction-level description ──
+  let firstAppearanceDesc = "";
+  let firstSceneDesc = "";
+  const introFragments: string[] = [];
+  const allBehavior: string[] = [];
+  let foundFirst = false;
 
   for (const scene of scenes) {
     if (!Array.isArray(scene.characters)) continue;
@@ -805,72 +812,202 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
       const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
       if (cName !== nameUpper) continue;
 
-      // Collect behavior/expression descriptions
-      if (c.physical_behavior) descriptions.push(c.physical_behavior);
-      if (c.emotional_tone) descriptions.push(c.emotional_tone);
-      if (c.key_expressions) descriptions.push(c.key_expressions);
+      // First appearance: capture scene description + character details
+      if (!foundFirst) {
+        foundFirst = true;
+        firstSceneDesc = scene.description || "";
+
+        // Character introduction description from AI (if present)
+        if (c.character_introduction) introFragments.push(c.character_introduction);
+        if (c.physical_behavior) introFragments.push(c.physical_behavior);
+        if (c.key_expressions) introFragments.push(c.key_expressions);
+
+        // Check wardrobe on first appearance for physical description
+        if (Array.isArray(scene.wardrobe)) {
+          for (const w of scene.wardrobe) {
+            const wChar = (w.character || "").toUpperCase().trim();
+            if (wChar !== nameUpper) continue;
+            if (w.hair_makeup) introFragments.push(w.hair_makeup);
+            if (w.clothing_style) introFragments.push(w.clothing_style);
+          }
+        }
+      }
+
+      // Collect all physical descriptions across scenes for broader context
+      if (c.physical_behavior) allBehavior.push(c.physical_behavior);
+    }
+  }
+
+  // Build first-appearance description
+  if (introFragments.length > 0) {
+    firstAppearanceDesc = [...new Set(introFragments)].join(". ").replace(/\.\./g, ".").trim();
+    if (firstAppearanceDesc && !firstAppearanceDesc.endsWith(".")) firstAppearanceDesc += ".";
+  }
+
+  // ── 2. Scan ALL scenes for sex via pronouns & role titles ──
+  const FEMALE_PRONOUNS = /\b(she|her|hers|herself|woman|girl|mother|mom|wife|daughter|sister|actress|queen|princess|waitress|hostess|mrs|ms|miss|lady|ma'am|gal|bride|girlfriend|aunt|grandma|grandmother|niece)\b/i;
+  const MALE_PRONOUNS = /\b(he|him|his|himself|man|guy|boy|father|dad|husband|son|brother|actor|king|prince|waiter|mr|sir|gentleman|groom|boyfriend|uncle|grandpa|grandfather|nephew)\b/i;
+  let femaleCues = 0;
+  let maleCues = 0;
+
+  for (const scene of scenes) {
+    // Check scene description for character name + pronoun proximity
+    const desc = (scene.description || "").toLowerCase();
+    if (desc.includes(nameLower)) {
+      // Count pronouns in the same sentence/context as character name
+      const sentences = desc.split(/[.!?]/);
+      for (const sent of sentences) {
+        if (!sent.includes(nameLower)) continue;
+        const fMatches = sent.match(new RegExp(FEMALE_PRONOUNS.source, "gi"));
+        const mMatches = sent.match(new RegExp(MALE_PRONOUNS.source, "gi"));
+        femaleCues += fMatches?.length ?? 0;
+        maleCues += mMatches?.length ?? 0;
+      }
     }
 
-    // Check wardrobe for gender/age clues
+    // Check character entries for this character — look at emotional tone for gendered words
+    if (Array.isArray(scene.characters)) {
+      for (const c of scene.characters) {
+        if (typeof c === "string") continue;
+        const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+        if (cName !== nameUpper) continue;
+        const charText = [c.emotional_tone, c.physical_behavior, c.key_expressions, c.character_introduction].filter(Boolean).join(" ").toLowerCase();
+        const fM = charText.match(new RegExp(FEMALE_PRONOUNS.source, "gi"));
+        const mM = charText.match(new RegExp(MALE_PRONOUNS.source, "gi"));
+        femaleCues += fM?.length ?? 0;
+        maleCues += mM?.length ?? 0;
+      }
+    }
+
+    // Check wardrobe for gendered clothing
     if (Array.isArray(scene.wardrobe)) {
       for (const w of scene.wardrobe) {
         const wChar = (w.character || "").toUpperCase().trim();
         if (wChar !== nameUpper) continue;
-        const clothing = (w.clothing_style || "").toLowerCase();
-        const hairMakeup = (w.hair_makeup || "").toLowerCase();
-        const combined = clothing + " " + hairMakeup;
-
-        // Sex deduction
-        if (sex === "Unknown") {
-          if (/\b(dress|skirt|blouse|heels|lipstick|mascara|her hair)\b/.test(combined)) sex = "Female";
-          else if (/\b(suit|tie|beard|mustache|his hair)\b/.test(combined)) sex = "Male";
-        }
+        const combined = [(w.clothing_style || ""), (w.hair_makeup || "")].join(" ").toLowerCase();
+        if (/\b(dress|skirt|blouse|heels|lipstick|mascara|her hair|bra|pantyhose|earrings|necklace)\b/.test(combined)) femaleCues += 2;
+        if (/\b(suit and tie|tie|beard|mustache|his hair|boxers|cufflinks)\b/.test(combined)) maleCues += 2;
       }
     }
 
-    // Check scene description for age clues
-    const desc = (scene.description || "").toLowerCase();
-    const nameInDesc = charName.toLowerCase();
-    if (desc.includes(nameInDesc)) {
-      // Age patterns
-      const agePatterns = [
-        { re: /\b(\d{1,2})\s*(?:years?\s*old|year-old)\b/i, handler: (m: RegExpMatchArray) => { const a = parseInt(m[1]); return { min: a, max: a }; } },
-        { re: /\bin\s+(?:his|her|their)\s+(?:early\s+)?(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 9 }; } },
-        { re: /\b(?:early)\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 3 }; } },
-        { re: /\b(?:mid)\s*-?\s*(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 3, max: d * 10 + 6 }; } },
-        { re: /\b(?:late)\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 7, max: d * 10 + 9 }; } },
-        { re: /\b(teenager|teen)\b/i, handler: () => ({ min: 13, max: 19 }) },
-        { re: /\b(child|kid|boy|girl)\b/i, handler: () => ({ min: 5, max: 12 }) },
-        { re: /\b(toddler|infant|baby)\b/i, handler: () => ({ min: 0, max: 3 }) },
-        { re: /\b(elderly|old man|old woman)\b/i, handler: () => ({ min: 65, max: 85 }) },
-        { re: /\b(middle.aged)\b/i, handler: () => ({ min: 40, max: 55 }) },
-        { re: /\b(young man|young woman|young adult)\b/i, handler: () => ({ min: 20, max: 30 }) },
-      ];
-      for (const { re, handler } of agePatterns) {
-        const match = desc.match(re);
-        if (match && ageMin === null) {
-          const result = handler(match);
-          ageMin = result.min;
-          ageMax = result.max;
-          if (result.max <= 12) isChild = true;
-        }
-      }
-
-      // Sex from description
-      if (sex === "Unknown") {
-        if (/\b(woman|girl|she|her|mother|wife|daughter|sister|actress|queen|princess)\b/i.test(desc)) sex = "Female";
-        else if (/\b(man|guy|boy|he|his|father|husband|son|brother|actor|king|prince)\b/i.test(desc)) sex = "Male";
+    // Scan dialogue for other characters referring to this character with pronouns
+    // Use image_prompt and video_prompt which often contain "he/she" references
+    for (const field of ["image_prompt", "video_prompt"]) {
+      const prompt = (scene[field] || "").toLowerCase();
+      if (prompt.includes(nameLower) || prompt.includes(nameUpper.toLowerCase())) {
+        const fM = prompt.match(new RegExp(FEMALE_PRONOUNS.source, "gi"));
+        const mM = prompt.match(new RegExp(MALE_PRONOUNS.source, "gi"));
+        femaleCues += fM?.length ?? 0;
+        maleCues += mM?.length ?? 0;
       }
     }
   }
 
-  if (descriptions.length === 0 && sex === "Unknown" && ageMin === null) return null;
+  // Also check recurring_characters in global_elements (e.g. "SARAH (30s, female)")
+  // That data isn't passed here but the character name itself can be gendered
+  const FEMALE_NAMES = /^(sarah|mary|jane|elizabeth|emily|anna|maria|emma|olivia|sophia|charlotte|mia|ava|isabella|amelia|harper|evelyn|abigail|ella|grace|lily|hannah|chloe|victoria|natalie|rachel|rebecca|jessica|jennifer|ashley|amanda|stephanie|katherine|catherine|nicole|melissa|laura|heather|diana|claire|alice|rose|ruth|betty|dorothy|helen|margaret|patricia|linda|barbara|nancy|karen|lisa|donna|carol|sandra|sharon|susan|betty|joan|martha|gloria|teresa|julia|marie)$/i;
+  const MALE_NAMES = /^(john|james|robert|michael|william|david|richard|joseph|thomas|charles|christopher|daniel|matthew|anthony|mark|donald|steven|paul|andrew|joshua|kenneth|kevin|brian|george|timothy|ronald|edward|jason|jeffrey|ryan|jacob|gary|nicholas|eric|jonathan|stephen|larry|justin|scott|brandon|benjamin|samuel|frank|raymond|gregory|jack|dennis|jerry|alexander|patrick|henry|tyler|douglas|peter|adam|nathan|zachary|harold|albert|carl|arthur|lawrence|ralph|eugene|roger|wayne|bruce|howard|antonio|carlos|miguel|luis|rafael)$/i;
+  const firstName = charName.split(/\s+/)[0];
+  if (FEMALE_NAMES.test(firstName)) femaleCues += 3;
+  if (MALE_NAMES.test(firstName)) maleCues += 3;
 
-  // Build a concise description from the first few unique descriptors
-  const uniqueDescs = [...new Set(descriptions)].slice(0, 4);
-  const description = uniqueDescs.join(". ").replace(/\.\./g, ".");
+  if (femaleCues > maleCues && femaleCues >= 2) sex = "Female";
+  else if (maleCues > femaleCues && maleCues >= 2) sex = "Male";
 
-  return { description, sex, ageMin, ageMax, isChild };
+  // ── 3. Scan ALL scenes for age clues ──
+  const AGE_PATTERNS = [
+    { re: /\b(\d{1,2})\s*(?:years?\s*old|year-old|y\.?o\.?)\b/i, handler: (m: RegExpMatchArray) => { const a = parseInt(m[1]); return { min: a, max: a }; } },
+    { re: /\bage\s*(\d{1,2})\b/i, handler: (m: RegExpMatchArray) => { const a = parseInt(m[1]); return { min: a, max: a }; } },
+    { re: /\b(?:in\s+)?(?:his|her|their)\s+early\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 3 }; } },
+    { re: /\b(?:in\s+)?(?:his|her|their)\s+mid[- ]?(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 4, max: d * 10 + 6 }; } },
+    { re: /\b(?:in\s+)?(?:his|her|their)\s+late\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 7, max: d * 10 + 9 }; } },
+    { re: /\b(?:in\s+)?(?:his|her|their)\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 9 }; } },
+    { re: /\bearly\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 3 }; } },
+    { re: /\bmid[- ]?(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 4, max: d * 10 + 6 }; } },
+    { re: /\blate\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 7, max: d * 10 + 9 }; } },
+    { re: /\b(teenager|teen|teenaged)\b/i, handler: () => ({ min: 13, max: 19 }) },
+    { re: /\b(child|kid)\b/i, handler: () => ({ min: 6, max: 12 }) },
+    { re: /\b(toddler|infant|baby|newborn)\b/i, handler: () => ({ min: 0, max: 3 }) },
+    { re: /\b(elderly|aged|geriatric|old man|old woman|aging)\b/i, handler: () => ({ min: 65, max: 85 }) },
+    { re: /\b(middle[- ]?aged)\b/i, handler: () => ({ min: 40, max: 55 }) },
+    { re: /\b(young man|young woman|young adult|twentysomething)\b/i, handler: () => ({ min: 20, max: 30 }) },
+    { re: /\b(college[- ]?age|university)\b/i, handler: () => ({ min: 18, max: 24 }) },
+    { re: /\b(senior|retiree|retired)\b/i, handler: () => ({ min: 60, max: 80 }) },
+  ];
+
+  // Check all text sources for age clues about this character
+  for (const scene of scenes) {
+    if (ageMin !== null) break; // Found age, stop
+    const textsToScan: string[] = [];
+
+    const desc = scene.description || "";
+    if (desc.toLowerCase().includes(nameLower)) textsToScan.push(desc);
+
+    if (Array.isArray(scene.characters)) {
+      for (const c of scene.characters) {
+        if (typeof c === "string") continue;
+        const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+        if (cName !== nameUpper) continue;
+        if (c.character_introduction) textsToScan.push(c.character_introduction);
+        if (c.physical_behavior) textsToScan.push(c.physical_behavior);
+        if (c.emotional_tone) textsToScan.push(c.emotional_tone);
+        if (c.key_expressions) textsToScan.push(c.key_expressions);
+      }
+    }
+
+    // Also check image/video prompts that mention the character
+    for (const field of ["image_prompt", "video_prompt"]) {
+      const prompt = scene[field] || "";
+      if (prompt.toLowerCase().includes(nameLower)) textsToScan.push(prompt);
+    }
+
+    for (const text of textsToScan) {
+      if (ageMin !== null) break;
+      for (const { re, handler } of AGE_PATTERNS) {
+        const match = text.match(re);
+        if (match) {
+          const result = handler(match);
+          ageMin = result.min;
+          ageMax = result.max;
+          if (result.max <= 12) isChild = true;
+          break;
+        }
+      }
+    }
+  }
+
+  // ── 4. Also try to infer age from relative references ("older", "younger") ──
+  if (ageMin === null) {
+    for (const scene of scenes) {
+      const desc = (scene.description || "").toLowerCase();
+      if (desc.includes(nameLower)) {
+        if (/\bolder\b/.test(desc) && !/\byounger\b/.test(desc)) {
+          ageMin = 45; ageMax = 60;
+        } else if (/\byounger\b/.test(desc) && !/\bolder\b/.test(desc)) {
+          ageMin = 22; ageMax = 32;
+        }
+        if (ageMin !== null) break;
+      }
+    }
+  }
+
+  // ── 5. Build description ──
+  // Prefer first-appearance description; fall back to aggregated behavior
+  let description = firstAppearanceDesc;
+  if (!description && firstSceneDesc && firstSceneDesc.toLowerCase().includes(nameLower)) {
+    // Extract the sentence(s) mentioning this character from the scene description
+    const sentences = firstSceneDesc.split(/(?<=[.!?])\s+/);
+    const relevant = sentences.filter(s => s.toLowerCase().includes(nameLower));
+    description = relevant.join(" ").trim();
+  }
+  if (!description && allBehavior.length > 0) {
+    description = [...new Set(allBehavior)].slice(0, 3).join(". ").replace(/\.\./g, ".").trim();
+    if (description && !description.endsWith(".")) description += ".";
+  }
+
+  if (!description && sex === "Unknown" && ageMin === null) return null;
+
+  return { description: description || "", sex, ageMin, ageMax, isChild };
 }
 
 /* ── Audition Card ── */
