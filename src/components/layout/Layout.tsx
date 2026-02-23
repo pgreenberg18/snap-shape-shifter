@@ -3,7 +3,7 @@ import { NavLink, useLocation, useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm } from "@/hooks/useFilm";
 import {
-  Code2,
+  FileText,
   Clapperboard,
   Video,
   Film,
@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 const phases = [
-  { key: "development", icon: Code2, label: "Development" },
+  { key: "development", icon: FileText, label: "Development" },
   { key: "pre-production", icon: Clapperboard, label: "Pre-Production" },
   { key: "production", icon: Video, label: "Production" },
   { key: "post-production", icon: Film, label: "Post-Production" },

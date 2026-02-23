@@ -3,7 +3,7 @@ import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
-  Clock, Save,
+  Clock, Save, Rewind, FastForward,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -75,13 +75,21 @@ const Development = () => {
   const [locking, setLocking] = useState(false);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
+  const [filmTitle, setFilmTitle] = useState("");
+  const [versionName, setVersionName] = useState("");
+  const [writers, setWriters] = useState("");
+  const [metaSaving, setMetaSaving] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
 
   const scriptLocked = !!(film as any)?.script_locked;
 
-  /* Sync time_period from DB */
+  /* Sync film metadata from DB */
   useEffect(() => {
     if (film?.time_period != null) setTimePeriod(film.time_period);
-  }, [film?.time_period]);
+    if (film?.title != null) setFilmTitle(film.title);
+    if (film?.version_name != null) setVersionName(film.version_name ?? "");
+    if ((film as any)?.writers != null) setWriters((film as any).writers ?? "");
+  }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers]);
 
   const uploadFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -250,9 +258,95 @@ const Development = () => {
 
   const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
 
+  const handleSaveMeta = async () => {
+    if (!filmId) return;
+    setMetaSaving(true);
+    const { error } = await supabase.from("films").update({
+      title: filmTitle || undefined,
+      version_name: versionName || null,
+      writers: writers || null,
+    } as any).eq("id", filmId);
+    setMetaSaving(false);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+      toast({ title: "Film details saved" });
+    }
+  };
+
+  /* Extract flashback/flashforward time periods from analysis */
+  const timeShifts = (() => {
+    if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
+    const shifts: { type: string; sceneHeading: string; sceneIndex: number }[] = [];
+    const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory"];
+    for (const [i, scene] of (analysis.scene_breakdown as any[]).entries()) {
+      const heading = (scene.scene_heading || "").toLowerCase();
+      const desc = (scene.description || "").toLowerCase();
+      const combined = `${heading} ${desc}`;
+      for (const kw of FLASHBACK_KEYWORDS) {
+        if (combined.includes(kw)) {
+          const type = kw.includes("forward") || kw.includes("later") ? "Flash Forward" : kw.includes("memory") ? "Memory" : "Flashback";
+          shifts.push({ type, sceneHeading: scene.scene_heading || `Scene ${i + 1}`, sceneIndex: i });
+          break;
+        }
+      }
+    }
+    return shifts;
+  })();
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
-      {/* ── Step 1: Script Upload ── */}
+      {/* ── Film Details ── */}
+      <section>
+        <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
+          <Film className="h-5 w-5 text-primary" /> Film Details
+        </h2>
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+              <Input
+                value={filmTitle}
+                onChange={(e) => setFilmTitle(e.target.value)}
+                placeholder="Film title"
+                disabled={scriptLocked}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Version</Label>
+              <Input
+                value={versionName}
+                onChange={(e) => setVersionName(e.target.value)}
+                placeholder="e.g. Draft 1, Final Cut"
+                disabled={scriptLocked}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
+            <Input
+              value={writers}
+              onChange={(e) => setWriters(e.target.value)}
+              placeholder="e.g. Jane Doe & John Smith"
+              disabled={scriptLocked}
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleSaveMeta}
+              disabled={metaSaving || scriptLocked}
+              className="gap-1.5"
+              size="sm"
+            >
+              {metaSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save Details
+            </Button>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Script Upload ── */}
       <section>
         <h2 className="font-display text-2xl font-bold mb-4">Upload Script</h2>
         {analysis ? (
@@ -328,9 +422,9 @@ const Development = () => {
         <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
           <Clock className="h-5 w-5 text-primary" /> Time Period
         </h2>
-        <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
           <p className="text-sm text-muted-foreground">
-            Set when this film takes place. This anchors the visual language for all downstream phases.
+            Set when most of this film takes place. This anchors the visual language for all downstream phases.
           </p>
           <div className="flex gap-3">
             <Input
@@ -351,8 +445,45 @@ const Development = () => {
           </div>
           {film?.time_period && (
             <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
-              <Clock className="h-3 w-3" /> Locked in: <span className="font-semibold text-foreground">{film.time_period}</span>
+              <Clock className="h-3 w-3" /> Current: <span className="font-semibold text-foreground">{film.time_period}</span>
             </p>
+          )}
+
+          {/* Flashback / Flash Forward time shifts */}
+          {timeShifts.length > 0 && (
+            <div className="border-t border-border pt-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Rewind className="h-4 w-4 text-primary" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Detected Time Shifts ({timeShifts.length})
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The script references flashbacks, flash forwards, or other time periods. Specify when each takes place.
+              </p>
+              <div className="space-y-2">
+                {timeShifts.map((shift, i) => (
+                  <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary p-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                      {shift.type.includes("Forward") ? (
+                        <FastForward className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <Rewind className="h-3.5 w-3.5 text-primary" />
+                      )}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase">{shift.type}</p>
+                    </div>
+                    <Input
+                      placeholder="e.g. 1955, 20 years earlier"
+                      className="w-52 h-8 text-xs"
+                      disabled={scriptLocked}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </section>
@@ -400,14 +531,32 @@ const Development = () => {
                 </div>
               )}
 
-              {/* Scene-by-Scene Breakdown */}
+              {/* Scene-by-Scene Breakdown — Collapsible */}
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
-                <SceneBreakdownSection
-                  scenes={analysis.scene_breakdown as any[]}
-                  storagePath={analysis.storage_path}
-                  onAllApprovedChange={setAllScenesApproved}
-                  analysisId={analysis.id}
-                />
+                <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-5 w-5 text-primary" />
+                        <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                          {(analysis.scene_breakdown as any[]).length} scenes
+                        </span>
+                      </div>
+                      <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="mt-2">
+                      <SceneBreakdownSection
+                        scenes={analysis.scene_breakdown as any[]}
+                        storagePath={analysis.storage_path}
+                        onAllApprovedChange={setAllScenesApproved}
+                        analysisId={analysis.id}
+                      />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
 
               {/* Global Elements */}
@@ -942,12 +1091,12 @@ const EditableSceneContent = ({
       <div className="border-t border-border p-5 space-y-5 text-sm">
         {/* Description */}
         <Section icon={FileText} label="Description">
-          <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="text-xs min-h-[60px] bg-background border-border" />
+          <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="text-xs min-h-[60px] bg-background border-border" style={{ fieldSizing: 'content' } as React.CSSProperties} />
         </Section>
 
         {/* Location */}
         <Section icon={LocateFixed} label="Location">
-          <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" />
+          <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" style={{ fieldSizing: 'content' } as React.CSSProperties} />
         </Section>
 
         {/* Visual Design */}
@@ -1054,7 +1203,7 @@ const EditableSceneContent = ({
 
         {/* Environment & Props */}
         <Section icon={MapPin} label="Environment & Props">
-          <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" placeholder="Environment description…" />
+          <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" placeholder="Environment description…" style={{ fieldSizing: 'content' } as React.CSSProperties} />
           <div className="flex flex-wrap gap-1.5 mt-2">
             {keyObjects.map((obj, i) => (
               <span
@@ -1088,9 +1237,9 @@ const EditableSceneContent = ({
         {/* AI Generation Prompts */}
         <Section icon={Sparkles} label="AI Generation Prompts">
           <p className="text-xs font-mono text-primary/70 mb-1">IMAGE PROMPT</p>
-          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" />
+          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" style={{ fieldSizing: 'content' } as React.CSSProperties} />
           <p className="text-xs font-mono text-primary/70 mb-1 mt-3">VIDEO PROMPT</p>
-          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" />
+          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" style={{ fieldSizing: 'content' } as React.CSSProperties} />
         </Section>
 
         {/* Continuity Flags */}
@@ -1150,7 +1299,7 @@ const EditableSceneContent = ({
 const EditableTag = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => (
   <div className="bg-secondary rounded-lg px-3 py-2">
     <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-1">{label}</p>
-    <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="text-xs min-h-[32px] p-1.5 bg-background border-border resize-none" />
+    <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="text-xs min-h-[32px] p-1.5 bg-background border-border resize-none" style={{ fieldSizing: 'content' } as React.CSSProperties} />
   </div>
 );
 

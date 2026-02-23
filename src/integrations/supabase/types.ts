@@ -188,6 +188,7 @@ export type Database = {
           updated_at: string
           version_name: string | null
           version_number: number
+          writers: string | null
         }
         Insert: {
           copied_from_version_id?: string | null
@@ -201,6 +202,7 @@ export type Database = {
           updated_at?: string
           version_name?: string | null
           version_number?: number
+          writers?: string | null
         }
         Update: {
           copied_from_version_id?: string | null
@@ -214,6 +216,7 @@ export type Database = {
           updated_at?: string
           version_name?: string | null
           version_number?: number
+          writers?: string | null
         }
         Relationships: [
           {
