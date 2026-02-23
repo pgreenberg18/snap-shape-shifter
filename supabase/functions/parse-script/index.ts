@@ -12,11 +12,22 @@ This breakdown is NOT for real-world production scheduling. Ignore budgeting, la
 
 GOAL: Transform the screenplay into visual intelligence that can drive AI image generation, AI video generation, previsualization, storyboards, scene visualization, and asset creation.
 
-You MUST return your response as a JSON object with exactly these four keys:
+CRITICAL: You MUST return your response as a JSON object with exactly these four keys IN THIS EXACT ORDER. Output the smaller metadata fields FIRST, then the large scene array LAST. This ordering is mandatory:
 
 {
   "visual_summary": "A paragraph describing: Genre, Tone/mood, Visual style, Cinematic feel, Scale (intimate/epic/surreal/grounded/stylized)",
-  
+
+  "global_elements": {
+    "recurring_locations": ["Location Name – sub-location or descriptor"],
+    "recurring_characters": ["CHARACTER NAME (age/variant if applicable)"],
+    "recurring_props": ["prop description"],
+    "recurring_wardrobe": ["CHARACTER – outfit/look description"],
+    "visual_motifs": ["motif or recurring visual theme"],
+    "signature_style": "A detailed paragraph describing the film's overall visual signature: dominant color grading, lens choices (anamorphic, vintage, etc.), texture (grain, halation, etc.), lighting philosophy, compositional style, and any recurring visual motifs that define the film's unique look. MUST be a substantive description, never empty."
+  },
+
+  "ai_generation_notes": "A detailed paragraph covering: consistency rules across scenes, character appearance anchors, environment continuity requirements, lighting/color grading notes, any special VFX or practical effects considerations, and style references for AI generation. MUST be substantive and specific to this script, never empty or generic.",
+
   "scene_breakdown": [
     {
       "scene_number": 1,
@@ -65,18 +76,7 @@ You MUST return your response as a JSON object with exactly these four keys:
       "image_prompt": "A disheveled man in a rumpled suit stands in a dimly lit corporate office at night. Harsh fluorescent lighting casts noir shadows through venetian blinds. Desaturated blue tones with warm amber accents. Rain streaks the windows. Intimate handheld camera feel, close-up framing. Cinematic, moody atmosphere.",
       "video_prompt": "Slow handheld drift around a man pacing anxiously in a dark office. He fidgets with a crumpled letter. Rain patters against windows, casting moving light patterns. Fluorescent lights buzz overhead. Camera slowly pushes in on his face. Cinematic noir lighting, desaturated palette."
     }
-  ],
-  
-  "global_elements": {
-    "recurring_locations": ["Location Name – sub-location or descriptor"],
-    "recurring_characters": ["CHARACTER NAME (age/variant if applicable)"],
-    "recurring_props": ["prop description"],
-    "recurring_wardrobe": ["CHARACTER – outfit/look description"],
-    "visual_motifs": ["motif or recurring visual theme"],
-    "signature_style": "A detailed paragraph describing the film's overall visual signature: dominant color grading, lens choices (anamorphic, vintage, etc.), texture (grain, halation, etc.), lighting philosophy, compositional style, and any recurring visual motifs that define the film's unique look. MUST be a substantive description, never empty."
-  },
-  
-  "ai_generation_notes": "A detailed paragraph covering: consistency rules across scenes, character appearance anchors, environment continuity requirements, lighting/color grading notes, any special VFX or practical effects considerations, and style references for AI generation. MUST be substantive and specific to this script, never empty or generic."
+  ]
 }
 
 CRITICAL COMPLETENESS RULES:
@@ -94,6 +94,8 @@ CRITICAL COMPLETENESS RULES:
 - Every scene MUST have an image_prompt and video_prompt
 - Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness
 - signature_style and ai_generation_notes MUST be fully written out with substantive, script-specific content — never leave them empty or generic
+
+CRITICAL OUTPUT ORDER: You MUST output visual_summary, global_elements, and ai_generation_notes BEFORE scene_breakdown. The scene_breakdown array is the largest section and must come LAST in the JSON.
 
 QUALITY CHECK — Before returning, verify:
 1. Total scene count matches the number of scene headings in the script
