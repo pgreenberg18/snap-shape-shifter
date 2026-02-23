@@ -665,12 +665,35 @@ const Development = () => {
 
           {/* Error state */}
           {analysis?.status === "error" && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 flex items-center gap-3">
-              <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-              <div>
-                <p className="font-display font-semibold text-sm">Analysis Failed</p>
-                <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                <div>
+                  <p className="font-display font-semibold text-sm">Analysis Failed</p>
+                  <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
+                </div>
               </div>
+              <Button
+                onClick={async () => {
+                  setAnalyzing(true);
+                  const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
+                    body: { analysis_id: analysis.id },
+                  });
+                  setAnalyzing(false);
+                  if (invokeErr) {
+                    toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
+                  } else {
+                    queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
+                    toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
+                  }
+                }}
+                disabled={isAnalyzing}
+                className="gap-2"
+                variant="outline"
+              >
+                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                Analyze Again
+              </Button>
             </div>
           )}
 
