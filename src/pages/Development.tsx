@@ -2,15 +2,21 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp,
-  AlertTriangle, ScrollText,
+  AlertTriangle, ScrollText, X, Plus, LocateFixed,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -506,123 +512,14 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
 
       {/* Expanded content */}
       {expanded && (
-        <div className="border-t border-border p-5 space-y-5 text-sm">
-          {scene.description && <p className="text-muted-foreground">{scene.description}</p>}
-
-          {/* Visual Design */}
-          {scene.visual_design && (
-            <Section icon={Palette} label="Visual Design">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {scene.visual_design.atmosphere && <Tag label="Atmosphere" value={scene.visual_design.atmosphere} />}
-                {scene.visual_design.lighting_style && <Tag label="Lighting" value={scene.visual_design.lighting_style} />}
-                {scene.visual_design.color_palette && <Tag label="Palette" value={scene.visual_design.color_palette} />}
-                {scene.visual_design.visual_references && <Tag label="References" value={scene.visual_design.visual_references} />}
-              </div>
-            </Section>
-          )}
-
-          {/* Characters */}
-          {scene.characters?.length > 0 && (
-            <Section icon={Users} label="Characters">
-              <div className="space-y-1">
-                {scene.characters.map((c: any, i: number) => (
-                  <p key={i} className="text-muted-foreground">
-                    <span className="text-foreground font-medium">{c.name}</span> — {c.emotional_tone}
-                    {c.key_expressions ? ` · ${c.key_expressions}` : ""}
-                  </p>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Wardrobe */}
-          {scene.wardrobe?.length > 0 && (
-            <Section icon={Users} label="Wardrobe">
-              <div className="space-y-1 text-xs">
-                {scene.wardrobe.map((w: any, i: number) => (
-                  <p key={i} className="text-muted-foreground">
-                    <span className="text-foreground font-medium">{w.character}</span>: {w.clothing_style}
-                    {w.condition ? ` (${w.condition})` : ""}
-                    {w.hair_makeup ? ` — ${w.hair_makeup}` : ""}
-                  </p>
-                ))}
-              </div>
-            </Section>
-          )}
-
-          {/* Cinematic Elements */}
-          {scene.cinematic_elements && (
-            <Section icon={Camera} label="Cinematic Elements">
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {scene.cinematic_elements.camera_feel && <Tag label="Camera" value={scene.cinematic_elements.camera_feel} />}
-                {scene.cinematic_elements.motion_cues && <Tag label="Motion" value={scene.cinematic_elements.motion_cues} />}
-              </div>
-              {scene.cinematic_elements.shot_suggestions?.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  <span className="text-foreground">Shots:</span> {scene.cinematic_elements.shot_suggestions.join(" · ")}
-                </p>
-              )}
-            </Section>
-          )}
-
-          {/* Environment & Props */}
-          {(scene.environment_details || scene.key_objects?.length > 0) && (
-            <Section icon={MapPin} label="Environment & Props">
-              {scene.environment_details && <p className="text-xs text-muted-foreground">{scene.environment_details}</p>}
-              {scene.key_objects?.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-1">
-                  {scene.key_objects.map((obj: string, i: number) => (
-                    <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">{obj}</span>
-                  ))}
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* AI Generation Prompts */}
-          {(scene.image_prompt || scene.video_prompt) && (
-            <Section icon={Sparkles} label="AI Generation Prompts">
-              {scene.image_prompt && (
-                <div className="space-y-1">
-                  <p className="text-xs font-mono text-primary/70">IMAGE PROMPT</p>
-                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">{scene.image_prompt}</pre>
-                </div>
-              )}
-              {scene.video_prompt && (
-                <div className="space-y-1 mt-2">
-                  <p className="text-xs font-mono text-primary/70">VIDEO PROMPT</p>
-                  <pre className="text-xs text-muted-foreground bg-secondary rounded-lg p-3 whitespace-pre-wrap font-mono">{scene.video_prompt}</pre>
-                </div>
-              )}
-            </Section>
-          )}
-
-          {/* Continuity Flags */}
-          {scene.continuity_flags?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5">
-              {scene.continuity_flags.map((flag: string, i: number) => (
-                <span key={i} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5">{flag}</span>
-              ))}
-            </div>
-          )}
-
-          {/* Actions row */}
-          <div className="pt-2 flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={loadScript}>
-              <ScrollText className="h-3.5 w-3.5" />
-              View Script Page
-            </Button>
-            <Button
-              variant={approved ? "secondary" : "default"}
-              size="sm"
-              className="gap-1.5"
-              onClick={onToggleApproved}
-            >
-              <ThumbsUp className="h-3.5 w-3.5" />
-              {approved ? "Approved ✓" : "Approve Scene"}
-            </Button>
-          </div>
-        </div>
+        <EditableSceneContent
+          scene={scene}
+          index={index}
+          storagePath={storagePath}
+          approved={approved}
+          onToggleApproved={onToggleApproved}
+          onLoadScript={loadScript}
+        />
       )}
 
       {/* Script Dialog — printed page appearance */}
@@ -703,6 +600,191 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
     </div>
   );
 };
+
+/* ── Editable Scene Content ── */
+const EditableSceneContent = ({
+  scene, index, storagePath, approved, onToggleApproved, onLoadScript,
+}: {
+  scene: any; index: number; storagePath: string; approved: boolean;
+  onToggleApproved: () => void; onLoadScript: () => void;
+}) => {
+  const [desc, setDesc] = useState<string>(scene.description || "");
+  const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || "");
+  const [lighting, setLighting] = useState<string>(scene.visual_design?.lighting_style || "");
+  const [palette, setPalette] = useState<string>(scene.visual_design?.color_palette || "");
+  const [references, setReferences] = useState<string>(scene.visual_design?.visual_references || "");
+  const [location, setLocation] = useState<string>(scene.setting || scene.scene_heading || "");
+  const [characters, setCharacters] = useState<string>(
+    (scene.characters || []).map((c: any) => `${c.name} — ${c.emotional_tone}${c.key_expressions ? ` · ${c.key_expressions}` : ""}`).join("\n")
+  );
+  const [wardrobe, setWardrobe] = useState<string>(
+    (scene.wardrobe || []).map((w: any) => `${w.character}: ${w.clothing_style}${w.condition ? ` (${w.condition})` : ""}${w.hair_makeup ? ` — ${w.hair_makeup}` : ""}`).join("\n")
+  );
+  const [cameraFeel, setCameraFeel] = useState<string>(scene.cinematic_elements?.camera_feel || "");
+  const [motionCues, setMotionCues] = useState<string>(scene.cinematic_elements?.motion_cues || "");
+  const [shotSuggestions, setShotSuggestions] = useState<string>(
+    (scene.cinematic_elements?.shot_suggestions || []).join(" · ")
+  );
+  const [envDetails, setEnvDetails] = useState<string>(scene.environment_details || "");
+  const [keyObjects, setKeyObjects] = useState<string[]>(scene.key_objects || []);
+  const [imagePrompt, setImagePrompt] = useState<string>(scene.image_prompt || "");
+  const [videoPrompt, setVideoPrompt] = useState<string>(scene.video_prompt || "");
+
+  const [newItem, setNewItem] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ label: string; idx: number } | null>(null);
+
+  const removeObject = (idx: number) => {
+    setKeyObjects((prev) => prev.filter((_, i) => i !== idx));
+    setDeleteTarget(null);
+  };
+
+  const addObject = () => {
+    const val = newItem.trim();
+    if (!val) return;
+    setKeyObjects((prev) => [...prev, val]);
+    setNewItem("");
+  };
+
+  return (
+    <>
+      <div className="border-t border-border p-5 space-y-5 text-sm">
+        {/* Description */}
+        <Section icon={FileText} label="Description">
+          <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border" />
+        </Section>
+
+        {/* Location */}
+        <Section icon={LocateFixed} label="Location">
+          <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-secondary border-border" />
+        </Section>
+
+        {/* Visual Design */}
+        <Section icon={Palette} label="Visual Design">
+          <div className="grid grid-cols-2 gap-2">
+            <EditableTag label="Atmosphere" value={atmosphere} onChange={setAtmosphere} />
+            <EditableTag label="Lighting" value={lighting} onChange={setLighting} />
+            <EditableTag label="Palette" value={palette} onChange={setPalette} />
+            <EditableTag label="References" value={references} onChange={setReferences} />
+          </div>
+        </Section>
+
+        {/* Characters */}
+        <Section icon={Users} label="Characters">
+          <Textarea value={characters} onChange={(e) => setCharacters(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border font-mono" placeholder="CHARACTER — emotion · expression (one per line)" />
+        </Section>
+
+        {/* Wardrobe */}
+        <Section icon={Users} label="Wardrobe">
+          <Textarea value={wardrobe} onChange={(e) => setWardrobe(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border font-mono" placeholder="CHARACTER: outfit (condition) — hair/makeup (one per line)" />
+        </Section>
+
+        {/* Cinematic Elements */}
+        <Section icon={Camera} label="Cinematic Elements">
+          <div className="grid grid-cols-2 gap-2">
+            <EditableTag label="Camera" value={cameraFeel} onChange={setCameraFeel} />
+            <EditableTag label="Motion" value={motionCues} onChange={setMotionCues} />
+          </div>
+          <div className="mt-2">
+            <EditableTag label="Shot Suggestions" value={shotSuggestions} onChange={setShotSuggestions} />
+          </div>
+        </Section>
+
+        {/* Environment & Props */}
+        <Section icon={MapPin} label="Environment & Props">
+          <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-secondary border-border" placeholder="Environment description…" />
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {keyObjects.map((obj, i) => (
+              <span
+                key={i}
+                className="text-xs bg-secondary text-muted-foreground rounded-full pl-2.5 pr-1 py-0.5 border border-border flex items-center gap-1 group"
+              >
+                {obj}
+                <button
+                  onClick={() => setDeleteTarget({ label: obj, idx: i })}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full hover:bg-destructive/20 p-0.5"
+                >
+                  <X className="h-3 w-3 text-destructive" />
+                </button>
+              </span>
+            ))}
+            <div className="flex items-center gap-1">
+              <Input
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addObject())}
+                placeholder="Add item…"
+                className="h-6 text-xs w-28 bg-secondary border-border"
+              />
+              <button onClick={addObject} className="rounded-full p-0.5 hover:bg-primary/10 transition-colors">
+                <Plus className="h-3.5 w-3.5 text-primary" />
+              </button>
+            </div>
+          </div>
+        </Section>
+
+        {/* AI Generation Prompts */}
+        <Section icon={Sparkles} label="AI Generation Prompts">
+          <p className="text-xs font-mono text-primary/70 mb-1">IMAGE PROMPT</p>
+          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-secondary border-border font-mono" />
+          <p className="text-xs font-mono text-primary/70 mb-1 mt-3">VIDEO PROMPT</p>
+          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-secondary border-border font-mono" />
+        </Section>
+
+        {/* Continuity Flags */}
+        {scene.continuity_flags?.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {scene.continuity_flags.map((flag: string, i: number) => (
+              <span key={i} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5">{flag}</span>
+            ))}
+          </div>
+        )}
+
+        {/* Actions row */}
+        <div className="pt-2 flex justify-end gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onLoadScript}>
+            <ScrollText className="h-3.5 w-3.5" />
+            View Script Page
+          </Button>
+          <Button
+            variant={approved ? "secondary" : "default"}
+            size="sm"
+            className="gap-1.5"
+            onClick={onToggleApproved}
+          >
+            <ThumbsUp className="h-3.5 w-3.5" />
+            {approved ? "Approved ✓" : "Approve Scene"}
+          </Button>
+        </div>
+      </div>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove item?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove "{deleteTarget?.label}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleteTarget && removeObject(deleteTarget.idx)}>
+              Remove
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  );
+};
+
+/* ── Editable Tag ── */
+const EditableTag = ({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) => (
+  <div className="bg-secondary rounded-lg px-3 py-2">
+    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-1">{label}</p>
+    <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="text-xs min-h-[32px] p-1.5 bg-background border-border resize-none" />
+  </div>
+);
 
 const Section = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
   <div className="space-y-2">
