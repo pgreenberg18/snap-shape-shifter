@@ -97,7 +97,7 @@ Write concisely in a professional vehicle description style. 2-3 sentences max.`
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-pro-preview",
         messages: [
           { role: "system", content: systemPrompt },
           {
