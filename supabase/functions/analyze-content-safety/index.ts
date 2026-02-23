@@ -166,22 +166,36 @@ Deno.serve(async (req) => {
 function extractSceneTexts(fullText: string, scenes: any[]): { heading: string; text: string; sceneNumber: number }[] {
   const isFdx = fullText.trimStart().startsWith("<?xml") || fullText.includes("<FinalDraft");
   if (isFdx) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(fullText, "text/xml");
-    const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
+    // Parse FDX XML using regex (DOMParser not available in Edge runtime)
+    const paragraphRegex = /<Paragraph[^>]*Type="([^"]*)"[^>]*>([\s\S]*?)<\/Paragraph>/gi;
+    const textRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
+    
+    const paragraphs: { type: string; texts: string }[] = [];
+    let match;
+    while ((match = paragraphRegex.exec(fullText)) !== null) {
+      const type = match[1];
+      const inner = match[2];
+      const texts: string[] = [];
+      let tm;
+      const localTextRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
+      while ((tm = localTextRegex.exec(inner)) !== null) {
+        texts.push(tm[1].replace(/<[^>]*>/g, ""));
+      }
+      paragraphs.push({ type, texts: texts.join("") });
+    }
+
     const result: { heading: string; text: string; sceneNumber: number }[] = [];
     const headingIndices: number[] = [];
     for (let i = 0; i < paragraphs.length; i++) {
-      if (paragraphs[i].getAttribute("Type") === "Scene Heading") headingIndices.push(i);
+      if (paragraphs[i].type === "Scene Heading") headingIndices.push(i);
     }
     for (let h = 0; h < headingIndices.length; h++) {
       const startIdx = headingIndices[h];
       const endIdx = h + 1 < headingIndices.length ? headingIndices[h + 1] : paragraphs.length;
-      const headingText = Array.from(paragraphs[startIdx].querySelectorAll("Text")).map((t) => t.textContent || "").join("").trim();
+      const headingText = paragraphs[startIdx].texts.trim();
       const sceneText: string[] = [];
       for (let i = startIdx; i < endIdx; i++) {
-        const texts = Array.from(paragraphs[i].querySelectorAll("Text")).map((t) => t.textContent || "").join("");
-        if (texts.trim()) sceneText.push(texts);
+        if (paragraphs[i].texts.trim()) sceneText.push(paragraphs[i].texts);
       }
       const matchedScene = scenes.find((s: any) => s.scene_heading && headingText.toUpperCase().includes(s.scene_heading.toUpperCase()));
       result.push({ heading: headingText, text: sceneText.join("\n"), sceneNumber: matchedScene?.scene_number ?? h + 1 });
