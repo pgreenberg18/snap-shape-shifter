@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useCharacters, useShots, useBreakdownAssets } from "@/hooks/useFilm";
+import { useCharacters, useShots, useBreakdownAssets, useFilmId } from "@/hooks/useFilm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
+import LocationsGroupPane from "@/components/pre-production/LocationsGroupPane";
 
 /* ── Audition card type ── */
 interface AuditionCard {
@@ -52,6 +53,7 @@ const PLACEHOLDER_FACES = [
 
 const PreProduction = () => {
   const { data: characters, isLoading } = useCharacters();
+  const filmId = useFilmId();
   const { data: breakdownAssets } = useBreakdownAssets();
   const queryClient = useQueryClient();
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
@@ -369,11 +371,9 @@ const PreProduction = () => {
 
         {/* ═══ PLACEHOLDER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <BreakdownListPane
-            icon={MapPin}
-            title="Locations"
-            emptyMessage="No locations extracted from script breakdown yet. Lock your script in the Development phase."
-            items={breakdownAssets?.locations ?? []}
+          <LocationsGroupPane
+            locations={breakdownAssets?.locations ?? []}
+            filmId={filmId}
           />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
