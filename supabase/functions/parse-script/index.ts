@@ -67,10 +67,11 @@ You MUST return your response as a JSON object with exactly these four keys:
   ],
   
   "global_elements": {
-    "recurring_locations": [],
-    "recurring_props": [],
-    "recurring_wardrobe": [],
-    "visual_motifs": [],
+    "recurring_locations": ["Location Name – sub-location or descriptor"],
+    "recurring_characters": ["CHARACTER NAME (age/variant if applicable)"],
+    "recurring_props": ["prop description"],
+    "recurring_wardrobe": ["CHARACTER – outfit/look description"],
+    "visual_motifs": ["motif or recurring visual theme"],
     "signature_style": ""
   },
   
