@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.generate-headshot]
 verify_jwt = false
+
+[functions.analyze-reference-image]
+verify_jwt = false
