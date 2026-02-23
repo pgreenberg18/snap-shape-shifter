@@ -3,6 +3,7 @@ import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
+  Clock, Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -72,8 +73,15 @@ const Development = () => {
   const [allScenesApproved, setAllScenesApproved] = useState(false);
   const [contentSafetyRun, setContentSafetyRun] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [timePeriod, setTimePeriod] = useState("");
+  const [timePeriodSaving, setTimePeriodSaving] = useState(false);
 
   const scriptLocked = !!(film as any)?.script_locked;
+
+  /* Sync time_period from DB */
+  useEffect(() => {
+    if (film?.time_period != null) setTimePeriod(film.time_period);
+  }, [film?.time_period]);
 
   const uploadFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -181,6 +189,19 @@ const Development = () => {
     }
   };
 
+  const handleSaveTimePeriod = async () => {
+    if (!filmId) return;
+    setTimePeriodSaving(true);
+    const { error } = await supabase.from("films").update({ time_period: timePeriod || null }).eq("id", filmId);
+    setTimePeriodSaving(false);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+      toast({ title: "Time period saved", description: timePeriod || "Cleared" });
+    }
+  };
+
   const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
 
   return (
@@ -254,6 +275,40 @@ const Development = () => {
             )}
           </Button>
         )}
+      </section>
+
+      {/* ── Time Period ── */}
+      <section>
+        <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-primary" /> Time Period
+        </h2>
+        <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Set when this film takes place. This anchors the visual language for all downstream phases.
+          </p>
+          <div className="flex gap-3">
+            <Input
+              placeholder="e.g. 1970s Los Angeles, Near-future 2084, Victorian England"
+              value={timePeriod}
+              onChange={(e) => setTimePeriod(e.target.value)}
+              disabled={scriptLocked}
+              className="flex-1"
+            />
+            <Button
+              onClick={handleSaveTimePeriod}
+              disabled={timePeriodSaving || scriptLocked || timePeriod === (film?.time_period ?? "")}
+              className="gap-1.5 shrink-0"
+            >
+              {timePeriodSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              Save
+            </Button>
+          </div>
+          {film?.time_period && (
+            <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+              <Clock className="h-3 w-3" /> Locked in: <span className="font-semibold text-foreground">{film.time_period}</span>
+            </p>
+          )}
+        </div>
       </section>
 
       {/* ── Step 2: Analysis Results / Review Section ── */}
