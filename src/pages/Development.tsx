@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -1191,38 +1192,46 @@ const ContentSafetyMatrix = ({
               {MPAA_CATEGORIES.map(({ key, label, desc }) => {
                 const catFlags = flagsByCategory[key] || [];
                 return (
-                  <div key={key} className="rounded-lg border border-border bg-secondary/50 p-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-semibold">{label}</p>
-                        <p className="text-xs text-muted-foreground">{desc}</p>
+                  <Collapsible key={key}>
+                    <CollapsibleTrigger className="w-full">
+                      <div className="rounded-lg border border-border bg-secondary/50 p-3 hover:bg-secondary/80 transition-colors cursor-pointer">
+                        <div className="flex items-center justify-between">
+                          <div className="text-left">
+                            <p className="text-sm font-semibold">{label}</p>
+                            <p className="text-xs text-muted-foreground">{desc}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {catFlags.length > 0 ? (
+                              <span className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                                {catFlags.length} flag{catFlags.length !== 1 ? "s" : ""}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/50">Clear</span>
+                            )}
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+                          </div>
+                        </div>
                       </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
                       {catFlags.length > 0 ? (
-                        <span className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
-                          {catFlags.length} flag{catFlags.length !== 1 ? "s" : ""}
-                        </span>
+                        <div className="space-y-2 mt-2 ml-2">
+                          {catFlags.map((flag, fi) => {
+                            const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
+                            return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
+                          })}
+                        </div>
                       ) : (
-                        <span className="text-xs text-muted-foreground/50">Clear</span>
+                        <div className="mt-2 ml-2 p-3 text-xs text-muted-foreground/50 text-center">
+                          No issues in this category
+                        </div>
                       )}
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })}
             </div>
-            {flags.length > 0 ? (
-              <div className="space-y-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Flagged Content — {flags.length} issue{flags.length !== 1 ? "s" : ""} found
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Click on a scene to expand and review its details. Offending script text is highlighted.
-                </p>
-                {flags.map((flag, fi) => {
-                  const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
-                  return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
-                })}
-              </div>
-            ) : (
+            {flags.length === 0 && (
               <div className="text-center py-6 text-muted-foreground">
                 <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-400" />
                 <p className="text-sm font-medium">No content concerns detected</p>
