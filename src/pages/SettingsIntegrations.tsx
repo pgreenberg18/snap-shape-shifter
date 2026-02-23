@@ -23,7 +23,51 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 
-/* ── Section metadata — ordered to match production workflow ── */
+/* ── Service catalogs per section ── */
+type ServiceDef = { id: string; name: string; placeholder: string };
+
+const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
+  "script-analysis": [
+    { id: "openai-chat", name: "ChatGPT (OpenAI)", placeholder: "Enter OpenAI API key…" },
+    { id: "gemini", name: "Gemini (Google)", placeholder: "Enter Gemini API key…" },
+    { id: "claude", name: "Claude (Anthropic)", placeholder: "Enter Anthropic API key…" },
+    { id: "mistral", name: "Mistral AI", placeholder: "Enter Mistral API key…" },
+    { id: "llama", name: "Llama (Meta)", placeholder: "Enter API key…" },
+  ],
+  "image-generation": [
+    { id: "midjourney", name: "Midjourney", placeholder: "Enter Midjourney API key…" },
+    { id: "dall-e", name: "DALL·E 3 (OpenAI)", placeholder: "Enter OpenAI API key…" },
+    { id: "flux-pro", name: "Flux Pro (Black Forest Labs)", placeholder: "Enter BFL API key…" },
+    { id: "stable-diffusion", name: "Stable Diffusion (Stability AI)", placeholder: "Enter Stability API key…" },
+    { id: "ideogram", name: "Ideogram", placeholder: "Enter Ideogram API key…" },
+    { id: "leonardo", name: "Leonardo AI", placeholder: "Enter Leonardo API key…" },
+    { id: "recraft", name: "Recraft V3", placeholder: "Enter Recraft API key…" },
+    { id: "nana-banana", name: "Nana Banana Pro", placeholder: "Enter API key…" },
+  ],
+  "sound-stage": [
+    { id: "elevenlabs", name: "ElevenLabs", placeholder: "Enter ElevenLabs API key…" },
+    { id: "playht", name: "Play.ht", placeholder: "Enter Play.ht API key…" },
+    { id: "murf", name: "Murf AI", placeholder: "Enter Murf API key…" },
+    { id: "wellsaid", name: "WellSaid Labs", placeholder: "Enter WellSaid API key…" },
+    { id: "resemble", name: "Resemble AI", placeholder: "Enter Resemble API key…" },
+  ],
+  "camera-cart": [
+    { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…" },
+    { id: "kling", name: "Kling AI", placeholder: "Enter Kling API key…" },
+    { id: "sora", name: "Sora (OpenAI)", placeholder: "Enter Sora API key…" },
+    { id: "runway", name: "Runway Gen-3", placeholder: "Enter Runway API key…" },
+    { id: "pika", name: "Pika Labs", placeholder: "Enter Pika API key…" },
+    { id: "luma", name: "Luma Dream Machine", placeholder: "Enter Luma API key…" },
+  ],
+  "post-house": [
+    { id: "synclabs", name: "SyncLabs", placeholder: "Enter SyncLabs API key…" },
+    { id: "topaz", name: "Topaz AI", placeholder: "Enter Topaz API key…" },
+    { id: "descript", name: "Descript", placeholder: "Enter Descript API key…" },
+    { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…" },
+  ],
+};
+
+/* ── Section metadata ── */
 const sectionOrder = [
   "script-analysis",
   "image-generation",
@@ -32,59 +76,53 @@ const sectionOrder = [
   "post-house",
 ] as const;
 
-const sectionMeta: Record<string, { title: string; description: string; icon: React.ReactNode }> = {
+const sectionMeta: Record<string, { title: string; description: string; icon: React.ReactNode; addLabel: string }> = {
   "script-analysis": {
     title: "Script Analysis (ChatGPT, Gemini)",
     description: "LLM providers for script parsing and scene breakdown",
     icon: <ScrollText className="h-4 w-4" />,
+    addLabel: "Add LLM Provider",
   },
   "image-generation": {
     title: "Image Generation",
     description: "AI image generators for character headshots, storyboards & concept art",
     icon: <Image className="h-4 w-4" />,
+    addLabel: "Add Image Generator",
   },
   "sound-stage": {
     title: "Voice & Audio (ElevenLabs)",
     description: "Voice synthesis and audio generation",
     icon: <AudioLines className="h-4 w-4" />,
+    addLabel: "Add Voice Provider",
   },
   "camera-cart": {
     title: "Video Generation (Seedance, Kling, Sora)",
     description: "AI video generation for shot previsualization",
     icon: <Camera className="h-4 w-4" />,
+    addLabel: "Add Video Generator",
   },
   "post-house": {
     title: "Post-Production (SyncLabs, Topaz AI)",
     description: "Lip-sync, upscaling and post-processing tools",
     icon: <Clapperboard className="h-4 w-4" />,
+    addLabel: "Add Post Tool",
   },
 };
 
-/* ── Image generation service catalog ── */
-const IMAGE_GENERATORS = [
-  { id: "midjourney", name: "Midjourney", placeholder: "Enter Midjourney API key…" },
-  { id: "dall-e", name: "DALL·E 3 (OpenAI)", placeholder: "Enter OpenAI API key…" },
-  { id: "flux-pro", name: "Flux Pro (Black Forest Labs)", placeholder: "Enter BFL API key…" },
-  { id: "stable-diffusion", name: "Stable Diffusion (Stability AI)", placeholder: "Enter Stability API key…" },
-  { id: "ideogram", name: "Ideogram", placeholder: "Enter Ideogram API key…" },
-  { id: "leonardo", name: "Leonardo AI", placeholder: "Enter Leonardo API key…" },
-  { id: "recraft", name: "Recraft V3", placeholder: "Enter Recraft API key…" },
-  { id: "nana-banana", name: "Nana Banana Pro", placeholder: "Enter API key…" },
-] as const;
-
-/* ── Legacy section_id mapping ── */
 const LEGACY_SECTION_MAP: Record<string, string> = {
   "writers-room": "script-analysis",
 };
 
+/* ── Component ── */
 const SettingsIntegrations = () => {
   const { data: integrations, isLoading } = useIntegrations();
   const [keys, setKeys] = useState<Record<string, string>>({});
-  const [addingImageGen, setAddingImageGen] = useState(false);
-  const [selectedImageGen, setSelectedImageGen] = useState("");
-  const [imageGenKey, setImageGenKey] = useState("");
-  const [imageGenSaving, setImageGenSaving] = useState(false);
-  const [addedImageGens, setAddedImageGens] = useState<Array<{ id: string; name: string; verified: boolean }>>([]);
+  // Per-section add state
+  const [addingSection, setAddingSection] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState("");
+  const [serviceKey, setServiceKey] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [addedServices, setAddedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -96,30 +134,35 @@ const SettingsIntegrations = () => {
     toast({ title: "Connected", description: "API key saved and verified." });
   };
 
-  const handleAddImageGen = async () => {
-    if (!selectedImageGen || !imageGenKey) return;
-    setImageGenSaving(true);
-    const gen = IMAGE_GENERATORS.find((g) => g.id === selectedImageGen);
-    // For now store locally — could persist to integrations table
-    setAddedImageGens((prev) => [...prev, { id: selectedImageGen, name: gen?.name || selectedImageGen, verified: true }]);
-    setSelectedImageGen("");
-    setImageGenKey("");
-    setAddingImageGen(false);
-    setImageGenSaving(false);
-    toast({ title: "Image generator added", description: `${gen?.name} connected.` });
+  const handleAddService = (sectionId: string) => {
+    if (!selectedService || !serviceKey) return;
+    setSaving(true);
+    const catalog = SERVICE_CATALOGS[sectionId] || [];
+    const svc = catalog.find((s) => s.id === selectedService);
+    setAddedServices((prev) => ({
+      ...prev,
+      [sectionId]: [...(prev[sectionId] || []), { id: selectedService, name: svc?.name || selectedService }],
+    }));
+    setSelectedService("");
+    setServiceKey("");
+    setAddingSection(null);
+    setSaving(false);
+    toast({ title: "Service added", description: `${svc?.name} connected.` });
+  };
+
+  const openAdd = (sectionId: string) => {
+    setAddingSection(sectionId);
+    setSelectedService("");
+    setServiceKey("");
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
-  /* Group integrations by section, mapping legacy IDs */
   const grouped = integrations?.reduce((acc, int) => {
     const mappedSection = LEGACY_SECTION_MAP[int.section_id] || int.section_id;
     (acc[mappedSection] ??= []).push(int);
     return acc;
   }, {} as Record<string, typeof integrations>) ?? {};
-
-  const alreadyAddedIds = new Set(addedImageGens.map((g) => g.id));
-  const availableImageGens = IMAGE_GENERATORS.filter((g) => !alreadyAddedIds.has(g.id));
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
@@ -136,7 +179,11 @@ const SettingsIntegrations = () => {
           const meta = sectionMeta[sectionId];
           if (!meta) return null;
           const providers = grouped[sectionId];
-          const isImageGen = sectionId === "image-generation";
+          const catalog = SERVICE_CATALOGS[sectionId] || [];
+          const added = addedServices[sectionId] || [];
+          const addedIds = new Set(added.map((s) => s.id));
+          const available = catalog.filter((s) => !addedIds.has(s.id));
+          const isAdding = addingSection === sectionId;
 
           return (
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
@@ -167,78 +214,74 @@ const SettingsIntegrations = () => {
                     </div>
                   ))}
 
-                  {/* Image Generation — added services */}
-                  {isImageGen && addedImageGens.map((gen) => (
-                    <div key={gen.id} className="rounded-lg border border-border bg-secondary p-4">
+                  {/* Locally added services */}
+                  {added.map((svc) => (
+                    <div key={svc.id} className="rounded-lg border border-border bg-secondary p-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{gen.name}</p>
+                        <p className="text-sm font-medium">{svc.name}</p>
                         <Check className="h-4 w-4 text-green-400" />
                       </div>
                     </div>
                   ))}
 
-                  {/* Image Generation — add new service */}
-                  {isImageGen && (
-                    <>
-                      {addingImageGen ? (
-                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold">Add Image Generator</p>
-                            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAddingImageGen(false)}>
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Service</Label>
-                            <Select value={selectedImageGen} onValueChange={setSelectedImageGen}>
-                              <SelectTrigger className="bg-background">
-                                <SelectValue placeholder="Select an image generator…" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {availableImageGens.map((gen) => (
-                                  <SelectItem key={gen.id} value={gen.id}>{gen.name}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          {selectedImageGen && (
-                            <div className="space-y-1.5">
-                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">API Key</Label>
-                              <Input
-                                type="password"
-                                placeholder={IMAGE_GENERATORS.find((g) => g.id === selectedImageGen)?.placeholder || "Enter API key…"}
-                                value={imageGenKey}
-                                onChange={(e) => setImageGenKey(e.target.value)}
-                                className="font-mono text-xs bg-background border-border"
-                              />
-                            </div>
-                          )}
-                          <Button
-                            size="sm"
-                            className="gap-1.5 w-full"
-                            disabled={!selectedImageGen || !imageGenKey || imageGenSaving}
-                            onClick={handleAddImageGen}
-                          >
-                            <Plug className="h-3.5 w-3.5" />
-                            Connect & Verify
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 w-full border-dashed"
-                          onClick={() => setAddingImageGen(true)}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Image Generator
+                  {/* Add new service form */}
+                  {isAdding ? (
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm font-semibold">{meta.addLabel}</p>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAddingSection(null)}>
+                          <X className="h-4 w-4" />
                         </Button>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Service</Label>
+                        <Select value={selectedService} onValueChange={setSelectedService}>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder="Select a service…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {available.map((svc) => (
+                              <SelectItem key={svc.id} value={svc.id}>{svc.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {selectedService && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground">API Key</Label>
+                          <Input
+                            type="password"
+                            placeholder={catalog.find((s) => s.id === selectedService)?.placeholder || "Enter API key…"}
+                            value={serviceKey}
+                            onChange={(e) => setServiceKey(e.target.value)}
+                            className="font-mono text-xs bg-background border-border"
+                          />
+                        </div>
                       )}
-                    </>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 w-full"
+                        disabled={!selectedService || !serviceKey || saving}
+                        onClick={() => handleAddService(sectionId)}
+                      >
+                        <Plug className="h-3.5 w-3.5" />
+                        Connect & Verify
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 w-full border-dashed"
+                      onClick={() => openAdd(sectionId)}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      {meta.addLabel}
+                    </Button>
                   )}
 
-                  {/* Empty state for non-image sections */}
-                  {!isImageGen && (!providers || providers.length === 0) && (
+                  {/* Empty hint when nothing configured */}
+                  {(!providers || providers.length === 0) && added.length === 0 && !isAdding && (
                     <p className="text-xs text-muted-foreground italic">No providers configured yet.</p>
                   )}
                 </div>
