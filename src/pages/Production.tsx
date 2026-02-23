@@ -1,170 +1,161 @@
-import { useState, useCallback } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { Crosshair, Circle } from "lucide-react";
+import { useState } from "react";
+import { Film, Camera, ChevronRight } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useFilmId } from "@/hooks/useFilm";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+const useLatestAnalysis = (filmId: string | undefined) =>
+  useQuery({
+    queryKey: ["script-analysis", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("script_analyses")
+        .select("*")
+        .eq("film_id", filmId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+  });
 
 const Production = () => {
-  const [isRecording, setIsRecording] = useState(false);
-  const [panSpeed, setPanSpeed] = useState(50);
-  const [zoom, setZoom] = useState(30);
+  const filmId = useFilmId();
+  const { data: analysis } = useLatestAnalysis(filmId);
+  const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
 
-  const handleShootTake = useCallback(() => {
-    setIsRecording(true);
-    setTimeout(() => setIsRecording(false), 3000);
-  }, []);
+  const scenes: any[] =
+    analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
+      ? (analysis.scene_breakdown as any[])
+      : [];
+
+  const activeScene = activeSceneIdx !== null ? scenes[activeSceneIdx] : null;
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Top 60% — Viewfinder */}
-      <div className="relative flex-[6] bg-black flex items-center justify-center overflow-hidden">
-        {/* Safe-action margin */}
-        <div className="absolute inset-6 border border-white/10 rounded pointer-events-none" />
-        <div className="absolute inset-12 border border-white/5 rounded pointer-events-none" />
-
-        {/* Crosshairs */}
-        <Crosshair className="h-12 w-12 text-white/20" />
-
-        {/* HUD corners */}
-        <div className="absolute top-4 left-4 text-[10px] font-mono text-white/30 space-y-0.5">
-          <p>SC: 01 | TK: —</p>
-          <p>24fps | 4096×2160</p>
-        </div>
-        <div className="absolute top-4 right-4 text-[10px] font-mono text-white/30">
-          ISO 800 | f/2.8
-        </div>
-        <div className="absolute bottom-4 left-4 text-[10px] font-mono text-white/30">
-          00:00:00:00
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* ── Left: Scene Navigator (25%) ── */}
+      <aside className="w-1/4 min-w-[260px] max-w-[360px] border-r border-border bg-card flex flex-col">
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          <Film className="h-4 w-4 text-primary" />
+          <h2 className="font-display text-sm font-bold tracking-wide uppercase text-foreground">
+            Scene Navigator
+          </h2>
+          <span className="ml-auto text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+            {scenes.length}
+          </span>
         </div>
 
-        {/* REC indicator */}
-        {isRecording && (
-          <div className="absolute top-4 right-4 flex items-center gap-1.5 animate-pulse">
-            <Circle className="h-3 w-3 fill-red-500 text-red-500" />
-            <span className="text-xs font-mono font-bold text-red-500">REC</span>
+        <ScrollArea className="flex-1">
+          {scenes.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
+              <p className="font-display font-semibold mb-1">No scenes available</p>
+              <p className="text-xs">Upload and analyze a script in the Development phase first.</p>
+            </div>
+          ) : (
+            <div className="py-1">
+              {scenes.map((scene: any, i: number) => {
+                const isActive = activeSceneIdx === i;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setActiveSceneIdx(i)}
+                    className={cn(
+                      "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors border-l-2",
+                      isActive
+                        ? "border-l-primary bg-primary/5"
+                        : "border-l-transparent hover:bg-secondary/60"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-mono font-bold mt-0.5",
+                        isActive
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-muted-foreground"
+                      )}
+                    >
+                      {scene.scene_number ?? i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className={cn(
+                          "text-xs font-display font-semibold truncate",
+                          isActive ? "text-primary" : "text-foreground"
+                        )}
+                      >
+                        {scene.scene_heading || "Untitled Scene"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                        {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-1" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+      </aside>
+
+      {/* ── Right: Shot Construction Zone (75%) ── */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {activeScene ? (
+          <div className="flex-1 flex flex-col">
+            {/* Scene header bar */}
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card/60 backdrop-blur-sm">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-mono font-bold">
+                {activeScene.scene_number ?? (activeSceneIdx! + 1)}
+              </span>
+              <div>
+                <h1 className="font-display text-lg font-bold text-foreground">
+                  {activeScene.scene_heading || "Untitled Scene"}
+                </h1>
+                <p className="text-xs text-muted-foreground">
+                  {activeScene.int_ext} · {activeScene.time_of_day}
+                  {activeScene.setting && ` · ${activeScene.setting}`}
+                </p>
+              </div>
+            </div>
+
+            {/* Placeholder content area */}
+            <div className="flex-1 flex items-center justify-center p-8">
+              <div className="text-center space-y-3 max-w-md">
+                <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center cinema-glow">
+                  <Camera className="h-8 w-8 text-primary" />
+                </div>
+                <h2 className="font-display text-xl font-bold text-foreground">
+                  Shot Construction
+                </h2>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Build shots for <span className="text-primary font-medium">{activeScene.scene_heading}</span>. 
+                  Camera angles, prompts, and AI generation controls will appear here.
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+                <Camera className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h2 className="font-display text-xl font-bold text-foreground">
+                Select a Scene to Begin Shot Construction
+              </h2>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Choose a scene from the navigator to start building shots, camera angles, and AI generation prompts.
+              </p>
+            </div>
           </div>
         )}
-      </div>
-
-      {/* Bottom 40% — Control Deck */}
-      <div className="flex-[4] bg-card border-t border-border p-6 overflow-y-auto">
-        <Tabs defaultValue="auto" className="w-full">
-          <TabsList className="w-full max-w-md bg-secondary mb-6">
-            <TabsTrigger value="auto" className="flex-1">Auto</TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
-            <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="auto">
-            <div className="text-center py-8">
-              <p className="font-display font-semibold">AI Camera Operator</p>
-              <p className="text-sm text-muted-foreground mt-1">Camera movement will be auto-generated from scene description.</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="templates">
-            <div className="grid grid-cols-4 gap-3">
-              {["Dolly In", "Crane Up", "Steadicam Walk", "Whip Pan", "Push In", "Pull Out", "Dutch Tilt", "Orbit"].map((t) => (
-                <button
-                  key={t}
-                  className="rounded-lg border border-border bg-secondary p-3 text-xs font-medium hover:border-primary/50 transition-colors"
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="custom">
-            <div className="grid grid-cols-2 gap-6">
-              {/* Skeuomorphic sliders */}
-              <div className="space-y-5">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Pan Speed — {panSpeed}%
-                  </label>
-                  <div className="relative h-3 rounded-full bg-gradient-to-r from-secondary to-accent overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full"
-                      style={{
-                        width: `${panSpeed}%`,
-                        background: "linear-gradient(to right, hsl(51 100% 50% / 0.6), hsl(51 100% 50%))",
-                      }}
-                    />
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={panSpeed}
-                      onChange={(e) => setPanSpeed(Number(e.target.value))}
-                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                    />
-                  </div>
-                  {/* Metallic grab handle indicator */}
-                  <div className="flex justify-start" style={{ paddingLeft: `calc(${panSpeed}% - 8px)` }}>
-                    <div className="h-5 w-4 rounded-sm bg-gradient-to-b from-gray-300 to-gray-500 border border-gray-400 shadow-md" />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                    Zoom — {zoom}%
-                  </label>
-                  <div className="relative h-3 rounded-full bg-gradient-to-r from-secondary to-accent overflow-hidden">
-                    <div
-                      className="absolute inset-y-0 left-0 rounded-full"
-                      style={{
-                        width: `${zoom}%`,
-                        background: "linear-gradient(to right, hsl(51 100% 50% / 0.6), hsl(51 100% 50%))",
-                      }}
-                    />
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={zoom}
-                      onChange={(e) => setZoom(Number(e.target.value))}
-                      className="absolute inset-0 w-full opacity-0 cursor-pointer"
-                    />
-                  </div>
-                  <div className="flex justify-start" style={{ paddingLeft: `calc(${zoom}% - 8px)` }}>
-                    <div className="h-5 w-4 rounded-sm bg-gradient-to-b from-gray-300 to-gray-500 border border-gray-400 shadow-md" />
-                  </div>
-                </div>
-              </div>
-
-              {/* JSON Prompt Injection */}
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                  Raw Prompt (JSON)
-                </label>
-                <Textarea
-                  className="h-32 font-mono text-xs bg-secondary border-border resize-none"
-                  placeholder='{"camera_motion": "dolly_in", "speed": 0.5, "easing": "ease-in-out"}'
-                />
-              </div>
-            </div>
-          </TabsContent>
-        </Tabs>
-
-        {/* Shoot Take Button */}
-        <div className="mt-6 flex justify-center">
-          <button
-            onClick={handleShootTake}
-            disabled={isRecording}
-            className="relative rounded-full px-12 py-3.5 font-display font-bold text-white text-sm uppercase tracking-wider transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{
-              background: isRecording
-                ? "linear-gradient(180deg, #993D5C, #662244)"
-                : "linear-gradient(180deg, #FF3366, #CC1144)",
-              boxShadow: isRecording
-                ? "inset 0 2px 6px hsl(0 0% 0% / 0.4)"
-                : "inset 0 1px 0 hsl(0 0% 100% / 0.15), 0 4px 16px hsl(345 100% 40% / 0.4)",
-            }}
-          >
-            {isRecording ? "● Recording…" : "⏺ Shoot Take"}
-          </button>
-        </div>
-      </div>
+      </main>
     </div>
   );
 };
