@@ -4,12 +4,14 @@ import { useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ── Types ── */
+export type CharacterTier = "LEAD" | "STRONG_SUPPORT" | "FEATURE" | "UNDER_5" | "BACKGROUND";
+
 export interface CharacterRanking {
   name: string;
   nameNormalized: string;
   rank: number;
   score: number;
-  tier: "A" | "B" | "C";
+  tier: CharacterTier;
   wordsSpoken: number;
   dialogueScenes: number;
   appearanceScenes: number;
@@ -138,7 +140,7 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
       nameNormalized: e.name.toUpperCase(),
       rank: 0,
       score,
-      tier: "C" as const,
+      tier: "BACKGROUND" as CharacterTier,
       wordsSpoken: e.words,
       dialogueScenes: e.dialogueScenes.size,
       appearanceScenes: e.appearanceScenes.size,
@@ -158,13 +160,54 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
     return b.pageDensity - a.pageDensity;
   });
 
-  // Assign ranks and tiers
-  rankings.forEach((r, i) => {
-    r.rank = i + 1;
-    if (i < 3) r.tier = "A";
-    else if (i < 10) r.tier = "B";
-    else r.tier = "C";
-  });
+  // Assign ranks
+  rankings.forEach((r, i) => { r.rank = i + 1; });
+
+  // Apply 5-tier grouping with guardrails
+  const LEAD_COUNT = 2;
+  const STRONG_SUPPORT_COUNT = 6;
+  const FEATURE_COUNT = 10;
+
+  const tierByRank = (rank: number): CharacterTier => {
+    if (rank <= LEAD_COUNT) return "LEAD";
+    if (rank <= LEAD_COUNT + STRONG_SUPPORT_COUNT) return "STRONG_SUPPORT";
+    if (rank <= LEAD_COUNT + STRONG_SUPPORT_COUNT + FEATURE_COUNT) return "FEATURE";
+    return "UNDER_5";
+  };
+
+  const tierOrder: CharacterTier[] = ["BACKGROUND", "UNDER_5", "FEATURE", "STRONG_SUPPORT", "LEAD"];
+  const bumpUp = (t: CharacterTier): CharacterTier => {
+    const i = tierOrder.indexOf(t);
+    return i < tierOrder.length - 1 ? tierOrder[i + 1] : t;
+  };
+  const capAtFeature = (t: CharacterTier): CharacterTier =>
+    t === "LEAD" || t === "STRONG_SUPPORT" ? "FEATURE" : t;
+
+  for (const r of rankings) {
+    // BACKGROUND: no dialogue at all
+    if (r.wordsSpoken <= 0 || r.dialogueScenes <= 0) {
+      r.tier = "BACKGROUND";
+      continue;
+    }
+
+    let tier = tierByRank(r.rank);
+
+    // Guardrail A: one-scene monologue cap (top 8)
+    if (r.rank <= 8 && r.dialogueScenes <= 1 && r.appearanceScenes <= 1) {
+      tier = capAtFeature(tier);
+    }
+
+    // Guardrail B: recurring-but-quiet bump
+    if (totalScenes > 0 && totalPages > 0) {
+      const recurringByScenes = r.appearanceScenes / totalScenes >= 0.12;
+      const recurringByPages = r.pages / totalPages >= 0.10;
+      if ((tier === "UNDER_5" || tier === "FEATURE") && (recurringByScenes || recurringByPages)) {
+        tier = bumpUp(tier);
+      }
+    }
+
+    r.tier = tier;
+  }
 
   return rankings;
 }

@@ -22,7 +22,7 @@ import { Users, ChevronRight, Lock, GripVertical, Pencil, Check, X, Star } from 
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { CharacterRanking } from "@/hooks/useCharacterRanking";
+import type { CharacterRanking, CharacterTier } from "@/hooks/useCharacterRanking";
 
 interface Character {
   id: string;
@@ -41,11 +41,21 @@ interface CharacterSidebarProps {
   rankings?: CharacterRanking[];
 }
 
-const TIER_COLORS = {
-  A: "bg-primary/20 text-primary border-primary/30",
-  B: "bg-accent text-foreground border-border",
-  C: "bg-secondary text-muted-foreground border-border",
-} as const;
+const TIER_COLORS: Record<CharacterTier, string> = {
+  LEAD: "bg-primary/20 text-primary border-primary/30",
+  STRONG_SUPPORT: "bg-accent text-foreground border-border",
+  FEATURE: "bg-secondary text-muted-foreground border-border",
+  UNDER_5: "bg-muted text-muted-foreground border-border/50",
+  BACKGROUND: "bg-muted/50 text-muted-foreground/60 border-border/30",
+};
+
+const TIER_LABELS: Record<CharacterTier, string> = {
+  LEAD: "Lead",
+  STRONG_SUPPORT: "Strong Support",
+  FEATURE: "Feature",
+  UNDER_5: "Under 5",
+  BACKGROUND: "Background",
+};
 
 const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed, rankings }: CharacterSidebarProps) => {
   const queryClient = useQueryClient();
@@ -289,7 +299,7 @@ const DraggableCharItem = ({
                 "shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border",
                 TIER_COLORS[ranking.tier]
               )}>
-                #{ranking.rank} {ranking.tier === "A" ? "Lead" : ranking.tier === "B" ? "Support" : "Day"}
+                #{ranking.rank} {TIER_LABELS[ranking.tier]}
               </span>
             )}
             <p className={cn("text-sm font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
