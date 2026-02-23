@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -55,6 +55,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({ LEAD: true });
+  const [searchQuery, setSearchQuery] = useState("");
   const [mergeDialog, setMergeDialog] = useState<{
     sourceId: string; targetId: string; sourceName: string; targetName: string;
   } | null>(null);
@@ -116,12 +117,16 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
 
   const tierGroups = useMemo(() => {
     if (!characters) return [];
-    if (!rankings?.length) return [{ tier: "LEAD" as CharacterTier, chars: characters }];
+    
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = query ? characters.filter((c) => c.name.toLowerCase().includes(query)) : characters;
+    
+    if (!rankings?.length) return [{ tier: "LEAD" as CharacterTier, chars: filtered }];
 
     const groups = new Map<CharacterTier, Character[]>();
     for (const tier of TIER_ORDER) groups.set(tier, []);
 
-    const sorted = [...characters].sort((a, b) => {
+    const sorted = [...filtered].sort((a, b) => {
       const ra = rankingMap.get(a.name.toUpperCase());
       const rb = rankingMap.get(b.name.toUpperCase());
       if (ra && rb) return rb.score - ra.score;
@@ -137,7 +142,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
     }
 
     return TIER_ORDER.map((tier) => ({ tier, chars: groups.get(tier)! })).filter((g) => g.chars.length > 0);
-  }, [characters, rankings, rankingMap]);
+  }, [characters, rankings, rankingMap, searchQuery]);
 
   const toggleTier = (tier: string) => {
     setOpenTiers((prev) => ({ ...prev, [tier]: !prev[tier] }));
@@ -145,11 +150,22 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
 
   return (
     <aside className="w-[340px] min-w-[300px] border-r border-border bg-card flex flex-col">
-      <div className="px-4 py-3 border-b border-border">
-        <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
-        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-          {characters?.length ?? 0} in cast{rankings?.length ? " · ranked by importance" : " · drag to merge duplicates"}
-        </p>
+      <div className="px-4 py-3 border-b border-border space-y-2">
+        <div>
+          <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
+          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+            {characters?.length ?? 0} in cast{rankings?.length ? " · ranked by importance" : " · drag to merge duplicates"}
+          </p>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search characters…"
+            className="h-8 text-sm pl-8 bg-background"
+          />
+        </div>
       </div>
       <ScrollArea className="flex-1">
         {isLoading ? (

@@ -10,7 +10,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -128,6 +128,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [mergeDialog, setMergeDialog] = useState<{ source: string; target: string } | null>(null);
   const [analyzingItem, setAnalyzingItem] = useState<string | null>(null);
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   // Script viewer state
   const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptTitle, setScriptTitle] = useState("");
@@ -173,10 +175,28 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   // Visible items = items minus merged-away ones
   const visibleItems = useMemo(() => items.filter((i) => !mergedAway.has(i)), [items, mergedAway]);
 
+  const query = searchQuery.toLowerCase().trim();
+
+  const filteredVisibleItems = useMemo(() => {
+    if (!query) return visibleItems;
+    return visibleItems.filter((i) => {
+      const name = (renames[i] || i).toLowerCase();
+      return name.includes(query);
+    });
+  }, [visibleItems, query, renames]);
+
   const ungrouped = useMemo(() => {
     const grouped = new Set(groups.flatMap((g) => g.children));
-    return visibleItems.filter((l) => !grouped.has(l));
-  }, [visibleItems, groups]);
+    return filteredVisibleItems.filter((l) => !grouped.has(l));
+  }, [filteredVisibleItems, groups]);
+
+  const filteredGroups = useMemo(() => {
+    if (!query) return groups;
+    return groups.filter((g) => {
+      if (g.name.toLowerCase().includes(query)) return true;
+      return g.children.some((c) => (renames[c] || c).toLowerCase().includes(query));
+    });
+  }, [groups, query, renames]);
 
   const displayName = useCallback((item: string) => renames[item] || item, [renames]);
 
@@ -453,7 +473,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-border">
+      <div className="px-6 py-4 border-b border-border space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Icon className="h-5 w-5 text-primary" />
@@ -466,7 +486,16 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             <Plus className="h-3.5 w-3.5" /> New Group
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder={`Search ${title.toLowerCase()}…`}
+            className="h-9 text-sm pl-9 bg-background"
+          />
+        </div>
+        <p className="text-xs text-muted-foreground">
           Drag items onto each other to merge duplicates · Drag into groups to organize · Click any item to view its script references
         </p>
       </div>
@@ -482,7 +511,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
               </div>
             )}
 
-            {groups.map((group) => (
+            {filteredGroups.map((group) => (
               <GroupDropZone
                 key={group.id}
                 group={group}
