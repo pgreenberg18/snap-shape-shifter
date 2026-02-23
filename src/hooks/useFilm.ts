@@ -122,25 +122,38 @@ export const useBreakdownAssets = () => {
         .maybeSingle();
       if (error) throw error;
       if (!data?.scene_breakdown || !Array.isArray(data.scene_breakdown)) {
-        return { locations: [] as string[], props: [] as string[], wardrobe: [] as { character: string; clothing: string }[] };
+        return { locations: [] as string[], props: [] as string[], wardrobe: [] as { character: string; clothing: string }[], vehicles: [] as string[] };
       }
       const scenes = data.scene_breakdown as any[];
       const locationSet = new Set<string>();
       const propSet = new Set<string>();
       const wardrobeMap = new Map<string, string>();
+      const vehicleSet = new Set<string>();
+
+      const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
 
       for (const s of scenes) {
-        // Locations from setting field
         if (s.setting && typeof s.setting === "string" && s.setting !== "N/A") {
           locationSet.add(s.setting);
         }
-        // Props from key_objects
         if (Array.isArray(s.key_objects)) {
           for (const p of s.key_objects) {
-            if (typeof p === "string" && p.length > 1) propSet.add(p);
+            if (typeof p === "string" && p.length > 1) {
+              const lower = p.toLowerCase();
+              if (VEHICLE_KEYWORDS.some((v) => lower.includes(v))) {
+                vehicleSet.add(p);
+              } else {
+                propSet.add(p);
+              }
+            }
           }
         }
-        // Wardrobe
+        // Vehicles field (if AI provides it)
+        if (Array.isArray(s.vehicles)) {
+          for (const v of s.vehicles) {
+            if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
+          }
+        }
         if (Array.isArray(s.wardrobe)) {
           for (const w of s.wardrobe) {
             const char = typeof w === "string" ? "Unknown" : (w?.character || w?.name || "Unknown");
@@ -160,6 +173,7 @@ export const useBreakdownAssets = () => {
           const [character, clothing] = k.split("::");
           return { character, clothing };
         }),
+        vehicles: [...vehicleSet].sort(),
       };
     },
     enabled: !!filmId,
