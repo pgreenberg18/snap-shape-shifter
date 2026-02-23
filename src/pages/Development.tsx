@@ -1,9 +1,10 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
-  Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp,
+  Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -864,12 +865,12 @@ const EditableSceneContent = ({
         {/* Actions row */}
         <div className="pt-2 flex justify-end gap-2">
           <Button
-            variant={rejected ? "destructive" : "outline"}
+            variant={rejected ? "destructive" : "default"}
             size="sm"
-            className="gap-1.5"
+            className={cn("gap-1.5", !rejected && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
             onClick={onToggleRejected}
           >
-            <X className="h-3.5 w-3.5" />
+            <ThumbsDown className="h-3.5 w-3.5" />
             {rejected ? "Rejected ✗" : "Reject Scene"}
           </Button>
           <Button
