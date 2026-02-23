@@ -4,7 +4,7 @@ import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
-  Clock, Save, Rewind, FastForward,
+  Clock, Save, Rewind, FastForward, AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -212,6 +212,7 @@ const Development = () => {
   const [allScenesApproved, setAllScenesApproved] = useState(false);
   const [contentSafetyRun, setContentSafetyRun] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [allElementsReviewed, setAllElementsReviewed] = useState(false);
   const [reviewStats, setReviewStats] = useState<{ approved: number; rejected: number; pending: number } | null>(null);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
@@ -960,7 +961,7 @@ const Development = () => {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                      <GlobalElementsManager data={analysis.global_elements as any} />
+                      <GlobalElementsManager data={analysis.global_elements as any} onAllReviewedChange={setAllElementsReviewed} />
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -1085,10 +1086,16 @@ const Development = () => {
                         <p className="text-sm text-muted-foreground mt-1">
                           Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
                         </p>
+                        {!allElementsReviewed && (
+                          <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            All Global Elements sections must be marked as "Completed" before locking.
+                          </p>
+                        )}
                       </div>
                       <Button
                         onClick={handleLockScript}
-                        disabled={locking || !film?.time_period}
+                        disabled={locking || !film?.time_period || !allElementsReviewed}
                         size="lg"
                         variant="destructive"
                         className="gap-2 shrink-0"

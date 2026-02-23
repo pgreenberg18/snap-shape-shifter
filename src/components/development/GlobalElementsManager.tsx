@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
-  ChevronRight, Check, Merge, Tag, X, Plus,
+  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,9 +78,10 @@ const uid = () => `grp_${++_uid}_${Date.now()}`;
 
 interface Props {
   data: any;
+  onAllReviewedChange?: (allReviewed: boolean) => void;
 }
 
-export default function GlobalElementsManager({ data }: Props) {
+export default function GlobalElementsManager({ data, onAllReviewedChange }: Props) {
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() =>
     buildInitialData(data),
   );
@@ -93,6 +94,23 @@ export default function GlobalElementsManager({ data }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<CategoryKey | null>(null);
   const [newItemText, setNewItemText] = useState("");
+  const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "needs_review" | "completed">>({
+    characters: "needs_review",
+    locations: "needs_review",
+    wardrobe: "needs_review",
+    props: "needs_review",
+    visual_design: "needs_review",
+  });
+
+  // Notify parent when all sections are reviewed
+  useEffect(() => {
+    const allCompleted = CATEGORIES.every(({ key }) => {
+      const cat = categories[key];
+      const hasContent = cat.ungrouped.length > 0 || cat.groups.length > 0;
+      return !hasContent || reviewStatus[key] === "completed";
+    });
+    onAllReviewedChange?.(allCompleted);
+  }, [reviewStatus, categories, onAllReviewedChange]);
 
   /* selection */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
@@ -215,9 +233,18 @@ export default function GlobalElementsManager({ data }: Props) {
               {isExpanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
               <span className="text-primary">{icon}</span>
               <span className="font-display text-sm font-semibold">{label}</span>
-              <span className="ml-auto text-xs text-muted-foreground">
-                {cat.groups.length > 0 && `${cat.groups.length} grouped · `}
-                {cat.ungrouped.length} item{cat.ungrouped.length !== 1 ? "s" : ""}
+              <span className="ml-auto flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {cat.groups.length > 0 && `${cat.groups.length} grouped · `}
+                  {cat.ungrouped.length} item{cat.ungrouped.length !== 1 ? "s" : ""}
+                </span>
+                {hasItems(cat) && (
+                  reviewStatus[key] === "completed" ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  )
+                )}
               </span>
             </button>
 
@@ -355,6 +382,29 @@ export default function GlobalElementsManager({ data }: Props) {
                     Click items to select, then link similar ones together
                   </p>
                 )}
+
+                {/* Review status buttons */}
+                <div className="flex items-center gap-2 pt-2 border-t border-border mt-3">
+                  <span className="text-xs text-muted-foreground mr-auto">Review Status:</span>
+                  <Button
+                    size="sm"
+                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" && "bg-green-600 hover:bg-green-700 text-white")}
+                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
+                  >
+                    <CheckCircle2 className="h-3 w-3" />
+                    Completed
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={reviewStatus[key] === "needs_review" ? "default" : "outline"}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" && "bg-yellow-600 hover:bg-yellow-700 text-white")}
+                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "needs_review" }))}
+                  >
+                    <AlertCircle className="h-3 w-3" />
+                    Needs Review
+                  </Button>
+                </div>
               </div>
             )}
           </div>
