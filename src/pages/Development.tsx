@@ -1081,51 +1081,64 @@ const Development = () => {
       {/* ── Step 4: Lock Script ── */}
       {analysis?.scene_breakdown && !scriptLocked && (
         <section>
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                <Lock className="h-6 w-6 text-destructive" />
+          <Collapsible>
+            <CollapsibleTrigger className="w-full">
+              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <Lock className="h-5 w-5 text-primary" />
+                  <h3 className="font-display text-lg font-bold">Lock Script</h3>
+                </div>
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
               </div>
-              <div className="flex-1">
-                <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
-                </p>
-                {!allElementsReviewed && (
-                  <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1.5">
-                    <AlertCircle className="h-3.5 w-3.5" />
-                    All Global Elements sections must be marked as "Completed" before locking.
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                    <Lock className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
+                    </p>
+                    {!allElementsReviewed && (
+                      <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1.5">
+                        <AlertCircle className="h-3.5 w-3.5" />
+                        All Global Elements sections must be marked as "Completed" before locking.
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    onClick={handleLockScript}
+                    disabled={locking || !film?.time_period || !allElementsReviewed}
+                    size="lg"
+                    variant="destructive"
+                    className="gap-2 shrink-0"
+                  >
+                    {locking ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
+                    ) : (
+                      <><Lock className="h-4 w-4" /> Lock Script</>
+                    )}
+                  </Button>
+                </div>
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                    ⚠ This action cannot be undone
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
+                  </p>
+                </div>
+                {!film?.time_period && (
+                  <p className="text-xs text-destructive flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" /> A time period must be set before locking.
                   </p>
                 )}
               </div>
-              <Button
-                onClick={handleLockScript}
-                disabled={locking || !film?.time_period || !allElementsReviewed}
-                size="lg"
-                variant="destructive"
-                className="gap-2 shrink-0"
-              >
-                {locking ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
-                ) : (
-                  <><Lock className="h-4 w-4" /> Lock Script</>
-                )}
-              </Button>
-            </div>
-            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
-              <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                ⚠ This action cannot be undone
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
-              </p>
-            </div>
-            {!film?.time_period && (
-              <p className="text-xs text-destructive flex items-center gap-1.5">
-                <Clock className="h-3 w-3" /> A time period must be set before locking.
-              </p>
-            )}
-          </div>
+            </CollapsibleContent>
+          </Collapsible>
         </section>
       )}
     </div>
