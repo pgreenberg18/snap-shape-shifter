@@ -494,7 +494,10 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
           </span>
           <div>
             <p className="font-display font-semibold text-sm">{scene.scene_heading || "Untitled Scene"}</p>
-            <p className="text-xs text-muted-foreground">{scene.int_ext} · {scene.time_of_day}</p>
+            <p className="text-xs text-muted-foreground">
+              {scene.int_ext} · {scene.time_of_day}
+              {scene.page && <span className="ml-2 text-primary/60">p. {scene.page}</span>}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -614,11 +617,21 @@ const EditableSceneContent = ({
   const [palette, setPalette] = useState<string>(scene.visual_design?.color_palette || "");
   const [references, setReferences] = useState<string>(scene.visual_design?.visual_references || "");
   const [location, setLocation] = useState<string>(scene.setting || scene.scene_heading || "");
-  const [characters, setCharacters] = useState<string>(
-    (scene.characters || []).map((c: any) => `${c.name} — ${c.emotional_tone}${c.key_expressions ? ` · ${c.key_expressions}` : ""}`).join("\n")
+  const [characters, setCharacters] = useState<{ name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[]>(
+    (scene.characters || []).map((c: any) => ({
+      name: c.name || "",
+      emotional_tone: c.emotional_tone || "",
+      key_expressions: c.key_expressions || "",
+      physical_behavior: c.physical_behavior || "",
+    }))
   );
-  const [wardrobe, setWardrobe] = useState<string>(
-    (scene.wardrobe || []).map((w: any) => `${w.character}: ${w.clothing_style}${w.condition ? ` (${w.condition})` : ""}${w.hair_makeup ? ` — ${w.hair_makeup}` : ""}`).join("\n")
+  const [wardrobe, setWardrobe] = useState<{ character: string; clothing_style: string; condition: string; hair_makeup: string }[]>(
+    (scene.wardrobe || []).map((w: any) => ({
+      character: w.character || "",
+      clothing_style: w.clothing_style || "",
+      condition: w.condition || "",
+      hair_makeup: w.hair_makeup || "",
+    }))
   );
   const [cameraFeel, setCameraFeel] = useState<string>(scene.cinematic_elements?.camera_feel || "");
   const [motionCues, setMotionCues] = useState<string>(scene.cinematic_elements?.motion_cues || "");
@@ -631,10 +644,17 @@ const EditableSceneContent = ({
   const [videoPrompt, setVideoPrompt] = useState<string>(scene.video_prompt || "");
 
   const [newItem, setNewItem] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<{ label: string; idx: number } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ label: string; idx: number; kind?: string } | null>(null);
 
-  const removeObject = (idx: number) => {
-    setKeyObjects((prev) => prev.filter((_, i) => i !== idx));
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    if (deleteTarget.kind === "character") {
+      setCharacters((prev) => prev.filter((_, i) => i !== deleteTarget.idx));
+    } else if (deleteTarget.kind === "wardrobe") {
+      setWardrobe((prev) => prev.filter((_, i) => i !== deleteTarget.idx));
+    } else {
+      setKeyObjects((prev) => prev.filter((_, i) => i !== deleteTarget.idx));
+    }
     setDeleteTarget(null);
   };
 
@@ -670,12 +690,83 @@ const EditableSceneContent = ({
 
         {/* Characters */}
         <Section icon={Users} label="Characters">
-          <Textarea value={characters} onChange={(e) => setCharacters(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border font-mono" placeholder="CHARACTER — emotion · expression (one per line)" />
+          <div className="space-y-3">
+            {characters.map((c, ci) => (
+              <div key={ci} className="rounded-lg border border-border bg-secondary/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Input
+                    value={c.name}
+                    onChange={(e) => {
+                      const next = [...characters];
+                      next[ci] = { ...next[ci], name: e.target.value };
+                      setCharacters(next);
+                    }}
+                    className="text-xs font-bold h-7 w-40 bg-background border-border uppercase"
+                    placeholder="Character name"
+                  />
+                  <button
+                    onClick={() => setDeleteTarget({ label: c.name || "this character", idx: ci, kind: "character" } as any)}
+                    className="rounded-full p-1 hover:bg-destructive/10 transition-colors"
+                  >
+                    <X className="h-3 w-3 text-destructive" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Emotion</p>
+                    <Input value={c.emotional_tone} onChange={(e) => { const n = [...characters]; n[ci] = { ...n[ci], emotional_tone: e.target.value }; setCharacters(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Expressions</p>
+                    <Input value={c.key_expressions} onChange={(e) => { const n = [...characters]; n[ci] = { ...n[ci], key_expressions: e.target.value }; setCharacters(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Behavior</p>
+                    <Input value={c.physical_behavior} onChange={(e) => { const n = [...characters]; n[ci] = { ...n[ci], physical_behavior: e.target.value }; setCharacters(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setCharacters([...characters, { name: "", emotional_tone: "", key_expressions: "", physical_behavior: "" }])}>
+              <Plus className="h-3 w-3" /> Add Character
+            </Button>
+          </div>
         </Section>
 
         {/* Wardrobe */}
         <Section icon={Users} label="Wardrobe">
-          <Textarea value={wardrobe} onChange={(e) => setWardrobe(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border font-mono" placeholder="CHARACTER: outfit (condition) — hair/makeup (one per line)" />
+          <div className="space-y-3">
+            {wardrobe.map((w, wi) => (
+              <div key={wi} className="rounded-lg border border-border bg-secondary/50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold uppercase text-foreground">{w.character || "—"}</span>
+                  <button
+                    onClick={() => setDeleteTarget({ label: `${w.character}'s wardrobe`, idx: wi, kind: "wardrobe" } as any)}
+                    className="rounded-full p-1 hover:bg-destructive/10 transition-colors"
+                  >
+                    <X className="h-3 w-3 text-destructive" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Outfit</p>
+                    <Input value={w.clothing_style} onChange={(e) => { const n = [...wardrobe]; n[wi] = { ...n[wi], clothing_style: e.target.value }; setWardrobe(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Condition</p>
+                    <Input value={w.condition} onChange={(e) => { const n = [...wardrobe]; n[wi] = { ...n[wi], condition: e.target.value }; setWardrobe(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">Hair / Makeup</p>
+                    <Input value={w.hair_makeup} onChange={(e) => { const n = [...wardrobe]; n[wi] = { ...n[wi], hair_makeup: e.target.value }; setWardrobe(n); }} className="text-xs h-7 bg-background border-border" />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setWardrobe([...wardrobe, { character: "", clothing_style: "", condition: "", hair_makeup: "" }])}>
+              <Plus className="h-3 w-3" /> Add Wardrobe Entry
+            </Button>
+          </div>
         </Section>
 
         {/* Cinematic Elements */}
@@ -768,7 +859,7 @@ const EditableSceneContent = ({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleteTarget && removeObject(deleteTarget.idx)}>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
               Remove
             </AlertDialogAction>
           </AlertDialogFooter>

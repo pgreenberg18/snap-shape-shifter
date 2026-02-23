@@ -21,6 +21,7 @@ You MUST return your response as a JSON object with exactly these four keys:
     {
       "scene_number": 1,
       "scene_heading": "INT. OFFICE - NIGHT",
+      "page": "12",
       "setting": "Corporate office",
       "int_ext": "INT",
       "time_of_day": "Night",
