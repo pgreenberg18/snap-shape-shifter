@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
-  AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock,
+  AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useContentSafety, useFilmId } from "@/hooks/useFilm";
+import { useContentSafety, useFilm, useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import { useToast } from "@/hooks/use-toast";
@@ -55,6 +55,7 @@ const useLatestAnalysis = (filmId: string | undefined) =>
 /* ── Main Page ── */
 const Development = () => {
   const filmId = useFilmId();
+  const { data: film } = useFilm();
   const { data: safety } = useContentSafety();
   const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis(filmId);
   const queryClient = useQueryClient();
@@ -69,6 +70,10 @@ const Development = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const [allScenesApproved, setAllScenesApproved] = useState(false);
+  const [contentSafetyRun, setContentSafetyRun] = useState(false);
+  const [locking, setLocking] = useState(false);
+
+  const scriptLocked = !!(film as any)?.script_locked;
 
   const uploadFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -148,6 +153,32 @@ const Development = () => {
   const handleToggle = (field: string, setter: (v: boolean) => void) => (val: boolean) => {
     setter(val);
     updateSafety(field, val);
+  };
+
+  const handleLockScript = async () => {
+    if (!filmId) return;
+    setLocking(true);
+    const { error } = await supabase.from("films").update({ script_locked: true } as any).eq("id", filmId);
+    setLocking(false);
+    if (error) {
+      toast({ title: "Lock failed", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+      toast({ title: "Script Locked", description: "Your script breakdown is now finalized and propagated to production phases." });
+    }
+  };
+
+  const handleUnlockScript = async () => {
+    if (!filmId) return;
+    setLocking(true);
+    const { error } = await supabase.from("films").update({ script_locked: false } as any).eq("id", filmId);
+    setLocking(false);
+    if (error) {
+      toast({ title: "Unlock failed", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+      toast({ title: "Script Unlocked", description: "You can now make changes to the script breakdown." });
+    }
   };
 
   const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
@@ -299,7 +330,34 @@ const Development = () => {
       {analysis?.scene_breakdown && (
         <section>
           <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
-          {!allScenesApproved ? (
+
+          {scriptLocked ? (
+            /* ── LOCKED STATE ── */
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 space-y-4">
+              <div className="flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
+                  <Lock className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-display font-semibold text-lg text-foreground">Script Locked & Finalized</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={handleUnlockScript}
+                  disabled={locking}
+                >
+                  {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+                  Unlock
+                </Button>
+              </div>
+            </div>
+          ) : !allScenesApproved ? (
+            /* ── SCENES NOT YET APPROVED ── */
             <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
               <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
                 <Lock className="h-6 w-6 text-muted-foreground" />
@@ -309,18 +367,67 @@ const Development = () => {
                 Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
               </p>
             </div>
+          ) : !contentSafetyRun ? (
+            /* ── READY TO RUN ANALYSIS ── */
+            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-4 text-center">
+              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center cinema-glow">
+                <Shield className="h-7 w-7 text-primary" />
+              </div>
+              <div>
+                <p className="font-display font-semibold text-lg">All Scenes Approved</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                  Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
+                </p>
+              </div>
+              <Button
+                onClick={() => setContentSafetyRun(true)}
+                size="lg"
+                className="gap-2 mt-2"
+              >
+                <Shield className="h-4 w-4" />
+                Run Content Safety Analysis
+              </Button>
+            </div>
           ) : (
-            <ContentSafetyMatrix
-              scenes={analysis?.scene_breakdown as any[] || []}
-              storagePath={analysis?.storage_path || ""}
-              language={language}
-              nudity={nudity}
-              violence={violence}
-              handleToggle={handleToggle}
-              setLanguage={setLanguage}
-              setNudity={setNudity}
-              setViolence={setViolence}
-            />
+            /* ── CONTENT SAFETY MATRIX + LOCK BUTTON ── */
+            <div className="space-y-6">
+              <ContentSafetyMatrix
+                scenes={analysis?.scene_breakdown as any[] || []}
+                storagePath={analysis?.storage_path || ""}
+                language={language}
+                nudity={nudity}
+                violence={violence}
+                handleToggle={handleToggle}
+                setLanguage={setLanguage}
+                setNudity={setNudity}
+                setViolence={setViolence}
+              />
+
+              {/* Lock Script Button */}
+              <div className="rounded-xl border border-primary/20 bg-card p-6 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <Lock className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
+                  <p className="text-sm text-muted-foreground">
+                    Locking finalizes your script breakdown and content safety settings. This data will propagate to Production, Post-Production, and Release phases.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleLockScript}
+                  disabled={locking}
+                  size="lg"
+                  className="gap-2 shrink-0"
+                >
+                  {locking ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
+                  ) : (
+                    <><Lock className="h-4 w-4" /> Lock Script</>
+                  )}
+                </Button>
+              </div>
+            </div>
           )}
         </section>
       )}
@@ -1138,7 +1245,7 @@ const ContentSafetyMatrix = ({
   useEffect(() => {
     if (!storagePath || scriptLoaded) return;
     runAnalysis();
-  }, [storagePath, scriptLoaded, runAnalysis]);
+  }, [storagePath, runAnalysis]);
 
   const handleSaveScript = async (newText: string) => {
     if (!storagePath) return;
