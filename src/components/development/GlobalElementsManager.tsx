@@ -54,12 +54,13 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   };
 
   const charNames = extract(["recurring_characters", "characters"]).map((c) => {
-    // Strip descriptions like "JOHN - a middle-aged teacher" → "JOHN"
-    const dashIdx = c.indexOf(" - ");
-    const colonIdx = c.indexOf(": ");
-    const commaIdx = c.indexOf(", ");
+    // Strip descriptions: "JOHN - a middle-aged teacher" → "JOHN", "HOWARD WELLS (40s)" → "HOWARD WELLS"
+    let name = c.replace(/\s*\(.*?\)\s*/g, "").replace(/\s*\([^)]*$/g, "").trim();
+    const dashIdx = name.indexOf(" - ");
+    const colonIdx = name.indexOf(": ");
+    const commaIdx = name.indexOf(", ");
     const cutIdx = [dashIdx, colonIdx, commaIdx].filter((i) => i > 0).sort((a, b) => a - b)[0];
-    return cutIdx ? c.substring(0, cutIdx).trim() : c.trim();
+    return cutIdx ? name.substring(0, cutIdx).trim() : name.trim();
   });
 
   return {
