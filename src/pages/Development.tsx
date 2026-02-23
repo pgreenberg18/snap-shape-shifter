@@ -4,7 +4,7 @@ import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
-  Clock, Save, Rewind, FastForward, AlertCircle,
+  Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -2008,7 +2008,7 @@ const ContentSafetyMatrix = ({
   useEffect(() => {
     if (!storagePath || scriptLoaded) return;
     runAnalysis();
-  }, [storagePath, runAnalysis]);
+  }, [storagePath, scriptLoaded, runAnalysis]);
 
   const handleSaveScript = async (newText: string) => {
     if (!storagePath) return;
@@ -2019,8 +2019,7 @@ const ContentSafetyMatrix = ({
       return;
     }
     setScriptText(newText);
-    setScriptLoaded(false);
-    toast({ title: "Script saved", description: "Re-analyzing for content safety…" });
+    toast({ title: "Script saved", description: "Click Re-analyze to update content safety results." });
   };
 
   const flagsByCategory = flags.reduce((acc, f) => {
@@ -2048,6 +2047,12 @@ const ContentSafetyMatrix = ({
         </TabsList>
         <TabsContent value="auto">
           <div className="space-y-6">
+            <div className="flex justify-end">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setScriptLoaded(false); }}>
+                <RefreshCw className="h-3.5 w-3.5" />
+                Re-analyze
+              </Button>
+            </div>
             <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
               <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Shield className="h-7 w-7 text-primary" />
