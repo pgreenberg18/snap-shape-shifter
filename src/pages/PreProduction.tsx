@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import { useCharacters, useShots } from "@/hooks/useFilm";
+import { useCharacters, useShots, useBreakdownAssets } from "@/hooks/useFilm";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -51,6 +52,7 @@ const PLACEHOLDER_FACES = [
 
 const PreProduction = () => {
   const { data: characters, isLoading } = useCharacters();
+  const { data: breakdownAssets } = useBreakdownAssets();
   const queryClient = useQueryClient();
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -366,11 +368,19 @@ const PreProduction = () => {
         </TabsContent>
 
         {/* ═══ PLACEHOLDER TABS ═══ */}
-        <TabsContent value="locations" className="flex-1 m-0">
-          <PlaceholderPane icon={MapPin} title="Locations & 360 Panos" description="Scout, generate, and lock location assets. 360° panoramic environment previews coming soon." />
+        <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
+          <BreakdownListPane
+            icon={MapPin}
+            title="Locations"
+            emptyMessage="No locations extracted from script breakdown yet. Lock your script in the Development phase."
+            items={breakdownAssets?.locations ?? []}
+          />
         </TabsContent>
-        <TabsContent value="props" className="flex-1 m-0">
-          <PlaceholderPane icon={Shirt} title="Props & Wardrobe" description="Define and lock prop inventories and wardrobe continuity for every scene." />
+        <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
+          <PropsWardrobePane
+            props={breakdownAssets?.props ?? []}
+            wardrobe={breakdownAssets?.wardrobe ?? []}
+          />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
           <StoryboardPanel />
@@ -455,6 +465,101 @@ const PlaceholderPane = ({ icon: Icon, title, description }: { icon: any; title:
       <h2 className="font-display text-xl font-bold text-foreground">{title}</h2>
       <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
     </div>
+  </div>
+);
+
+/* ── Breakdown List Pane (Locations) ── */
+const BreakdownListPane = ({ icon: Icon, title, emptyMessage, items }: { icon: any; title: string; emptyMessage: string; items: string[] }) => (
+  <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="px-6 py-4 border-b border-border">
+      <div className="flex items-center gap-2">
+        <Icon className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-lg font-bold text-foreground">{title}</h2>
+        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">{items.length}</span>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">Extracted from script breakdown · Lock assets for production</p>
+    </div>
+    <ScrollArea className="flex-1">
+      {items.length === 0 ? (
+        <div className="flex items-center justify-center p-12 text-center">
+          <div className="space-y-3">
+            <div className="mx-auto h-14 w-14 rounded-full bg-secondary flex items-center justify-center">
+              <Icon className="h-7 w-7 text-muted-foreground/40" />
+            </div>
+            <p className="text-sm text-muted-foreground max-w-sm">{emptyMessage}</p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {items.map((item, i) => (
+            <div key={i} className="rounded-lg border border-border bg-card p-4 space-y-1 hover:border-primary/30 transition-colors">
+              <div className="flex items-center gap-2">
+                <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                <p className="text-sm font-display font-semibold text-foreground truncate">{item}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </ScrollArea>
+  </div>
+);
+
+/* ── Props & Wardrobe Pane ── */
+const PropsWardrobePane = ({ props, wardrobe }: { props: string[]; wardrobe: { character: string; clothing: string }[] }) => (
+  <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="px-6 py-4 border-b border-border">
+      <div className="flex items-center gap-2">
+        <Shirt className="h-5 w-5 text-primary" />
+        <h2 className="font-display text-lg font-bold text-foreground">Props & Wardrobe</h2>
+        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+          {props.length} props · {wardrobe.length} wardrobe
+        </span>
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">Extracted from script breakdown · All items identified across scenes</p>
+    </div>
+    <ScrollArea className="flex-1">
+      <div className="p-6 space-y-8">
+        {/* Props */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Props & Key Objects</h3>
+            <div className="flex-1 border-t border-border ml-2" />
+          </div>
+          {props.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No props extracted yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {props.map((p, i) => (
+                <span key={i} className="inline-flex items-center rounded-md border border-border bg-secondary/50 px-3 py-1.5 text-xs font-medium text-foreground">
+                  {p}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Wardrobe */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Wardrobe</h3>
+            <div className="flex-1 border-t border-border ml-2" />
+          </div>
+          {wardrobe.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No wardrobe data extracted yet.</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {wardrobe.map((w, i) => (
+                <div key={i} className="rounded-lg border border-border bg-card p-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-primary">{w.character}</p>
+                  <p className="text-sm text-foreground">{w.clothing}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </ScrollArea>
   </div>
 );
 
