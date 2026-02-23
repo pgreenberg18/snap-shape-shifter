@@ -360,6 +360,7 @@ export default function GlobalElementsManager({ data }: Props) {
           onChange={(e) => setSignatureStyle(e.target.value)}
           placeholder="Describe the overall visual signature style..."
           className="min-h-[80px] text-sm bg-background resize-y"
+          style={{ fieldSizing: 'content' } as React.CSSProperties}
         />
       </div>
 

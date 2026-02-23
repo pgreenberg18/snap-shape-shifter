@@ -1336,6 +1336,7 @@ const EditableAIGenerationNotes = ({ initialValue }: { initialValue: string }) =
         onChange={(e) => setValue(e.target.value)}
         placeholder="Add notes about overall visual approach, consistency requirements, or special considerations..."
         className="min-h-[100px] text-sm bg-background resize-y"
+        style={{ fieldSizing: 'content' } as React.CSSProperties}
       />
     </div>
   );
