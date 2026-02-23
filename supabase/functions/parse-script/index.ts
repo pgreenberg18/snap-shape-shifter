@@ -72,10 +72,10 @@ You MUST return your response as a JSON object with exactly these four keys:
     "recurring_props": ["prop description"],
     "recurring_wardrobe": ["CHARACTER – outfit/look description"],
     "visual_motifs": ["motif or recurring visual theme"],
-    "signature_style": ""
+    "signature_style": "A detailed paragraph describing the film's overall visual signature: dominant color grading, lens choices (anamorphic, vintage, etc.), texture (grain, halation, etc.), lighting philosophy, compositional style, and any recurring visual motifs that define the film's unique look. MUST be a substantive description, never empty."
   },
   
-  "ai_generation_notes": "Any additional notes about overall visual approach, consistency requirements, or special considerations for AI generation."
+  "ai_generation_notes": "A detailed paragraph covering: consistency rules across scenes, character appearance anchors, environment continuity requirements, lighting/color grading notes, any special VFX or practical effects considerations, and style references for AI generation. MUST be substantive and specific to this script, never empty or generic."
 }
 
 RULES:
@@ -86,7 +86,8 @@ RULES:
 - Think like a director + cinematographer + production designer
 - Maintain consistency across scenes
 - Every scene MUST have an image_prompt and video_prompt
-- Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness`;
+- Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness
+- signature_style and ai_generation_notes MUST be fully written out with substantive, script-specific content — never leave them empty or generic`;
 
 /** Extract plain text from Final Draft XML (.fdx) */
 function parseFdxToPlainText(xml: string): string {
