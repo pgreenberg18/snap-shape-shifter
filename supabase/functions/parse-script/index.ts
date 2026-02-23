@@ -183,11 +183,12 @@ Deno.serve(async (req) => {
           },
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
+            max_tokens: 65536,
             messages: [
               { role: "system", content: SYSTEM_PROMPT },
               {
                 role: "user",
-                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
+                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip or truncate any scenes. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
               },
             ],
           }),
