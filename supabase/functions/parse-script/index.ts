@@ -281,8 +281,8 @@ Deno.serve(async (req) => {
       scriptText = rawText;
     }
 
-    // Truncate if too long
-    const maxChars = 200000;
+    // Truncate if too long (generous limit for full-length screenplays)
+    const maxChars = 500000;
     if (scriptText.length > maxChars) {
       scriptText = scriptText.substring(0, maxChars) + "\n\n[TRUNCATED - script exceeds maximum length]";
     }
@@ -291,48 +291,71 @@ Deno.serve(async (req) => {
     // Process the AI call in the background using waitUntil-style approach
     const responsePromise = (async () => {
       try {
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
+        const messages: Array<{role: string; content: string}> = [
+          { role: "system", content: SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip, summarize, or truncate any scenes. There are likely 80-150+ scenes. If the output is long, that is expected and required. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
           },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            max_tokens: 131072,
-            messages: [
-              { role: "system", content: SYSTEM_PROMPT },
-              {
-                role: "user",
-                content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip, summarize, or truncate any scenes. There are likely 80-150+ scenes. If the output is long, that is expected and required. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
-              },
-            ],
-          }),
-        });
+        ];
 
-        if (!aiResponse.ok) {
-          const errStatus = aiResponse.status;
-          let errMsg = "AI analysis failed";
-          if (errStatus === 429) errMsg = "Rate limit exceeded. Please try again later.";
-          if (errStatus === 402) errMsg = "AI credits exhausted. Please add credits.";
+        let fullContent = "";
+        const maxContinuations = 5;
 
-          await supabase
-            .from("script_analyses")
-            .update({ status: "error", error_message: errMsg })
-            .eq("id", analysis_id);
-          return;
+        for (let attempt = 0; attempt <= maxContinuations; attempt++) {
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${lovableApiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-2.5-flash",
+              max_tokens: 131072,
+              messages,
+            }),
+          });
+
+          if (!aiResponse.ok) {
+            const errStatus = aiResponse.status;
+            let errMsg = "AI analysis failed";
+            if (errStatus === 429) errMsg = "Rate limit exceeded. Please try again later.";
+            if (errStatus === 402) errMsg = "AI credits exhausted. Please add credits.";
+
+            await supabase
+              .from("script_analyses")
+              .update({ status: "error", error_message: errMsg })
+              .eq("id", analysis_id);
+            return;
+          }
+
+          const aiResult = await aiResponse.json();
+          const content = aiResult.choices?.[0]?.message?.content || "";
+          const finishReason = aiResult.choices?.[0]?.finish_reason;
+
+          fullContent += content;
+
+          // If the model finished naturally, we're done
+          if (finishReason === "stop" || !finishReason) {
+            break;
+          }
+
+          // If truncated (length), ask the model to continue
+          if (finishReason === "length" && attempt < maxContinuations) {
+            console.warn(`Response truncated (attempt ${attempt + 1}), requesting continuation...`);
+            // Add the partial response and a continuation prompt
+            messages.push({ role: "assistant", content });
+            messages.push({
+              role: "user",
+              content: "Your response was truncated. Continue EXACTLY where you left off — do not restart, do not repeat any content. Continue outputting the remaining JSON.",
+            });
+          } else {
+            console.warn(`Final finish_reason: ${finishReason} after ${attempt + 1} attempts`);
+            break;
+          }
         }
 
-        const aiResult = await aiResponse.json();
-        const content = aiResult.choices?.[0]?.message?.content;
-        const finishReason = aiResult.choices?.[0]?.finish_reason;
-
-        // Log if the response was truncated
-        if (finishReason && finishReason !== "stop") {
-          console.warn(`AI response finish_reason: ${finishReason} — output may be truncated`);
-        }
-
-        if (!content) {
+        if (!fullContent) {
           await supabase
             .from("script_analyses")
             .update({ status: "error", error_message: "No response from AI" })
@@ -343,9 +366,8 @@ Deno.serve(async (req) => {
         // Parse JSON from AI response (may have markdown code fences or be truncated)
         let parsed: any;
         try {
-          parsed = extractJsonFromResponse(content);
+          parsed = extractJsonFromResponse(fullContent);
         } catch {
-          // If we still can't parse, store as raw text fallback
           await supabase
             .from("script_analyses")
             .update({
