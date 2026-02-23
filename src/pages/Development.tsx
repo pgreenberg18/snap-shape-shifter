@@ -350,23 +350,53 @@ const Development = () => {
   };
 
   const handleAnalyze = async () => {
-    if (!uploadedFile || !uploadedPath) return;
+    // For reanalysis, use existing analysis record; for first analysis, use local upload state
+    const fileName = uploadedFile || analysis?.file_name;
+    const storagePath = uploadedPath || analysis?.storage_path;
+    if (!fileName || !storagePath) return;
     setAnalyzing(true);
 
-    const { data: record, error: insertErr } = await supabase
-      .from("script_analyses")
-      .insert({ film_id: filmId!, file_name: uploadedFile, storage_path: uploadedPath, status: "pending" })
-      .select()
-      .single();
+    let analysisId: string;
 
-    if (insertErr || !record) {
-      toast({ title: "Failed to start analysis", description: insertErr?.message, variant: "destructive" });
-      setAnalyzing(false);
-      return;
+    if (analysis) {
+      // Reanalyze: reset existing record
+      const { error: resetErr } = await supabase
+        .from("script_analyses")
+        .update({
+          status: "pending",
+          scene_breakdown: null,
+          global_elements: null,
+          visual_summary: null,
+          ai_generation_notes: null,
+          error_message: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", analysis.id);
+
+      if (resetErr) {
+        toast({ title: "Failed to start reanalysis", description: resetErr.message, variant: "destructive" });
+        setAnalyzing(false);
+        return;
+      }
+      analysisId = analysis.id;
+    } else {
+      // First analysis: insert new record
+      const { data: record, error: insertErr } = await supabase
+        .from("script_analyses")
+        .insert({ film_id: filmId!, file_name: fileName, storage_path: storagePath, status: "pending" })
+        .select()
+        .single();
+
+      if (insertErr || !record) {
+        toast({ title: "Failed to start analysis", description: insertErr?.message, variant: "destructive" });
+        setAnalyzing(false);
+        return;
+      }
+      analysisId = record.id;
     }
 
     const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
-      body: { analysis_id: record.id },
+      body: { analysis_id: analysisId },
     });
 
     setAnalyzing(false);
