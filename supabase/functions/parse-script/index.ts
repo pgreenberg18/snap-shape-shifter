@@ -79,7 +79,12 @@ You MUST return your response as a JSON object with exactly these four keys:
   "ai_generation_notes": "A detailed paragraph covering: consistency rules across scenes, character appearance anchors, environment continuity requirements, lighting/color grading notes, any special VFX or practical effects considerations, and style references for AI generation. MUST be substantive and specific to this script, never empty or generic."
 }
 
-RULES:
+CRITICAL COMPLETENESS RULES:
+- You MUST include EVERY SINGLE SCENE from the screenplay. Do not skip, merge, or summarize any scenes.
+- EVERY scene MUST have a non-empty "characters" array. If a character is physically present, heard (voice-over), or referenced by action in the scene, include them. Even establishing shots or cutaways where a character is visible must list them. The ONLY exception is purely abstract/non-narrative sequences (e.g. title cards with no characters).
+- EVERY scene with a character MUST have a corresponding "wardrobe" entry for EACH character in that scene. Describe what they are wearing based on script cues or infer from context (e.g. time of day, location, character role). If the script doesn't specify, describe the most likely wardrobe for the character in that setting. NEVER leave wardrobe empty when characters are present.
+- EVERY scene MUST have a non-empty "key_objects" array. List all props, set dressing items, and objects mentioned in action lines or implied by the setting.
+- Character names MUST be consistent throughout. Use the exact same name string every time. Do NOT alternate between "HOWARD WELLS" and "PROFESSOR HOWARD WELLS" — pick one canonical name and use it everywhere.
 - Never invent story events not implied by the script
 - If something is unclear, mark as "Ambiguous / Open Interpretation"
 - Focus on visual interpretation, not logistics
@@ -88,7 +93,14 @@ RULES:
 - Maintain consistency across scenes
 - Every scene MUST have an image_prompt and video_prompt
 - Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness
-- signature_style and ai_generation_notes MUST be fully written out with substantive, script-specific content — never leave them empty or generic`;
+- signature_style and ai_generation_notes MUST be fully written out with substantive, script-specific content — never leave them empty or generic
+
+QUALITY CHECK — Before returning, verify:
+1. Total scene count matches the number of scene headings in the script
+2. No scene has an empty characters array (except pure title cards/abstract sequences)
+3. No scene with characters has an empty wardrobe array
+4. All character names are consistent (no duplicates with slight name variations)
+5. key_objects is populated for every scene`;
 
 /** Extract plain text from Final Draft XML (.fdx) */
 function parseFdxToPlainText(xml: string): string {
@@ -295,7 +307,21 @@ Deno.serve(async (req) => {
           { role: "system", content: SYSTEM_PROMPT },
           {
             role: "user",
-            content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified. You MUST include EVERY scene in the screenplay — do not skip, summarize, or truncate any scenes. There are likely 80-150+ scenes. If the output is long, that is expected and required. The file is named "${analysis.file_name}".\n\nSCRIPT CONTENT:\n\n${scriptText}`,
+            content: `Analyze this screenplay and produce the Visual Generation Breakdown as specified.
+
+CRITICAL REQUIREMENTS:
+- You MUST include EVERY scene — do not skip, merge, summarize, or truncate any scenes.
+- EVERY scene MUST have characters listed (who is present/visible/heard).
+- EVERY scene with characters MUST have wardrobe entries for EACH character.
+- EVERY scene MUST have key_objects populated.
+- Use ONE consistent canonical name per character throughout (never alternate between e.g. "HOWARD WELLS" and "PROFESSOR HOWARD WELLS").
+- If the output is very long, that is expected and required.
+
+The file is named "${analysis.file_name}".
+
+SCRIPT CONTENT:
+
+${scriptText}`,
           },
         ];
 
@@ -310,7 +336,7 @@ Deno.serve(async (req) => {
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-2.5-flash",
+              model: "google/gemini-2.5-pro",
               max_tokens: 131072,
               messages,
             }),
