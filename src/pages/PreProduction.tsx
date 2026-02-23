@@ -679,20 +679,22 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.locations ?? []} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." />
+          <DnDGroupPane items={breakdownAssets?.locations ?? []} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.props ?? []} filmId={filmId} storagePrefix="props" icon={Package} title="Props" emptyMessage="No props extracted yet. Lock your script in Development." />
+          <DnDGroupPane items={breakdownAssets?.props ?? []} filmId={filmId} storagePrefix="props" icon={Package} title="Props" emptyMessage="No props extracted yet. Lock your script in Development." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0">
           <DnDGroupPane
             items={(breakdownAssets?.wardrobe ?? []).map((w) => w.clothing)} filmId={filmId} storagePrefix="wardrobe" icon={Shirt} title="Wardrobe"
             emptyMessage="No wardrobe data extracted yet. Lock your script in Development."
             subtitles={(breakdownAssets?.wardrobe ?? []).reduce((acc, w) => { acc[w.clothing] = w.character; return acc; }, {} as Record<string, string>)}
+            sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
+            storagePath={scriptAnalysis?.storage_path as string | undefined}
           />
         </TabsContent>
         <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={breakdownAssets?.vehicles ?? []} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." />
+          <DnDGroupPane items={breakdownAssets?.vehicles ?? []} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
           <StoryboardPanel />
