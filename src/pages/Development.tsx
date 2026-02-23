@@ -1217,15 +1217,15 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, onRev
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-end">
-        <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5" onClick={toggleAll}>
+      <div className="flex items-center justify-between gap-4">
+        <p className="text-sm text-muted-foreground">
+          Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
+        </p>
+        <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5 shrink-0" onClick={toggleAll}>
           <ThumbsUp className="h-3.5 w-3.5" />
           {allApproved ? "Unapprove All" : "Approve All"}
         </Button>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
-      </p>
       {scenes.map((scene: any, i: number) => (
         <SceneReviewCard
           key={i} scene={scene} index={i} storagePath={storagePath}
