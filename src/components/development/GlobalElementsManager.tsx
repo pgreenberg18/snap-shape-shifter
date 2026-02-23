@@ -409,8 +409,8 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                   </Button>
                   <Button
                     size="sm"
-                    variant="destructive"
-                    className="h-7 text-xs gap-1.5"
+                    variant="default"
+                    className="h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
                   >
                     <ThumbsUp className="h-3 w-3" />
