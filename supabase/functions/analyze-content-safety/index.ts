@@ -134,17 +134,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Parse JSON
+    // Parse JSON - handle truncated/malformed responses
     let parsed: any;
     try {
-      const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-      parsed = JSON.parse(jsonStr);
+      parsed = extractJsonFromResponse(content);
     } catch {
-      return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      // If parsing fails entirely, try to salvage partial flags
+      try {
+        parsed = salvageTruncatedResponse(content);
+      } catch {
+        return new Response(JSON.stringify({ error: "Failed to parse AI response", raw: content.substring(0, 500) }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     return new Response(JSON.stringify({
@@ -163,13 +166,67 @@ Deno.serve(async (req) => {
   }
 });
 
+function extractJsonFromResponse(response: string): any {
+  let cleaned = response
+    .replace(/```json\s*/gi, "")
+    .replace(/```\s*/g, "")
+    .trim();
+
+  const jsonStart = cleaned.search(/[\{\[]/);
+  if (jsonStart === -1) throw new Error("No JSON found");
+
+  const openChar = cleaned[jsonStart];
+  const closeChar = openChar === '[' ? ']' : '}';
+  const jsonEnd = cleaned.lastIndexOf(closeChar);
+
+  if (jsonEnd === -1 || jsonEnd <= jsonStart) throw new Error("No closing bracket");
+
+  cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    cleaned = cleaned
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]")
+      .replace(/[\x00-\x1F\x7F]/g, "");
+    return JSON.parse(cleaned);
+  }
+}
+
+function salvageTruncatedResponse(response: string): any {
+  // Extract whatever complete flag objects exist even if the array/object is truncated
+  const flagPattern = /\{[^{}]*"scene_index"\s*:\s*\d+[^{}]*"severity"\s*:\s*"[^"]*"[^{}]*\}/g;
+  const matches = response.match(flagPattern) || [];
+  const flags: any[] = [];
+  for (const m of matches) {
+    try { flags.push(JSON.parse(m)); } catch { /* skip malformed */ }
+  }
+
+  // Try to extract suggested_rating
+  const ratingMatch = response.match(/"suggested_rating"\s*:\s*"([^"]*)"/);
+  const justMatch = response.match(/"rating_justification"\s*:\s*"([^"]*)"/);
+
+  // Determine rating from flags if not found
+  const severityOrder = ["G", "PG", "PG-13", "R", "NC-17"];
+  let maxSeverity = "G";
+  for (const f of flags) {
+    if (severityOrder.indexOf(f.severity) > severityOrder.indexOf(maxSeverity)) {
+      maxSeverity = f.severity;
+    }
+  }
+
+  return {
+    flags,
+    suggested_rating: ratingMatch?.[1] || maxSeverity,
+    rating_justification: justMatch?.[1] || `Based on ${flags.length} content flags (response was truncated).`,
+  };
+}
+
 function extractSceneTexts(fullText: string, scenes: any[]): { heading: string; text: string; sceneNumber: number }[] {
   const isFdx = fullText.trimStart().startsWith("<?xml") || fullText.includes("<FinalDraft");
   if (isFdx) {
-    // Parse FDX XML using regex (DOMParser not available in Edge runtime)
     const paragraphRegex = /<Paragraph[^>]*Type="([^"]*)"[^>]*>([\s\S]*?)<\/Paragraph>/gi;
-    const textRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
-    
     const paragraphs: { type: string; texts: string }[] = [];
     let match;
     while ((match = paragraphRegex.exec(fullText)) !== null) {
