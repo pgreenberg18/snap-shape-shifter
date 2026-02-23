@@ -277,31 +277,33 @@ const Development = () => {
       )}
 
       {/* ── Step 3: Content Safety Matrix ── */}
-      <section>
-        <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
-        {!allScenesApproved ? (
-          <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
-            <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-              <Lock className="h-6 w-6 text-muted-foreground" />
+      {analysis?.scene_breakdown && (
+        <section>
+          <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
+          {!allScenesApproved ? (
+            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
+              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
+                <Lock className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <p className="font-display font-semibold text-lg">Approve All Scenes First</p>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
+              </p>
             </div>
-            <p className="font-display font-semibold text-lg">Approve All Scenes First</p>
-            <p className="text-sm text-muted-foreground max-w-md">
-              Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
-            </p>
-          </div>
-        ) : (
-          <ContentSafetyMatrix
-            scenes={analysis?.scene_breakdown as any[] || []}
-            language={language}
-            nudity={nudity}
-            violence={violence}
-            handleToggle={handleToggle}
-            setLanguage={setLanguage}
-            setNudity={setNudity}
-            setViolence={setViolence}
-          />
-        )}
-      </section>
+          ) : (
+            <ContentSafetyMatrix
+              scenes={analysis?.scene_breakdown as any[] || []}
+              language={language}
+              nudity={nudity}
+              violence={violence}
+              handleToggle={handleToggle}
+              setLanguage={setLanguage}
+              setNudity={setNudity}
+              setViolence={setViolence}
+            />
+          )}
+        </section>
+      )}
     </div>
   );
 };
