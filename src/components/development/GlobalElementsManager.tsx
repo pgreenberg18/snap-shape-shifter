@@ -106,12 +106,12 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<CategoryKey | null>(null);
   const [newItemText, setNewItemText] = useState("");
-  const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "needs_review" | "completed">>({
-    characters: "needs_review",
-    locations: "needs_review",
-    wardrobe: "needs_review",
-    props: "needs_review",
-    visual_design: "needs_review",
+  const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "unreviewed" | "needs_review" | "completed">>({
+    characters: "unreviewed",
+    locations: "unreviewed",
+    wardrobe: "unreviewed",
+    props: "unreviewed",
+    visual_design: "unreviewed",
   });
 
   // Notify parent when all sections are reviewed
@@ -253,6 +253,8 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                 {hasItems(cat) && (
                   reviewStatus[key] === "completed" ? (
                     <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  ) : reviewStatus[key] === "needs_review" ? (
+                    <AlertCircle className="h-4 w-4 text-destructive" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-yellow-500" />
                   )
