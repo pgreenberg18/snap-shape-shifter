@@ -5,6 +5,7 @@ import { useFilmId } from "@/hooks/useFilm";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import ShotViewport from "@/components/production/ShotViewport";
 
 const useLatestAnalysis = (filmId: string | undefined) =>
   useQuery({
@@ -124,20 +125,9 @@ const Production = () => {
               </div>
             </div>
 
-            {/* Placeholder content area */}
-            <div className="flex-1 flex items-center justify-center p-8">
-              <div className="text-center space-y-3 max-w-md">
-                <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center cinema-glow">
-                  <Camera className="h-8 w-8 text-primary" />
-                </div>
-                <h2 className="font-display text-xl font-bold text-foreground">
-                  Shot Construction
-                </h2>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Build shots for <span className="text-primary font-medium">{activeScene.scene_heading}</span>. 
-                  Camera angles, prompts, and AI generation controls will appear here.
-                </p>
-              </div>
+            {/* Shot Construction Viewport */}
+            <div className="flex-1 overflow-y-auto py-4">
+              <ShotViewport />
             </div>
           </div>
         ) : (
