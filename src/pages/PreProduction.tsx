@@ -15,7 +15,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload,
+  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
@@ -70,6 +70,7 @@ const PreProduction = () => {
   const [savingMeta, setSavingMeta] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [uploadingRef, setUploadingRef] = useState(false);
+  const [analyzingRef, setAnalyzingRef] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
@@ -208,11 +209,34 @@ const PreProduction = () => {
     const { error: uploadErr } = await supabase.storage.from("character-assets").upload(path, file, { upsert: true });
     if (uploadErr) { toast.error("Upload failed"); setUploadingRef(false); return; }
     const { data: urlData } = supabase.storage.from("character-assets").getPublicUrl(path);
-    await supabase.from("characters").update({ reference_image_url: urlData.publicUrl } as any).eq("id", selectedChar.id);
+    const publicUrl = urlData.publicUrl;
+    await supabase.from("characters").update({ reference_image_url: publicUrl } as any).eq("id", selectedChar.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
-    toast.success("Reference image uploaded");
+    toast.success("Reference image uploaded — analyzing…");
     setUploadingRef(false);
-  }, [selectedChar, filmId, queryClient]);
+
+    // Analyze the reference image for a person-focused description
+    setAnalyzingRef(true);
+    try {
+      const { data: analysisData, error: analysisErr } = await supabase.functions.invoke("analyze-reference-image", {
+        body: { imageUrl: publicUrl, context: "casting", characterName: selectedChar.name },
+      });
+      if (analysisErr) throw analysisErr;
+      if (analysisData?.description) {
+        // Prepend the AI description to existing description
+        const existing = charDescription.trim();
+        const aiDesc = analysisData.description.trim();
+        const combined = existing ? `${aiDesc}\n\n${existing}` : aiDesc;
+        setCharDescription(combined);
+        toast.success("Reference analyzed — description updated");
+      }
+    } catch (err) {
+      console.error("Reference analysis failed:", err);
+      toast.error("Could not analyze reference image");
+    } finally {
+      setAnalyzingRef(false);
+    }
+  }, [selectedChar, filmId, queryClient, charDescription]);
 
   const handleSuggestCasting = useCallback((charId: string) => {
     const char = characters?.find(c => c.id === charId);
@@ -330,12 +354,22 @@ const PreProduction = () => {
                 </div>
 
                 {/* Reference image preview */}
-                {(selectedChar as any).reference_image_url && (
+                {((selectedChar as any).reference_image_url || analyzingRef) && (
                   <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
-                    <img src={(selectedChar as any).reference_image_url} alt="Reference" className="h-16 w-16 rounded-lg object-cover border border-border" />
-                    <div>
+                    {(selectedChar as any).reference_image_url && (
+                      <img src={(selectedChar as any).reference_image_url} alt="Reference" className="h-16 w-16 rounded-lg object-cover border border-border" />
+                    )}
+                    <div className="flex-1">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Reference Image</p>
-                      <p className="text-xs text-muted-foreground/60 mt-0.5">This will inform AI casting suggestions</p>
+                      {analyzingRef ? (
+                        <p className="text-xs text-primary mt-0.5 flex items-center gap-1.5">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Analyzing appearance…
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground/60 mt-0.5 flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> AI-analyzed — description merged into character details
+                        </p>
+                      )}
                     </div>
                   </div>
                 )}
