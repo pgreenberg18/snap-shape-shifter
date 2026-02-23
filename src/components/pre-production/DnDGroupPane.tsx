@@ -10,7 +10,8 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, type LucideIcon } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,6 +31,12 @@ interface ItemGroup {
   children: string[];
 }
 
+interface ReclassifyOption {
+  label: string;
+  value: string;
+  icon: LucideIcon;
+}
+
 interface DnDGroupPaneProps {
   items: string[];
   filmId: string | undefined;
@@ -41,6 +48,8 @@ interface DnDGroupPaneProps {
   expandableSubtitles?: boolean;
   sceneBreakdown?: any[];
   storagePath?: string;
+  reclassifyOptions?: ReclassifyOption[];
+  onReclassify?: (item: string, targetCategory: string) => void;
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -116,7 +125,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -577,6 +586,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                       onSaveEdit={() => handleRenameItem(item)}
                       onCancelEdit={() => { setEditingItemId(null); setEditName(""); }}
                       onClick={() => handleItemClick(item)}
+                      reclassifyOptions={reclassifyOptions}
+                      onReclassify={onReclassify}
                     />
                   ))}
                 </div>
@@ -728,7 +739,7 @@ const DraggableItem = ({
   id, label, icon: Icon, isOverlay, subtitle,
   refImageUrl, isAnalyzing, onUploadReference,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit,
-  onClick,
+  onClick, reclassifyOptions, onReclassify,
 }: {
   id: string; label: string; icon: LucideIcon; isOverlay: boolean; subtitle?: string;
   refImageUrl?: string; isAnalyzing?: boolean; onUploadReference?: (file: File) => void;
@@ -736,6 +747,8 @@ const DraggableItem = ({
   onStartEdit?: () => void; onEditChange?: (v: string) => void;
   onSaveEdit?: () => void; onCancelEdit?: () => void;
   onClick?: () => void;
+  reclassifyOptions?: ReclassifyOption[];
+  onReclassify?: (item: string, target: string) => void;
 }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id });
@@ -807,6 +820,34 @@ const DraggableItem = ({
               >
                 <ScrollText className="h-3 w-3" />
               </button>
+            )}
+            {reclassifyOptions && reclassifyOptions.length > 0 && onReclassify && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    onClick={(e) => e.stopPropagation()}
+                    className="shrink-0 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"
+                    title="Move to another category"
+                  >
+                    <ArrowRightLeft className="h-3 w-3" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[160px]">
+                  {reclassifyOptions.map((opt) => {
+                    const OptIcon = opt.icon;
+                    return (
+                      <DropdownMenuItem key={opt.value} onClick={() => onReclassify(id, opt.value)} className="gap-2 text-xs">
+                        <OptIcon className="h-3.5 w-3.5" />
+                        Move to {opt.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  <DropdownMenuItem onClick={() => onReclassify(id, "_dismiss")} className="gap-2 text-xs text-muted-foreground">
+                    <X className="h-3.5 w-3.5" />
+                    Not a prop (dismiss)
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </>
         )}
