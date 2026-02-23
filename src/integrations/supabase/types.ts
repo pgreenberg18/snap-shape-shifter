@@ -101,29 +101,44 @@ export type Database = {
       }
       characters: {
         Row: {
+          age_max: number | null
+          age_min: number | null
           created_at: string
+          description: string | null
           film_id: string
           id: string
           image_url: string | null
+          is_child: boolean | null
           name: string
+          sex: string | null
           voice_description: string | null
           voice_generation_seed: number | null
         }
         Insert: {
+          age_max?: number | null
+          age_min?: number | null
           created_at?: string
+          description?: string | null
           film_id: string
           id?: string
           image_url?: string | null
+          is_child?: boolean | null
           name: string
+          sex?: string | null
           voice_description?: string | null
           voice_generation_seed?: number | null
         }
         Update: {
+          age_max?: number | null
+          age_min?: number | null
           created_at?: string
+          description?: string | null
           film_id?: string
           id?: string
           image_url?: string | null
+          is_child?: boolean | null
           name?: string
+          sex?: string | null
           voice_description?: string | null
           voice_generation_seed?: number | null
         }
