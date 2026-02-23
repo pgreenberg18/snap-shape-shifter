@@ -1,15 +1,16 @@
 import { useState, useCallback } from "react";
 import { useCharacters } from "@/hooks/useFilm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Users, MapPin, Shirt, Mic, Film, ChevronRight, Lock, Sparkles, Loader2, Check, User,
+  Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
 } from "lucide-react";
+import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
+import VoiceCastingPanel from "@/components/pre-production/VoiceCastingPanel";
 
 /* ── Audition card type ── */
 interface AuditionCard {
@@ -126,93 +127,12 @@ const PreProduction = () => {
 
         {/* ═══ CASTING TAB ═══ */}
         <TabsContent value="casting" className="flex-1 flex overflow-hidden m-0">
-          {/* Sidebar — Character list */}
-          <aside className="w-[280px] min-w-[240px] border-r border-border bg-card flex flex-col">
-            <div className="px-4 py-3 border-b border-border">
-              <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                Characters
-              </h2>
-              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-                {characters?.length ?? 0} in cast
-              </p>
-            </div>
-            <ScrollArea className="flex-1">
-              {isLoading ? (
-                <div className="p-4 space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-14 rounded-lg bg-secondary animate-pulse" />
-                  ))}
-                </div>
-              ) : !characters?.length ? (
-                <div className="p-6 text-center text-sm text-muted-foreground">
-                  <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-                  <p className="font-display font-semibold">No characters yet</p>
-                  <p className="text-xs mt-1">Analyze a script in Development to populate the cast.</p>
-                </div>
-              ) : (
-                <div className="py-1">
-                  {characters.map((char) => {
-                    const isActive = selectedCharId === char.id;
-                    const isLocked = !!char.image_url;
-                    return (
-                      <button
-                        key={char.id}
-                        onClick={() => selectChar(char.id)}
-                        className={cn(
-                          "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-l-2",
-                          isActive
-                            ? "border-l-primary bg-primary/5"
-                            : "border-l-transparent hover:bg-secondary/60"
-                        )}
-                      >
-                        {/* Avatar */}
-                        <div
-                          className={cn(
-                            "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold font-display uppercase overflow-hidden",
-                            isActive
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-secondary text-muted-foreground"
-                          )}
-                        >
-                          {char.image_url ? (
-                            <img src={char.image_url} alt={char.name} className="h-full w-full object-cover" />
-                          ) : (
-                            char.name.charAt(0)
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <p
-                              className={cn(
-                                "text-sm font-display font-semibold truncate",
-                                isActive ? "text-primary" : "text-foreground"
-                              )}
-                            >
-                              {char.name}
-                            </p>
-                            {isLocked && (
-                              <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded">
-                                <Lock className="h-2.5 w-2.5" />
-                                Locked
-                              </span>
-                            )}
-                          </div>
-                          {char.voice_description && (
-                            <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                              {char.voice_description}
-                            </p>
-                          )}
-                        </div>
-                        {isActive && (
-                          <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </ScrollArea>
-          </aside>
+          <CharacterSidebar
+            characters={characters}
+            isLoading={isLoading}
+            selectedCharId={selectedCharId}
+            onSelect={selectChar}
+          />
 
           {/* Main staging area */}
           <main className="flex-1 overflow-y-auto">
@@ -335,8 +255,8 @@ const PreProduction = () => {
         <TabsContent value="props" className="flex-1 m-0">
           <PlaceholderPane icon={Shirt} title="Props & Wardrobe" description="Define and lock prop inventories and wardrobe continuity for every scene." />
         </TabsContent>
-        <TabsContent value="voice" className="flex-1 m-0">
-          <PlaceholderPane icon={Mic} title="Voice Casting" description="Generate and audition AI voice profiles for each character. Lock vocal identity before production." />
+        <TabsContent value="voice" className="flex-1 flex overflow-hidden m-0">
+          <VoiceCastingPanel characters={characters} isLoading={isLoading} />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 m-0">
           <PlaceholderPane icon={Film} title="Storyboard Pre-Viz" description="Build storyboard sequences and animated pre-visualizations from your locked scene breakdown." />
