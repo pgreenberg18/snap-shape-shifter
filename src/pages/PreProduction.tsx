@@ -10,7 +10,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform, Package,
+  Save, AudioWaveform, Package, Car,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
@@ -164,6 +164,7 @@ const PreProduction = () => {
             <WarRoomTab value="locations" icon={MapPin} label="Locations" />
             <WarRoomTab value="props" icon={Package} label="Props" />
             <WarRoomTab value="wardrobe" icon={Shirt} label="Wardrobe" />
+            <WarRoomTab value="vehicles" icon={Car} label="Picture Vehicles" />
             <WarRoomTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
           </TabsList>
         </div>
@@ -403,6 +404,16 @@ const PreProduction = () => {
               acc[w.clothing] = w.character;
               return acc;
             }, {} as Record<string, string>)}
+          />
+        </TabsContent>
+        <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
+          <DnDGroupPane
+            items={breakdownAssets?.vehicles ?? []}
+            filmId={filmId}
+            storagePrefix="vehicles"
+            icon={Car}
+            title="Picture Vehicles"
+            emptyMessage="No vehicles identified in the script breakdown yet. Vehicles are auto-detected from key objects (cars, trucks, vans, etc.)."
           />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
