@@ -485,58 +485,66 @@ const Development = () => {
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
       {/* ── Film Details ── */}
-      <section>
-        <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
-          <Film className="h-5 w-5 text-primary" /> Film Details
-        </h2>
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+      <Collapsible>
+        <CollapsibleTrigger className="w-full">
+          <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+            <div className="flex items-center gap-2">
+              <Film className="h-5 w-5 text-primary" />
+              <h3 className="font-display text-lg font-bold">Film Details</h3>
+            </div>
+            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+                <Input
+                  value={filmTitle}
+                  onChange={(e) => setFilmTitle(e.target.value)}
+                  placeholder="Film title"
+                  disabled={scriptLocked}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Version</Label>
+                <Input
+                  value={versionName}
+                  onChange={(e) => setVersionName(e.target.value)}
+                  placeholder="e.g. Draft 1, Final Cut"
+                  disabled={scriptLocked}
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
               <Input
-                value={filmTitle}
-                onChange={(e) => setFilmTitle(e.target.value)}
-                placeholder="Film title"
+                value={writers}
+                onChange={(e) => setWriters(e.target.value)}
+                placeholder="e.g. Jane Doe & John Smith"
                 disabled={scriptLocked}
               />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Version</Label>
-              <Input
-                value={versionName}
-                onChange={(e) => setVersionName(e.target.value)}
-                placeholder="e.g. Draft 1, Final Cut"
-                disabled={scriptLocked}
-              />
+            <div className="flex justify-end">
+              <Button
+                onClick={handleSaveMeta}
+                disabled={metaSaving || scriptLocked || (!metaDirty && metaSaved)}
+                className="gap-1.5"
+                size="sm"
+              >
+                {metaSaving ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                ) : metaSaved && !metaDirty ? (
+                  <><CheckCircle className="h-4 w-4" /> Saved</>
+                ) : (
+                  <><Save className="h-4 w-4" /> Save Details</>
+                )}
+              </Button>
             </div>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
-            <Input
-              value={writers}
-              onChange={(e) => setWriters(e.target.value)}
-              placeholder="e.g. Jane Doe & John Smith"
-              disabled={scriptLocked}
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button
-              onClick={handleSaveMeta}
-              disabled={metaSaving || scriptLocked || (!metaDirty && metaSaved)}
-              className="gap-1.5"
-              size="sm"
-            >
-              {metaSaving ? (
-                <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-              ) : metaSaved && !metaDirty ? (
-                <><CheckCircle className="h-4 w-4" /> Saved</>
-              ) : (
-                <><Save className="h-4 w-4" /> Save Details</>
-              )}
-            </Button>
-          </div>
-        </div>
-      </section>
+        </CollapsibleContent>
+      </Collapsible>
 
       {/* ── Script Upload ── */}
       <section>
@@ -657,21 +665,37 @@ const Development = () => {
             <div className="space-y-6">
               {/* Visual Summary */}
               {analysis.visual_summary && (
-                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Film className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
-                </div>
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Film className="h-5 w-5 text-primary" />
+                        <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
+                      </div>
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                      <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
 
               {/* ── Time Period ── */}
-              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-5 w-5 text-primary" />
-                  <h3 className="font-display text-lg font-bold">Time Period</h3>
-                </div>
+              <Collapsible>
+                <CollapsibleTrigger className="w-full">
+                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Time Period</h3>
+                    </div>
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
                 <p className="text-sm text-muted-foreground">
                   Set when most of this film takes place. This anchors the visual language for all downstream phases.
                 </p>
@@ -735,6 +759,8 @@ const Development = () => {
                   </div>
                 )}
               </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
                 <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
@@ -798,7 +824,7 @@ const Development = () => {
       {/* ── Step 3: Content Safety Matrix ── */}
       {analysis?.scene_breakdown && (
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">Content Safety Matrix</h2>
+          <h2 className="font-display text-2xl font-bold mb-4">Ratings Classification</h2>
 
           {scriptLocked ? (
             /* ── LOCKED STATE ── */
@@ -1979,19 +2005,28 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
     return parts.join("\n\n");
   });
   return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-      <div className="flex items-center gap-2">
-        <Sparkles className="h-5 w-5 text-primary" />
-        <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
-      </div>
-      <Textarea
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder="Add notes about overall visual approach, consistency requirements, or special considerations..."
-        className="min-h-[100px] text-sm bg-background resize-y"
-        style={{ fieldSizing: 'content' } as React.CSSProperties}
-      />
-    </div>
+    <Collapsible>
+      <CollapsibleTrigger className="w-full">
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
+          </div>
+          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+          <Textarea
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder="Add notes about overall visual approach, consistency requirements, or special considerations..."
+            className="min-h-[100px] text-sm bg-background resize-y"
+            style={{ fieldSizing: 'content' } as React.CSSProperties}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
