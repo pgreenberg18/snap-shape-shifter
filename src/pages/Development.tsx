@@ -961,7 +961,7 @@ const Development = () => {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                      <GlobalElementsManager data={analysis.global_elements as any} onAllReviewedChange={setAllElementsReviewed} />
+                      <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} onAllReviewedChange={setAllElementsReviewed} />
                     </div>
                   </CollapsibleContent>
                 </Collapsible>

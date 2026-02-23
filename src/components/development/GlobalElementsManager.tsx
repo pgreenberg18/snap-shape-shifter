@@ -1,4 +1,5 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
   ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp,
@@ -90,12 +91,14 @@ const uid = () => `grp_${++_uid}_${Date.now()}`;
 
 interface Props {
   data: any;
+  analysisId?: string;
   onAllReviewedChange?: (allReviewed: boolean) => void;
 }
 
-export default function GlobalElementsManager({ data, onAllReviewedChange }: Props) {
+export default function GlobalElementsManager({ data, analysisId, onAllReviewedChange }: Props) {
+  const managed = data?._managed;
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() =>
-    buildInitialData(data),
+    managed?.categories || buildInitialData(data),
   );
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
@@ -106,13 +109,16 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<CategoryKey | null>(null);
   const [newItemText, setNewItemText] = useState("");
-  const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "unreviewed" | "needs_review" | "completed">>({
-    characters: "unreviewed",
-    locations: "unreviewed",
-    wardrobe: "unreviewed",
-    props: "unreviewed",
-    visual_design: "unreviewed",
-  });
+  const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "unreviewed" | "needs_review" | "completed">>(
+    managed?.reviewStatus || {
+      characters: "unreviewed",
+      locations: "unreviewed",
+      wardrobe: "unreviewed",
+      props: "unreviewed",
+      visual_design: "unreviewed",
+    },
+  );
+  const initialMount = useRef(true);
 
   // Notify parent when all sections are reviewed
   useEffect(() => {
@@ -123,6 +129,23 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
     });
     onAllReviewedChange?.(allCompleted);
   }, [reviewStatus, categories, onAllReviewedChange]);
+
+  // Persist managed state to DB
+  useEffect(() => {
+    if (initialMount.current) {
+      initialMount.current = false;
+      return;
+    }
+    if (!analysisId) return;
+    const timeout = setTimeout(async () => {
+      const updatedGlobal = { ...data, _managed: { categories, reviewStatus } };
+      await supabase
+        .from("script_analyses")
+        .update({ global_elements: updatedGlobal as any })
+        .eq("id", analysisId);
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [categories, reviewStatus, analysisId]);
 
   /* selection */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
