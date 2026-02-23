@@ -416,7 +416,7 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
                   >
                     <ThumbsUp className="h-3 w-3" />
-                    Completed
+                    Approved
                   </Button>
                 </div>
               </div>
