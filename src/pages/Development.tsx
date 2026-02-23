@@ -675,9 +675,18 @@ const Development = () => {
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                   <CollapsibleContent>
+                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
                       <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
+                      <div className="space-y-2 border-t border-border pt-4">
+                        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
+                        <textarea
+                          defaultValue={(analysis.global_elements as any)?.signature_style || ""}
+                          placeholder="Describe the overall visual signature style..."
+                          className="w-full min-h-[80px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground"
+                          style={{ fieldSizing: 'content' } as React.CSSProperties}
+                        />
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
