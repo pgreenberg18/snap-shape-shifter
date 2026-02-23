@@ -468,10 +468,15 @@ const Development = () => {
                   <p className="text-sm text-muted-foreground">
                     Locking finalizes your script breakdown and content safety settings. This data will propagate to Production, Post-Production, and Release phases.
                   </p>
+                  {!film?.time_period && (
+                    <p className="text-xs text-destructive mt-1.5 flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> A time period must be set before locking.
+                    </p>
+                  )}
                 </div>
                 <Button
                   onClick={handleLockScript}
-                  disabled={locking}
+                  disabled={locking || !film?.time_period}
                   size="lg"
                   className="gap-2 shrink-0"
                 >
