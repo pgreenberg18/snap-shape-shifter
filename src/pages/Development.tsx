@@ -254,7 +254,7 @@ const Development = () => {
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
       {/* ── Step 1: Script Upload ── */}
       <section>
-        <h2 className="font-display text-2xl font-bold mb-4">1 · Upload Script</h2>
+        <h2 className="font-display text-2xl font-bold mb-4">Upload Script</h2>
         {analysis ? (
           <div className="flex items-center gap-4 rounded-xl border border-border p-6 bg-card">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
@@ -360,7 +360,7 @@ const Development = () => {
       {/* ── Step 2: Analysis Results / Review Section ── */}
       {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">2 · Review Visual Breakdown</h2>
+          <h2 className="font-display text-2xl font-bold mb-4">Review Visual Breakdown</h2>
 
           {/* Loading state */}
           {isAnalyzing && (
@@ -431,7 +431,7 @@ const Development = () => {
       {/* ── Step 3: Content Safety Matrix ── */}
       {analysis?.scene_breakdown && (
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
+          <h2 className="font-display text-2xl font-bold mb-4">Content Safety Matrix</h2>
 
           {scriptLocked ? (
             /* ── LOCKED STATE ── */
