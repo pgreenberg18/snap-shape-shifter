@@ -38,6 +38,7 @@ interface DnDGroupPaneProps {
   title: string;
   emptyMessage: string;
   subtitles?: Record<string, string>;
+  expandableSubtitles?: boolean;
   sceneBreakdown?: any[];
   storagePath?: string;
 }
@@ -112,7 +113,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, sceneBreakdown, storagePath }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -129,7 +130,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [analyzingItem, setAnalyzingItem] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
-
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   // Script viewer state
   const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptTitle, setScriptTitle] = useState("");
@@ -436,8 +437,16 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   }, [sceneBreakdown, storagePath, storagePrefix]);
 
   const handleItemClick = useCallback((itemName: string) => {
+    if (expandableSubtitles && subtitles?.[itemName]) {
+      setExpandedItems((prev) => {
+        const next = new Set(prev);
+        next.has(itemName) ? next.delete(itemName) : next.add(itemName);
+        return next;
+      });
+      return;
+    }
     openScriptForItems([itemName], displayName(itemName));
-  }, [openScriptForItems, displayName]);
+  }, [expandableSubtitles, subtitles, openScriptForItems, displayName]);
 
   const handleGroupClick = useCallback((group: ItemGroup) => {
     if (group.children.length === 0) return;
@@ -533,6 +542,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 onUploadReference={handleUploadReference}
                 onItemClick={handleItemClick}
                 onGroupClick={handleGroupClick}
+                expandableSubtitles={expandableSubtitles}
+                expandedItems={expandedItems}
               />
             ))}
 
@@ -552,7 +563,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                       label={displayName(item)}
                       icon={Icon}
                       isOverlay={false}
-                      subtitle={refDescriptions[item] || subtitles?.[item]}
+                      subtitle={expandableSubtitles ? (expandedItems.has(item) ? (refDescriptions[item] || subtitles?.[item]) : undefined) : (refDescriptions[item] || subtitles?.[item])}
                       refImageUrl={refImages[item]}
                       isAnalyzing={analyzingItem === item}
                       onUploadReference={(file) => handleUploadReference(item, file)}
@@ -817,7 +828,7 @@ const GroupDropZone = ({
   group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit, subtitles, displayName,
   refImages, refDescriptions, analyzingItem, onUploadReference,
-  onItemClick, onGroupClick,
+  onItemClick, onGroupClick, expandableSubtitles, expandedItems,
 }: {
   group: ItemGroup; icon: LucideIcon; isCollapsed: boolean; onToggle: () => void;
   onDelete: () => void; onRemoveChild: (item: string) => void;
@@ -829,6 +840,8 @@ const GroupDropZone = ({
   onUploadReference: (itemId: string, file: File) => void;
   onItemClick?: (itemName: string) => void;
   onGroupClick?: (group: ItemGroup) => void;
+  expandableSubtitles?: boolean;
+  expandedItems?: Set<string>;
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `group::${group.id}` });
 
@@ -881,9 +894,12 @@ const GroupDropZone = ({
                 </button>
                 <button onClick={() => onRemoveChild(item)} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0"><X className="h-3 w-3" /></button>
               </div>
-              {(refDescriptions[item] || subtitles?.[item]) && (
-                <p className="text-[10px] text-muted-foreground pl-5 line-clamp-2">{refDescriptions[item] || subtitles?.[item]}</p>
-              )}
+              {(() => {
+                const desc = refDescriptions[item] || subtitles?.[item];
+                if (!desc) return null;
+                if (expandableSubtitles && !expandedItems?.has(item)) return null;
+                return <p className="text-[10px] text-muted-foreground pl-5 line-clamp-2">{desc}</p>;
+              })()}
             </div>
           ))}
         </div>

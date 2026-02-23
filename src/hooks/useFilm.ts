@@ -126,6 +126,7 @@ export const useBreakdownAssets = () => {
       }
       const scenes = data.scene_breakdown as any[];
       const locationSet = new Set<string>();
+      const locationDescMap = new Map<string, string>();
       const propSet = new Set<string>();
       const wardrobeMap = new Map<string, string>();
       const vehicleSet = new Set<string>();
@@ -133,8 +134,14 @@ export const useBreakdownAssets = () => {
       const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
 
       for (const s of scenes) {
-        if (s.setting && typeof s.setting === "string" && s.setting !== "N/A") {
-          locationSet.add(s.setting);
+        if (s.scene_heading && typeof s.scene_heading === "string" && s.scene_heading !== "N/A") {
+          const heading = s.scene_heading.trim();
+          if (!locationSet.has(heading)) {
+            locationSet.add(heading);
+            // Use setting/description as the location description
+            const desc = s.setting && s.setting !== "N/A" ? s.setting : (s.description || "");
+            if (desc) locationDescMap.set(heading, desc);
+          }
         }
         if (Array.isArray(s.key_objects)) {
           for (const p of s.key_objects) {
@@ -168,6 +175,7 @@ export const useBreakdownAssets = () => {
 
       return {
         locations: [...locationSet].sort(),
+        locationDescriptions: Object.fromEntries(locationDescMap),
         props: [...propSet].sort(),
         wardrobe: [...wardrobeMap.keys()].map((k) => {
           const [character, clothing] = k.split("::");
