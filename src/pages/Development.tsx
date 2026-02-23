@@ -102,7 +102,7 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
         <div>
           <p className="font-display font-semibold text-lg">Analyzing your screenplay…</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Elapsed: {formatTime(elapsed)} · This typically takes 1–3 minutes
+            Elapsed: {formatTime(elapsed)} · This typically takes a few minutes. Please be patient
           </p>
         </div>
       </div>
