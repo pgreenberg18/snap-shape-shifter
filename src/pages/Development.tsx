@@ -309,6 +309,7 @@ const Development = () => {
           ) : (
             <ContentSafetyMatrix
               scenes={analysis?.scene_breakdown as any[] || []}
+              storagePath={analysis?.storage_path || ""}
               language={language}
               nudity={nudity}
               violence={violence}
@@ -959,51 +960,206 @@ const CONTENT_PATTERNS: { pattern: RegExp; category: string; severity: MPAARatin
   { pattern: /\b(suicide|death|dying|grief|abuse|trauma|assault)\b/i, category: "thematic", severity: "PG-13" },
 ];
 
-function analyzeScenes(scenes: any[]): { flags: ContentFlag[]; suggestedRating: MPAARating } {
+function analyzeScriptText(sceneTexts: { heading: string; text: string; sceneNumber: number }[]): { flags: ContentFlag[]; suggestedRating: MPAARating } {
   const flags: ContentFlag[] = [];
   const ratingOrder: MPAARating[] = ["G", "PG", "PG-13", "R", "NC-17"];
   let maxRating: MPAARating = "G";
-  scenes.forEach((scene, i) => {
-    const textsToCheck: { text: string; type: "description" | "dialogue" }[] = [];
-    if (scene.description) textsToCheck.push({ text: scene.description, type: "description" });
-    if (scene.environment_details) textsToCheck.push({ text: scene.environment_details, type: "description" });
-    if (scene.characters) scene.characters.forEach((c: any) => {
-      if (c.physical_behavior) textsToCheck.push({ text: c.physical_behavior, type: "description" });
-    });
-    if (scene.image_prompt) textsToCheck.push({ text: scene.image_prompt, type: "description" });
-    if (scene.video_prompt) textsToCheck.push({ text: scene.video_prompt, type: "description" });
-    for (const { text, type } of textsToCheck) {
+  for (const scene of sceneTexts) {
+    const lines = scene.text.split("\n").filter((l) => l.trim());
+    for (let li = 0; li < lines.length; li++) {
+      const line = lines[li];
       for (const { pattern, category, severity } of CONTENT_PATTERNS) {
-        const match = text.match(pattern);
+        const match = line.match(pattern);
         if (match) {
           const idx = match.index || 0;
-          const start = Math.max(0, idx - 30);
-          const end = Math.min(text.length, idx + match[0].length + 30);
-          const excerpt = (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
-          flags.push({ sceneIndex: i, sceneHeading: scene.scene_heading || `Scene ${scene.scene_number ?? i + 1}`, category, type, excerpt, severity });
+          const start = Math.max(0, idx - 40);
+          const end = Math.min(line.length, idx + match[0].length + 40);
+          const excerpt = (start > 0 ? "…" : "") + line.slice(start, end) + (end < line.length ? "…" : "");
+          const prevLine = li > 0 ? lines[li - 1].trim() : "";
+          const isDialogue = /^[A-Z][A-Z\s'.()-]+$/.test(prevLine) && prevLine.length < 40;
+          flags.push({
+            sceneIndex: scene.sceneNumber - 1,
+            sceneHeading: scene.heading,
+            category,
+            type: isDialogue ? "dialogue" : "description",
+            excerpt,
+            severity,
+          });
           if (ratingOrder.indexOf(severity) > ratingOrder.indexOf(maxRating)) maxRating = severity;
+          break;
         }
       }
     }
-  });
-  return { flags, suggestedRating: maxRating };
+  }
+  const unique = flags.filter((f, i, arr) => arr.findIndex((x) => x.sceneIndex === f.sceneIndex && x.category === f.category && x.excerpt === f.excerpt) === i);
+  return { flags: unique, suggestedRating: maxRating };
 }
 
+function extractSceneTexts(fullText: string, scenes: any[]): { heading: string; text: string; sceneNumber: number }[] {
+  const isFdx = fullText.trimStart().startsWith("<?xml") || fullText.includes("<FinalDraft");
+  if (isFdx) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(fullText, "text/xml");
+    const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
+    const result: { heading: string; text: string; sceneNumber: number }[] = [];
+    const headingIndices: number[] = [];
+    for (let i = 0; i < paragraphs.length; i++) {
+      if (paragraphs[i].getAttribute("Type") === "Scene Heading") headingIndices.push(i);
+    }
+    for (let h = 0; h < headingIndices.length; h++) {
+      const startIdx = headingIndices[h];
+      const endIdx = h + 1 < headingIndices.length ? headingIndices[h + 1] : paragraphs.length;
+      const headingText = Array.from(paragraphs[startIdx].querySelectorAll("Text")).map((t) => t.textContent || "").join("").trim();
+      const sceneText: string[] = [];
+      for (let i = startIdx; i < endIdx; i++) {
+        const texts = Array.from(paragraphs[i].querySelectorAll("Text")).map((t) => t.textContent || "").join("");
+        if (texts.trim()) sceneText.push(texts);
+      }
+      const matchedScene = scenes.find((s: any) => s.scene_heading && headingText.toUpperCase().includes(s.scene_heading.toUpperCase()));
+      result.push({ heading: headingText, text: sceneText.join("\n"), sceneNumber: matchedScene?.scene_number ?? h + 1 });
+    }
+    return result;
+  }
+  const scenePattern = /^((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)$/gim;
+  const matches = [...fullText.matchAll(scenePattern)];
+  const result: { heading: string; text: string; sceneNumber: number }[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const start = matches[i].index!;
+    const end = i + 1 < matches.length ? matches[i + 1].index! : fullText.length;
+    const heading = matches[i][1].trim();
+    const text = fullText.substring(start, end);
+    const matchedScene = scenes.find((s: any) => s.scene_heading && heading.toUpperCase().includes(s.scene_heading.toUpperCase()));
+    result.push({ heading, text, sceneNumber: matchedScene?.scene_number ?? i + 1 });
+  }
+  return result;
+}
+
+const ExpandableFlaggedScene = ({ flag, scene }: { flag: ContentFlag; scene?: any }) => {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="rounded-lg border border-destructive/20 bg-destructive/5 overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full p-3 flex items-center justify-between hover:bg-destructive/10 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-destructive/10 text-destructive text-xs font-bold font-mono shrink-0">
+            {flag.sceneIndex + 1}
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-foreground truncate">{flag.sceneHeading}</p>
+            <p className="text-xs text-destructive font-medium truncate">{flag.excerpt}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0 ml-2">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
+          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
+          {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+        </div>
+      </button>
+      {expanded && scene && (
+        <div className="border-t border-destructive/10 p-4 space-y-4 bg-card/50">
+          <div className="grid grid-cols-2 gap-3">
+            {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
+            {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
+            {scene.setting && <Tag label="Setting" value={scene.setting} />}
+          </div>
+          {scene.description && (
+            <Section icon={Eye} label="Description">
+              <p className="text-sm text-muted-foreground">{scene.description}</p>
+            </Section>
+          )}
+          {scene.visual_design && (
+            <Section icon={Palette} label="Visual Design">
+              <div className="grid grid-cols-2 gap-2">
+                {scene.visual_design.atmosphere && <Tag label="Atmosphere" value={scene.visual_design.atmosphere} />}
+                {scene.visual_design.lighting_style && <Tag label="Lighting" value={scene.visual_design.lighting_style} />}
+                {scene.visual_design.color_palette && <Tag label="Palette" value={scene.visual_design.color_palette} />}
+              </div>
+            </Section>
+          )}
+          {scene.characters?.length > 0 && (
+            <Section icon={Users} label="Characters">
+              {scene.characters.map((c: any, ci: number) => (
+                <div key={ci} className="bg-secondary rounded-lg p-3">
+                  <p className="text-sm font-semibold">{c.name}</p>
+                  {c.emotional_tone && <p className="text-xs text-muted-foreground mt-1">Tone: {c.emotional_tone}</p>}
+                  {c.physical_behavior && <p className="text-xs text-muted-foreground">Behavior: {c.physical_behavior}</p>}
+                </div>
+              ))}
+            </Section>
+          )}
+          {scene.environment_details && (
+            <Section icon={MapPin} label="Environment">
+              <p className="text-sm text-muted-foreground">{scene.environment_details}</p>
+            </Section>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 const ContentSafetyMatrix = ({
-  scenes, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence,
+  scenes, storagePath, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence,
 }: {
   scenes: any[];
+  storagePath: string;
   language: boolean; nudity: boolean; violence: boolean;
   handleToggle: (field: string, setter: (v: boolean) => void) => (val: boolean) => void;
   setLanguage: (v: boolean) => void; setNudity: (v: boolean) => void; setViolence: (v: boolean) => void;
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<MPAARating | null>(null);
-  const { flags, suggestedRating } = analyzeScenes(scenes);
+  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [flags, setFlags] = useState<ContentFlag[]>([]);
+  const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!storagePath || scriptLoaded) return;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase.storage.from("scripts").download(storagePath);
+        if (error || !data) throw error || new Error("Download failed");
+        const fullText = await data.text();
+        const sceneTexts = extractSceneTexts(fullText, scenes);
+        const result = analyzeScriptText(sceneTexts);
+        setFlags(result.flags);
+        setSuggestedRating(result.suggestedRating);
+        setScriptLoaded(true);
+      } catch (e) {
+        console.error("Content safety analysis failed:", e);
+        const fallback = analyzeScriptText(scenes.map((s: any, i: number) => ({
+          heading: s.scene_heading || `Scene ${s.scene_number ?? i + 1}`,
+          text: [s.description, s.environment_details, s.image_prompt, s.video_prompt].filter(Boolean).join("\n"),
+          sceneNumber: s.scene_number ?? i + 1,
+        })));
+        setFlags(fallback.flags);
+        setSuggestedRating(fallback.suggestedRating);
+        setScriptLoaded(true);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [storagePath, scenes, scriptLoaded]);
+
   const flagsByCategory = flags.reduce((acc, f) => {
     if (!acc[f.category]) acc[f.category] = [];
     acc[f.category].push(f);
     return acc;
   }, {} as Record<string, ContentFlag[]>);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-border bg-card p-10 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span>Analyzing script for content safety…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border border-border bg-card p-6">
@@ -1013,7 +1169,6 @@ const ContentSafetyMatrix = ({
           <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
           <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
         </TabsList>
-
         <TabsContent value="auto">
           <div className="space-y-6">
             <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
@@ -1022,7 +1177,7 @@ const ContentSafetyMatrix = ({
               </div>
               <div className="flex-1">
                 <p className="font-display font-bold text-lg">Suggested Rating: <span className="text-primary">{suggestedRating}</span></p>
-                <p className="text-sm text-muted-foreground">Based on MPAA guidelines analysis of {scenes.length} approved scenes</p>
+                <p className="text-sm text-muted-foreground">Based on MPAA guidelines analysis of original script text</p>
               </div>
               <span className={cn(
                 "text-xs font-bold px-3 py-1.5 rounded-full",
@@ -1031,7 +1186,6 @@ const ContentSafetyMatrix = ({
                 (suggestedRating === "R" || suggestedRating === "NC-17") && "bg-destructive/20 text-destructive",
               )}>{suggestedRating}</span>
             </div>
-
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Content Breakdown by Category</p>
               {MPAA_CATEGORIES.map(({ key, label, desc }) => {
@@ -1055,30 +1209,18 @@ const ContentSafetyMatrix = ({
                 );
               })}
             </div>
-
             {flags.length > 0 ? (
               <div className="space-y-3">
                 <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Flagged Content — {flags.length} issue{flags.length !== 1 ? "s" : ""} found
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Review and modify these scenes to adjust the content rating. Offending text is highlighted.
+                  Click on a scene to expand and review its details. Offending script text is highlighted.
                 </p>
-                {flags.map((flag, fi) => (
-                  <div key={fi} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-1">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-semibold text-foreground">Scene {flag.sceneIndex + 1}: {flag.sceneHeading}</p>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
-                        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
-                      </div>
-                    </div>
-                    <p className="text-xs">
-                      <span className="text-muted-foreground">{flag.type}: </span>
-                      <span className="text-destructive font-medium">{flag.excerpt}</span>
-                    </p>
-                  </div>
-                ))}
+                {flags.map((flag, fi) => {
+                  const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
+                  return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
+                })}
               </div>
             ) : (
               <div className="text-center py-6 text-muted-foreground">
@@ -1089,7 +1231,6 @@ const ContentSafetyMatrix = ({
             )}
           </div>
         </TabsContent>
-
         <TabsContent value="templates">
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground mb-4">
@@ -1130,21 +1271,15 @@ const ContentSafetyMatrix = ({
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">Modify these scenes to meet the target rating, then re-approve them.</p>
                   </div>
-                  {conflicts.map((flag, fi) => (
-                    <div key={fi} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-semibold">Scene {flag.sceneIndex + 1}: {flag.sceneHeading}</p>
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
-                      </div>
-                      <p className="text-xs"><span className="text-destructive font-medium">{flag.excerpt}</span></p>
-                    </div>
-                  ))}
+                  {conflicts.map((flag, fi) => {
+                    const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
+                    return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
+                  })}
                 </div>
               );
             })()}
           </div>
         </TabsContent>
-
         <TabsContent value="custom">
           <div className="space-y-5">
             <p className="text-sm text-muted-foreground mb-2">Manually toggle content flags to override the auto-detected settings.</p>
