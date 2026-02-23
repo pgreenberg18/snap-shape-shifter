@@ -406,6 +406,7 @@ const Development = () => {
                   scenes={analysis.scene_breakdown as any[]}
                   storagePath={analysis.storage_path}
                   onAllApprovedChange={setAllScenesApproved}
+                  analysisId={analysis.id}
                 />
               )}
 
@@ -544,10 +545,43 @@ const Development = () => {
 /* ══════════════════════════════════════════
    Sub-components
    ══════════════════════════════════════════ */
-const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void }) => {
+const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analysisId }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void; analysisId?: string }) => {
   const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
   const [rejectedSet, setRejectedSet] = useState<Set<number>>(new Set());
+  const [loaded, setLoaded] = useState(false);
   const allApproved = approvedSet.size === scenes.length;
+
+  // Load persisted approvals from DB on mount
+  useEffect(() => {
+    if (!analysisId) { setLoaded(true); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("script_analyses")
+        .select("scene_approvals, scene_rejections")
+        .eq("id", analysisId)
+        .single();
+      if (data) {
+        const approvals = Array.isArray(data.scene_approvals) ? data.scene_approvals as number[] : [];
+        const rejections = Array.isArray(data.scene_rejections) ? data.scene_rejections as number[] : [];
+        setApprovedSet(new Set(approvals));
+        setRejectedSet(new Set(rejections));
+      }
+      setLoaded(true);
+    })();
+  }, [analysisId]);
+
+  // Persist to DB whenever approvals change (after initial load)
+  useEffect(() => {
+    if (!analysisId || !loaded) return;
+    supabase
+      .from("script_analyses")
+      .update({
+        scene_approvals: [...approvedSet] as any,
+        scene_rejections: [...rejectedSet] as any,
+      })
+      .eq("id", analysisId)
+      .then();
+  }, [approvedSet, rejectedSet, analysisId, loaded]);
 
   useEffect(() => {
     onAllApprovedChange?.(allApproved);

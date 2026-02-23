@@ -339,7 +339,9 @@ export type Database = {
           film_id: string
           global_elements: Json | null
           id: string
+          scene_approvals: Json | null
           scene_breakdown: Json | null
+          scene_rejections: Json | null
           status: string
           storage_path: string
           updated_at: string
@@ -353,7 +355,9 @@ export type Database = {
           film_id: string
           global_elements?: Json | null
           id?: string
+          scene_approvals?: Json | null
           scene_breakdown?: Json | null
+          scene_rejections?: Json | null
           status?: string
           storage_path: string
           updated_at?: string
@@ -367,7 +371,9 @@ export type Database = {
           film_id?: string
           global_elements?: Json | null
           id?: string
+          scene_approvals?: Json | null
           scene_breakdown?: Json | null
+          scene_rejections?: Json | null
           status?: string
           storage_path?: string
           updated_at?: string
