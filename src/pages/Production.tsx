@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Film, Camera, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFilmId } from "@/hooks/useFilm";
@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import ShotViewport from "@/components/production/ShotViewport";
+import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
 
 const useLatestAnalysis = (filmId: string | undefined) =>
   useQuery({
@@ -28,6 +29,11 @@ const Production = () => {
   const filmId = useFilmId();
   const { data: analysis } = useLatestAnalysis(filmId);
   const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
+  const [viewportAspect, setViewportAspect] = useState(16 / 9);
+
+  const handleAspectChange = useCallback((ratio: number) => {
+    setViewportAspect(ratio);
+  }, []);
 
   const scenes: any[] =
     analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
@@ -105,7 +111,7 @@ const Production = () => {
         </ScrollArea>
       </aside>
 
-      {/* ── Right: Shot Construction Zone (75%) ── */}
+      {/* ── Center: Shot Construction Zone ── */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {activeScene ? (
           <div className="flex-1 flex flex-col">
@@ -123,11 +129,17 @@ const Production = () => {
                   {activeScene.setting && ` · ${activeScene.setting}`}
                 </p>
               </div>
+              {/* Aspect ratio indicator */}
+              <div className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded bg-secondary/80 border border-border/50">
+                <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
+                  {viewportAspect > 2 ? "2.39:1" : "16:9"}
+                </span>
+              </div>
             </div>
 
             {/* Shot Construction Viewport */}
             <div className="flex-1 overflow-y-auto py-4">
-              <ShotViewport />
+              <ShotViewport aspectRatio={viewportAspect} />
             </div>
           </div>
         ) : (
@@ -146,6 +158,9 @@ const Production = () => {
           </div>
         )}
       </main>
+
+      {/* ── Right: Optic & Sensor Suite ── */}
+      {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} />}
     </div>
   );
 };
