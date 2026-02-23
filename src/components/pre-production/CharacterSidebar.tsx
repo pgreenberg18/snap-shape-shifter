@@ -7,13 +7,14 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ interface Character {
   image_url: string | null;
   voice_description: string | null;
   voice_generation_seed: number | null;
+  approved?: boolean;
 }
 
 interface CharacterSidebarProps {
@@ -32,6 +34,7 @@ interface CharacterSidebarProps {
   isLoading: boolean;
   selectedCharId: string | null;
   onSelect: (id: string) => void;
+  onSuggest?: (id: string) => void;
   showVoiceSeed?: boolean;
   rankings?: CharacterRanking[];
 }
@@ -46,7 +49,7 @@ const TIER_META: Record<CharacterTier, { label: string; color: string }> = {
 
 const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
 
-const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed, rankings }: CharacterSidebarProps) => {
+const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onSuggest, showVoiceSeed, rankings }: CharacterSidebarProps) => {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -87,6 +90,21 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
     setEditingId(null); setEditName("");
   }, [editName, queryClient]);
 
+  const handleToggleApproval = useCallback(async (charId: string, currentApproved: boolean) => {
+    const { error } = await supabase.from("characters").update({ approved: !currentApproved } as any).eq("id", charId);
+    if (error) { toast.error("Failed to update approval"); return; }
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+  }, [queryClient]);
+
+  const handleApproveAll = useCallback(async (charIds: string[]) => {
+    const allApproved = charIds.every(id => (characters?.find(c => c.id === id) as any)?.approved);
+    const newVal = !allApproved;
+    const { error } = await supabase.from("characters").update({ approved: newVal } as any).in("id", charIds);
+    if (error) { toast.error("Failed to update approvals"); return; }
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+    toast.success(newVal ? "All approved" : "All unapproved");
+  }, [characters, queryClient]);
+
   const activeChar = characters?.find((c) => c.id === activeId);
 
   const rankingMap = useMemo(() => {
@@ -96,7 +114,6 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
     return map;
   }, [rankings]);
 
-  // Group characters by tier
   const tierGroups = useMemo(() => {
     if (!characters) return [];
     if (!rankings?.length) return [{ tier: "LEAD" as CharacterTier, chars: characters }];
@@ -149,16 +166,29 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
               {tierGroups.map(({ tier, chars }) => {
                 const meta = TIER_META[tier];
                 const isOpen = openTiers[tier] ?? false;
+                const allApproved = chars.every((c) => (c as any).approved);
+                const someApproved = chars.some((c) => (c as any).approved);
                 return (
                   <Collapsible key={tier} open={isOpen} onOpenChange={() => toggleTier(tier)}>
-                    <CollapsibleTrigger className="w-full px-4 py-2 flex items-center gap-2 hover:bg-secondary/40 transition-colors">
-                      {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                      <span className={cn("text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border", meta.color)}>
-                        {meta.label}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground/50">{chars.length}</span>
-                      <div className="flex-1 border-t border-border/30 ml-1" />
-                    </CollapsibleTrigger>
+                    <div className="flex items-center w-full px-4 py-2.5 hover:bg-secondary/40 transition-colors">
+                      <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
+                        {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                        <span className={cn("text-sm font-display font-bold uppercase tracking-wide px-2 py-0.5 rounded border", meta.color)}>
+                          {meta.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground/50">{chars.length}</span>
+                        <div className="flex-1 border-t border-border/30 ml-1" />
+                      </CollapsibleTrigger>
+                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={allApproved ? true : someApproved ? "indeterminate" : false}
+                          onCheckedChange={() => handleApproveAll(chars.map((c) => c.id))}
+                          className="h-3.5 w-3.5"
+                          title="Approve all in tier"
+                        />
+                        <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider">All</span>
+                      </div>
+                    </div>
                     <CollapsibleContent>
                       {chars.map((char) => {
                         const ranking = rankingMap.get(char.name.toUpperCase());
@@ -170,6 +200,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
                             isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
                             isDragging={activeId === char.id}
                             onSelect={() => onSelect(char.id)}
+                            onSuggest={onSuggest ? () => onSuggest(char.id) : undefined}
                             isEditing={editingId === char.id}
                             editName={editName}
                             onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
@@ -177,6 +208,8 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
                             onSaveEdit={() => handleRename(char.id)}
                             onCancelEdit={() => { setEditingId(null); setEditName(""); }}
                             ranking={ranking}
+                            approved={(char as any).approved ?? false}
+                            onToggleApproval={() => handleToggleApproval(char.id, (char as any).approved ?? false)}
                           />
                         );
                       })}
@@ -220,15 +253,19 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
 
 /* ── Draggable character item ── */
 const DraggableCharItem = ({
-  char, isActive, isLocked, isDragging, onSelect,
+  char, isActive, isLocked, isDragging, onSelect, onSuggest,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit, ranking,
+  approved, onToggleApproval,
 }: {
   char: Character; isActive: boolean; isLocked: boolean; isDragging: boolean;
   onSelect: () => void;
+  onSuggest?: () => void;
   isEditing: boolean; editName: string;
   onStartEdit: () => void; onEditChange: (v: string) => void;
   onSaveEdit: () => void; onCancelEdit: () => void;
   ranking?: CharacterRanking;
+  approved: boolean;
+  onToggleApproval: () => void;
 }) => {
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: char.id });
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: char.id });
@@ -243,6 +280,16 @@ const DraggableCharItem = ({
         isOver && !isDragging && "bg-primary/10 border-l-primary ring-1 ring-primary/30"
       )}
     >
+      {/* Approval checkbox */}
+      <div onClick={(e) => e.stopPropagation()} className="shrink-0">
+        <Checkbox
+          checked={approved}
+          onCheckedChange={onToggleApproval}
+          className="h-3.5 w-3.5"
+          title={approved ? "Unapprove" : "Approve casting"}
+        />
+      </div>
+
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
         <GripVertical className="h-3.5 w-3.5" />
       </div>
@@ -280,6 +327,11 @@ const DraggableCharItem = ({
                 <Lock className="h-2.5 w-2.5" /> Locked
               </span>
             )}
+            {approved && (
+              <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider bg-accent text-accent-foreground px-1.5 py-0.5 rounded">
+                <Check className="h-2.5 w-2.5" /> Approved
+              </span>
+            )}
           </div>
         )}
         {!isEditing && (
@@ -290,6 +342,14 @@ const DraggableCharItem = ({
           </p>
         )}
       </button>
+
+      {/* Suggest icon */}
+      {!isEditing && onSuggest && (
+        <button onClick={(e) => { e.stopPropagation(); onSuggest(); }}
+          className="shrink-0 text-muted-foreground/40 hover:text-primary transition-colors p-1" title="AI Suggest casting">
+          <Sparkles className="h-3.5 w-3.5" />
+        </button>
+      )}
 
       {!isEditing && (
         <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }}

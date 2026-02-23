@@ -103,6 +103,7 @@ export type Database = {
         Row: {
           age_max: number | null
           age_min: number | null
+          approved: boolean
           created_at: string
           description: string | null
           film_id: string
@@ -110,6 +111,7 @@ export type Database = {
           image_url: string | null
           is_child: boolean | null
           name: string
+          reference_image_url: string | null
           sex: string | null
           voice_description: string | null
           voice_generation_seed: number | null
@@ -117,6 +119,7 @@ export type Database = {
         Insert: {
           age_max?: number | null
           age_min?: number | null
+          approved?: boolean
           created_at?: string
           description?: string | null
           film_id: string
@@ -124,6 +127,7 @@ export type Database = {
           image_url?: string | null
           is_child?: boolean | null
           name: string
+          reference_image_url?: string | null
           sex?: string | null
           voice_description?: string | null
           voice_generation_seed?: number | null
@@ -131,6 +135,7 @@ export type Database = {
         Update: {
           age_max?: number | null
           age_min?: number | null
+          approved?: boolean
           created_at?: string
           description?: string | null
           film_id?: string
@@ -138,6 +143,7 @@ export type Database = {
           image_url?: string | null
           is_child?: boolean | null
           name?: string
+          reference_image_url?: string | null
           sex?: string | null
           voice_description?: string | null
           voice_generation_seed?: number | null
