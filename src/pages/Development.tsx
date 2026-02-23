@@ -787,6 +787,7 @@ const Development = () => {
                 initialValue={(analysis.ai_generation_notes as string) || ""}
                 visualSummary={(analysis.visual_summary as string) || ""}
                 timePeriod={film?.time_period || timePeriod}
+                signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
               />
             </div>
           )}
@@ -1965,12 +1966,13 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod }: { initialValue: string; visualSummary?: string; timePeriod?: string }) => {
+const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string }) => {
   const [value, setValue] = useState(() => {
     if (initialValue) return initialValue;
-    // Pre-fill based on visual summary and time period
+    // Pre-fill based on visual summary, time period, and signature style
     const parts: string[] = [];
     if (timePeriod) parts.push(`Time Period: ${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
+    if (signatureStyle) parts.push(`Signature Style: ${signatureStyle}`);
     if (visualSummary) parts.push(`Visual Direction: ${visualSummary}`);
     if (parts.length === 0) return "";
     return parts.join("\n\n");
