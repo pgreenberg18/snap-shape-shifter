@@ -1,0 +1,359 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+/** Derive MPAA-style content safety level from flags */
+function deriveSafetyLevel(safety: {
+  violence: boolean;
+  nudity: boolean;
+  language: boolean;
+} | null): string {
+  if (!safety) return "PG";
+  const count = [safety.violence, safety.nudity, safety.language].filter(Boolean).length;
+  if (count >= 2) return "R";
+  if (safety.violence || safety.nudity) return "PG-13";
+  if (safety.language) return "PG-13";
+  return "PG";
+}
+
+/** Build the temporal anachronism blacklist from a time period string */
+function buildAnachronismBlacklist(period: string | null): string[] {
+  if (!period) return [];
+  const lower = (period ?? "").toLowerCase();
+
+  // Base modern-tech items to blacklist for any pre-2000s setting
+  const modernTech = [
+    "smartphones",
+    "flatscreen tvs",
+    "led lighting",
+    "modern electric cars",
+    "wireless earbuds",
+    "tablets",
+    "drones",
+    "selfie sticks",
+  ];
+
+  // Decade-based additions
+  if (
+    lower.includes("1800") ||
+    lower.includes("18th") ||
+    lower.includes("victorian") ||
+    lower.includes("19th") ||
+    lower.includes("1900") ||
+    lower.includes("medieval") ||
+    lower.includes("ancient")
+  ) {
+    return [
+      ...modernTech,
+      "automobiles",
+      "electric lights",
+      "telephones",
+      "radios",
+      "plastic",
+      "nylon",
+    ];
+  }
+
+  if (
+    lower.includes("1920") ||
+    lower.includes("1930") ||
+    lower.includes("1940") ||
+    lower.includes("1950")
+  ) {
+    return [
+      ...modernTech,
+      "color television",
+      "personal computers",
+      "microwave ovens",
+    ];
+  }
+
+  if (lower.includes("1960") || lower.includes("1970")) {
+    return [...modernTech, "personal computers", "compact discs", "vcr"];
+  }
+
+  if (lower.includes("1980") || lower.includes("1990")) {
+    return [
+      "smartphones",
+      "flatscreen tvs",
+      "led lighting",
+      "wireless earbuds",
+      "drones",
+      "selfie sticks",
+    ];
+  }
+
+  // Future / contemporary — no blacklist
+  return [];
+}
+
+/** Extract {{REF_CODES}} from prompt text */
+function extractRefCodes(text: string | null): string[] {
+  if (!text) return [];
+  const matches = text.match(/\{\{([A-Z0-9_]+)\}\}/g);
+  if (!matches) return [];
+  return matches.map((m) => m.replace(/[{}]/g, ""));
+}
+
+/** Parse camera_language from ai_generation_templates into structured metadata */
+function parseCinematography(
+  template: { camera_language: string | null; image_prompt_base: string | null } | null
+) {
+  // Defaults
+  const meta = {
+    framing: {
+      shot_size: "MS",
+      angle: "Eye level",
+      aspect_ratio: "2.39:1",
+    },
+    optics: {
+      sensor_profile: "ARRI Alexa 35",
+      lens_type: "Spherical prime",
+      focal_length: "35mm",
+      depth_of_field: "f/2.8",
+    },
+    dynamics: {
+      rigging: "Tripod",
+      movement: "Static",
+      motion_blur: "180° standard",
+    },
+    lighting_and_grade: {
+      setup: "Natural",
+      color_temp: "Daylight 5600K",
+      film_texture: "Clean digital",
+    },
+  };
+
+  if (!template?.camera_language) return meta;
+  const cl = template.camera_language.toLowerCase();
+
+  // Shot size detection
+  if (cl.includes("extreme close") || cl.includes("ecu")) meta.framing.shot_size = "ECU";
+  else if (cl.includes("close up") || cl.includes(" cu")) meta.framing.shot_size = "CU";
+  else if (cl.includes("medium close") || cl.includes("mcu")) meta.framing.shot_size = "MCU";
+  else if (cl.includes("medium shot") || cl.includes(" ms")) meta.framing.shot_size = "MS";
+  else if (cl.includes("wide") || cl.includes(" ws")) meta.framing.shot_size = "WS";
+  else if (cl.includes("extreme wide") || cl.includes("ews")) meta.framing.shot_size = "EWS";
+
+  // Angle
+  if (cl.includes("low angle")) meta.framing.angle = "Low angle";
+  else if (cl.includes("high angle")) meta.framing.angle = "High angle";
+  else if (cl.includes("dutch") || cl.includes("canted")) meta.framing.angle = "Dutch angle";
+  else if (cl.includes("bird")) meta.framing.angle = "Bird's eye";
+  else if (cl.includes("worm")) meta.framing.angle = "Worm's eye";
+
+  // Movement
+  if (cl.includes("push in") || cl.includes("push-in")) meta.dynamics.movement = "Slow push-in";
+  else if (cl.includes("pull out") || cl.includes("pull-out")) meta.dynamics.movement = "Pull out";
+  else if (cl.includes("pan left")) meta.dynamics.movement = "Pan left";
+  else if (cl.includes("pan right")) meta.dynamics.movement = "Pan right";
+  else if (cl.includes("tracking")) meta.dynamics.movement = "Tracking";
+  else if (cl.includes("crane")) meta.dynamics.movement = "Crane";
+  else if (cl.includes("handheld")) meta.dynamics.movement = "Handheld";
+
+  // Rigging
+  if (cl.includes("steadicam")) meta.dynamics.rigging = "Steadicam";
+  else if (cl.includes("handheld")) meta.dynamics.rigging = "Handheld";
+  else if (cl.includes("crane") || cl.includes("jib")) meta.dynamics.rigging = "Crane / Jib";
+  else if (cl.includes("dolly")) meta.dynamics.rigging = "Dolly";
+
+  // Lighting
+  if (cl.includes("low-key") || cl.includes("low key")) meta.lighting_and_grade.setup = "Low-key";
+  else if (cl.includes("high-key") || cl.includes("high key")) meta.lighting_and_grade.setup = "High-key";
+  else if (cl.includes("silhouette")) meta.lighting_and_grade.setup = "Silhouette";
+  else if (cl.includes("practical")) meta.lighting_and_grade.setup = "Practical";
+
+  // Lens
+  if (cl.includes("anamorphic")) meta.optics.lens_type = "Anamorphic prime";
+  if (cl.includes("50mm")) meta.optics.focal_length = "50mm";
+  else if (cl.includes("85mm")) meta.optics.focal_length = "85mm";
+  else if (cl.includes("24mm")) meta.optics.focal_length = "24mm";
+  else if (cl.includes("100mm")) meta.optics.focal_length = "100mm";
+
+  // Texture
+  if (cl.includes("35mm grain") || cl.includes("film grain")) {
+    meta.lighting_and_grade.film_texture = "35mm grain, halation";
+  } else if (cl.includes("16mm")) {
+    meta.lighting_and_grade.film_texture = "16mm grain, heavy halation";
+  }
+
+  return meta;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { shot_id } = await req.json();
+    if (!shot_id) {
+      return new Response(
+        JSON.stringify({ error: "shot_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // ── 1. Fetch the shot ──
+    const { data: shot, error: shotErr } = await supabase
+      .from("shots")
+      .select("*")
+      .eq("id", shot_id)
+      .single();
+
+    if (shotErr || !shot) {
+      return new Response(
+        JSON.stringify({ error: "Shot not found", details: shotErr?.message }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // ── 2. Parallel fetches: film, content_safety, ai_generation_template ──
+    const [filmRes, safetyRes, templateRes] = await Promise.all([
+      supabase.from("films").select("*").eq("id", shot.film_id).single(),
+      supabase.from("content_safety").select("*").eq("film_id", shot.film_id).maybeSingle(),
+      supabase
+        .from("ai_generation_templates")
+        .select("*")
+        .eq("shot_id", shot_id)
+        .maybeSingle(),
+    ]);
+
+    const film = filmRes.data;
+    const safety = safetyRes.data;
+    const template = templateRes.data;
+
+    // ── 3. Resolve identity tokens from asset_identity_registry ──
+    const refCodes = extractRefCodes(shot.prompt_text);
+    let identityTokens: any[] = [];
+
+    if (refCodes.length > 0) {
+      const { data: assets } = await supabase
+        .from("asset_identity_registry")
+        .select("*")
+        .eq("film_id", shot.film_id)
+        .in("internal_ref_code", refCodes);
+
+      if (assets) {
+        identityTokens = assets.map((a) => ({
+          token: `{{${a.internal_ref_code}}}`,
+          entity_type: a.asset_type,
+          display_name: a.display_name,
+          locked_image_url: a.reference_image_url,
+          is_dirty: a.is_dirty,
+          weight: a.asset_type === "character" ? 0.85 : undefined,
+        }));
+      }
+    }
+
+    // ── 4. Build temporal guardrails ──
+    const anchorPeriod = film?.time_period ?? null;
+    const blacklist = buildAnachronismBlacklist(anchorPeriod);
+    const negativeBase =
+      "morphed faces, low quality, watermark, text, 3d render, plastic";
+    const negativePrompt = blacklist.length
+      ? `${negativeBase}, ${blacklist.join(", ")}`
+      : negativeBase;
+
+    // ── 5. Build cinematography metadata ──
+    const cinematography = parseCinematography(template);
+
+    // ── 6. Derive content safety level ──
+    const safetyLevel = deriveSafetyLevel(safety);
+
+    // ── 7. Assemble the VFS Prompt Compiler Payload ──
+    const compilationId = `vfs-comp-${crypto.randomUUID().slice(0, 6)}`;
+
+    const payload = {
+      compilation_id: compilationId,
+      film_id: shot.film_id,
+      shot_id: shot.id,
+
+      routing_metadata: {
+        target_tier: "commercial_heavyweight",
+        preferred_engine: "veo_3.1",
+        fallback_engine: "kling_3",
+        content_safety_level: safetyLevel,
+      },
+
+      temporal_guardrails: {
+        anchor_period: anchorPeriod,
+        anachronism_blacklist: blacklist,
+        negative_prompt_injection: negativePrompt,
+      },
+
+      generation_payload: {
+        raw_script_action: shot.prompt_text ?? "",
+
+        resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography),
+
+        identity_tokens: identityTokens,
+
+        cinematography_metadata: cinematography,
+
+        execution_params: {
+          duration_seconds: 5,
+          fps: 24,
+          resolution: "4K",
+          seed: shot.video_url ? null : Math.floor(Math.random() * 9_000_000) + 1_000_000,
+        },
+      },
+    };
+
+    return new Response(JSON.stringify(payload, null, 2), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err) {
+    return new Response(
+      JSON.stringify({ error: "Internal compiler error", details: String(err) }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
+
+/** Build the resolved text prompt from shot + template + cinematography */
+function buildResolvedPrompt(
+  shot: any,
+  template: any,
+  cine: ReturnType<typeof parseCinematography>
+): string {
+  const parts: string[] = [];
+
+  // Shot size + angle
+  parts.push(
+    `${cine.framing.shot_size} shot, ${cine.framing.angle.toLowerCase()} angle.`
+  );
+
+  // Script action
+  if (shot.prompt_text) {
+    parts.push(shot.prompt_text);
+  }
+
+  // Camera movement
+  if (cine.dynamics.movement !== "Static") {
+    parts.push(`${cine.dynamics.movement}.`);
+  }
+
+  // Lighting
+  parts.push(`${cine.lighting_and_grade.setup} lighting.`);
+
+  // Sensor + texture
+  parts.push(
+    `Cinematic, ${cine.optics.sensor_profile}, ${cine.lighting_and_grade.film_texture}.`
+  );
+
+  // Video prompt base override from template
+  if (template?.video_prompt_base) {
+    parts.push(template.video_prompt_base);
+  }
+
+  return parts.join(" ");
+}

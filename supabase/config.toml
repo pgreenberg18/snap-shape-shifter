@@ -5,3 +5,6 @@ verify_jwt = false
 
 [functions.analyze-content-safety]
 verify_jwt = false
+
+[functions.compile-generation-payload]
+verify_jwt = false
