@@ -841,121 +841,142 @@ const Development = () => {
       {/* ── Step 3: Content Safety Matrix ── */}
       {analysis?.scene_breakdown && (
         <section>
-          <h2 className="font-display text-2xl font-bold mb-4">Ratings Classification</h2>
-
           {scriptLocked ? (
-            /* ── LOCKED STATE ── */
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-6 space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-primary/20 flex items-center justify-center">
-                  <Lock className="h-6 w-6 text-primary" />
+            /* ── LOCKED STATE — collapsible like Global Elements ── */
+            <Collapsible>
+              <CollapsibleTrigger className="w-full">
+                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-5 w-5 text-primary" />
+                    <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                      <Lock className="h-3 w-3" /> Locked
+                    </span>
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-display font-semibold text-lg text-foreground">Script Locked & Finalized</p>
-                  <p className="text-sm text-muted-foreground">
-                    Your script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
+                    </p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 ml-4"
+                      onClick={handleUnlockScript}
+                      disabled={locking}
+                    >
+                      {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+                      Unlock
+                    </Button>
+                  </div>
+                  <ContentSafetyMatrix
+                    scenes={analysis?.scene_breakdown as any[] || []}
+                    storagePath={analysis?.storage_path || ""}
+                    language={language}
+                    nudity={nudity}
+                    violence={violence}
+                    handleToggle={handleToggle}
+                    setLanguage={setLanguage}
+                    setNudity={setNudity}
+                    setViolence={setViolence}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          ) : (
+            <>
+              <h2 className="font-display text-2xl font-bold mb-4">Ratings Classification</h2>
+              {!allScenesApproved ? (
+                <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
+                  <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
+                    <Lock className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  <p className="font-display font-semibold text-lg">Approve All Scenes First</p>
+                  <p className="text-sm text-muted-foreground max-w-md">
+                    Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
                   </p>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={handleUnlockScript}
-                  disabled={locking}
-                >
-                  {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
-                  Unlock
-                </Button>
-              </div>
-            </div>
-          ) : !allScenesApproved ? (
-            /* ── SCENES NOT YET APPROVED ── */
-            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
-              <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
-                <Lock className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <p className="font-display font-semibold text-lg">Approve All Scenes First</p>
-              <p className="text-sm text-muted-foreground max-w-md">
-                Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
-              </p>
-            </div>
-          ) : !contentSafetyRun ? (
-            /* ── READY TO RUN ANALYSIS ── */
-            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-4 text-center">
-              <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center cinema-glow">
-                <Shield className="h-7 w-7 text-primary" />
-              </div>
-              <div>
-                <p className="font-display font-semibold text-lg">All Scenes Approved</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                  Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
-                </p>
-              </div>
-              <Button
-                onClick={() => setContentSafetyRun(true)}
-                size="lg"
-                className="gap-2 mt-2"
-              >
-                <Shield className="h-4 w-4" />
-                Run Content Safety Analysis
-              </Button>
-            </div>
-          ) : (
-            /* ── CONTENT SAFETY MATRIX + LOCK BUTTON ── */
-            <div className="space-y-6">
-              <ContentSafetyMatrix
-                scenes={analysis?.scene_breakdown as any[] || []}
-                storagePath={analysis?.storage_path || ""}
-                language={language}
-                nudity={nudity}
-                violence={violence}
-                handleToggle={handleToggle}
-                setLanguage={setLanguage}
-                setNudity={setNudity}
-                setViolence={setViolence}
-              />
-
-              {/* Lock Script Button */}
-              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                    <Lock className="h-6 w-6 text-destructive" />
+              ) : !contentSafetyRun ? (
+                <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-4 text-center">
+                  <div className="h-14 w-14 rounded-full bg-primary/10 flex items-center justify-center cinema-glow">
+                    <Shield className="h-7 w-7 text-primary" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
+                  <div>
+                    <p className="font-display font-semibold text-lg">All Scenes Approved</p>
+                    <p className="text-sm text-muted-foreground mt-1 max-w-md">
+                      Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
                     </p>
                   </div>
                   <Button
-                    onClick={handleLockScript}
-                    disabled={locking || !film?.time_period}
+                    onClick={() => setContentSafetyRun(true)}
                     size="lg"
-                    variant="destructive"
-                    className="gap-2 shrink-0"
+                    className="gap-2 mt-2"
                   >
-                    {locking ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
-                    ) : (
-                      <><Lock className="h-4 w-4" /> Lock Script</>
-                    )}
+                    <Shield className="h-4 w-4" />
+                    Run Content Safety Analysis
                   </Button>
                 </div>
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                    ⚠ This action cannot be undone
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
-                  </p>
+              ) : (
+                <div className="space-y-6">
+                  <ContentSafetyMatrix
+                    scenes={analysis?.scene_breakdown as any[] || []}
+                    storagePath={analysis?.storage_path || ""}
+                    language={language}
+                    nudity={nudity}
+                    violence={violence}
+                    handleToggle={handleToggle}
+                    setLanguage={setLanguage}
+                    setNudity={setNudity}
+                    setViolence={setViolence}
+                  />
+
+                  {/* Lock Script Button */}
+                  <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                        <Lock className="h-6 w-6 text-destructive" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
+                        </p>
+                      </div>
+                      <Button
+                        onClick={handleLockScript}
+                        disabled={locking || !film?.time_period}
+                        size="lg"
+                        variant="destructive"
+                        className="gap-2 shrink-0"
+                      >
+                        {locking ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
+                        ) : (
+                          <><Lock className="h-4 w-4" /> Lock Script</>
+                        )}
+                      </Button>
+                    </div>
+                    <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                        ⚠ This action cannot be undone
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
+                      </p>
+                    </div>
+                    {!film?.time_period && (
+                      <p className="text-xs text-destructive flex items-center gap-1.5">
+                        <Clock className="h-3 w-3" /> A time period must be set before locking.
+                      </p>
+                    )}
+                  </div>
                 </div>
-                {!film?.time_period && (
-                  <p className="text-xs text-destructive flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> A time period must be set before locking.
-                  </p>
-                )}
-              </div>
-            </div>
+              )}
+            </>
           )}
         </section>
       )}
