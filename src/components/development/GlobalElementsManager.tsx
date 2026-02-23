@@ -398,8 +398,8 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                   </Button>
                   <Button
                     size="sm"
-                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" && "bg-destructive hover:bg-destructive/90 text-destructive-foreground")}
+                    variant="destructive"
+                    className="h-7 text-xs gap-1.5"
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
                   >
                     <ThumbsUp className="h-3 w-3" />
