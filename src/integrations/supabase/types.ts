@@ -177,30 +177,57 @@ export type Database = {
       }
       films: {
         Row: {
+          copied_from_version_id: string | null
           created_at: string
           credits: number
           id: string
+          project_id: string | null
           time_period: string | null
           title: string
           updated_at: string
+          version_name: string | null
+          version_number: number
         }
         Insert: {
+          copied_from_version_id?: string | null
           created_at?: string
           credits?: number
           id?: string
+          project_id?: string | null
           time_period?: string | null
           title: string
           updated_at?: string
+          version_name?: string | null
+          version_number?: number
         }
         Update: {
+          copied_from_version_id?: string | null
           created_at?: string
           credits?: number
           id?: string
+          project_id?: string | null
           time_period?: string | null
           title?: string
           updated_at?: string
+          version_name?: string | null
+          version_number?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "films_copied_from_version_id_fkey"
+            columns: ["copied_from_version_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "films_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integrations: {
         Row: {
@@ -272,6 +299,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      projects: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          poster_url: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          poster_url?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          poster_url?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       script_analyses: {
         Row: {
