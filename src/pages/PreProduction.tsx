@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight,
+  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
@@ -66,20 +66,54 @@ const PreProduction = () => {
   const [charIsChild, setCharIsChild] = useState(false);
   const [savingMeta, setSavingMeta] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
+  const [uploadingRef, setUploadingRef] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
-  // Sync metadata when character changes
+  // Fetch script analysis for auto-deducing metadata
+  const { data: scriptAnalysis } = useQuery({
+    queryKey: ["script-analysis-for-chars", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("script_analyses")
+        .select("scene_breakdown, global_elements")
+        .eq("film_id", filmId!)
+        .eq("status", "complete")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+  });
+
+  // Auto-deduce character metadata from script analysis when character is selected
   useEffect(() => {
-    setVoiceDesc(selectedChar?.voice_description ?? "");
-    setCharDescription((selectedChar as any)?.description ?? "");
-    setCharSex((selectedChar as any)?.sex ?? "Unknown");
-    setCharAgeMin((selectedChar as any)?.age_min?.toString() ?? "");
-    setCharAgeMax((selectedChar as any)?.age_max?.toString() ?? "");
-    setCharIsChild((selectedChar as any)?.is_child ?? false);
+    if (!selectedChar) return;
+    const existing = selectedChar as any;
+    setVoiceDesc(selectedChar.voice_description ?? "");
+    setCharDescription(existing.description ?? "");
+    setCharSex(existing.sex ?? "Unknown");
+    setCharAgeMin(existing.age_min?.toString() ?? "");
+    setCharAgeMax(existing.age_max?.toString() ?? "");
+    setCharIsChild(existing.is_child ?? false);
     setVoiceOpen(false);
-  }, [selectedChar?.id]);
+
+    // Auto-populate from script if fields are empty
+    if (!existing.description && !existing.sex && !existing.age_min && scriptAnalysis?.scene_breakdown) {
+      const deduced = deduceCharacterMeta(selectedChar.name, scriptAnalysis.scene_breakdown as any[]);
+      if (deduced) {
+        if (deduced.description) setCharDescription(deduced.description);
+        if (deduced.sex && deduced.sex !== "Unknown") setCharSex(deduced.sex);
+        if (deduced.ageMin) setCharAgeMin(deduced.ageMin.toString());
+        if (deduced.ageMax) setCharAgeMax(deduced.ageMax.toString());
+        if (deduced.isChild !== undefined) setCharIsChild(deduced.isChild);
+      }
+    }
+  }, [selectedChar?.id, scriptAnalysis]);
 
   const handleSaveMeta = useCallback(async () => {
     if (!selectedChar) return;
@@ -101,13 +135,11 @@ const PreProduction = () => {
     if (!selectedChar) return;
     setGenerating(true);
 
-    // Create skeleton cards first
     const skeletonCards: AuditionCard[] = CARD_TEMPLATE.map((t) => ({
       ...t, imageUrl: null, locked: false, generating: true,
     }));
     setCards(skeletonCards);
 
-    // Generate each card via edge function
     const results = await Promise.allSettled(
       CARD_TEMPLATE.map(async (t) => {
         const { data, error } = await supabase.functions.invoke("generate-headshot", {
@@ -120,7 +152,7 @@ const PreProduction = () => {
             isChild: charIsChild,
             filmTitle: film?.title ?? "",
             timePeriod: film?.time_period ?? "",
-            genre: "", // could be extracted from film metadata
+            genre: "",
             cardIndex: t.id,
           },
         });
@@ -155,6 +187,32 @@ const PreProduction = () => {
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     toast.success(`${selectedChar.name}'s identity locked`);
   }, [selectedChar, queryClient]);
+
+  const handleUploadReference = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedChar || !filmId) return;
+    setUploadingRef(true);
+    const ext = file.name.split(".").pop() || "jpg";
+    const path = `${filmId}/references/${selectedChar.id}.${ext}`;
+    const { error: uploadErr } = await supabase.storage.from("character-assets").upload(path, file, { upsert: true });
+    if (uploadErr) { toast.error("Upload failed"); setUploadingRef(false); return; }
+    const { data: urlData } = supabase.storage.from("character-assets").getPublicUrl(path);
+    await supabase.from("characters").update({ reference_image_url: urlData.publicUrl } as any).eq("id", selectedChar.id);
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+    toast.success("Reference image uploaded");
+    setUploadingRef(false);
+  }, [selectedChar, filmId, queryClient]);
+
+  const handleSuggestCasting = useCallback((charId: string) => {
+    const char = characters?.find(c => c.id === charId);
+    if (!char) return;
+    setSelectedCharId(charId);
+    // Trigger generation automatically
+    setTimeout(() => {
+      const btn = document.querySelector('[data-casting-call]') as HTMLButtonElement;
+      if (btn) btn.click();
+    }, 100);
+  }, [characters]);
 
   const handleSaveVoiceDesc = useCallback(async () => {
     if (!selectedChar) return;
@@ -223,6 +281,7 @@ const PreProduction = () => {
             isLoading={isLoading}
             selectedCharId={selectedCharId}
             onSelect={selectChar}
+            onSuggest={handleSuggestCasting}
             showVoiceSeed
             rankings={rankings}
           />
@@ -230,7 +289,7 @@ const PreProduction = () => {
           <main className="flex-1 overflow-y-auto">
             {selectedChar ? (
               <div className="p-6 space-y-6">
-                {/* Character header + Generate button */}
+                {/* Character header + Casting Call button */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
@@ -243,14 +302,33 @@ const PreProduction = () => {
                     <div>
                       <h2 className="font-display text-lg font-bold text-foreground">{selectedChar.name}</h2>
                       <p className="text-xs text-muted-foreground">
-                        {selectedChar.image_url ? "Identity locked — regenerate to change" : "Generate auditions to begin casting"}
+                        {selectedChar.image_url ? "Identity locked — regenerate to change" : "Run a Casting Call to begin"}
                       </p>
                     </div>
                   </div>
-                  <Button onClick={handleGenerate} disabled={generating} className="gap-2">
-                    {generating ? <><Loader2 className="h-4 w-4 animate-spin" />Generating…</> : <><Sparkles className="h-4 w-4" />Generate Auditions</>}
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* Upload reference image */}
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleUploadReference} />
+                    <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingRef} className="gap-2">
+                      {uploadingRef ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                      Upload Reference
+                    </Button>
+                    <Button data-casting-call onClick={handleGenerate} disabled={generating} className="gap-2">
+                      {generating ? <><Loader2 className="h-4 w-4 animate-spin" />Casting…</> : <><Sparkles className="h-4 w-4" />Casting Call</>}
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Reference image preview */}
+                {(selectedChar as any).reference_image_url && (
+                  <div className="rounded-xl border border-border bg-card p-3 flex items-center gap-3">
+                    <img src={(selectedChar as any).reference_image_url} alt="Reference" className="h-16 w-16 rounded-lg object-cover border border-border" />
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Reference Image</p>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">This will inform AI casting suggestions</p>
+                    </div>
+                  </div>
+                )}
 
                 {/* ═══ CHARACTER METADATA ═══ */}
                 <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
@@ -333,7 +411,7 @@ const PreProduction = () => {
                   <div className="rounded-xl border border-border bg-accent/30 backdrop-blur-sm p-12 text-center cinema-shadow">
                     <User className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Click <span className="text-primary font-semibold">Generate Auditions</span> to create 10 AI headshot variations for{" "}
+                      Click <span className="text-primary font-semibold">Casting Call</span> to create 10 AI headshot variations for{" "}
                       <span className="text-primary font-semibold">{selectedChar.name}</span>.
                     </p>
                     <p className="text-xs text-muted-foreground/50 mt-2">5 Archetypes · 3 Wildcards · 2 Novel AI Faces</p>
@@ -379,7 +457,6 @@ const PreProduction = () => {
                   </div>
                   <CollapsibleContent>
                     <div className="space-y-4 mt-4">
-                      {/* Voice Description */}
                       <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
                         <div className="flex items-center gap-2">
                           <Mic className="h-3.5 w-3.5 text-muted-foreground" />
@@ -396,7 +473,6 @@ const PreProduction = () => {
                         </Button>
                       </div>
 
-                      {/* Voice Seed */}
                       <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
                         <div className="flex items-center gap-2">
                           <AudioWaveform className="h-3.5 w-3.5 text-muted-foreground" />
@@ -479,6 +555,92 @@ const PreProduction = () => {
     </div>
   );
 };
+
+/* ── Deduce character metadata from script analysis ── */
+function deduceCharacterMeta(charName: string, scenes: any[]): {
+  description: string; sex: string; ageMin: number | null; ageMax: number | null; isChild: boolean;
+} | null {
+  const nameUpper = charName.toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+  const descriptions: string[] = [];
+  let sex = "Unknown";
+  let ageMin: number | null = null;
+  let ageMax: number | null = null;
+  let isChild = false;
+
+  for (const scene of scenes) {
+    if (!Array.isArray(scene.characters)) continue;
+    for (const c of scene.characters) {
+      if (typeof c === "string") continue;
+      const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+      if (cName !== nameUpper) continue;
+
+      // Collect behavior/expression descriptions
+      if (c.physical_behavior) descriptions.push(c.physical_behavior);
+      if (c.emotional_tone) descriptions.push(c.emotional_tone);
+      if (c.key_expressions) descriptions.push(c.key_expressions);
+    }
+
+    // Check wardrobe for gender/age clues
+    if (Array.isArray(scene.wardrobe)) {
+      for (const w of scene.wardrobe) {
+        const wChar = (w.character || "").toUpperCase().trim();
+        if (wChar !== nameUpper) continue;
+        const clothing = (w.clothing_style || "").toLowerCase();
+        const hairMakeup = (w.hair_makeup || "").toLowerCase();
+        const combined = clothing + " " + hairMakeup;
+
+        // Sex deduction
+        if (sex === "Unknown") {
+          if (/\b(dress|skirt|blouse|heels|lipstick|mascara|her hair)\b/.test(combined)) sex = "Female";
+          else if (/\b(suit|tie|beard|mustache|his hair)\b/.test(combined)) sex = "Male";
+        }
+      }
+    }
+
+    // Check scene description for age clues
+    const desc = (scene.description || "").toLowerCase();
+    const nameInDesc = charName.toLowerCase();
+    if (desc.includes(nameInDesc)) {
+      // Age patterns
+      const agePatterns = [
+        { re: /\b(\d{1,2})\s*(?:years?\s*old|year-old)\b/i, handler: (m: RegExpMatchArray) => { const a = parseInt(m[1]); return { min: a, max: a }; } },
+        { re: /\bin\s+(?:his|her|their)\s+(?:early\s+)?(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 9 }; } },
+        { re: /\b(?:early)\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10, max: d * 10 + 3 }; } },
+        { re: /\b(?:mid)\s*-?\s*(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 3, max: d * 10 + 6 }; } },
+        { re: /\b(?:late)\s+(\d)0s\b/i, handler: (m: RegExpMatchArray) => { const d = parseInt(m[1]); return { min: d * 10 + 7, max: d * 10 + 9 }; } },
+        { re: /\b(teenager|teen)\b/i, handler: () => ({ min: 13, max: 19 }) },
+        { re: /\b(child|kid|boy|girl)\b/i, handler: () => ({ min: 5, max: 12 }) },
+        { re: /\b(toddler|infant|baby)\b/i, handler: () => ({ min: 0, max: 3 }) },
+        { re: /\b(elderly|old man|old woman)\b/i, handler: () => ({ min: 65, max: 85 }) },
+        { re: /\b(middle.aged)\b/i, handler: () => ({ min: 40, max: 55 }) },
+        { re: /\b(young man|young woman|young adult)\b/i, handler: () => ({ min: 20, max: 30 }) },
+      ];
+      for (const { re, handler } of agePatterns) {
+        const match = desc.match(re);
+        if (match && ageMin === null) {
+          const result = handler(match);
+          ageMin = result.min;
+          ageMax = result.max;
+          if (result.max <= 12) isChild = true;
+        }
+      }
+
+      // Sex from description
+      if (sex === "Unknown") {
+        if (/\b(woman|girl|she|her|mother|wife|daughter|sister|actress|queen|princess)\b/i.test(desc)) sex = "Female";
+        else if (/\b(man|guy|boy|he|his|father|husband|son|brother|actor|king|prince)\b/i.test(desc)) sex = "Male";
+      }
+    }
+  }
+
+  if (descriptions.length === 0 && sex === "Unknown" && ageMin === null) return null;
+
+  // Build a concise description from the first few unique descriptors
+  const uniqueDescs = [...new Set(descriptions)].slice(0, 4);
+  const description = uniqueDescs.join(". ").replace(/\.\./g, ".");
+
+  return { description, sex, ageMin, ageMax, isChild };
+}
 
 /* ── Audition Card ── */
 const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; locking: boolean; onLock: () => void }) => (
