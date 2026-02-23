@@ -59,8 +59,11 @@ const ANALYSIS_STEPS = [
   { label: "Uploading script", key: "upload" },
   { label: "Parsing screenplay format", key: "parse" },
   { label: "Extracting scenes & characters", key: "extract" },
+  { label: "Analyzing visual style & tone", key: "style" },
   { label: "Generating visual breakdowns", key: "visual" },
-  { label: "Building prompts & metadata", key: "prompts" },
+  { label: "Composing image & video prompts", key: "prompts" },
+  { label: "Checking continuity & wardrobe", key: "continuity" },
+  { label: "Building global elements", key: "globals" },
   { label: "Finalizing analysis", key: "finalize" },
 ];
 
@@ -73,23 +76,24 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
     return () => clearInterval(timer);
   }, [startTime]);
 
-  // Determine which step we're on based on status + elapsed time
+  // Smoother progression with more granular steps
   const getActiveStep = () => {
     if (status === "pending") return 0;
-    // "analyzing" — progress through steps based on elapsed time
     const secs = elapsed / 1000;
-    if (secs < 5) return 1;   // Parsing
-    if (secs < 15) return 2;  // Extracting
-    if (secs < 40) return 3;  // Visual breakdowns
-    if (secs < 80) return 4;  // Building prompts
-    return 5;                  // Finalizing
+    if (secs < 3) return 1;    // Parsing
+    if (secs < 10) return 2;   // Extracting
+    if (secs < 20) return 3;   // Visual style
+    if (secs < 40) return 4;   // Visual breakdowns
+    if (secs < 65) return 5;   // Composing prompts
+    if (secs < 85) return 6;   // Continuity
+    if (secs < 100) return 7;  // Global elements
+    return 8;                   // Finalizing
   };
 
   const activeStep = getActiveStep();
   const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
 
-  // Time boundaries for each step (in seconds)
-  const stepBounds = [0, 5, 15, 40, 80, 120];
+  const stepBounds = [0, 3, 10, 20, 40, 65, 85, 100, 130];
   const secs = elapsed / 1000;
 
   const getStepProgress = (i: number) => {
