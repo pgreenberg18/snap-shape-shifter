@@ -135,7 +135,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
   }, [characters, rankings, rankingMap]);
 
   return (
-    <aside className="w-[280px] min-w-[240px] border-r border-border bg-card flex flex-col">
+    <aside className="w-[340px] min-w-[300px] border-r border-border bg-card flex flex-col">
       <div className="px-4 py-3 border-b border-border">
         <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
           Characters
@@ -189,7 +189,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
                       <img src={activeChar.image_url} alt="" className="h-full w-full object-cover" />
                     ) : activeChar.name.charAt(0)}
                   </div>
-                  <p className="text-sm font-display font-semibold text-foreground truncate">{activeChar.name}</p>
+                  <p className="text-sm font-display font-semibold text-foreground">{activeChar.name}</p>
                 </div>
               ) : null}
             </DragOverlay>
@@ -292,7 +292,7 @@ const DraggableCharItem = ({
                 #{ranking.rank} {ranking.tier === "A" ? "Lead" : ranking.tier === "B" ? "Support" : "Day"}
               </span>
             )}
-            <p className={cn("text-sm font-display font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
+            <p className={cn("text-sm font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
               {char.name}
             </p>
             {isLocked && (
@@ -303,7 +303,7 @@ const DraggableCharItem = ({
           </div>
         )}
         {!isEditing && (
-          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+          <p className="text-[11px] text-muted-foreground mt-0.5">
             {ranking
               ? `${ranking.appearanceScenes} scenes · ${ranking.wordsSpoken} words · pp ${ranking.firstPage}–${ranking.lastPage}`
               : char.voice_description || ""}
