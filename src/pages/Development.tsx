@@ -343,14 +343,17 @@ const Development = () => {
    ══════════════════════════════════════════ */
 const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storagePath: string }) => {
   const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
+  const [rejectedSet, setRejectedSet] = useState<Set<number>>(new Set());
   const allApproved = approvedSet.size === scenes.length;
 
-  const toggleApprove = (i: number) => {
-    setApprovedSet((prev) => {
-      const next = new Set(prev);
-      if (next.has(i)) next.delete(i); else next.add(i);
-      return next;
-    });
+  const approveScene = (i: number) => {
+    setApprovedSet((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+    setRejectedSet((prev) => { const n = new Set(prev); n.delete(i); return n; });
+  };
+
+  const rejectScene = (i: number) => {
+    setRejectedSet((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
+    setApprovedSet((prev) => { const n = new Set(prev); n.delete(i); return n; });
   };
 
   const toggleAll = () => {
@@ -358,8 +361,11 @@ const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storage
       setApprovedSet(new Set());
     } else {
       setApprovedSet(new Set(scenes.map((_, i) => i)));
+      setRejectedSet(new Set());
     }
   };
+
+  const reviewedCount = approvedSet.size + rejectedSet.size;
 
   return (
     <div className="space-y-4">
@@ -370,6 +376,11 @@ const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storage
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
             {scenes.length} scenes
           </span>
+          {reviewedCount > 0 && (
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {approvedSet.size} approved · {rejectedSet.size} rejected · {scenes.length - reviewedCount} pending
+            </span>
+          )}
         </div>
         <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5" onClick={toggleAll}>
           <ThumbsUp className="h-3.5 w-3.5" />
@@ -380,13 +391,17 @@ const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storage
         Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
       </p>
       {scenes.map((scene: any, i: number) => (
-        <SceneReviewCard key={i} scene={scene} index={i} storagePath={storagePath} approved={approvedSet.has(i)} onToggleApproved={() => toggleApprove(i)} />
+        <SceneReviewCard
+          key={i} scene={scene} index={i} storagePath={storagePath}
+          approved={approvedSet.has(i)} rejected={rejectedSet.has(i)}
+          onToggleApproved={() => approveScene(i)} onToggleRejected={() => rejectScene(i)}
+        />
       ))}
     </div>
   );
 };
 
-const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved }: { scene: any; index: number; storagePath: string; approved: boolean; onToggleApproved: () => void }) => {
+const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onToggleApproved, onToggleRejected }: { scene: any; index: number; storagePath: string; approved: boolean; rejected: boolean; onToggleApproved: () => void; onToggleRejected: () => void }) => {
   const [expanded, setExpanded] = useState(false);
   const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
@@ -489,7 +504,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
   };
 
   return (
-    <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
+    <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : rejected ? "border-destructive/40 bg-destructive/5" : "border-border bg-card"}`}>
       {/* Header */}
       <div className="flex items-center justify-between p-4">
         <button
@@ -508,6 +523,8 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
           </div>
         </button>
         <div className="flex items-center gap-2">
+          {rejected && <span className="text-xs text-destructive font-medium">Needs Work</span>}
+          {approved && <span className="text-xs text-primary font-medium">Approved</span>}
           <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2" onClick={loadScript}>
             <ScrollText className="h-3 w-3" />
             Script
@@ -533,7 +550,9 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
           index={index}
           storagePath={storagePath}
           approved={approved}
+          rejected={rejected}
           onToggleApproved={onToggleApproved}
+          onToggleRejected={onToggleRejected}
         />
       )}
 
@@ -618,10 +637,10 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
 
 /* ── Editable Scene Content ── */
 const EditableSceneContent = ({
-  scene, index, storagePath, approved, onToggleApproved,
+  scene, index, storagePath, approved, rejected, onToggleApproved, onToggleRejected,
 }: {
-  scene: any; index: number; storagePath: string; approved: boolean;
-  onToggleApproved: () => void;
+  scene: any; index: number; storagePath: string; approved: boolean; rejected: boolean;
+  onToggleApproved: () => void; onToggleRejected: () => void;
 }) => {
   const [desc, setDesc] = useState<string>(scene.description || "");
   const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || "");
@@ -844,6 +863,15 @@ const EditableSceneContent = ({
 
         {/* Actions row */}
         <div className="pt-2 flex justify-end gap-2">
+          <Button
+            variant={rejected ? "destructive" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={onToggleRejected}
+          >
+            <X className="h-3.5 w-3.5" />
+            {rejected ? "Rejected ✗" : "Reject Scene"}
+          </Button>
           <Button
             variant={approved ? "secondary" : "default"}
             size="sm"
