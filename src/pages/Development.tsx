@@ -85,6 +85,9 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
     return 5;                  // Finalizing
   };
 
+  const activeStep = getActiveStep();
+  const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
+
   // Time boundaries for each step (in seconds)
   const stepBounds = [0, 5, 15, 40, 80, 120];
   const secs = elapsed / 1000;
@@ -94,11 +97,9 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
     if (i > activeStep) return 0;
     const start = stepBounds[i] ?? 0;
     const end = stepBounds[i + 1] ?? start + 30;
-    return Math.min(((secs - start) / (end - start)) * 100, 95);
+    const pct = ((secs - start) / (end - start)) * 100;
+    return Math.max(0, Math.min(pct, 95));
   };
-
-  const activeStep = getActiveStep();
-  const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
 
   const formatTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
