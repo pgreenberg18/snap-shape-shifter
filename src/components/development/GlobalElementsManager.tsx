@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
-  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2,
+  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -388,21 +388,21 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                   <span className="text-xs text-muted-foreground mr-auto">Review Status:</span>
                   <Button
                     size="sm"
-                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" && "bg-green-600 hover:bg-green-700 text-white")}
-                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
-                  >
-                    <CheckCircle2 className="h-3 w-3" />
-                    Completed
-                  </Button>
-                  <Button
-                    size="sm"
                     variant={reviewStatus[key] === "needs_review" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" && "bg-yellow-600 hover:bg-yellow-700 text-white")}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" && "bg-destructive hover:bg-destructive/90 text-destructive-foreground")}
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "needs_review" }))}
                   >
                     <AlertCircle className="h-3 w-3" />
-                    Needs Review
+                    Still Needs Review
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" && "bg-destructive hover:bg-destructive/90 text-destructive-foreground")}
+                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
+                  >
+                    <ThumbsUp className="h-3 w-3" />
+                    Completed
                   </Button>
                 </div>
               </div>
