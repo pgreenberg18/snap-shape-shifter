@@ -265,15 +265,7 @@ const Development = () => {
               )}
 
               {/* AI Generation Notes */}
-              {analysis.ai_generation_notes && typeof analysis.ai_generation_notes === "string" && (
-                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{analysis.ai_generation_notes as string}</p>
-                </div>
-              )}
+              <EditableAIGenerationNotes initialValue={(analysis.ai_generation_notes as string) || ""} />
             </div>
           )}
         </section>
@@ -932,36 +924,20 @@ const Tag = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const GlobalElements = ({ data }: { data: any }) => {
-  const sections = [
-    { key: "recurring_locations", label: "Recurring Locations" },
-    { key: "recurring_props", label: "Recurring Props" },
-    { key: "recurring_wardrobe", label: "Recurring Wardrobe" },
-    { key: "visual_motifs", label: "Visual Motifs" },
-  ];
-
+const EditableAIGenerationNotes = ({ initialValue }: { initialValue: string }) => {
+  const [value, setValue] = useState(initialValue);
   return (
-    <div className="space-y-3">
-      {sections.map(({ key, label }) => {
-        const items = data[key];
-        if (!items || !Array.isArray(items) || items.length === 0) return null;
-        return (
-          <div key={key}>
-            <p className="text-xs font-semibold text-foreground mb-1">{label}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {items.map((item: string, i: number) => (
-                <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">{item}</span>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-      {data.signature_style && (
-        <div>
-          <p className="text-xs font-semibold text-foreground mb-1">Signature Style</p>
-          <p className="text-sm text-muted-foreground">{data.signature_style}</p>
-        </div>
-      )}
+    <div className="rounded-xl border border-border bg-card p-6 space-y-3">
+      <div className="flex items-center gap-2">
+        <Sparkles className="h-5 w-5 text-primary" />
+        <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
+      </div>
+      <Textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Add notes about overall visual approach, consistency requirements, or special considerations..."
+        className="min-h-[100px] text-sm bg-background resize-y"
+      />
     </div>
   );
 };
