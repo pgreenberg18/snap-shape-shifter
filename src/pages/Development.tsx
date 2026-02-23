@@ -766,6 +766,11 @@ const Development = () => {
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
                       <h3 className="font-display text-lg font-bold">Time Period</h3>
+                      {film?.time_period ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      )}
                     </div>
                     <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -929,6 +934,11 @@ const Development = () => {
                             {reviewStats.approved} approved · {reviewStats.rejected} rejected · {reviewStats.pending} pending
                           </span>
                         )}
+                        {allScenesApproved ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        )}
                       </div>
                       <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
                     </div>
@@ -955,6 +965,11 @@ const Development = () => {
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
                         <h3 className="font-display text-lg font-bold">Global Elements</h3>
+                        {allElementsReviewed ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        )}
                       </div>
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
@@ -1087,6 +1102,11 @@ const Development = () => {
                 <div className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-primary" />
                   <h3 className="font-display text-lg font-bold">Lock Script</h3>
+                  {allScenesApproved && allElementsReviewed && film?.time_period ? (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                  )}
                 </div>
                 <ChevronDown className="h-5 w-5 text-muted-foreground" />
               </div>
