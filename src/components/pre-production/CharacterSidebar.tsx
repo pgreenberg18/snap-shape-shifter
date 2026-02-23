@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -18,10 +18,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, Lock, GripVertical, Pencil, Check, X } from "lucide-react";
+import { Users, ChevronRight, Lock, GripVertical, Pencil, Check, X, Star } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import type { CharacterRanking } from "@/hooks/useCharacterRanking";
 
 interface Character {
   id: string;
@@ -37,9 +38,16 @@ interface CharacterSidebarProps {
   selectedCharId: string | null;
   onSelect: (id: string) => void;
   showVoiceSeed?: boolean;
+  rankings?: CharacterRanking[];
 }
 
-const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed }: CharacterSidebarProps) => {
+const TIER_COLORS = {
+  A: "bg-primary/20 text-primary border-primary/30",
+  B: "bg-accent text-foreground border-border",
+  C: "bg-secondary text-muted-foreground border-border",
+} as const;
+
+const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed, rankings }: CharacterSidebarProps) => {
   const queryClient = useQueryClient();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -104,6 +112,28 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
 
   const activeChar = characters?.find((c) => c.id === activeId);
 
+  // Build a lookup from normalized name → ranking
+  const rankingMap = useMemo(() => {
+    if (!rankings?.length) return new Map<string, CharacterRanking>();
+    const map = new Map<string, CharacterRanking>();
+    for (const r of rankings) map.set(r.nameNormalized, r);
+    return map;
+  }, [rankings]);
+
+  // Sort characters by ranking score (highest first), unranked at end
+  const sortedCharacters = useMemo(() => {
+    if (!characters) return [];
+    if (!rankings?.length) return characters;
+    return [...characters].sort((a, b) => {
+      const ra = rankingMap.get(a.name.toUpperCase());
+      const rb = rankingMap.get(b.name.toUpperCase());
+      if (ra && rb) return rb.score - ra.score;
+      if (ra) return -1;
+      if (rb) return 1;
+      return 0;
+    });
+  }, [characters, rankings, rankingMap]);
+
   return (
     <aside className="w-[280px] min-w-[240px] border-r border-border bg-card flex flex-col">
       <div className="px-4 py-3 border-b border-border">
@@ -111,7 +141,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
           Characters
         </h2>
         <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-          {characters?.length ?? 0} in cast · drag to merge duplicates
+          {characters?.length ?? 0} in cast{rankings?.length ? " · ranked by importance" : " · drag to merge duplicates"}
         </p>
       </div>
       <ScrollArea className="flex-1">
@@ -130,22 +160,26 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
         ) : (
           <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             <div className="py-1">
-              {characters.map((char) => (
-                <DraggableCharItem
-                  key={char.id}
-                  char={char}
-                  isActive={selectedCharId === char.id}
-                  isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
-                  isDragging={activeId === char.id}
-                  onSelect={() => onSelect(char.id)}
-                  isEditing={editingId === char.id}
-                  editName={editName}
-                  onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
-                  onEditChange={setEditName}
-                  onSaveEdit={() => handleRename(char.id)}
-                  onCancelEdit={() => { setEditingId(null); setEditName(""); }}
-                />
-              ))}
+              {sortedCharacters.map((char) => {
+                const ranking = rankingMap.get(char.name.toUpperCase());
+                return (
+                  <DraggableCharItem
+                    key={char.id}
+                    char={char}
+                    isActive={selectedCharId === char.id}
+                    isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
+                    isDragging={activeId === char.id}
+                    onSelect={() => onSelect(char.id)}
+                    isEditing={editingId === char.id}
+                    editName={editName}
+                    onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
+                    onEditChange={setEditName}
+                    onSaveEdit={() => handleRename(char.id)}
+                    onCancelEdit={() => { setEditingId(null); setEditName(""); }}
+                    ranking={ranking}
+                  />
+                );
+              })}
             </div>
             <DragOverlay>
               {activeChar ? (
@@ -187,13 +221,14 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, sho
 /* ── Draggable character item ── */
 const DraggableCharItem = ({
   char, isActive, isLocked, isDragging, onSelect,
-  isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit,
+  isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit, ranking,
 }: {
   char: Character; isActive: boolean; isLocked: boolean; isDragging: boolean;
   onSelect: () => void;
   isEditing: boolean; editName: string;
   onStartEdit: () => void; onEditChange: (v: string) => void;
   onSaveEdit: () => void; onCancelEdit: () => void;
+  ranking?: CharacterRanking;
 }) => {
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: char.id });
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: char.id });
@@ -248,7 +283,15 @@ const DraggableCharItem = ({
             </Button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {ranking && (
+              <span className={cn(
+                "shrink-0 text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border",
+                TIER_COLORS[ranking.tier]
+              )}>
+                #{ranking.rank} {ranking.tier === "A" ? "Lead" : ranking.tier === "B" ? "Support" : "Day"}
+              </span>
+            )}
             <p className={cn("text-sm font-display font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
               {char.name}
             </p>
@@ -259,8 +302,12 @@ const DraggableCharItem = ({
             )}
           </div>
         )}
-        {!isEditing && char.voice_description && (
-          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{char.voice_description}</p>
+        {!isEditing && (
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">
+            {ranking
+              ? `${ranking.appearanceScenes} scenes · ${ranking.wordsSpoken} words · pp ${ranking.firstPage}–${ranking.lastPage}`
+              : char.voice_description || ""}
+          </p>
         )}
       </button>
 

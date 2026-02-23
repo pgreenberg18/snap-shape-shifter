@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId } from "@/hooks/useFilm";
+import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,7 @@ const PreProduction = () => {
   const { data: characters, isLoading } = useCharacters();
   const filmId = useFilmId();
   const { data: breakdownAssets } = useBreakdownAssets();
+  const rankings = useCharacterRanking();
   const queryClient = useQueryClient();
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
@@ -160,7 +162,7 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-12 bg-transparent gap-1 p-0">
-            <WarRoomTab value="casting" icon={Users} label="Casting & Voice" />
+            <WarRoomTab value="casting" icon={Users} label="Auditions" />
             <WarRoomTab value="locations" icon={MapPin} label="Locations" />
             <WarRoomTab value="props" icon={Package} label="Props" />
             <WarRoomTab value="wardrobe" icon={Shirt} label="Wardrobe" />
@@ -177,6 +179,7 @@ const PreProduction = () => {
             selectedCharId={selectedCharId}
             onSelect={selectChar}
             showVoiceSeed
+            rankings={rankings}
           />
 
           {/* Main staging area */}
@@ -359,9 +362,9 @@ const PreProduction = () => {
                   <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
                     <Users className="h-8 w-8 text-muted-foreground/40" />
                   </div>
-                  <h2 className="font-display text-xl font-bold text-foreground">
-                    Casting & Voice
-                  </h2>
+                   <h2 className="font-display text-xl font-bold text-foreground">
+                     Auditions
+                   </h2>
                   <p className="text-sm text-muted-foreground max-w-sm">
                     Select a character to lock their visual identity and vocal profile.
                   </p>
