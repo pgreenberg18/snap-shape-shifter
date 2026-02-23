@@ -677,7 +677,15 @@ const Development = () => {
                   </CollapsibleTrigger>
                    <CollapsibleContent>
                     <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                      <p className="text-sm text-muted-foreground leading-relaxed">{analysis.visual_summary}</p>
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground block">Visual Summary</label>
+                        <textarea
+                          defaultValue={analysis.visual_summary as string}
+                          placeholder="Describe the overall visual story summary..."
+                          className="w-full min-h-[100px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground leading-relaxed"
+                          style={{ fieldSizing: 'content' } as React.CSSProperties}
+                        />
+                      </div>
                       <div className="space-y-2 border-t border-border pt-4">
                         <label className="text-xs font-semibold text-foreground block">Signature Style</label>
                         <textarea
@@ -908,33 +916,44 @@ const Development = () => {
               />
 
               {/* Lock Script Button */}
-              <div className="rounded-xl border border-primary/20 bg-card p-6 flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                  <Lock className="h-6 w-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
-                  <p className="text-sm text-muted-foreground">
-                    Locking finalizes your script breakdown and content safety settings. This data will propagate to Production, Post-Production, and Release phases.
-                  </p>
-                  {!film?.time_period && (
-                    <p className="text-xs text-destructive mt-1.5 flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> A time period must be set before locking.
+              <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                    <Lock className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
                     </p>
-                  )}
+                  </div>
+                  <Button
+                    onClick={handleLockScript}
+                    disabled={locking || !film?.time_period}
+                    size="lg"
+                    variant="destructive"
+                    className="gap-2 shrink-0"
+                  >
+                    {locking ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
+                    ) : (
+                      <><Lock className="h-4 w-4" /> Lock Script</>
+                    )}
+                  </Button>
                 </div>
-                <Button
-                  onClick={handleLockScript}
-                  disabled={locking || !film?.time_period}
-                  size="lg"
-                  className="gap-2 shrink-0"
-                >
-                  {locking ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
-                  ) : (
-                    <><Lock className="h-4 w-4" /> Lock Script</>
-                  )}
-                </Button>
+                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
+                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                    ⚠ This action cannot be undone
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
+                  </p>
+                </div>
+                {!film?.time_period && (
+                  <p className="text-xs text-destructive flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" /> A time period must be set before locking.
+                  </p>
+                )}
               </div>
             </div>
           )}
