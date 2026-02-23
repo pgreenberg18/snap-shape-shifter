@@ -131,6 +131,79 @@ function parseFdxToPlainText(xml: string): string {
   return lines.join("\n").trim();
 }
 
+/** Fix unescaped quotes inside JSON string values */
+function fixUnescapedQuotes(json: string): string {
+  const result: string[] = [];
+  let i = 0;
+  while (i < json.length) {
+    if (json[i] === '"') {
+      result.push('"');
+      i++;
+      while (i < json.length) {
+        if (json[i] === '\\') { result.push(json[i], json[i + 1] || ''); i += 2; continue; }
+        if (json[i] === '"') {
+          let la = i + 1;
+          while (la < json.length && ' \n\r\t'.includes(json[la])) la++;
+          const nc = json[la];
+          if (nc === undefined || ':,}]"'.includes(nc)) { result.push('"'); i++; break; }
+          else { result.push('\\"'); i++; continue; }
+        }
+        result.push(json[i]);
+        i++;
+      }
+    } else { result.push(json[i]); i++; }
+  }
+  return result.join('');
+}
+
+/** Attempt to close unclosed braces/brackets in truncated JSON */
+function repairTruncatedJson(json: string): string {
+  let s = json.replace(/,\s*"[^"]*$/, "");
+  s = s.replace(/:\s*"[^"]*$/, ': ""');
+  s = s.replace(/,\s*$/, "");
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (const ch of s) {
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  if (inString) s += '"';
+  while (stack.length > 0) s += stack.pop();
+  return s;
+}
+
+/** Robustly extract JSON from an AI response */
+function extractJsonFromResponse(response: string): any {
+  let cleaned = response.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  const jsonStart = cleaned.indexOf("{");
+  if (jsonStart === -1) throw new Error("No JSON object found");
+  let jsonEnd = cleaned.lastIndexOf("}");
+  if (jsonEnd === -1 || jsonEnd <= jsonStart) {
+    cleaned = repairTruncatedJson(cleaned.substring(jsonStart));
+  } else {
+    cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+  }
+  // Fix missing opening quotes on property names
+  cleaned = cleaned.replace(/([,{\[\n]\s*)([a-zA-Z_][a-zA-Z0-9_]*)"(\s*:)/g, '$1"$2"$3');
+  cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]")
+    .replace(/[\x00-\x1F\x7F]/g, (ch) => (ch === "\n" || ch === "\r" || ch === "\t" ? ch : ""));
+  try { return JSON.parse(cleaned); } catch {
+    cleaned = fixUnescapedQuotes(cleaned);
+    cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+    try { return JSON.parse(cleaned); } catch {
+      cleaned = repairTruncatedJson(cleaned);
+      cleaned = cleaned.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+      return JSON.parse(cleaned);
+    }
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -265,18 +338,18 @@ Deno.serve(async (req) => {
           return;
         }
 
-        // Parse JSON from AI response (may have markdown code fences)
+        // Parse JSON from AI response (may have markdown code fences or be truncated)
         let parsed: any;
         try {
-          const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-          const jsonStr = jsonMatch ? jsonMatch[1].trim() : content.trim();
-          parsed = JSON.parse(jsonStr);
+          parsed = extractJsonFromResponse(content);
         } catch {
+          // If we still can't parse, store as raw text fallback
           await supabase
             .from("script_analyses")
             .update({
-              status: "complete",
-              visual_summary: content,
+              status: "error",
+              error_message: "AI returned malformed JSON. Please re-analyze the script.",
+              visual_summary: null,
               scene_breakdown: null,
               global_elements: null,
               ai_generation_notes: null,
