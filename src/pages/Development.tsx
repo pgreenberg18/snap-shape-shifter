@@ -222,6 +222,9 @@ const Development = () => {
   const [metaSaving, setMetaSaving] = useState(false);
   const [metaSaved, setMetaSaved] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [visualSummaryApproved, setVisualSummaryApproved] = useState(false);
+  const [ratingsApproved, setRatingsApproved] = useState(false);
+  const [aiNotesApproved, setAiNotesApproved] = useState(false);
 
   const metaDirty = filmTitle !== (film?.title ?? "") || versionName !== (film?.version_name ?? "") || writers !== ((film as any)?.writers ?? "");
 
@@ -733,7 +736,14 @@ const Development = () => {
                         <Film className="h-5 w-5 text-primary" />
                         <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
                       </div>
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      <div className="flex items-center gap-2">
+                        {visualSummaryApproved ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        )}
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      </div>
                     </div>
                   </CollapsibleTrigger>
                    <CollapsibleContent>
@@ -756,6 +766,17 @@ const Development = () => {
                           style={{ fieldSizing: 'content' } as React.CSSProperties}
                         />
                       </div>
+                      <div className="flex justify-end pt-4 border-t border-border">
+                        <Button
+                          size="sm"
+                          variant={visualSummaryApproved ? "default" : "outline"}
+                          className={cn("gap-1.5", visualSummaryApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                          onClick={() => setVisualSummaryApproved(prev => !prev)}
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                          {visualSummaryApproved ? "Approved" : "Approve"}
+                        </Button>
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
@@ -768,13 +789,15 @@ const Development = () => {
                     <div className="flex items-center gap-2">
                       <Clock className="h-5 w-5 text-primary" />
                       <h3 className="font-display text-lg font-bold">Time Period</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
                       {film?.time_period ? (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       ) : (
                         <AlertCircle className="h-4 w-4 text-yellow-500" />
                       )}
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -936,13 +959,15 @@ const Development = () => {
                             {reviewStats.approved} approved · {reviewStats.rejected} rejected · {reviewStats.pending} pending
                           </span>
                         )}
+                      </div>
+                      <div className="flex items-center gap-2">
                         {allScenesApproved ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : (
                           <AlertCircle className="h-4 w-4 text-yellow-500" />
                         )}
+                        <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
                       </div>
-                      <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -967,13 +992,15 @@ const Development = () => {
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
                         <h3 className="font-display text-lg font-bold">Global Elements</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
                         {allElementsReviewed ? (
                           <CheckCircle className="h-4 w-4 text-green-500" />
                         ) : (
                           <AlertCircle className="h-4 w-4 text-yellow-500" />
                         )}
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
                       </div>
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
@@ -990,6 +1017,8 @@ const Development = () => {
                 visualSummary={(analysis.visual_summary as string) || ""}
                 timePeriod={film?.time_period || timePeriod}
                 signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
+                approved={aiNotesApproved}
+                onApprovedChange={setAiNotesApproved}
               />
             </div>
           )}
@@ -1049,13 +1078,20 @@ const Development = () => {
             <>
             <Collapsible>
               <CollapsibleTrigger className="w-full">
-                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Film className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Film className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {ratingsApproved ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
                   </div>
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                </div>
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
@@ -1087,6 +1123,17 @@ const Development = () => {
                       />
                     </div>
                   )}
+                    <div className="flex justify-end pt-4 border-t border-border mt-4">
+                      <Button
+                        size="sm"
+                        variant={ratingsApproved ? "default" : "outline"}
+                        className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                        onClick={() => setRatingsApproved(prev => !prev)}
+                      >
+                        <ThumbsUp className="h-3 w-3" />
+                        {ratingsApproved ? "Approved" : "Approve"}
+                      </Button>
+                    </div>
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -1104,13 +1151,15 @@ const Development = () => {
                 <div className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-primary" />
                   <h3 className="font-display text-lg font-bold">Lock Script</h3>
-                  {allScenesApproved && allElementsReviewed && film?.time_period ? (
+                </div>
+                <div className="flex items-center gap-2">
+                  {allScenesApproved && allElementsReviewed && film?.time_period && visualSummaryApproved && ratingsApproved ? (
                     <CheckCircle className="h-4 w-4 text-green-500" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-yellow-500" />
                   )}
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
               </div>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -2222,10 +2271,9 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string }) => {
+const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, approved, onApprovedChange }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
   const [value, setValue] = useState(() => {
     if (initialValue) return initialValue;
-    // Pre-fill based on visual summary, time period, and signature style
     const parts: string[] = [];
     if (timePeriod) parts.push(`Time Period: ${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
     if (signatureStyle) parts.push(`Signature Style: ${signatureStyle}`);
@@ -2241,11 +2289,18 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
             <Sparkles className="h-5 w-5 text-primary" />
             <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
           </div>
-          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            {approved ? (
+              <CheckCircle className="h-4 w-4 text-green-500" />
+            ) : (
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+            )}
+            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+          </div>
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
           <Textarea
             value={value}
             onChange={(e) => setValue(e.target.value)}
@@ -2253,6 +2308,17 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
             className="min-h-[100px] text-sm bg-background resize-y"
             style={{ fieldSizing: 'content' } as React.CSSProperties}
           />
+          <div className="flex justify-end pt-2 border-t border-border">
+            <Button
+              size="sm"
+              variant={approved ? "default" : "outline"}
+              className={cn("gap-1.5", approved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+              onClick={() => onApprovedChange(!approved)}
+            >
+              <ThumbsUp className="h-3 w-3" />
+              {approved ? "Approved" : "Approve"}
+            </Button>
+          </div>
         </div>
       </CollapsibleContent>
     </Collapsible>
