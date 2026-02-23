@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { useCharacters } from "@/hooks/useFilm";
+import { useCharacters, useShots } from "@/hooks/useFilm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import VoiceCastingPanel from "@/components/pre-production/VoiceCastingPanel";
+import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
 
 /* ── Audition card type ── */
 interface AuditionCard {
@@ -258,8 +259,8 @@ const PreProduction = () => {
         <TabsContent value="voice" className="flex-1 flex overflow-hidden m-0">
           <VoiceCastingPanel characters={characters} isLoading={isLoading} />
         </TabsContent>
-        <TabsContent value="storyboard" className="flex-1 m-0">
-          <PlaceholderPane icon={Film} title="Storyboard Pre-Viz" description="Build storyboard sequences and animated pre-visualizations from your locked scene breakdown." />
+        <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
+          <StoryboardPanel />
         </TabsContent>
       </Tabs>
     </div>
