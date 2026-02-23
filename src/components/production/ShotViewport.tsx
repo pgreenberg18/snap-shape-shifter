@@ -24,7 +24,7 @@ const EMPTY_TAKES: Take[] = Array.from({ length: 5 }, (_, i) => ({
 }));
 
 /* ── Component ── */
-const ShotViewport = () => {
+const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
   const [takes, setTakes] = useState<Take[]>(EMPTY_TAKES);
   const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
@@ -76,7 +76,7 @@ const ShotViewport = () => {
       {/* ── Viewfinder ── */}
       <div className="flex-1 min-h-0 flex items-center justify-center px-2">
         <div className="w-full max-w-4xl">
-          <AspectRatio ratio={16 / 9}>
+          <AspectRatio ratio={aspectRatio}>
             <div className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40">
               {/* Camera HUD Overlay */}
               <div className="absolute inset-0 pointer-events-none z-10">
