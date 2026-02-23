@@ -53,9 +53,18 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     return [...new Set(items)];
   };
 
+  const charNames = extract(["recurring_characters", "characters"]).map((c) => {
+    // Strip descriptions like "JOHN - a middle-aged teacher" → "JOHN"
+    const dashIdx = c.indexOf(" - ");
+    const colonIdx = c.indexOf(": ");
+    const commaIdx = c.indexOf(", ");
+    const cutIdx = [dashIdx, colonIdx, commaIdx].filter((i) => i > 0).sort((a, b) => a - b)[0];
+    return cutIdx ? c.substring(0, cutIdx).trim() : c.trim();
+  });
+
   return {
     locations: { ungrouped: extract(["recurring_locations"]), groups: [] },
-    characters: { ungrouped: extract(["recurring_characters", "characters"]), groups: [] },
+    characters: { ungrouped: [...new Set(charNames)], groups: [] },
     wardrobe: { ungrouped: extract(["recurring_wardrobe"]), groups: [] },
     props: { ungrouped: extract(["recurring_props"]), groups: [] },
     visual_design: { ungrouped: extract(["visual_motifs"]), groups: [] },
