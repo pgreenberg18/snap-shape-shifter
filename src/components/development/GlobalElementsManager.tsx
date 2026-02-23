@@ -403,17 +403,17 @@ export default function GlobalElementsManager({ data, onAllReviewedChange }: Pro
                   <Button
                     size="sm"
                     variant={reviewStatus[key] === "needs_review" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" && "bg-destructive hover:bg-destructive/90 text-destructive-foreground")}
-                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "needs_review" }))}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "opacity-60")}
+                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: prev[key] === "needs_review" ? "unreviewed" : "needs_review" }))}
                   >
                     <AlertCircle className="h-3 w-3" />
                     Still Needs Review
                   </Button>
                   <Button
                     size="sm"
-                    variant="default"
-                    className="h-7 text-xs gap-1.5 bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: "completed" }))}
+                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                    onClick={() => setReviewStatus(prev => ({ ...prev, [key]: prev[key] === "completed" ? "unreviewed" : "completed" }))}
                   >
                     <ThumbsUp className="h-3 w-3" />
                     Approved
