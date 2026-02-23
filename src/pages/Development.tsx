@@ -391,6 +391,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
   const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
   const [scriptLoading, setScriptLoading] = useState(false);
+  const [scriptPage, setScriptPage] = useState<string | null>(scene.page || null);
 
   const parseFdxScene = (xml: string): { type: string; text: string }[] => {
     const heading = scene.scene_heading?.trim();
@@ -411,6 +412,12 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
       if (type === "Scene Heading") {
         if (startIdx === -1 && heading && content.toUpperCase().includes(heading.toUpperCase())) {
           startIdx = i;
+          // Extract page number from SceneProperties
+          const sp = p.querySelector("SceneProperties");
+          if (sp) {
+            const pg = sp.getAttribute("Page");
+            if (pg && !scriptPage) setScriptPage(pg);
+          }
         } else if (startIdx !== -1) {
           endIdx = i;
           break;
@@ -484,11 +491,11 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
   return (
     <div className={`rounded-xl border overflow-hidden transition-colors ${approved ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}>
       {/* Header */}
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-secondary/50 transition-colors text-left"
-      >
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between p-4">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity text-left"
+        >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold font-mono">
             {scene.scene_number ?? index + 1}
           </span>
@@ -496,22 +503,28 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
             <p className="font-display font-semibold text-sm">{scene.scene_heading || "Untitled Scene"}</p>
             <p className="text-xs text-muted-foreground">
               {scene.int_ext} · {scene.time_of_day}
-              {scene.page && <span className="ml-2 text-primary/60">p. {scene.page}</span>}
+              {scriptPage && <span className="ml-2 text-primary/60">p. {scriptPage}</span>}
             </p>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
+        </button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2" onClick={loadScript}>
+            <ScrollText className="h-3 w-3" />
+            Script
+          </Button>
           <div
             role="checkbox"
             aria-checked={approved}
-            onClick={(e) => { e.stopPropagation(); onToggleApproved(); }}
+            onClick={onToggleApproved}
             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors cursor-pointer ${approved ? "bg-primary border-primary text-primary-foreground" : "border-muted-foreground/40 hover:border-primary"}`}
           >
             {approved && <CheckCircle className="h-3.5 w-3.5" />}
           </div>
-          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          <button onClick={() => setExpanded(!expanded)} className="p-1">
+            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </button>
         </div>
-      </button>
+      </div>
 
       {/* Expanded content */}
       {expanded && (
@@ -521,7 +534,6 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
           storagePath={storagePath}
           approved={approved}
           onToggleApproved={onToggleApproved}
-          onLoadScript={loadScript}
         />
       )}
 
@@ -606,10 +618,10 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, onToggleApproved
 
 /* ── Editable Scene Content ── */
 const EditableSceneContent = ({
-  scene, index, storagePath, approved, onToggleApproved, onLoadScript,
+  scene, index, storagePath, approved, onToggleApproved,
 }: {
   scene: any; index: number; storagePath: string; approved: boolean;
-  onToggleApproved: () => void; onLoadScript: () => void;
+  onToggleApproved: () => void;
 }) => {
   const [desc, setDesc] = useState<string>(scene.description || "");
   const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || "");
@@ -832,10 +844,6 @@ const EditableSceneContent = ({
 
         {/* Actions row */}
         <div className="pt-2 flex justify-end gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={onLoadScript}>
-            <ScrollText className="h-3.5 w-3.5" />
-            View Script Page
-          </Button>
           <Button
             variant={approved ? "secondary" : "default"}
             size="sm"
