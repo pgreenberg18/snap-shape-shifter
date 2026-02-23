@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Aperture, Crosshair, Focus, ScanLine, ChevronDown } from "lucide-react";
+import { Aperture, Crosshair, Focus, ScanLine, Sun, Move, Sparkles } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -36,6 +36,35 @@ const FOCAL_TICKS = [
   { mm: 200, label: "200" },
 ];
 
+const LIGHTING_SETUPS = [
+  { value: "three-point", label: "Three-Point", detail: "Key / Fill / Back" },
+  { value: "high-key", label: "High-Key", detail: "Bright / Low Contrast" },
+  { value: "low-key", label: "Low-Key", detail: "Dark / High Contrast" },
+  { value: "rembrandt", label: "Rembrandt", detail: "Triangle Shadow" },
+  { value: "backlit", label: "Backlit", detail: "Rim / Silhouette" },
+  { value: "chiaroscuro", label: "Chiaroscuro", detail: "Dramatic / Baroque" },
+];
+
+const RIGGING_OPTIONS = [
+  { value: "static", label: "Static / Locked", detail: "Tripod" },
+  { value: "handheld", label: "Handheld", detail: "Organic Shake" },
+  { value: "steadicam", label: "Steadicam", detail: "Smooth Glide" },
+  { value: "crane-sweep", label: "Crane Sweep", detail: "Vertical Arc" },
+  { value: "dolly-push", label: "Dolly Push-in", detail: "Track Move" },
+];
+
+const SHUTTER_ANGLES = [
+  { value: "45", label: "45°", detail: "Staccato" },
+  { value: "180", label: "180°", detail: "Standard" },
+  { value: "360", label: "360°", detail: "Blur" },
+];
+
+const TEXTURE_OPTIONS = [
+  { value: "promist", label: "Pro-mist / Halation" },
+  { value: "grain", label: "35mm Grain" },
+  { value: "vhs", label: "VHS Degradation" },
+];
+
 type TriState = "auto" | "templates" | "custom";
 
 interface OpticsSuitePanelProps {
@@ -44,10 +73,18 @@ interface OpticsSuitePanelProps {
 
 const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
   const [mode, setMode] = useState<TriState>("custom");
+  // Camera & Optics
   const [sensor, setSensor] = useState("arri-alexa-35");
   const [lens, setLens] = useState("spherical-prime");
   const [focalLength, setFocalLength] = useState([50]);
   const [aperture, setAperture] = useState("T/2.8");
+  // Lighting
+  const [lightingSetup, setLightingSetup] = useState("three-point");
+  const [colorTemp, setColorTemp] = useState([4400]);
+  // Camera Dynamics
+  const [rigging, setRigging] = useState("static");
+  const [shutterAngle, setShutterAngle] = useState("180");
+  const [textures, setTextures] = useState<string[]>([]);
 
   // Crucial logic hook: anamorphic squeeze
   useEffect(() => {
@@ -67,10 +104,24 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
     return "Telephoto";
   }, []);
 
+  const toggleTexture = useCallback((value: string) => {
+    setTextures((prev) =>
+      prev.includes(value) ? prev.filter((t) => t !== value) : [...prev, value]
+    );
+  }, []);
+
+  const colorTempLabel = (k: number) => {
+    if (k <= 3400) return "Tungsten";
+    if (k <= 4000) return "Warm";
+    if (k <= 4800) return "Neutral";
+    if (k <= 5200) return "Daylight";
+    return "Cool";
+  };
+
   return (
-    <div className="w-[300px] min-w-[280px] border-l border-border/50 bg-[hsl(var(--card))] flex flex-col">
+    <div className="w-[300px] min-w-[280px] border-l border-border/50 bg-card flex flex-col">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border/50 bg-[hsl(var(--card))]">
+      <div className="px-4 py-3 border-b border-border/50">
         <div className="flex items-center gap-2">
           <Crosshair className="h-4 w-4 text-primary" />
           <h2 className="font-display text-xs font-bold uppercase tracking-[0.15em] text-foreground">
@@ -78,7 +129,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
           </h2>
         </div>
         <p className="text-[9px] text-muted-foreground/60 mt-0.5 tracking-wide">
-          Optic & Sensor Suite
+          Master Control Deck
         </p>
       </div>
 
@@ -127,7 +178,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
             {["Documentary Vérité", "Blockbuster Widescreen", "Indie Handheld", "Music Video"].map((tmpl) => (
               <button
                 key={tmpl}
-                className="w-full text-left rounded-lg border border-border/40 bg-secondary/20 hover:bg-primary/5 hover:border-primary/30 p-3 transition-all"
+                className="w-full text-left rounded-lg border border-border/40 bg-secondary/20 hover:bg-primary/5 hover:border-primary/30 p-3 transition-all active:translate-y-px"
               >
                 <p className="text-xs font-display font-semibold text-foreground">{tmpl}</p>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Pre-configured sensor + lens package</p>
@@ -138,6 +189,11 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
 
         {mode === "custom" && (
           <div className="p-4 space-y-5">
+            {/* ════════════════════════════════════════════
+                SECTION 1: OPTIC & SENSOR SUITE
+               ════════════════════════════════════════════ */}
+            <SectionHeader label="Optic & Sensor Suite" />
+
             {/* ── Sensor Profile ── */}
             <ControlGroup icon={ScanLine} label="Sensor Profile">
               <Select value={sensor} onValueChange={setSensor}>
@@ -187,7 +243,6 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
             {/* ── Focal Length ── */}
             <ControlGroup icon={Crosshair} label="Focal Length">
               <div className="space-y-3">
-                {/* Value display */}
                 <div className="flex items-baseline justify-between">
                   <span className="font-mono text-lg font-bold text-primary tabular-nums">
                     {focalLength[0]}mm
@@ -196,8 +251,6 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                     {focalLabel(focalLength[0])}
                   </span>
                 </div>
-
-                {/* Slider */}
                 <div className="relative">
                   <Slider
                     value={focalLength}
@@ -207,7 +260,6 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                     step={1}
                     className="fader-slider"
                   />
-                  {/* Tick marks */}
                   <div className="relative h-4 mt-1">
                     {FOCAL_TICKS.map((tick) => {
                       const pct = ((tick.mm - 12) / (200 - 12)) * 100;
@@ -251,13 +303,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                     ))}
                   </SelectContent>
                 </Select>
-
-                {/* Aperture visualization — iris blades */}
                 <div className="flex items-center justify-center py-3">
                   <div className="relative">
-                    {/* Outer ring */}
                     <div className="h-16 w-16 rounded-full border-2 border-muted-foreground/20 flex items-center justify-center">
-                      {/* Iris opening */}
                       <div
                         className="rounded-full bg-primary/20 border border-primary/40 transition-all duration-500 ease-out"
                         style={{
@@ -266,7 +314,6 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                         }}
                       />
                     </div>
-                    {/* Label */}
                     <div className="absolute -bottom-5 left-1/2 -translate-x-1/2">
                       <span className="text-[9px] font-mono font-bold text-primary tracking-wider">
                         {aperture}
@@ -274,6 +321,139 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                     </div>
                   </div>
                 </div>
+              </div>
+            </ControlGroup>
+
+            {/* ════════════════════════════════════════════
+                SECTION 2: LIGHTING ARCHITECTURE
+               ════════════════════════════════════════════ */}
+            <div className="pt-3 border-t border-border/30">
+              <SectionHeader label="Lighting Architecture" />
+            </div>
+
+            {/* ── Lighting Setup ── */}
+            <ControlGroup icon={Sun} label="Lighting Setup">
+              <Select value={lightingSetup} onValueChange={setLightingSetup}>
+                <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border z-50">
+                  {LIGHTING_SETUPS.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display font-semibold">{l.label}</span>
+                        <span className="text-[9px] text-muted-foreground font-mono">{l.detail}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ControlGroup>
+
+            {/* ── Color Temperature ── */}
+            <ControlGroup icon={Sun} label="Color Temperature">
+              <div className="space-y-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-mono text-lg font-bold text-primary tabular-nums">
+                    {colorTemp[0]}K
+                  </span>
+                  <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">
+                    {colorTempLabel(colorTemp[0])}
+                  </span>
+                </div>
+                <Slider
+                  value={colorTemp}
+                  onValueChange={setColorTemp}
+                  min={2700}
+                  max={6500}
+                  step={100}
+                  className="color-temp-slider"
+                />
+                <div className="flex justify-between">
+                  <span className="text-[8px] font-mono text-orange-400/70">2700K Warm</span>
+                  <span className="text-[8px] font-mono text-blue-400/70">6500K Cool</span>
+                </div>
+              </div>
+            </ControlGroup>
+
+            {/* ════════════════════════════════════════════
+                SECTION 3: CAMERA DYNAMICS & POLISH
+               ════════════════════════════════════════════ */}
+            <div className="pt-3 border-t border-border/30">
+              <SectionHeader label="Camera Dynamics & Polish" />
+            </div>
+
+            {/* ── Rigging & Movement ── */}
+            <ControlGroup icon={Move} label="Rigging & Movement">
+              <Select value={rigging} onValueChange={setRigging}>
+                <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-popover border-border z-50">
+                  {RIGGING_OPTIONS.map((r) => (
+                    <SelectItem key={r.value} value={r.value}>
+                      <div className="flex items-center gap-2">
+                        <span className="font-display font-semibold">{r.label}</span>
+                        <span className="text-[9px] text-muted-foreground font-mono">{r.detail}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </ControlGroup>
+
+            {/* ── Shutter Angle / Motion Blur ── */}
+            <ControlGroup icon={Aperture} label="Motion Blur / Shutter Angle">
+              <div className="flex gap-1.5">
+                {SHUTTER_ANGLES.map((sa) => (
+                  <button
+                    key={sa.value}
+                    onClick={() => setShutterAngle(sa.value)}
+                    className={cn(
+                      "flex-1 py-2 px-1 rounded-md border text-center transition-all duration-150",
+                      "shadow-[0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_hsl(0_0%_100%/0.06)]",
+                      "active:translate-y-px active:shadow-[0_1px_2px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(0,0,0,0.2)]",
+                      shutterAngle === sa.value
+                        ? "bg-primary/15 border-primary/50 shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3),inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                        : "bg-secondary/60 border-border/50 hover:border-border"
+                    )}
+                  >
+                    <span className={cn(
+                      "block text-xs font-mono font-bold",
+                      shutterAngle === sa.value ? "text-primary" : "text-foreground"
+                    )}>
+                      {sa.label}
+                    </span>
+                    <span className={cn(
+                      "block text-[8px] font-mono mt-0.5",
+                      shutterAngle === sa.value ? "text-primary/70" : "text-muted-foreground"
+                    )}>
+                      {sa.detail}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </ControlGroup>
+
+            {/* ── Texture & Polish ── */}
+            <ControlGroup icon={Sparkles} label="Texture & Polish">
+              <div className="flex flex-col gap-1.5">
+                {TEXTURE_OPTIONS.map((tex) => (
+                  <button
+                    key={tex.value}
+                    onClick={() => toggleTexture(tex.value)}
+                    className={cn(
+                      "w-full py-2 px-3 rounded-md border text-left text-xs font-display font-semibold transition-all duration-150",
+                      "shadow-[0_2px_4px_rgba(0,0,0,0.3),inset_0_1px_0_hsl(0_0%_100%/0.06)]",
+                      "active:translate-y-px active:shadow-[0_1px_2px_rgba(0,0,0,0.3),inset_0_1px_2px_rgba(0,0,0,0.2)]",
+                      textures.includes(tex.value)
+                        ? "bg-primary/15 border-primary/50 text-primary shadow-[0_0_10px_-3px_hsl(var(--primary)/0.3),inset_0_1px_0_hsl(0_0%_100%/0.06)]"
+                        : "bg-secondary/60 border-border/50 text-foreground hover:border-border"
+                    )}
+                  >
+                    {tex.label}
+                  </button>
+                ))}
               </div>
             </ControlGroup>
 
@@ -288,6 +468,11 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                 <ReadoutRow label="Focal" value={`${focalLength[0]}mm`} />
                 <ReadoutRow label="T-Stop" value={aperture} />
                 <ReadoutRow label="Aspect" value={lens === "anamorphic-prime" ? "2.39:1" : "16:9"} />
+                <ReadoutRow label="Light" value={LIGHTING_SETUPS.find(l => l.value === lightingSetup)?.label ?? ""} />
+                <ReadoutRow label="Kelvin" value={`${colorTemp[0]}K`} />
+                <ReadoutRow label="Rig" value={RIGGING_OPTIONS.find(r => r.value === rigging)?.label ?? ""} />
+                <ReadoutRow label="Shutter" value={`${shutterAngle}°`} />
+                <ReadoutRow label="Texture" value={textures.length ? textures.map(t => TEXTURE_OPTIONS.find(o => o.value === t)?.label?.split("/")[0].trim() ?? t).join(", ") : "None"} />
               </div>
             </div>
           </div>
@@ -296,6 +481,17 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
     </div>
   );
 };
+
+/* ── Section Header ── */
+const SectionHeader = ({ label }: { label: string }) => (
+  <div className="flex items-center gap-2 mb-1">
+    <div className="h-px flex-1 bg-primary/20" />
+    <span className="text-[9px] font-display font-bold uppercase tracking-[0.2em] text-primary/70">
+      {label}
+    </span>
+    <div className="h-px flex-1 bg-primary/20" />
+  </div>
+);
 
 /* ── Control Group wrapper ── */
 const ControlGroup = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
