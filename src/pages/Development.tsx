@@ -54,6 +54,107 @@ const useLatestAnalysis = (filmId: string | undefined) =>
     },
   });
 
+/* ── Analysis Progress Steps ── */
+const ANALYSIS_STEPS = [
+  { label: "Uploading script", key: "upload" },
+  { label: "Parsing screenplay format", key: "parse" },
+  { label: "Extracting scenes & characters", key: "extract" },
+  { label: "Generating visual breakdowns", key: "visual" },
+  { label: "Building prompts & metadata", key: "prompts" },
+  { label: "Finalizing analysis", key: "finalize" },
+];
+
+const AnalysisProgress = ({ status }: { status?: string }) => {
+  const [elapsed, setElapsed] = useState(0);
+  const [startTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed(Date.now() - startTime), 500);
+    return () => clearInterval(timer);
+  }, [startTime]);
+
+  // Determine which step we're on based on status + elapsed time
+  const getActiveStep = () => {
+    if (status === "pending") return 0;
+    // "analyzing" — progress through steps based on elapsed time
+    const secs = elapsed / 1000;
+    if (secs < 5) return 1;   // Parsing
+    if (secs < 15) return 2;  // Extracting
+    if (secs < 40) return 3;  // Visual breakdowns
+    if (secs < 80) return 4;  // Building prompts
+    return 5;                  // Finalizing
+  };
+
+  const activeStep = getActiveStep();
+  const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
+
+  const formatTime = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return m > 0 ? `${m}:${rem.toString().padStart(2, "0")}` : `${s}s`;
+  };
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-8 space-y-6">
+      <div className="flex items-center gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0" />
+        <div>
+          <p className="font-display font-semibold text-lg">Analyzing your screenplay…</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Elapsed: {formatTime(elapsed)} · This typically takes 1–3 minutes
+          </p>
+        </div>
+      </div>
+
+      {/* Progress bar */}
+      <div className="space-y-2">
+        <div className="h-2 rounded-full bg-secondary overflow-hidden">
+          <div
+            className="h-full rounded-full bg-primary transition-all duration-1000 ease-out"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground text-right">{Math.round(progressPercent)}%</p>
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-2">
+        {ANALYSIS_STEPS.map((step, i) => {
+          const isDone = i < activeStep;
+          const isActive = i === activeStep;
+          return (
+            <div key={step.key} className="flex items-center gap-3">
+              <div className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
+                isDone && "bg-primary text-primary-foreground",
+                isActive && "bg-primary/20 text-primary",
+                !isDone && !isActive && "bg-secondary text-muted-foreground/40"
+              )}>
+                {isDone ? (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                ) : isActive ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <span className="text-[10px] font-bold">{i + 1}</span>
+                )}
+              </div>
+              <span className={cn(
+                "text-sm transition-colors",
+                isDone && "text-foreground",
+                isActive && "text-foreground font-semibold",
+                !isDone && !isActive && "text-muted-foreground/50"
+              )}>
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 /* ── Main Page ── */
 const Development = () => {
   const [searchParams] = useSearchParams();
@@ -516,18 +617,8 @@ const Development = () => {
         <section>
           <h2 className="font-display text-2xl font-bold mb-4">Review Visual Breakdown</h2>
 
-          {/* Loading state */}
-          {isAnalyzing && (
-            <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-4">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <div className="text-center">
-                <p className="font-display font-semibold text-lg">AI is analyzing your screenplay…</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  This may take 1-3 minutes depending on script length. Results will appear here automatically.
-                </p>
-              </div>
-            </div>
-          )}
+          {/* Loading state with progress */}
+          {isAnalyzing && <AnalysisProgress status={analysis?.status} />}
 
           {/* Error state */}
           {analysis?.status === "error" && (
