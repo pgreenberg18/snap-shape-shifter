@@ -572,7 +572,7 @@ const Development = () => {
                 disabled={scriptLocked}
               />
             </div>
-            {!scriptLocked && (
+            {!scriptLocked && !analysis && (
               <div className="flex justify-end">
                 <Button
                   onClick={handleSaveMeta}
