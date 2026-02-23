@@ -88,6 +88,49 @@ RULES:
 - Every scene MUST have an image_prompt and video_prompt
 - Prompts must combine: Subject + Environment + Lighting + Mood + Style + Camera Language + Detail Richness`;
 
+/** Extract plain text from Final Draft XML (.fdx) */
+function parseFdxToPlainText(xml: string): string {
+  const lines: string[] = [];
+  const paragraphRe = /<Paragraph[^>]*Type="([^"]*)"[^>]*>([\s\S]*?)<\/Paragraph>/gi;
+  let pm: RegExpExecArray | null;
+
+  while ((pm = paragraphRe.exec(xml)) !== null) {
+    const pType = pm[1];
+    const inner = pm[2];
+    const textRe = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
+    let combined = "";
+    let tm: RegExpExecArray | null;
+    while ((tm = textRe.exec(inner)) !== null) {
+      combined += tm[1];
+    }
+    const trimmed = combined.trim();
+    if (!trimmed) continue;
+
+    switch (pType) {
+      case "Scene Heading":
+        lines.push("", trimmed.toUpperCase(), "");
+        break;
+      case "Character":
+        lines.push("", "    " + trimmed.toUpperCase());
+        break;
+      case "Parenthetical":
+        lines.push("    " + trimmed);
+        break;
+      case "Dialogue":
+        lines.push("  " + trimmed);
+        break;
+      case "Transition":
+        lines.push("", trimmed.toUpperCase(), "");
+        break;
+      default:
+        lines.push(trimmed);
+        break;
+    }
+  }
+
+  return lines.join("\n").trim();
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -154,15 +197,13 @@ Deno.serve(async (req) => {
     // Extract text content from the file
     let scriptText: string;
     const fileName = analysis.file_name.toLowerCase();
+    const rawText = await fileData.text();
 
-    if (fileName.endsWith(".fountain") || fileName.endsWith(".txt")) {
-      scriptText = await fileData.text();
+    if (fileName.endsWith(".fdx") || rawText.trimStart().startsWith("<?xml") || rawText.includes("<FinalDraft")) {
+      // Parse FDX (Final Draft XML) to extract plain-text screenplay
+      scriptText = parseFdxToPlainText(rawText);
     } else {
-      try {
-        scriptText = await fileData.text();
-      } catch {
-        scriptText = "Unable to extract text from binary file format.";
-      }
+      scriptText = rawText;
     }
 
     // Truncate if too long
