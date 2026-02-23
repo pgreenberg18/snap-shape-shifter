@@ -2,7 +2,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
-  AlertTriangle, ScrollText, X, Plus, LocateFixed,
+  AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -65,6 +65,7 @@ const Development = () => {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const [allScenesApproved, setAllScenesApproved] = useState(false);
 
   const uploadFile = useCallback(async (file: File) => {
     const ext = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
@@ -250,7 +251,11 @@ const Development = () => {
 
               {/* Scene-by-Scene Breakdown */}
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
-                <SceneBreakdownSection scenes={analysis.scene_breakdown as any[]} storagePath={analysis.storage_path} />
+                <SceneBreakdownSection
+                  scenes={analysis.scene_breakdown as any[]}
+                  storagePath={analysis.storage_path}
+                  onAllApprovedChange={setAllScenesApproved}
+                />
               )}
 
               {/* Global Elements */}
@@ -274,59 +279,28 @@ const Development = () => {
       {/* ── Step 3: Content Safety Matrix ── */}
       <section>
         <h2 className="font-display text-2xl font-bold mb-4">3 · Content Safety Matrix</h2>
-        <div className="rounded-xl border border-border bg-card p-6">
-          <Tabs defaultValue="auto" className="w-full">
-            <TabsList className="w-full bg-secondary mb-6">
-              <TabsTrigger value="auto" className="flex-1">Auto</TabsTrigger>
-              <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
-              <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
-            </TabsList>
-            <TabsContent value="auto">
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                  <span className="text-2xl">🤖</span>
-                </div>
-                <p className="font-display font-semibold text-lg">AI Auto-Detection</p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-md">
-                  Content safety ratings will be automatically classified by AI based on your uploaded script.
-                </p>
-              </div>
-            </TabsContent>
-            <TabsContent value="templates">
-              <div className="grid grid-cols-3 gap-3">
-                {["PG — Family Friendly", "PG-13 — Teen Audiences", "R — Mature Content"].map((t) => (
-                  <button key={t} className="rounded-lg border border-border bg-secondary p-4 text-sm font-medium text-foreground hover:border-primary/50 transition-colors text-center">
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </TabsContent>
-            <TabsContent value="custom">
-              <div className="space-y-5">
-                <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                  <Label htmlFor="language" className="text-sm font-medium cursor-pointer">Language</Label>
-                  <Switch id="language" checked={language} onCheckedChange={handleToggle("language", setLanguage)} />
-                </div>
-                <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                  <Label htmlFor="nudity" className="text-sm font-medium cursor-pointer">Nudity</Label>
-                  <Switch id="nudity" checked={nudity} onCheckedChange={handleToggle("nudity", setNudity)} />
-                </div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
-                    <Label htmlFor="violence" className="text-sm font-medium cursor-pointer">Violence</Label>
-                    <Switch id="violence" checked={violence} onCheckedChange={handleToggle("violence", setViolence)} />
-                  </div>
-                  {violence && (
-                    <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-amber-400 text-sm animate-fade-in">
-                      <AlertTriangle className="h-4 w-4 shrink-0" />
-                      <span>Violence flag enabled — content may be restricted on some platforms.</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </div>
+        {!allScenesApproved ? (
+          <div className="rounded-xl border border-border bg-card p-10 flex flex-col items-center gap-3 text-center">
+            <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center">
+              <Lock className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="font-display font-semibold text-lg">Approve All Scenes First</p>
+            <p className="text-sm text-muted-foreground max-w-md">
+              Content safety analysis requires all scenes to be reviewed and approved. Go back and approve each scene in the breakdown above.
+            </p>
+          </div>
+        ) : (
+          <ContentSafetyMatrix
+            scenes={analysis?.scene_breakdown as any[] || []}
+            language={language}
+            nudity={nudity}
+            violence={violence}
+            handleToggle={handleToggle}
+            setLanguage={setLanguage}
+            setNudity={setNudity}
+            setViolence={setViolence}
+          />
+        )}
       </section>
     </div>
   );
@@ -335,10 +309,14 @@ const Development = () => {
 /* ══════════════════════════════════════════
    Sub-components
    ══════════════════════════════════════════ */
-const SceneBreakdownSection = ({ scenes, storagePath }: { scenes: any[]; storagePath: string }) => {
+const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void }) => {
   const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
   const [rejectedSet, setRejectedSet] = useState<Set<number>>(new Set());
   const allApproved = approvedSet.size === scenes.length;
+
+  useEffect(() => {
+    onAllApprovedChange?.(allApproved);
+  }, [allApproved, onAllApprovedChange]);
 
   const approveScene = (i: number) => {
     setApprovedSet((prev) => { const n = new Set(prev); if (n.has(i)) n.delete(i); else n.add(i); return n; });
@@ -695,12 +673,12 @@ const EditableSceneContent = ({
       <div className="border-t border-border p-5 space-y-5 text-sm">
         {/* Description */}
         <Section icon={FileText} label="Description">
-          <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="text-xs min-h-[60px] bg-secondary border-border" />
+          <Textarea value={desc} onChange={(e) => setDesc(e.target.value)} className="text-xs min-h-[60px] bg-background border-border" />
         </Section>
 
         {/* Location */}
         <Section icon={LocateFixed} label="Location">
-          <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-secondary border-border" />
+          <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" />
         </Section>
 
         {/* Visual Design */}
@@ -807,7 +785,7 @@ const EditableSceneContent = ({
 
         {/* Environment & Props */}
         <Section icon={MapPin} label="Environment & Props">
-          <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-secondary border-border" placeholder="Environment description…" />
+          <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" placeholder="Environment description…" />
           <div className="flex flex-wrap gap-1.5 mt-2">
             {keyObjects.map((obj, i) => (
               <span
@@ -829,7 +807,7 @@ const EditableSceneContent = ({
                 onChange={(e) => setNewItem(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addObject())}
                 placeholder="Add item…"
-                className="h-6 text-xs w-28 bg-secondary border-border"
+                className="h-6 text-xs w-28 bg-background border-border"
               />
               <button onClick={addObject} className="rounded-full p-0.5 hover:bg-primary/10 transition-colors">
                 <Plus className="h-3.5 w-3.5 text-primary" />
@@ -841,9 +819,9 @@ const EditableSceneContent = ({
         {/* AI Generation Prompts */}
         <Section icon={Sparkles} label="AI Generation Prompts">
           <p className="text-xs font-mono text-primary/70 mb-1">IMAGE PROMPT</p>
-          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-secondary border-border font-mono" />
+          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" />
           <p className="text-xs font-mono text-primary/70 mb-1 mt-3">VIDEO PROMPT</p>
-          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-secondary border-border font-mono" />
+          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" />
         </Section>
 
         {/* Continuity Flags */}
@@ -923,6 +901,261 @@ const Tag = ({ label, value }: { label: string; value: string }) => (
     <p className="text-foreground">{value}</p>
   </div>
 );
+
+/* ── MPAA Content Safety ── */
+const MPAA_CATEGORIES = [
+  { key: "language", label: "Language", desc: "Profanity, slurs, crude language" },
+  { key: "violence", label: "Violence", desc: "Physical violence, gore, weapons" },
+  { key: "nudity", label: "Nudity / Sexual Content", desc: "Nudity, sexual situations, suggestive content" },
+  { key: "substance", label: "Substance Use", desc: "Drug use, alcohol, smoking" },
+  { key: "thematic", label: "Thematic Elements", desc: "Disturbing themes, mature subject matter" },
+] as const;
+
+type MPAARating = "G" | "PG" | "PG-13" | "R" | "NC-17";
+
+interface ContentFlag {
+  sceneIndex: number;
+  sceneHeading: string;
+  category: string;
+  type: "description" | "dialogue";
+  excerpt: string;
+  severity: MPAARating;
+}
+
+const RATING_TEMPLATES: { rating: MPAARating; label: string; desc: string }[] = [
+  { rating: "G", label: "G — General Audiences", desc: "No objectionable content" },
+  { rating: "PG", label: "PG — Parental Guidance", desc: "Mild language, brief mild violence" },
+  { rating: "PG-13", label: "PG-13 — Parents Cautioned", desc: "Some violence, brief strong language" },
+  { rating: "R", label: "R — Restricted", desc: "Strong language, violence, some nudity" },
+];
+
+const CONTENT_PATTERNS: { pattern: RegExp; category: string; severity: MPAARating }[] = [
+  { pattern: /\b(fuck|shit|damn|ass|bitch|bastard|hell)\b/i, category: "language", severity: "R" },
+  { pattern: /\b(crap|stupid|idiot|shut up|suck)\b/i, category: "language", severity: "PG" },
+  { pattern: /\b(gun|shoot|stab|kill|murder|blood|wound|punch|fight|attack|slash|strangle|choke)\b/i, category: "violence", severity: "PG-13" },
+  { pattern: /\b(gore|decapitat|dismember|torture|mutilat|brutal)\b/i, category: "violence", severity: "R" },
+  { pattern: /\b(naked|nude|undress|strip|breast|sex|kiss passionately|intimate)\b/i, category: "nudity", severity: "PG-13" },
+  { pattern: /\b(explicit|graphic sex|full.?frontal)\b/i, category: "nudity", severity: "R" },
+  { pattern: /\b(drink|drunk|alcohol|beer|wine|whiskey|bourbon|cocktail|bar)\b/i, category: "substance", severity: "PG" },
+  { pattern: /\b(drug|cocaine|heroin|meth|inject|smoke|joint|weed|marijuana|pill)\b/i, category: "substance", severity: "PG-13" },
+  { pattern: /\b(suicide|death|dying|grief|abuse|trauma|assault)\b/i, category: "thematic", severity: "PG-13" },
+];
+
+function analyzeScenes(scenes: any[]): { flags: ContentFlag[]; suggestedRating: MPAARating } {
+  const flags: ContentFlag[] = [];
+  const ratingOrder: MPAARating[] = ["G", "PG", "PG-13", "R", "NC-17"];
+  let maxRating: MPAARating = "G";
+  scenes.forEach((scene, i) => {
+    const textsToCheck: { text: string; type: "description" | "dialogue" }[] = [];
+    if (scene.description) textsToCheck.push({ text: scene.description, type: "description" });
+    if (scene.environment_details) textsToCheck.push({ text: scene.environment_details, type: "description" });
+    if (scene.characters) scene.characters.forEach((c: any) => {
+      if (c.physical_behavior) textsToCheck.push({ text: c.physical_behavior, type: "description" });
+    });
+    if (scene.image_prompt) textsToCheck.push({ text: scene.image_prompt, type: "description" });
+    if (scene.video_prompt) textsToCheck.push({ text: scene.video_prompt, type: "description" });
+    for (const { text, type } of textsToCheck) {
+      for (const { pattern, category, severity } of CONTENT_PATTERNS) {
+        const match = text.match(pattern);
+        if (match) {
+          const idx = match.index || 0;
+          const start = Math.max(0, idx - 30);
+          const end = Math.min(text.length, idx + match[0].length + 30);
+          const excerpt = (start > 0 ? "…" : "") + text.slice(start, end) + (end < text.length ? "…" : "");
+          flags.push({ sceneIndex: i, sceneHeading: scene.scene_heading || `Scene ${scene.scene_number ?? i + 1}`, category, type, excerpt, severity });
+          if (ratingOrder.indexOf(severity) > ratingOrder.indexOf(maxRating)) maxRating = severity;
+        }
+      }
+    }
+  });
+  return { flags, suggestedRating: maxRating };
+}
+
+const ContentSafetyMatrix = ({
+  scenes, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence,
+}: {
+  scenes: any[];
+  language: boolean; nudity: boolean; violence: boolean;
+  handleToggle: (field: string, setter: (v: boolean) => void) => (val: boolean) => void;
+  setLanguage: (v: boolean) => void; setNudity: (v: boolean) => void; setViolence: (v: boolean) => void;
+}) => {
+  const [selectedTemplate, setSelectedTemplate] = useState<MPAARating | null>(null);
+  const { flags, suggestedRating } = analyzeScenes(scenes);
+  const flagsByCategory = flags.reduce((acc, f) => {
+    if (!acc[f.category]) acc[f.category] = [];
+    acc[f.category].push(f);
+    return acc;
+  }, {} as Record<string, ContentFlag[]>);
+
+  return (
+    <div className="rounded-xl border border-border bg-card p-6">
+      <Tabs defaultValue="auto" className="w-full">
+        <TabsList className="w-full bg-secondary mb-6">
+          <TabsTrigger value="auto" className="flex-1">Auto (MPAA)</TabsTrigger>
+          <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
+          <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="auto">
+          <div className="space-y-6">
+            <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
+              <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center">
+                <Shield className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1">
+                <p className="font-display font-bold text-lg">Suggested Rating: <span className="text-primary">{suggestedRating}</span></p>
+                <p className="text-sm text-muted-foreground">Based on MPAA guidelines analysis of {scenes.length} approved scenes</p>
+              </div>
+              <span className={cn(
+                "text-xs font-bold px-3 py-1.5 rounded-full",
+                (suggestedRating === "G" || suggestedRating === "PG") && "bg-green-500/20 text-green-400",
+                suggestedRating === "PG-13" && "bg-amber-500/20 text-amber-400",
+                (suggestedRating === "R" || suggestedRating === "NC-17") && "bg-destructive/20 text-destructive",
+              )}>{suggestedRating}</span>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Content Breakdown by Category</p>
+              {MPAA_CATEGORIES.map(({ key, label, desc }) => {
+                const catFlags = flagsByCategory[key] || [];
+                return (
+                  <div key={key} className="rounded-lg border border-border bg-secondary/50 p-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
+                      {catFlags.length > 0 ? (
+                        <span className="text-xs font-medium text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full">
+                          {catFlags.length} flag{catFlags.length !== 1 ? "s" : ""}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">Clear</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {flags.length > 0 ? (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  Flagged Content — {flags.length} issue{flags.length !== 1 ? "s" : ""} found
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Review and modify these scenes to adjust the content rating. Offending text is highlighted.
+                </p>
+                {flags.map((flag, fi) => (
+                  <div key={fi} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-semibold text-foreground">Scene {flag.sceneIndex + 1}: {flag.sceneHeading}</p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
+                        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs">
+                      <span className="text-muted-foreground">{flag.type}: </span>
+                      <span className="text-destructive font-medium">{flag.excerpt}</span>
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <CheckCircle className="h-8 w-8 mx-auto mb-2 text-green-400" />
+                <p className="text-sm font-medium">No content concerns detected</p>
+                <p className="text-xs mt-1">All scenes pass general audience guidelines</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="templates">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground mb-4">
+              Select a target rating to override the auto-detected settings. Scenes that conflict with the chosen rating will be flagged.
+            </p>
+            <div className="grid grid-cols-2 gap-3">
+              {RATING_TEMPLATES.map((t) => {
+                const isActive = selectedTemplate === t.rating;
+                return (
+                  <button
+                    key={t.rating}
+                    onClick={() => setSelectedTemplate(isActive ? null : t.rating)}
+                    className={cn("rounded-lg border p-4 text-left transition-colors", isActive ? "border-primary bg-primary/10" : "border-border bg-secondary hover:border-primary/50")}
+                  >
+                    <p className="text-sm font-semibold text-foreground">{t.label}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{t.desc}</p>
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTemplate && (() => {
+              const ratingOrder: MPAARating[] = ["G", "PG", "PG-13", "R", "NC-17"];
+              const templateIdx = ratingOrder.indexOf(selectedTemplate);
+              const conflicts = flags.filter((f) => ratingOrder.indexOf(f.severity) > templateIdx);
+              if (conflicts.length === 0) {
+                return (
+                  <div className="mt-4 p-4 rounded-lg bg-green-500/10 border border-green-500/20 text-center">
+                    <CheckCircle className="h-5 w-5 text-green-400 mx-auto mb-1" />
+                    <p className="text-sm text-green-400 font-medium">Script is compatible with {selectedTemplate} rating</p>
+                  </div>
+                );
+              }
+              return (
+                <div className="mt-4 space-y-3">
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive font-medium">
+                      {conflicts.length} scene{conflicts.length !== 1 ? "s" : ""} conflict with {selectedTemplate} rating
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Modify these scenes to meet the target rating, then re-approve them.</p>
+                  </div>
+                  {conflicts.map((flag, fi) => (
+                    <div key={fi} className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold">Scene {flag.sceneIndex + 1}: {flag.sceneHeading}</p>
+                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
+                      </div>
+                      <p className="text-xs"><span className="text-destructive font-medium">{flag.excerpt}</span></p>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="custom">
+          <div className="space-y-5">
+            <p className="text-sm text-muted-foreground mb-2">Manually toggle content flags to override the auto-detected settings.</p>
+            <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
+              <Label htmlFor="language" className="text-sm font-medium cursor-pointer">Language</Label>
+              <Switch id="language" checked={language} onCheckedChange={handleToggle("language", setLanguage)} />
+            </div>
+            <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
+              <Label htmlFor="nudity" className="text-sm font-medium cursor-pointer">Nudity</Label>
+              <Switch id="nudity" checked={nudity} onCheckedChange={handleToggle("nudity", setNudity)} />
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
+                <Label htmlFor="violence" className="text-sm font-medium cursor-pointer">Violence</Label>
+                <Switch id="violence" checked={violence} onCheckedChange={handleToggle("violence", setViolence)} />
+              </div>
+              {violence && (
+                <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-amber-400 text-sm animate-fade-in">
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span>Violence flag enabled — content may be restricted on some platforms.</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
 
 const EditableAIGenerationNotes = ({ initialValue }: { initialValue: string }) => {
   const [value, setValue] = useState(initialValue);
