@@ -375,7 +375,7 @@ const PreProduction = () => {
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
       <header className="shrink-0 border-b border-border bg-card px-6 py-5">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Pre-Production War Room</h1>
+        <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">Pre-Production</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Asset &amp; Identity Lock — define every visual and auditory element before shooting begins.
         </p>
@@ -384,12 +384,12 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-12 bg-transparent gap-1 p-0">
-            <WarRoomTab value="casting" icon={Users} label="Auditions" />
-            <WarRoomTab value="locations" icon={MapPin} label="Locations" />
-            <WarRoomTab value="props" icon={Package} label="Props" />
-            <WarRoomTab value="wardrobe" icon={Shirt} label="Wardrobe" />
-            <WarRoomTab value="vehicles" icon={Car} label="Picture Vehicles" />
-            <WarRoomTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
+            <PreProductionTab value="casting" icon={Users} label="Auditions" />
+            <PreProductionTab value="locations" icon={MapPin} label="Locations" />
+            <PreProductionTab value="props" icon={Package} label="Props" />
+            <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" />
+            <PreProductionTab value="vehicles" icon={Car} label="Picture Vehicles" />
+            <PreProductionTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
           </TabsList>
         </div>
 
@@ -1041,7 +1041,7 @@ const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; 
 );
 
 /* ── Tab trigger with icon ── */
-const WarRoomTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
+const PreProductionTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
   <TabsTrigger
     value={value}
     className="gap-2 px-4 py-2.5 text-xs font-display font-semibold uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground hover:text-foreground transition-colors"
