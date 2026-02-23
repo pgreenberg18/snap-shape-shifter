@@ -10,11 +10,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform,
+  Save, AudioWaveform, Package,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
-import LocationsGroupPane from "@/components/pre-production/LocationsGroupPane";
+import DnDGroupPane from "@/components/pre-production/DnDGroupPane";
 
 /* ── Audition card type ── */
 interface AuditionCard {
@@ -161,8 +161,9 @@ const PreProduction = () => {
         <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-12 bg-transparent gap-1 p-0">
             <WarRoomTab value="casting" icon={Users} label="Casting & Voice" />
-            <WarRoomTab value="locations" icon={MapPin} label="Locations & 360 Panos" />
-            <WarRoomTab value="props" icon={Shirt} label="Props & Wardrobe" />
+            <WarRoomTab value="locations" icon={MapPin} label="Locations" />
+            <WarRoomTab value="props" icon={Package} label="Props" />
+            <WarRoomTab value="wardrobe" icon={Shirt} label="Wardrobe" />
             <WarRoomTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
           </TabsList>
         </div>
@@ -371,15 +372,37 @@ const PreProduction = () => {
 
         {/* ═══ PLACEHOLDER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <LocationsGroupPane
-            locations={breakdownAssets?.locations ?? []}
+          <DnDGroupPane
+            items={breakdownAssets?.locations ?? []}
             filmId={filmId}
+            storagePrefix="locations"
+            icon={MapPin}
+            title="Locations"
+            emptyMessage="No locations extracted yet. Lock your script in Development."
           />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
-          <PropsWardrobePane
-            props={breakdownAssets?.props ?? []}
-            wardrobe={breakdownAssets?.wardrobe ?? []}
+          <DnDGroupPane
+            items={breakdownAssets?.props ?? []}
+            filmId={filmId}
+            storagePrefix="props"
+            icon={Package}
+            title="Props"
+            emptyMessage="No props extracted yet. Lock your script in Development."
+          />
+        </TabsContent>
+        <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0">
+          <DnDGroupPane
+            items={(breakdownAssets?.wardrobe ?? []).map((w) => w.clothing)}
+            filmId={filmId}
+            storagePrefix="wardrobe"
+            icon={Shirt}
+            title="Wardrobe"
+            emptyMessage="No wardrobe data extracted yet. Lock your script in Development."
+            subtitles={(breakdownAssets?.wardrobe ?? []).reduce((acc, w) => {
+              acc[w.clothing] = w.character;
+              return acc;
+            }, {} as Record<string, string>)}
           />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
