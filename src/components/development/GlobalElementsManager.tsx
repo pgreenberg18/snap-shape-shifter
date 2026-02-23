@@ -63,8 +63,19 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     return cutIdx ? name.substring(0, cutIdx).trim() : name.trim();
   });
 
+  // Strip location descriptions and INT/EXT prefixes, time of day — keep only the slugline location name
+  const locationNames = extract(["recurring_locations"]).map((loc) => {
+    // Remove descriptors after " – " or " - "
+    let name = loc.replace(/\s*[–—-]\s+.*$/, "").trim();
+    // Strip INT./EXT./I/E. prefixes
+    name = name.replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "").trim();
+    // Strip time of day suffixes
+    name = name.replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "").trim();
+    return name;
+  }).filter(Boolean);
+
   return {
-    locations: { ungrouped: extract(["recurring_locations"]), groups: [] },
+    locations: { ungrouped: [...new Set(locationNames)], groups: [] },
     characters: { ungrouped: [...new Set(charNames)], groups: [] },
     wardrobe: { ungrouped: extract(["recurring_wardrobe"]), groups: [] },
     props: { ungrouped: extract(["recurring_props"]), groups: [] },
