@@ -78,7 +78,10 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
     if (storagePrefix === "locations") {
       const setting = (scene.setting || "").toLowerCase();
       const heading = (scene.scene_heading || "").toLowerCase();
-      if (setting.includes(nameLower) || nameLower.includes(setting) || heading.includes(nameLower)) found = true;
+      // Strip INT./EXT. prefix from heading for matching against cleaned location names
+      const cleanHeading = heading.replace(/^(?:int\.?\s*\/?\s*ext\.?|ext\.?\s*\/?\s*int\.?|int\.?|ext\.?|i\/e\.?)\s*[-–—.\s]*/i, "")
+        .replace(/\s*[-–—]\s*(?:day|night|morning|evening|dawn|dusk|afternoon|later|continuous|same time|moments?\s+later|sunset|sunrise)$/i, "").trim();
+      if (setting.includes(nameLower) || nameLower.includes(setting) || heading.includes(nameLower) || cleanHeading.includes(nameLower) || nameLower.includes(cleanHeading)) found = true;
     } else if (storagePrefix === "props") {
       if (Array.isArray(scene.key_objects)) {
         found = scene.key_objects.some((o: string) => typeof o === "string" && o.toLowerCase().includes(nameLower));
