@@ -85,6 +85,18 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
     return 5;                  // Finalizing
   };
 
+  // Time boundaries for each step (in seconds)
+  const stepBounds = [0, 5, 15, 40, 80, 120];
+  const secs = elapsed / 1000;
+
+  const getStepProgress = (i: number) => {
+    if (i < activeStep) return 100;
+    if (i > activeStep) return 0;
+    const start = stepBounds[i] ?? 0;
+    const end = stepBounds[i + 1] ?? start + 30;
+    return Math.min(((secs - start) / (end - start)) * 100, 95);
+  };
+
   const activeStep = getActiveStep();
   const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
 
@@ -120,33 +132,52 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
 
       {/* Steps */}
       <div className="space-y-2">
-        {ANALYSIS_STEPS.map((step, i) => {
+         {ANALYSIS_STEPS.map((step, i) => {
           const isDone = i < activeStep;
           const isActive = i === activeStep;
+          const stepProg = getStepProgress(i);
           return (
-            <div key={step.key} className="flex items-center gap-3">
-              <div className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
-                isDone && "bg-primary text-primary-foreground",
-                isActive && "bg-primary/20 text-primary",
-                !isDone && !isActive && "bg-secondary text-muted-foreground/40"
-              )}>
-                {isDone ? (
-                  <CheckCircle className="h-3.5 w-3.5" />
-                ) : isActive ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <span className="text-[10px] font-bold">{i + 1}</span>
+            <div key={step.key} className="space-y-1.5">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
+                  isDone && "bg-primary text-primary-foreground",
+                  isActive && "bg-primary/20 text-primary",
+                  !isDone && !isActive && "bg-secondary text-muted-foreground/40"
+                )}>
+                  {isDone ? (
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  ) : isActive ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <span className="text-[10px] font-bold">{i + 1}</span>
+                  )}
+                </div>
+                <span className={cn(
+                  "text-sm transition-colors flex-1",
+                  isDone && "text-foreground",
+                  isActive && "text-foreground font-semibold",
+                  !isDone && !isActive && "text-muted-foreground/50"
+                )}>
+                  {step.label}
+                </span>
+                {(isDone || isActive) && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">
+                    {Math.round(stepProg)}%
+                  </span>
                 )}
               </div>
-              <span className={cn(
-                "text-sm transition-colors",
-                isDone && "text-foreground",
-                isActive && "text-foreground font-semibold",
-                !isDone && !isActive && "text-muted-foreground/50"
-              )}>
-                {step.label}
-              </span>
+              {(isDone || isActive) && (
+                <div className="ml-9 h-1.5 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-700 ease-out",
+                      isDone ? "bg-primary" : "bg-primary/70"
+                    )}
+                    style={{ width: `${stepProg}%` }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
