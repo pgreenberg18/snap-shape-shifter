@@ -561,17 +561,8 @@ const PreProduction = () => {
                   </Button>
                 </div>
 
-                {/* Audition cards grid */}
-                {cards.length === 0 && !generating ? (
-                  <div className="rounded-xl border border-border bg-accent/30 backdrop-blur-sm p-12 text-center cinema-shadow">
-                    <User className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      Click <span className="text-primary font-semibold">Casting Call</span> to create 10 AI headshot variations for{" "}
-                      <span className="text-primary font-semibold">{selectedChar.name}</span>.
-                    </p>
-                    <p className="text-xs text-muted-foreground/50 mt-2">5 Archetypes · 3 Wildcards · 2 Novel AI Faces</p>
-                  </div>
-                ) : (
+                {/* Audition cards grid — only show after casting call */}
+                {(cards.length > 0 || generating) && (
                   <div className="space-y-6">
                     {sections.map(({ key, title }) => {
                       const sectionCards = cards.filter((c) => c.section === key);
