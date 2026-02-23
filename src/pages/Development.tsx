@@ -182,7 +182,13 @@ const Development = () => {
   const [versionName, setVersionName] = useState("");
   const [writers, setWriters] = useState("");
   const [metaSaving, setMetaSaving] = useState(false);
+  const [metaSaved, setMetaSaved] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+
+  const metaDirty = filmTitle !== (film?.title ?? "") || versionName !== (film?.version_name ?? "") || writers !== ((film as any)?.writers ?? "");
+
+  // Reset saved state when fields change
+  useEffect(() => { if (metaDirty) setMetaSaved(false); }, [metaDirty]);
 
   const scriptLocked = !!(film as any)?.script_locked;
 
@@ -391,6 +397,7 @@ const Development = () => {
       writers: writers || null,
     } as any).eq("id", filmId);
     setMetaSaving(false);
+    setMetaSaved(true);
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
@@ -459,12 +466,17 @@ const Development = () => {
           <div className="flex justify-end">
             <Button
               onClick={handleSaveMeta}
-              disabled={metaSaving || scriptLocked}
+              disabled={metaSaving || scriptLocked || (!metaDirty && metaSaved)}
               className="gap-1.5"
               size="sm"
             >
-              {metaSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save Details
+              {metaSaving ? (
+                <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+              ) : metaSaved && !metaDirty ? (
+                <><CheckCircle className="h-4 w-4" /> Saved</>
+              ) : (
+                <><Save className="h-4 w-4" /> Save Details</>
+              )}
             </Button>
           </div>
         </div>
