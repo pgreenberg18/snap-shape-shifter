@@ -23,7 +23,24 @@ CRITICAL: You MUST return your response as a JSON object with exactly these four
     "recurring_props": ["prop description"],
     "recurring_wardrobe": ["CHARACTER – outfit/look description"],
     "visual_motifs": ["motif or recurring visual theme"],
-    "signature_style": "A detailed paragraph describing the film's overall visual signature: dominant color grading, lens choices (anamorphic, vintage, etc.), texture (grain, halation, etc.), lighting philosophy, compositional style, and any recurring visual motifs that define the film's unique look. MUST be a substantive description, never empty."
+    "signature_style": "A detailed paragraph describing the film's overall visual signature...",
+    "temporal_analysis": {
+      "primary_time_period": {
+        "estimated_year_or_era": "e.g. Late 1990s, Present Day, Victorian Era, 2084",
+        "confidence": "High / Medium / Low",
+        "evidence": ["Explicit year reference on page 3", "Characters use flip phones", "Dialogue mentions Y2K"]
+      },
+      "secondary_time_periods": [
+        {
+          "label": "e.g. Childhood Era, 1955 Flashback, Dream State",
+          "type": "Flashback / Flashforward / Dream / Hallucination / Alternate Reality / Historical Sequence / Prologue / Epilogue",
+          "estimated_year_or_range": "e.g. 1975, Early 1980s",
+          "evidence": ["FLASHBACK slug line in Scene 12", "Character appears 20 years younger"],
+          "approximate_scene_count": 5,
+          "estimated_percentage_of_script": "8%"
+        }
+      ]
+    }
   },
 
   "ai_generation_notes": "A detailed paragraph covering: consistency rules across scenes, character appearance anchors, environment continuity requirements, lighting/color grading notes, any special VFX or practical effects considerations, and style references for AI generation. MUST be substantive and specific to this script, never empty or generic.",
@@ -102,8 +119,21 @@ EFFECTS (effects.practical / effects.vfx):
 - Fire, smoke, explosions
 - Lighting effects (lightning, flickering lights)
 - Any visual or atmospheric element that isn't a physical prop
+TEMPORAL ANALYSIS RULES — Apply these to global_elements.temporal_analysis:
 
-CRITICAL COMPLETENESS RULES:
+PRIMARY TIME PERIOD:
+- Identify the era in which the majority of the story takes place
+- Determine by: explicit year references, historical events, technology present (phones, cars, media), cultural references, dialogue clues, production design cues, wardrobe descriptions, slug lines containing dates
+- If no specific year is stated, infer the most probable decade or era
+- Provide confidence level (High/Medium/Low) and list key evidence
+
+SECONDARY TIME PERIODS:
+- Detect flashbacks, flashforwards, dream sequences, visions, hallucinations, alternate realities, historical reenactments, time jumps, prologues/epilogues set in different eras
+- Identify via: slug line markers (e.g. "FLASHBACK", "TEN YEARS EARLIER"), dialogue cues, visual shifts in technology/setting, character age differences, descriptive transitions, scene headings with dates
+- For each: provide label, type, estimated year/range, evidence, scene count, and percentage of script coverage
+- If no alternate periods detected: "secondary_time_periods": []
+
+
 - You MUST include EVERY SINGLE SCENE from the screenplay. Do not skip, merge, or summarize any scenes.
 - EVERY scene MUST have a non-empty "characters" array. If a character is physically present, heard (voice-over), or referenced by action in the scene, include them. Even establishing shots or cutaways where a character is visible must list them. The ONLY exception is purely abstract/non-narrative sequences (e.g. title cards with no characters).
 - EVERY scene with a character MUST have a corresponding "wardrobe" entry for EACH character in that scene. Describe what they are wearing based on script cues or infer from context (e.g. time of day, location, character role). If the script doesn't specify, describe the most likely wardrobe for the character in that setting. NEVER leave wardrobe empty when characters are present.

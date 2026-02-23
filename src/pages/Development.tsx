@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
@@ -227,68 +227,25 @@ const Development = () => {
   // Reset saved state when fields change
   useEffect(() => { if (metaDirty) setMetaSaved(false); }, [metaDirty]);
 
-  /* Auto-fill time period from analysis when not yet set */
+  /* Auto-fill time period from AI temporal analysis */
+  const temporalAnalysis = useMemo(() => {
+    if (!analysis || analysis.status !== "complete") return null;
+    const ge = analysis.global_elements as any;
+    return ge?.temporal_analysis || null;
+  }, [analysis?.global_elements, analysis?.status]);
+
   useEffect(() => {
-    if (film?.time_period || !analysis || analysis.status !== "complete") return;
-
-    // 1. Try extracting from scene settings — look at all scene headings + settings for era/period clues
-    const scenes = Array.isArray(analysis.scene_breakdown) ? (analysis.scene_breakdown as any[]) : [];
-    const settingTexts = scenes.map((s: any) => `${s.scene_heading || ""} ${s.setting || ""} ${s.description || ""}`).join(" ");
-
-    // 2. Combine with visual_summary for maximum context
-    const combinedText = `${(analysis.visual_summary as string) || ""} ${settingTexts}`;
-
-    // Broad patterns to detect time periods, eras, years, decades
-    const patterns = [
-      // Specific decades/years mentioned
-      /(?:set\s+in|takes?\s+place\s+in|circa|around)\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—|\s+and\s|\s+with\s)/i,
-      /(\d{4}s?\s+[\w\s,&-]+?)(?:\.|,|;|\s+—|\s+scenes?\b)/i,
-      /((?:early|mid|late)\s*[-–]?\s*\d{4}s)/i,
-      /(\d{4})\s+scenes/i,
-      // Era-based
-      /(contemporary|modern[- ]day|present[- ]day|near[- ]future|futuristic|medieval|victorian|edwardian|prohibition[- ]era|post[- ]apocalyptic|cold\s+war|world\s+war|antebellum)/i,
-    ];
-
-    let extracted = "";
-    for (const re of patterns) {
-      const m = combinedText.match(re);
-      if (m?.[1]) {
-        extracted = m[1].trim().replace(/^the\s+/i, "");
-        if (extracted.length > 2 && extracted.length < 80) break;
-        extracted = "";
-      } else if (m?.[0] && !m[1]) {
-        extracted = m[0].trim();
-        if (extracted.length > 2 && extracted.length < 80) break;
-        extracted = "";
-      }
-    }
-
-    // Fallback: look for year mentions and combine with "Present day" if multiple timelines
-    if (!extracted) {
-      const yearMatches = combinedText.match(/\b(1[89]\d{2}|20\d{2})\b/g);
-      if (yearMatches && yearMatches.length > 0) {
-        const uniqueYears = [...new Set(yearMatches)].sort();
-        const hasPresent = /present[- ]day|contemporary|modern/i.test(combinedText);
-        if (hasPresent && uniqueYears.length > 0) {
-          extracted = `${uniqueYears.join(", ")} & Present day`;
-        } else if (uniqueYears.length > 1) {
-          extracted = uniqueYears.join(", ");
-        } else {
-          extracted = uniqueYears[0];
-        }
-      }
-    }
-
+    if (film?.time_period || !temporalAnalysis?.primary_time_period?.estimated_year_or_era) return;
+    const extracted = temporalAnalysis.primary_time_period.estimated_year_or_era;
     if (extracted) {
       setTimePeriod(extracted);
-      // Auto-save so it persists
       if (filmId) {
         supabase.from("films").update({ time_period: extracted }).eq("id", filmId).then(() => {
           queryClient.invalidateQueries({ queryKey: ["film", filmId] });
         });
       }
     }
-  }, [analysis?.visual_summary, analysis?.scene_breakdown, analysis?.status, film?.time_period, filmId]);
+  }, [temporalAnalysis, film?.time_period, filmId]);
 
   const scriptLocked = !!(film as any)?.script_locked;
 
@@ -537,8 +494,14 @@ const Development = () => {
     }
   };
 
-  /* Extract flashback/flashforward time periods from analysis */
-  const timeShifts = (() => {
+  /* Secondary time periods from AI temporal analysis */
+  const secondaryTimePeriods = useMemo(() => {
+    return temporalAnalysis?.secondary_time_periods || [];
+  }, [temporalAnalysis]);
+
+  /* Fallback: keyword-based detection if AI didn't provide temporal_analysis */
+  const timeShifts = useMemo(() => {
+    if (secondaryTimePeriods.length > 0) return []; // AI handled it
     if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
     const shifts: { type: string; sceneHeading: string; sceneIndex: number }[] = [];
     const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory"];
@@ -555,7 +518,7 @@ const Development = () => {
       }
     }
     return shifts;
-  })();
+  }, [analysis?.scene_breakdown, secondaryTimePeriods.length]);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
@@ -811,6 +774,37 @@ const Development = () => {
                 <p className="text-sm text-muted-foreground">
                   Set when most of this film takes place. This anchors the visual language for all downstream phases.
                 </p>
+
+                {/* AI-detected primary time period with confidence */}
+                {temporalAnalysis?.primary_time_period && (
+                  <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-semibold text-foreground">AI Detection</span>
+                      </div>
+                      <span className={cn(
+                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                        temporalAnalysis.primary_time_period.confidence === "High" && "bg-green-500/20 text-green-400",
+                        temporalAnalysis.primary_time_period.confidence === "Medium" && "bg-yellow-500/20 text-yellow-400",
+                        temporalAnalysis.primary_time_period.confidence === "Low" && "bg-red-500/20 text-red-400",
+                      )}>
+                        {temporalAnalysis.primary_time_period.confidence} confidence
+                      </span>
+                    </div>
+                    <p className="text-sm font-display font-bold text-foreground">
+                      {temporalAnalysis.primary_time_period.estimated_year_or_era}
+                    </p>
+                    {Array.isArray(temporalAnalysis.primary_time_period.evidence) && temporalAnalysis.primary_time_period.evidence.length > 0 && (
+                      <ul className="text-[11px] text-muted-foreground space-y-0.5 pl-4 list-disc">
+                        {temporalAnalysis.primary_time_period.evidence.map((e: string, i: number) => (
+                          <li key={i}>{e}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex gap-3">
                   <Input
                     placeholder="e.g. 1970s, Near-future 2084, Victorian Era, Present Day"
@@ -834,7 +828,52 @@ const Development = () => {
                   </p>
                 )}
 
-                {/* Flashback / Flash Forward time shifts — always show if detected */}
+                {/* AI-detected secondary time periods */}
+                {secondaryTimePeriods.length > 0 && (
+                  <div className="border-t border-border pt-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Rewind className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Secondary Time Periods ({secondaryTimePeriods.length})
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Additional time periods detected in the script — flashbacks, flashforwards, dream sequences, and more.
+                    </p>
+                    <div className="space-y-2">
+                      {secondaryTimePeriods.map((period: any, i: number) => (
+                        <div key={i} className="rounded-lg bg-secondary p-3 space-y-1.5">
+                          <div className="flex items-center gap-3">
+                            <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                              {(period.type || "").toLowerCase().includes("forward") || (period.type || "").toLowerCase().includes("epilogue") ? (
+                                <FastForward className="h-3.5 w-3.5 text-primary" />
+                              ) : (
+                                <Rewind className="h-3.5 w-3.5 text-primary" />
+                              )}
+                            </span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-foreground">{period.label}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {period.type} · {period.estimated_year_or_range}
+                                {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
+                                {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
+                              </p>
+                            </div>
+                          </div>
+                          {Array.isArray(period.evidence) && period.evidence.length > 0 && (
+                            <ul className="text-[10px] text-muted-foreground space-y-0.5 pl-9 list-disc">
+                              {period.evidence.map((e: string, j: number) => (
+                                <li key={j}>{e}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy fallback: keyword-detected time shifts */}
                 {timeShifts.length > 0 && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2">
@@ -844,7 +883,7 @@ const Development = () => {
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      The script references flashbacks, flash forwards, or other time periods. Specify when each takes place.
+                      The script references flashbacks, flash forwards, or other time periods.
                     </p>
                     <div className="space-y-2">
                       {timeShifts.map((shift, i) => (
