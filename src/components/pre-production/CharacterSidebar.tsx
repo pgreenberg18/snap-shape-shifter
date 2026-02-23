@@ -343,13 +343,6 @@ const DraggableCharItem = ({
         )}
       </button>
 
-      {/* Suggest icon */}
-      {!isEditing && onSuggest && (
-        <button onClick={(e) => { e.stopPropagation(); onSuggest(); }}
-          className="shrink-0 text-muted-foreground/40 hover:text-primary transition-colors p-1" title="AI Suggest casting">
-          <Sparkles className="h-3.5 w-3.5" />
-        </button>
-      )}
 
       {!isEditing && (
         <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }}

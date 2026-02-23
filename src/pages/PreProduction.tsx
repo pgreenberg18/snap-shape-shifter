@@ -98,23 +98,31 @@ const PreProduction = () => {
     if (!selectedChar) return;
     const existing = selectedChar as any;
     setVoiceDesc(selectedChar.voice_description ?? "");
-    setCharDescription(existing.description ?? "");
-    setCharSex(existing.sex ?? "Unknown");
-    setCharAgeMin(existing.age_min?.toString() ?? "");
-    setCharAgeMax(existing.age_max?.toString() ?? "");
-    setCharIsChild(existing.is_child ?? false);
     setVoiceOpen(false);
 
-    // Auto-populate from script if fields are empty
-    if (!existing.description && !existing.sex && !existing.age_min && scriptAnalysis?.scene_breakdown) {
+    // First try DB values, then deduce from script
+    const hasDbMeta = existing.description || (existing.sex && existing.sex !== "Unknown") || existing.age_min;
+    
+    if (hasDbMeta) {
+      setCharDescription(existing.description ?? "");
+      setCharSex(existing.sex ?? "Unknown");
+      setCharAgeMin(existing.age_min?.toString() ?? "");
+      setCharAgeMax(existing.age_max?.toString() ?? "");
+      setCharIsChild(existing.is_child ?? false);
+    } else if (scriptAnalysis?.scene_breakdown) {
+      // Always try to deduce from script when no DB values exist
       const deduced = deduceCharacterMeta(selectedChar.name, scriptAnalysis.scene_breakdown as any[]);
-      if (deduced) {
-        if (deduced.description) setCharDescription(deduced.description);
-        if (deduced.sex && deduced.sex !== "Unknown") setCharSex(deduced.sex);
-        if (deduced.ageMin) setCharAgeMin(deduced.ageMin.toString());
-        if (deduced.ageMax) setCharAgeMax(deduced.ageMax.toString());
-        if (deduced.isChild !== undefined) setCharIsChild(deduced.isChild);
-      }
+      setCharDescription(deduced?.description ?? "");
+      setCharSex(deduced?.sex ?? "Unknown");
+      setCharAgeMin(deduced?.ageMin?.toString() ?? "");
+      setCharAgeMax(deduced?.ageMax?.toString() ?? "");
+      setCharIsChild(deduced?.isChild ?? false);
+    } else {
+      setCharDescription("");
+      setCharSex("Unknown");
+      setCharAgeMin("");
+      setCharAgeMax("");
+      setCharIsChild(false);
     }
   }, [selectedChar?.id, scriptAnalysis]);
 
@@ -284,7 +292,6 @@ const PreProduction = () => {
             isLoading={isLoading}
             selectedCharId={selectedCharId}
             onSelect={selectChar}
-            onSuggest={handleSuggestCasting}
             showVoiceSeed
             rankings={rankings}
           />
@@ -460,7 +467,7 @@ const PreProduction = () => {
                           <div className={cn(
                             "grid gap-3",
                             key === "archetype" ? "grid-cols-5" : key === "wildcard" ? "grid-cols-3" : "grid-cols-2"
-                          )}>
+                          )} style={{ gridAutoRows: "1fr" }}>
                             {sectionCards.map((card) => (
                               <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
                             ))}
@@ -675,7 +682,8 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 /* ── Audition Card ── */
 const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; locking: boolean; onLock: () => void }) => (
   <div className={cn(
-    "group relative aspect-[3/4] rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
+    "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
+    "aspect-[3/4]",
     card.locked ? "border-primary/50 ring-2 ring-primary/30" : "border-border hover:border-primary/30 hover:cinema-glow"
   )}>
     {card.generating ? (
@@ -683,7 +691,7 @@ const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; 
         <Loader2 className="h-6 w-6 text-muted-foreground/40 animate-spin" />
       </div>
     ) : card.imageUrl ? (
-      <img src={card.imageUrl} alt={card.label} className="h-full w-full object-cover bg-secondary" />
+      <img src={card.imageUrl} alt={card.label} className="absolute inset-0 h-full w-full object-cover bg-secondary" />
     ) : (
       <div className="h-full w-full bg-secondary flex items-center justify-center">
         <User className="h-8 w-8 text-muted-foreground/20" />

@@ -93,7 +93,7 @@ const Development = () => {
     if ((film as any)?.writers != null) setWriters((film as any).writers ?? "");
   }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers]);
 
-  /* Auto-scroll to scene from ?scene= query param */
+  /* Auto-scroll to scene from ?scene= query param and open its script */
   useEffect(() => {
     const sceneParam = searchParams.get("scene");
     if (!sceneParam) return;
@@ -104,6 +104,11 @@ const Development = () => {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
         el.classList.add("ring-2", "ring-primary");
         setTimeout(() => el.classList.remove("ring-2", "ring-primary"), 3000);
+        // Auto-click the Script button to open the script viewer
+        const scriptBtn = el.querySelector('[data-script-btn]') as HTMLButtonElement;
+        if (scriptBtn) {
+          setTimeout(() => scriptBtn.click(), 600);
+        }
       }
     }, 500);
     return () => clearTimeout(timer);
@@ -933,7 +938,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
         <div className="flex items-center gap-2">
           {rejected && <span className="text-xs text-destructive font-medium">Needs Work</span>}
           {approved && <span className="text-xs text-primary font-medium">Approved</span>}
-          <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2" onClick={loadScript}>
+          <Button data-script-btn variant="ghost" size="sm" className="gap-1 text-xs h-7 px-2" onClick={loadScript}>
             <ScrollText className="h-3 w-3" />
             Script
           </Button>
