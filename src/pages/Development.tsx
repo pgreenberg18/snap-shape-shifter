@@ -940,6 +940,7 @@ interface ContentFlag {
   type: "description" | "dialogue";
   excerpt: string;
   severity: MPAARating;
+  reason?: string;
 }
 
 const RATING_TEMPLATES: { rating: MPAARating; label: string; desc: string }[] = [
@@ -949,94 +950,51 @@ const RATING_TEMPLATES: { rating: MPAARating; label: string; desc: string }[] = 
   { rating: "R", label: "R — Restricted", desc: "Strong language, violence, some nudity" },
 ];
 
-const CONTENT_PATTERNS: { pattern: RegExp; category: string; severity: MPAARating }[] = [
-  { pattern: /\b(fuck|shit|damn|ass|bitch|bastard|hell)\b/i, category: "language", severity: "R" },
-  { pattern: /\b(crap|stupid|idiot|shut up|suck)\b/i, category: "language", severity: "PG" },
-  { pattern: /\b(gun|shoot|stab|kill|murder|blood|wound|punch|fight|attack|slash|strangle|choke)\b/i, category: "violence", severity: "PG-13" },
-  { pattern: /\b(gore|decapitat|dismember|torture|mutilat|brutal)\b/i, category: "violence", severity: "R" },
-  { pattern: /\b(naked|nude|undress|strip|breast|sex|kiss passionately|intimate)\b/i, category: "nudity", severity: "PG-13" },
-  { pattern: /\b(explicit|graphic sex|full.?frontal)\b/i, category: "nudity", severity: "R" },
-  { pattern: /\b(drink|drunk|alcohol|beer|wine|whiskey|bourbon|cocktail|bar)\b/i, category: "substance", severity: "PG" },
-  { pattern: /\b(drug|cocaine|heroin|meth|inject|smoke|joint|weed|marijuana|pill)\b/i, category: "substance", severity: "PG-13" },
-  { pattern: /\b(suicide|death|dying|grief|abuse|trauma|assault)\b/i, category: "thematic", severity: "PG-13" },
-];
+/* regex patterns and local analysis removed — now handled by AI edge function */
 
-function analyzeScriptText(sceneTexts: { heading: string; text: string; sceneNumber: number }[]): { flags: ContentFlag[]; suggestedRating: MPAARating } {
-  const flags: ContentFlag[] = [];
-  const ratingOrder: MPAARating[] = ["G", "PG", "PG-13", "R", "NC-17"];
-  let maxRating: MPAARating = "G";
-  for (const scene of sceneTexts) {
-    const lines = scene.text.split("\n").filter((l) => l.trim());
-    for (let li = 0; li < lines.length; li++) {
-      const line = lines[li];
-      for (const { pattern, category, severity } of CONTENT_PATTERNS) {
-        const match = line.match(pattern);
-        if (match) {
-          const idx = match.index || 0;
-          const start = Math.max(0, idx - 40);
-          const end = Math.min(line.length, idx + match[0].length + 40);
-          const excerpt = (start > 0 ? "…" : "") + line.slice(start, end) + (end < line.length ? "…" : "");
-          const prevLine = li > 0 ? lines[li - 1].trim() : "";
-          const isDialogue = /^[A-Z][A-Z\s'.()-]+$/.test(prevLine) && prevLine.length < 40;
-          flags.push({
-            sceneIndex: scene.sceneNumber - 1,
-            sceneHeading: scene.heading,
-            category,
-            type: isDialogue ? "dialogue" : "description",
-            excerpt,
-            severity,
-          });
-          if (ratingOrder.indexOf(severity) > ratingOrder.indexOf(maxRating)) maxRating = severity;
-          break;
+const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { flag: ContentFlag; scene?: any; scriptText?: string | null; onSaveScript?: (text: string) => void }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editText, setEditText] = useState("");
+
+  const openEditor = () => {
+    if (scriptText) {
+      // Find the scene's text in the full script and show a window around the excerpt
+      const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
+      const idx = scriptText.indexOf(excerptClean);
+      if (idx >= 0) {
+        const lineStart = scriptText.lastIndexOf("\n", Math.max(0, idx - 200));
+        const lineEnd = scriptText.indexOf("\n", Math.min(scriptText.length, idx + excerptClean.length + 200));
+        setEditText(scriptText.substring(lineStart >= 0 ? lineStart + 1 : 0, lineEnd >= 0 ? lineEnd : scriptText.length));
+      } else {
+        // Show scene heading area
+        const headIdx = scriptText.toUpperCase().indexOf(flag.sceneHeading.toUpperCase());
+        if (headIdx >= 0) {
+          const end = Math.min(scriptText.length, headIdx + 800);
+          setEditText(scriptText.substring(headIdx, end));
+        } else {
+          setEditText("(Could not locate scene text in script)");
         }
       }
+      setEditing(true);
     }
-  }
-  const unique = flags.filter((f, i, arr) => arr.findIndex((x) => x.sceneIndex === f.sceneIndex && x.category === f.category && x.excerpt === f.excerpt) === i);
-  return { flags: unique, suggestedRating: maxRating };
-}
+  };
 
-function extractSceneTexts(fullText: string, scenes: any[]): { heading: string; text: string; sceneNumber: number }[] {
-  const isFdx = fullText.trimStart().startsWith("<?xml") || fullText.includes("<FinalDraft");
-  if (isFdx) {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(fullText, "text/xml");
-    const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
-    const result: { heading: string; text: string; sceneNumber: number }[] = [];
-    const headingIndices: number[] = [];
-    for (let i = 0; i < paragraphs.length; i++) {
-      if (paragraphs[i].getAttribute("Type") === "Scene Heading") headingIndices.push(i);
+  const handleSave = () => {
+    if (!scriptText || !onSaveScript) return;
+    // Replace the old section with the edited one
+    const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
+    const idx = scriptText.indexOf(excerptClean);
+    if (idx >= 0) {
+      const lineStart = scriptText.lastIndexOf("\n", Math.max(0, idx - 200));
+      const lineEnd = scriptText.indexOf("\n", Math.min(scriptText.length, idx + excerptClean.length + 200));
+      const oldSection = scriptText.substring(lineStart >= 0 ? lineStart + 1 : 0, lineEnd >= 0 ? lineEnd : scriptText.length);
+      const newScript = scriptText.replace(oldSection, editText);
+      onSaveScript(newScript);
     }
-    for (let h = 0; h < headingIndices.length; h++) {
-      const startIdx = headingIndices[h];
-      const endIdx = h + 1 < headingIndices.length ? headingIndices[h + 1] : paragraphs.length;
-      const headingText = Array.from(paragraphs[startIdx].querySelectorAll("Text")).map((t) => t.textContent || "").join("").trim();
-      const sceneText: string[] = [];
-      for (let i = startIdx; i < endIdx; i++) {
-        const texts = Array.from(paragraphs[i].querySelectorAll("Text")).map((t) => t.textContent || "").join("");
-        if (texts.trim()) sceneText.push(texts);
-      }
-      const matchedScene = scenes.find((s: any) => s.scene_heading && headingText.toUpperCase().includes(s.scene_heading.toUpperCase()));
-      result.push({ heading: headingText, text: sceneText.join("\n"), sceneNumber: matchedScene?.scene_number ?? h + 1 });
-    }
-    return result;
-  }
-  const scenePattern = /^((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)$/gim;
-  const matches = [...fullText.matchAll(scenePattern)];
-  const result: { heading: string; text: string; sceneNumber: number }[] = [];
-  for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index!;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : fullText.length;
-    const heading = matches[i][1].trim();
-    const text = fullText.substring(start, end);
-    const matchedScene = scenes.find((s: any) => s.scene_heading && heading.toUpperCase().includes(s.scene_heading.toUpperCase()));
-    result.push({ heading, text, sceneNumber: matchedScene?.scene_number ?? i + 1 });
-  }
-  return result;
-}
+    setEditing(false);
+  };
 
-const ExpandableFlaggedScene = ({ flag, scene }: { flag: ContentFlag; scene?: any }) => {
-  const [expanded, setExpanded] = useState(false);
   return (
     <div className="rounded-lg border border-destructive/20 bg-destructive/5 overflow-hidden">
       <button
@@ -1054,46 +1012,60 @@ const ExpandableFlaggedScene = ({ flag, scene }: { flag: ContentFlag; scene?: an
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
-          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
+          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" || flag.severity === "NC-17" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
           {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
         </div>
       </button>
-      {expanded && scene && (
+      {expanded && (
         <div className="border-t border-destructive/10 p-4 space-y-4 bg-card/50">
-          <div className="grid grid-cols-2 gap-3">
-            {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
-            {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
-            {scene.setting && <Tag label="Setting" value={scene.setting} />}
-          </div>
-          {scene.description && (
-            <Section icon={Eye} label="Description">
-              <p className="text-sm text-muted-foreground">{scene.description}</p>
-            </Section>
+          {flag.reason && (
+            <div className="rounded-lg bg-secondary p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Why flagged</p>
+              <p className="text-sm text-foreground">{flag.reason}</p>
+            </div>
           )}
-          {scene.visual_design && (
-            <Section icon={Palette} label="Visual Design">
-              <div className="grid grid-cols-2 gap-2">
-                {scene.visual_design.atmosphere && <Tag label="Atmosphere" value={scene.visual_design.atmosphere} />}
-                {scene.visual_design.lighting_style && <Tag label="Lighting" value={scene.visual_design.lighting_style} />}
-                {scene.visual_design.color_palette && <Tag label="Palette" value={scene.visual_design.color_palette} />}
+          {scene && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
+                {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
+                {scene.setting && <Tag label="Setting" value={scene.setting} />}
               </div>
-            </Section>
+              {scene.description && (
+                <Section icon={Eye} label="Description">
+                  <p className="text-sm text-muted-foreground">{scene.description}</p>
+                </Section>
+              )}
+              {scene.characters?.length > 0 && (
+                <Section icon={Users} label="Characters">
+                  {scene.characters.map((c: any, ci: number) => (
+                    <div key={ci} className="bg-secondary rounded-lg p-3">
+                      <p className="text-sm font-semibold">{c.name}</p>
+                      {c.emotional_tone && <p className="text-xs text-muted-foreground mt-1">Tone: {c.emotional_tone}</p>}
+                    </div>
+                  ))}
+                </Section>
+              )}
+            </>
           )}
-          {scene.characters?.length > 0 && (
-            <Section icon={Users} label="Characters">
-              {scene.characters.map((c: any, ci: number) => (
-                <div key={ci} className="bg-secondary rounded-lg p-3">
-                  <p className="text-sm font-semibold">{c.name}</p>
-                  {c.emotional_tone && <p className="text-xs text-muted-foreground mt-1">Tone: {c.emotional_tone}</p>}
-                  {c.physical_behavior && <p className="text-xs text-muted-foreground">Behavior: {c.physical_behavior}</p>}
-                </div>
-              ))}
-            </Section>
+          {scriptText && onSaveScript && !editing && (
+            <Button variant="outline" size="sm" onClick={openEditor} className="gap-1.5">
+              <ScrollText className="h-3.5 w-3.5" /> Edit Script
+            </Button>
           )}
-          {scene.environment_details && (
-            <Section icon={MapPin} label="Environment">
-              <p className="text-sm text-muted-foreground">{scene.environment_details}</p>
-            </Section>
+          {editing && (
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">Edit Script Text</p>
+              <Textarea
+                value={editText}
+                onChange={(e) => setEditText(e.target.value)}
+                className="min-h-[160px] text-xs font-mono bg-background resize-y"
+              />
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleSave}>Save & Re-analyze</Button>
+                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+              </div>
+            </div>
           )}
         </div>
       )}
@@ -1117,35 +1089,67 @@ const ContentSafetyMatrix = ({
   const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
   const [loading, setLoading] = useState(true);
 
+  const [ratingJustification, setRatingJustification] = useState("");
+  const [scriptText, setScriptText] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const runAnalysis = useCallback(async () => {
+    if (!storagePath) return;
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("analyze-content-safety", {
+        body: { storage_path: storagePath, scenes },
+      });
+      if (error) throw error;
+      const aiFlags: ContentFlag[] = (data.flags || []).map((f: any) => ({
+        sceneIndex: f.scene_index ?? 0,
+        sceneHeading: f.scene_heading || "",
+        category: f.category || "thematic",
+        type: f.type || "description",
+        excerpt: f.excerpt || "",
+        severity: f.severity || "PG",
+        reason: f.reason || "",
+      }));
+      setFlags(aiFlags);
+      setSuggestedRating(data.suggested_rating || "G");
+      setRatingJustification(data.rating_justification || "");
+      setScriptLoaded(true);
+    } catch (e: any) {
+      console.error("Content safety analysis failed:", e);
+      toast({ title: "Analysis failed", description: e?.message || "Could not analyze script", variant: "destructive" });
+      setFlags([]);
+      setSuggestedRating("G");
+      setScriptLoaded(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [storagePath, scenes, toast]);
+
+  // Load script text for editing
+  useEffect(() => {
+    if (!storagePath || scriptText !== null) return;
+    supabase.storage.from("scripts").download(storagePath).then(({ data }) => {
+      if (data) data.text().then(setScriptText);
+    });
+  }, [storagePath, scriptText]);
+
   useEffect(() => {
     if (!storagePath || scriptLoaded) return;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.storage.from("scripts").download(storagePath);
-        if (error || !data) throw error || new Error("Download failed");
-        const fullText = await data.text();
-        const sceneTexts = extractSceneTexts(fullText, scenes);
-        const result = analyzeScriptText(sceneTexts);
-        setFlags(result.flags);
-        setSuggestedRating(result.suggestedRating);
-        setScriptLoaded(true);
-      } catch (e) {
-        console.error("Content safety analysis failed:", e);
-        const fallback = analyzeScriptText(scenes.map((s: any, i: number) => ({
-          heading: s.scene_heading || `Scene ${s.scene_number ?? i + 1}`,
-          text: [s.description, s.environment_details, s.image_prompt, s.video_prompt].filter(Boolean).join("\n"),
-          sceneNumber: s.scene_number ?? i + 1,
-        })));
-        setFlags(fallback.flags);
-        setSuggestedRating(fallback.suggestedRating);
-        setScriptLoaded(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, [storagePath, scenes, scriptLoaded]);
+    runAnalysis();
+  }, [storagePath, scriptLoaded, runAnalysis]);
+
+  const handleSaveScript = async (newText: string) => {
+    if (!storagePath) return;
+    const blob = new Blob([newText], { type: "text/plain" });
+    const { error } = await supabase.storage.from("scripts").update(storagePath, blob, { upsert: true });
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+      return;
+    }
+    setScriptText(newText);
+    setScriptLoaded(false);
+    toast({ title: "Script saved", description: "Re-analyzing for content safety…" });
+  };
 
   const flagsByCategory = flags.reduce((acc, f) => {
     if (!acc[f.category]) acc[f.category] = [];
@@ -1178,7 +1182,7 @@ const ContentSafetyMatrix = ({
               </div>
               <div className="flex-1">
                 <p className="font-display font-bold text-lg">Suggested Rating: <span className="text-primary">{suggestedRating}</span></p>
-                <p className="text-sm text-muted-foreground">Based on MPAA guidelines analysis of original script text</p>
+                <p className="text-sm text-muted-foreground">{ratingJustification || "Based on AI holistic analysis of original script text"}</p>
               </div>
               <span className={cn(
                 "text-xs font-bold px-3 py-1.5 rounded-full",
@@ -1218,7 +1222,7 @@ const ContentSafetyMatrix = ({
                         <div className="space-y-2 mt-2 ml-2">
                           {catFlags.map((flag, fi) => {
                             const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
-                            return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
+                            return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} scriptText={scriptText} onSaveScript={handleSaveScript} />;
                           })}
                         </div>
                       ) : (
@@ -1282,7 +1286,7 @@ const ContentSafetyMatrix = ({
                   </div>
                   {conflicts.map((flag, fi) => {
                     const matchedScene = scenes.find((_: any, i: number) => i === flag.sceneIndex);
-                    return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} />;
+                    return <ExpandableFlaggedScene key={fi} flag={flag} scene={matchedScene} scriptText={scriptText} onSaveScript={handleSaveScript} />;
                   })}
                 </div>
               );
