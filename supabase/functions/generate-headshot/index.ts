@@ -50,16 +50,18 @@ This must look like a real photograph of a real person - not AI-generated, not c
 
 CRITICAL: This must be photorealistic. No anime, no cartoon, no illustration, no fantasy elements. A real human being photographed with a real camera.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
-        modalities: ["image", "text"],
+        model: "dall-e-3",
+        prompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "hd",
       }),
     });
 
@@ -80,30 +82,28 @@ CRITICAL: This must be photorealistic. No anime, no cartoon, no illustration, no
     }
 
     const data = await response.json();
-    const imageData = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    const imageUrl = data.data?.[0]?.url;
 
-    if (!imageData) {
+    if (!imageUrl) {
+      console.error("Unexpected AI response:", JSON.stringify(data));
       throw new Error("No image returned from AI");
     }
+
+    // Download the image from the URL
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) throw new Error("Failed to download generated image");
+    const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
 
     // Upload the base64 image to storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Convert base64 to Uint8Array
-    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, "");
-    const binaryString = atob(base64Data);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
     const fileName = `headshots/${characterName.toLowerCase().replace(/\s+/g, "-")}-${cardIndex}-${Date.now()}.png`;
 
     const { error: uploadError } = await supabase.storage
       .from("character-assets")
-      .upload(fileName, bytes, { contentType: "image/png", upsert: true });
+      .upload(fileName, imageBytes, { contentType: "image/png", upsert: true });
 
     if (uploadError) {
       console.error("Upload error:", uploadError);
