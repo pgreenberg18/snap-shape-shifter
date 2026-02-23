@@ -767,7 +767,7 @@ const Development = () => {
                 </p>
                 <div className="flex gap-3">
                   <Input
-                    placeholder="e.g. 1970s Los Angeles, Near-future 2084, Victorian England"
+                    placeholder="e.g. 1970s, Near-future 2084, Victorian Era, Present Day"
                     value={timePeriod}
                     onChange={(e) => setTimePeriod(e.target.value)}
                     disabled={scriptLocked}
