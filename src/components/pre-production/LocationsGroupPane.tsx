@@ -193,8 +193,8 @@ const LocationsGroupPane = ({ locations, filmId }: LocationsGroupPaneProps) => {
             <Plus className="h-3.5 w-3.5" /> New Group
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          Drag locations onto each other to merge them, or drag into a group heading.
+        <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+          Merge duplicate locations that share the same physical space but have different names in the script. Group together distinct areas within the same building or compound to maintain visual consistency across related spaces.
         </p>
       </div>
 
