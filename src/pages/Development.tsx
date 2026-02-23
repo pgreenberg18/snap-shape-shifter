@@ -222,6 +222,29 @@ const Development = () => {
   // Reset saved state when fields change
   useEffect(() => { if (metaDirty) setMetaSaved(false); }, [metaDirty]);
 
+  /* Auto-fill time period from analysis visual_summary if not yet set */
+  useEffect(() => {
+    if (film?.time_period || !analysis?.visual_summary || analysis.status !== "complete") return;
+    // Try to extract a time period hint from the visual summary
+    const summary = analysis.visual_summary as string;
+    const patterns = [
+      /set\s+in\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—)/i,
+      /takes?\s+place\s+in\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—)/i,
+      /(\d{4}s?\s+[\w\s]+?)(?:\.|,|;|\s+—)/i,
+      /(contemporary|modern[- ]day|present[- ]day|near[- ]future|futuristic|medieval|victorian|1\d{3}s?|2\d{3}s?)/i,
+    ];
+    for (const re of patterns) {
+      const m = summary.match(re);
+      if (m?.[1]) {
+        const extracted = m[1].trim().replace(/^the\s+/i, "");
+        if (extracted.length > 2 && extracted.length < 60) {
+          setTimePeriod(extracted);
+          break;
+        }
+      }
+    }
+  }, [analysis?.visual_summary, analysis?.status, film?.time_period]);
+
   const scriptLocked = !!(film as any)?.script_locked;
 
   /* Sync film metadata from DB */
@@ -585,76 +608,6 @@ const Development = () => {
         )}
       </section>
 
-      {/* ── Time Period ── */}
-      {analysis?.status === "complete" && <section>
-        <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
-          <Clock className="h-5 w-5 text-primary" /> Time Period
-        </h2>
-        <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Set when most of this film takes place. This anchors the visual language for all downstream phases.
-          </p>
-          <div className="flex gap-3">
-            <Input
-              placeholder="e.g. 1970s Los Angeles, Near-future 2084, Victorian England"
-              value={timePeriod}
-              onChange={(e) => setTimePeriod(e.target.value)}
-              disabled={scriptLocked}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleSaveTimePeriod}
-              disabled={timePeriodSaving || scriptLocked || timePeriod === (film?.time_period ?? "")}
-              className="gap-1.5 shrink-0"
-            >
-              {timePeriodSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save
-            </Button>
-          </div>
-          {film?.time_period && (
-            <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
-              <Clock className="h-3 w-3" /> Current: <span className="font-semibold text-foreground">{film.time_period}</span>
-            </p>
-          )}
-
-          {/* Flashback / Flash Forward time shifts */}
-          {timeShifts.length > 0 && (
-            <div className="border-t border-border pt-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Rewind className="h-4 w-4 text-primary" />
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Detected Time Shifts ({timeShifts.length})
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The script references flashbacks, flash forwards, or other time periods. Specify when each takes place.
-              </p>
-              <div className="space-y-2">
-                {timeShifts.map((shift, i) => (
-                  <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary p-3">
-                    <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
-                      {shift.type.includes("Forward") ? (
-                        <FastForward className="h-3.5 w-3.5 text-primary" />
-                      ) : (
-                        <Rewind className="h-3.5 w-3.5 text-primary" />
-                      )}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
-                      <p className="text-[10px] text-muted-foreground uppercase">{shift.type}</p>
-                    </div>
-                    <Input
-                      placeholder="e.g. 1955, 20 years earlier"
-                      className="w-52 h-8 text-xs"
-                      disabled={scriptLocked}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>}
 
       {/* ── Step 2: Analysis Results / Review Section ── */}
       {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
@@ -712,7 +665,76 @@ const Development = () => {
                 </div>
               )}
 
-              {/* Scene-by-Scene Breakdown — Collapsible */}
+              {/* ── Time Period ── */}
+              <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-primary" />
+                  <h3 className="font-display text-lg font-bold">Time Period</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Set when most of this film takes place. This anchors the visual language for all downstream phases.
+                </p>
+                <div className="flex gap-3">
+                  <Input
+                    placeholder="e.g. 1970s Los Angeles, Near-future 2084, Victorian England"
+                    value={timePeriod}
+                    onChange={(e) => setTimePeriod(e.target.value)}
+                    disabled={scriptLocked}
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={handleSaveTimePeriod}
+                    disabled={timePeriodSaving || scriptLocked || timePeriod === (film?.time_period ?? "")}
+                    className="gap-1.5 shrink-0"
+                  >
+                    {timePeriodSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Save
+                  </Button>
+                </div>
+                {film?.time_period && (
+                  <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+                    <Clock className="h-3 w-3" /> Current: <span className="font-semibold text-foreground">{film.time_period}</span>
+                  </p>
+                )}
+
+                {/* Flashback / Flash Forward time shifts */}
+                {timeShifts.length > 0 && (
+                  <div className="border-t border-border pt-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Rewind className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Detected Time Shifts ({timeShifts.length})
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      The script references flashbacks, flash forwards, or other time periods. Specify when each takes place.
+                    </p>
+                    <div className="space-y-2">
+                      {timeShifts.map((shift, i) => (
+                        <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary p-3">
+                          <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                            {shift.type.includes("Forward") ? (
+                              <FastForward className="h-3.5 w-3.5 text-primary" />
+                            ) : (
+                              <Rewind className="h-3.5 w-3.5 text-primary" />
+                            )}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">{shift.type}</p>
+                          </div>
+                          <Input
+                            placeholder="e.g. 1955, 20 years earlier"
+                            className="w-52 h-8 text-xs"
+                            disabled={scriptLocked}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
                 <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
                   <CollapsibleTrigger className="w-full">
