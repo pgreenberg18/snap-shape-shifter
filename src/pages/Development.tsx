@@ -222,28 +222,68 @@ const Development = () => {
   // Reset saved state when fields change
   useEffect(() => { if (metaDirty) setMetaSaved(false); }, [metaDirty]);
 
-  /* Auto-fill time period from analysis visual_summary if not yet set */
+  /* Auto-fill time period from analysis when not yet set */
   useEffect(() => {
-    if (film?.time_period || !analysis?.visual_summary || analysis.status !== "complete") return;
-    // Try to extract a time period hint from the visual summary
-    const summary = analysis.visual_summary as string;
+    if (film?.time_period || !analysis || analysis.status !== "complete") return;
+
+    // 1. Try extracting from scene settings — look at all scene headings + settings for era/period clues
+    const scenes = Array.isArray(analysis.scene_breakdown) ? (analysis.scene_breakdown as any[]) : [];
+    const settingTexts = scenes.map((s: any) => `${s.scene_heading || ""} ${s.setting || ""} ${s.description || ""}`).join(" ");
+
+    // 2. Combine with visual_summary for maximum context
+    const combinedText = `${(analysis.visual_summary as string) || ""} ${settingTexts}`;
+
+    // Broad patterns to detect time periods, eras, years, decades
     const patterns = [
-      /set\s+in\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—)/i,
-      /takes?\s+place\s+in\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—)/i,
-      /(\d{4}s?\s+[\w\s]+?)(?:\.|,|;|\s+—)/i,
-      /(contemporary|modern[- ]day|present[- ]day|near[- ]future|futuristic|medieval|victorian|1\d{3}s?|2\d{3}s?)/i,
+      // Specific decades/years mentioned
+      /(?:set\s+in|takes?\s+place\s+in|circa|around)\s+(?:the\s+)?(.+?)(?:\.|,|;|\s+—|\s+and\s|\s+with\s)/i,
+      /(\d{4}s?\s+[\w\s,&-]+?)(?:\.|,|;|\s+—|\s+scenes?\b)/i,
+      /((?:early|mid|late)\s*[-–]?\s*\d{4}s)/i,
+      /(\d{4})\s+scenes/i,
+      // Era-based
+      /(contemporary|modern[- ]day|present[- ]day|near[- ]future|futuristic|medieval|victorian|edwardian|prohibition[- ]era|post[- ]apocalyptic|cold\s+war|world\s+war|antebellum)/i,
     ];
+
+    let extracted = "";
     for (const re of patterns) {
-      const m = summary.match(re);
+      const m = combinedText.match(re);
       if (m?.[1]) {
-        const extracted = m[1].trim().replace(/^the\s+/i, "");
-        if (extracted.length > 2 && extracted.length < 60) {
-          setTimePeriod(extracted);
-          break;
+        extracted = m[1].trim().replace(/^the\s+/i, "");
+        if (extracted.length > 2 && extracted.length < 80) break;
+        extracted = "";
+      } else if (m?.[0] && !m[1]) {
+        extracted = m[0].trim();
+        if (extracted.length > 2 && extracted.length < 80) break;
+        extracted = "";
+      }
+    }
+
+    // Fallback: look for year mentions and combine with "Present day" if multiple timelines
+    if (!extracted) {
+      const yearMatches = combinedText.match(/\b(1[89]\d{2}|20\d{2})\b/g);
+      if (yearMatches && yearMatches.length > 0) {
+        const uniqueYears = [...new Set(yearMatches)].sort();
+        const hasPresent = /present[- ]day|contemporary|modern/i.test(combinedText);
+        if (hasPresent && uniqueYears.length > 0) {
+          extracted = `${uniqueYears.join(", ")} & Present day`;
+        } else if (uniqueYears.length > 1) {
+          extracted = uniqueYears.join(", ");
+        } else {
+          extracted = uniqueYears[0];
         }
       }
     }
-  }, [analysis?.visual_summary, analysis?.status, film?.time_period]);
+
+    if (extracted) {
+      setTimePeriod(extracted);
+      // Auto-save so it persists
+      if (filmId) {
+        supabase.from("films").update({ time_period: extracted }).eq("id", filmId).then(() => {
+          queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+        });
+      }
+    }
+  }, [analysis?.visual_summary, analysis?.scene_breakdown, analysis?.status, film?.time_period, filmId]);
 
   const scriptLocked = !!(film as any)?.script_locked;
 
