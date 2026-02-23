@@ -411,6 +411,7 @@ const Development = () => {
     }
 
     setLocking(false);
+    setBreakdownOpen(false);
     queryClient.invalidateQueries({ queryKey: ["film", filmId] });
     toast({ title: "Script Locked", description: "Breakdown finalized. Characters and assets propagated to Pre-Production." });
   };
