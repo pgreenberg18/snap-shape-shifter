@@ -135,12 +135,25 @@ export const useBreakdownAssets = () => {
 
       for (const s of scenes) {
         if (s.scene_heading && typeof s.scene_heading === "string" && s.scene_heading !== "N/A") {
-          const heading = s.scene_heading.trim();
-          if (!locationSet.has(heading)) {
-            locationSet.add(heading);
-            // Use setting/description as the location description
-            const desc = s.setting && s.setting !== "N/A" ? s.setting : (s.description || "");
-            if (desc) locationDescMap.set(heading, desc);
+          // Strip INT./EXT./INT./EXT. prefix and time-of-day suffix to get clean location name
+          let heading = s.scene_heading.trim();
+          const cleanName = heading
+            .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
+            .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
+            .trim();
+          const locationName = cleanName || heading;
+          if (!locationSet.has(locationName)) {
+            locationSet.add(locationName);
+            // Build rich description: INT/EXT context + setting + description + environment details
+            const intExt = heading.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0] || "";
+            const timeOfDay = s.time_of_day || heading.match(/[-–—]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|SUNSET|SUNRISE)\s*$/i)?.[1] || "";
+            const parts: string[] = [];
+            if (intExt || timeOfDay) parts.push([intExt.toUpperCase(), timeOfDay].filter(Boolean).join(" — "));
+            if (s.setting && s.setting !== "N/A") parts.push(s.setting);
+            if (s.description) parts.push(s.description);
+            if (s.environment_details) parts.push(s.environment_details);
+            const desc = parts.join(". ").replace(/\.\./g, ".");
+            if (desc) locationDescMap.set(locationName, desc);
           }
         }
         if (Array.isArray(s.key_objects)) {
