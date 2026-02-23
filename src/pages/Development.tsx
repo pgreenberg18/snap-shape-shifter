@@ -484,13 +484,18 @@ const Development = () => {
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
-      {/* ── Film Details ── */}
-      <Collapsible>
+      {/* ── Script Details ── */}
+      <Collapsible defaultOpen>
         <CollapsibleTrigger className="w-full">
           <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <Film className="h-5 w-5 text-primary" />
-              <h3 className="font-display text-lg font-bold">Film Details</h3>
+              <h3 className="font-display text-lg font-bold">Script Details</h3>
+              {analysis && (
+                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                  <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
+                </span>
+              )}
             </div>
             <ChevronDown className="h-5 w-5 text-muted-foreground" />
           </div>
@@ -544,98 +549,81 @@ const Development = () => {
                 </Button>
               </div>
             )}
+
+            {/* Script file info or upload — shown after details are saved */}
+            {(metaSaved || analysis) && (
+              <>
+                <div className="border-t border-border my-2" />
+                {analysis ? (
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <FileText className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-display font-semibold text-foreground truncate">{analysis.file_name}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-12 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
+                        dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {uploadedFile ? (
+                        <>
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+                            <CheckCircle className="h-6 w-6 text-primary" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-display font-semibold text-foreground flex items-center gap-2 justify-center">
+                              <FileText className="h-4 w-4" /> {uploadedFile}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">Click or drop to replace</p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
+                            <Type className="h-6 w-6 text-primary" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-display font-semibold text-foreground">
+                              {uploading ? "Uploading…" : "Drop your screenplay here"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">{ACCEPTED_LABEL} — or click to browse</p>
+                          </div>
+                          <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-xs text-muted-foreground">
+                            <Upload className="h-3.5 w-3.5" />
+                            Upload Script
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    {uploadedFile && !analysis && (
+                      <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-2 gap-2" size="lg">
+                        {isAnalyzing ? (
+                          <><Loader2 className="h-4 w-4 animate-spin" />Analyzing Script…</>
+                        ) : (
+                          <><Sparkles className="h-4 w-4" />Analyze Script — Visual Breakdown</>
+                        )}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
-
-      {/* ── Script ── */}
-      <section>
-        {analysis ? (
-          <Collapsible>
-            <CollapsibleTrigger className="w-full">
-              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <h3 className="font-display text-lg font-bold">Script</h3>
-                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
-                  </span>
-                </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-display font-semibold text-foreground truncate">{analysis.file_name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        ) : (
-          <>
-            <h2 className="font-display text-2xl font-bold mb-4">Upload Script</h2>
-            <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
-            <div
-              onClick={() => fileInputRef.current?.click()}
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-16 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
-                dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-              }`}
-            >
-              {uploadedFile ? (
-                <>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
-                    <CheckCircle className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-display font-semibold text-foreground flex items-center gap-2 justify-center">
-                      <FileText className="h-5 w-5" /> {uploadedFile}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">Click or drop to replace</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-                    <Type className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-display font-semibold text-foreground">
-                      {uploading ? "Uploading…" : "Drop your screenplay here"}
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-1">{ACCEPTED_LABEL} — or click to browse</p>
-                  </div>
-                  <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-xs text-muted-foreground">
-                    <Upload className="h-3.5 w-3.5" />
-                    Upload Script
-                  </div>
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {uploadedFile && !analysis && (
-          <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-4 gap-2" size="lg">
-            {isAnalyzing ? (
-              <><Loader2 className="h-4 w-4 animate-spin" />Analyzing Script…</>
-            ) : (
-              <><Sparkles className="h-4 w-4" />Analyze Script — Visual Breakdown</>
-            )}
-          </Button>
-        )}
-      </section>
 
 
       {/* ── Step 2: Analysis Results / Review Section ── */}
