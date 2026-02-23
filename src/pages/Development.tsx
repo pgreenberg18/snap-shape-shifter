@@ -546,23 +546,41 @@ const Development = () => {
         </CollapsibleContent>
       </Collapsible>
 
-      {/* ── Script Upload ── */}
+      {/* ── Script ── */}
       <section>
-        <h2 className="font-display text-2xl font-bold mb-4">Upload Script</h2>
         {analysis ? (
-          <div className="flex items-center gap-4 rounded-xl border border-border p-6 bg-card">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-              <CheckCircle className="h-6 w-6 text-primary" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-lg font-display font-semibold text-foreground truncate flex items-center gap-2">
-                <FileText className="h-5 w-5 shrink-0" /> {analysis.file_name}
-              </p>
-              <p className="text-sm text-muted-foreground mt-0.5">Script uploaded · {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}</p>
-            </div>
-          </div>
+          <Collapsible>
+            <CollapsibleTrigger className="w-full">
+              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <h3 className="font-display text-lg font-bold">Script</h3>
+                  <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
+                  </span>
+                </div>
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                    <FileText className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-display font-semibold text-foreground truncate">{analysis.file_name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         ) : (
           <>
+            <h2 className="font-display text-2xl font-bold mb-4">Upload Script</h2>
             <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
             <div
               onClick={() => fileInputRef.current?.click()}
