@@ -1294,11 +1294,39 @@ const ContentSafetyMatrix = ({
     }
   }, [storagePath, scenes, toast]);
 
-  // Load script text for editing
+  // Load script text for editing (parse FDX XML to plain text)
   useEffect(() => {
     if (!storagePath || scriptText !== null) return;
     supabase.storage.from("scripts").download(storagePath).then(({ data }) => {
-      if (data) data.text().then(setScriptText);
+      if (!data) return;
+      data.text().then((raw) => {
+        const isFdx = raw.trimStart().startsWith("<?xml") || raw.includes("<FinalDraft");
+        if (isFdx) {
+          try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(raw, "text/xml");
+            const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
+            const lines: string[] = [];
+            for (const p of paragraphs) {
+              const type = p.getAttribute("Type") || "Action";
+              const texts = Array.from(p.querySelectorAll("Text"));
+              const content = texts.map((t) => t.textContent || "").join("").trim();
+              if (!content) continue;
+              if (type === "Scene Heading") lines.push("", content.toUpperCase(), "");
+              else if (type === "Character") lines.push("", "    " + content.toUpperCase());
+              else if (type === "Parenthetical") lines.push("    " + content);
+              else if (type === "Dialogue") lines.push("  " + content);
+              else if (type === "Transition") lines.push("", content.toUpperCase(), "");
+              else lines.push(content);
+            }
+            setScriptText(lines.join("\n").trim());
+          } catch {
+            setScriptText(raw);
+          }
+        } else {
+          setScriptText(raw);
+        }
+      });
     });
   }, [storagePath, scriptText]);
 
