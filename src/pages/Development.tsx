@@ -1102,11 +1102,6 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analy
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Eye className="h-5 w-5 text-primary" />
-          <h3 className="font-display text-lg font-bold">Scene Breakdown</h3>
-          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-            {scenes.length} scenes
-          </span>
           {reviewedCount > 0 && (
             <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
               {approvedSet.size} approved · {rejectedSet.size} rejected · {scenes.length - reviewedCount} pending
