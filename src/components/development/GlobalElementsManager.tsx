@@ -1,10 +1,11 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
-  ChevronRight, Check, Merge, Tag, X,
+  ChevronRight, Check, Merge, Tag, X, Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -15,7 +16,7 @@ import {
 export interface ElementGroup {
   id: string;
   parentName: string;
-  variants: string[]; // original names from script
+  variants: string[];
 }
 
 export interface CategoryData {
@@ -57,7 +58,7 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     characters: { ungrouped: extract(["recurring_characters", "characters"]), groups: [] },
     wardrobe: { ungrouped: extract(["recurring_wardrobe"]), groups: [] },
     props: { ungrouped: extract(["recurring_props"]), groups: [] },
-    visual_design: { ungrouped: extract(["visual_motifs", "signature_style"]), groups: [] },
+    visual_design: { ungrouped: extract(["visual_motifs"]), groups: [] },
   };
 }
 
@@ -74,12 +75,15 @@ export default function GlobalElementsManager({ data }: Props) {
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() =>
     buildInitialData(data),
   );
+  const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>("locations");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
   const [mergeParentName, setMergeParentName] = useState("");
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [addingTo, setAddingTo] = useState<CategoryKey | null>(null);
+  const [newItemText, setNewItemText] = useState("");
 
   /* selection */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
@@ -88,7 +92,6 @@ export default function GlobalElementsManager({ data }: Props) {
       if (next.has(item)) {
         next.delete(item);
       } else {
-        // Only allow selecting within the same category
         if (activeCategory && activeCategory !== category) return prev;
         next.add(item);
       }
@@ -106,7 +109,6 @@ export default function GlobalElementsManager({ data }: Props) {
   /* merge flow */
   const openMerge = useCallback(() => {
     if (selected.size < 2 || !activeCategory) return;
-    // Suggest a parent name from the shortest common prefix or first item
     const items = Array.from(selected);
     setMergeParentName(items[0]);
     setMergeDialogOpen(true);
@@ -124,7 +126,6 @@ export default function GlobalElementsManager({ data }: Props) {
         variants: items,
       };
       cat.ungrouped = cat.ungrouped.filter((u) => !selected.has(u));
-      // Also pull from existing groups' variants if selected
       cat.groups = cat.groups.map((g) => ({
         ...g,
         variants: g.variants.filter((v) => !selected.has(v)),
@@ -137,7 +138,7 @@ export default function GlobalElementsManager({ data }: Props) {
     setMergeDialogOpen(false);
   }, [activeCategory, mergeParentName, selected, clearSelection]);
 
-  /* unlink – dissolves a group back to ungrouped */
+  /* unlink */
   const unlinkGroup = useCallback((category: CategoryKey, groupId: string) => {
     setCategories((prev) => {
       const cat = { ...prev[category] };
@@ -148,6 +149,33 @@ export default function GlobalElementsManager({ data }: Props) {
       return { ...prev, [category]: cat };
     });
   }, []);
+
+  /* delete item */
+  const deleteItem = useCallback((category: CategoryKey, item: string) => {
+    setCategories((prev) => {
+      const cat = { ...prev[category] };
+      cat.ungrouped = cat.ungrouped.filter((u) => u !== item);
+      return { ...prev, [category]: cat };
+    });
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(item);
+      if (next.size === 0) setActiveCategory(null);
+      return next;
+    });
+  }, []);
+
+  /* add item */
+  const addItem = useCallback((category: CategoryKey) => {
+    if (!newItemText.trim()) return;
+    setCategories((prev) => {
+      const cat = { ...prev[category] };
+      cat.ungrouped = [...cat.ungrouped, newItemText.trim()];
+      return { ...prev, [category]: cat };
+    });
+    setNewItemText("");
+    setAddingTo(null);
+  }, [newItemText]);
 
   const toggleGroupExpand = useCallback((id: string) => {
     setExpandedGroups((prev) => {
@@ -161,10 +189,11 @@ export default function GlobalElementsManager({ data }: Props) {
   const hasItems = (cat: CategoryData) => cat.ungrouped.length > 0 || cat.groups.length > 0;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {CATEGORIES.map(({ key, label, icon }) => {
         const cat = categories[key];
-        if (!hasItems(cat)) return null;
+        const showSection = hasItems(cat) || key === expandedCategory;
+        if (!showSection && !hasItems(cat)) return null;
         const isExpanded = expandedCategory === key;
 
         return (
@@ -241,34 +270,78 @@ export default function GlobalElementsManager({ data }: Props) {
                   );
                 })}
 
-                {/* Ungrouped items – selectable chips */}
+                {/* Ungrouped items – selectable & deletable chips */}
                 {cat.ungrouped.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {cat.ungrouped.map((item, i) => {
                       const isSelected = selected.has(item) && activeCategory === key;
                       const isDisabled = activeCategory !== null && activeCategory !== key;
                       return (
-                        <button
+                        <span
                           key={i}
-                          disabled={isDisabled}
-                          onClick={() => toggleSelect(item, key)}
                           className={cn(
-                            "text-xs rounded-full px-2.5 py-1 border transition-all cursor-pointer select-none",
+                            "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1",
                             isSelected
                               ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
                               : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
-                            isDisabled && "opacity-40 cursor-not-allowed",
+                            isDisabled && "opacity-40",
                           )}
                         >
-                          {isSelected && <Check className="inline h-3 w-3 mr-1 -ml-0.5" />}
-                          {item}
-                        </button>
+                          <button
+                            disabled={isDisabled}
+                            onClick={() => toggleSelect(item, key)}
+                            className="cursor-pointer"
+                          >
+                            {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+                            {item}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteItem(key, item); }}
+                            className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+                            title="Remove"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
                       );
                     })}
                   </div>
                 )}
 
-                {cat.ungrouped.length > 1 && selected.size === 0 && (
+                {/* Add item */}
+                {addingTo === key ? (
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={newItemText}
+                      onChange={(e) => setNewItemText(e.target.value)}
+                      placeholder={`Add ${label.toLowerCase()} item...`}
+                      className="h-8 text-xs bg-background flex-1"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addItem(key);
+                        if (e.key === "Escape") { setAddingTo(null); setNewItemText(""); }
+                      }}
+                    />
+                    <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => addItem(key)}>
+                      Add
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setAddingTo(null); setNewItemText(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground gap-1"
+                    onClick={() => { setAddingTo(key); setNewItemText(""); }}
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add {label.toLowerCase()}
+                  </Button>
+                )}
+
+                {cat.ungrouped.length > 1 && selected.size === 0 && addingTo !== key && (
                   <p className="text-xs text-muted-foreground italic">
                     Click items to select, then link similar ones together
                   </p>
@@ -278,6 +351,17 @@ export default function GlobalElementsManager({ data }: Props) {
           </div>
         );
       })}
+
+      {/* Signature Style – editable */}
+      <div className="rounded-lg border border-border bg-card/50 p-4 space-y-2">
+        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
+        <Textarea
+          value={signatureStyle}
+          onChange={(e) => setSignatureStyle(e.target.value)}
+          placeholder="Describe the overall visual signature style..."
+          className="min-h-[80px] text-sm bg-background resize-y"
+        />
+      </div>
 
       {/* Merge dialog */}
       <Dialog open={mergeDialogOpen} onOpenChange={setMergeDialogOpen}>
