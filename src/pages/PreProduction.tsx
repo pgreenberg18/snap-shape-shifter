@@ -1,16 +1,17 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useCharacters, useShots } from "@/hooks/useFilm";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
+  Save, AudioWaveform,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
-import VoiceCastingPanel from "@/components/pre-production/VoiceCastingPanel";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
 
 /* ── Audition card type ── */
@@ -55,8 +56,17 @@ const PreProduction = () => {
   const [generating, setGenerating] = useState(false);
   const [cards, setCards] = useState<AuditionCard[]>([]);
   const [locking, setLocking] = useState<number | null>(null);
+  // Voice state
+  const [voiceDesc, setVoiceDesc] = useState("");
+  const [savingVoice, setSavingVoice] = useState(false);
+  const [synthesizing, setSynthesizing] = useState(false);
 
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
+
+  // Sync voice description when character changes
+  useEffect(() => {
+    setVoiceDesc(selectedChar?.voice_description ?? "");
+  }, [selectedChar?.id, selectedChar?.voice_description]);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedChar) return;
@@ -90,6 +100,34 @@ const PreProduction = () => {
     toast.success(`${selectedChar.name}'s identity locked`);
   }, [selectedChar, queryClient]);
 
+  const handleSaveVoiceDesc = useCallback(async () => {
+    if (!selectedChar) return;
+    setSavingVoice(true);
+    const { error } = await supabase
+      .from("characters")
+      .update({ voice_description: voiceDesc || null })
+      .eq("id", selectedChar.id);
+    setSavingVoice(false);
+    if (error) { toast.error("Failed to save voice description"); return; }
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+    toast.success(`Voice description saved for ${selectedChar.name}`);
+  }, [selectedChar, voiceDesc, queryClient]);
+
+  const handleSynthesizeSeed = useCallback(async () => {
+    if (!selectedChar) return;
+    setSynthesizing(true);
+    await new Promise((r) => setTimeout(r, 2400));
+    const seed = Math.floor(100000 + Math.random() * 900000);
+    const { error } = await supabase
+      .from("characters")
+      .update({ voice_generation_seed: seed })
+      .eq("id", selectedChar.id);
+    setSynthesizing(false);
+    if (error) { toast.error("Failed to synthesize voice seed"); return; }
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+    toast.success(`Voice seed locked for ${selectedChar.name}`);
+  }, [selectedChar, queryClient]);
+
   // Reset cards when switching characters
   const selectChar = (id: string) => {
     setSelectedCharId(id);
@@ -118,10 +156,9 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-12 bg-transparent gap-1 p-0">
-            <WarRoomTab value="casting" icon={Users} label="Casting (10/5 Engine)" />
+            <WarRoomTab value="casting" icon={Users} label="Casting & Voice" />
             <WarRoomTab value="locations" icon={MapPin} label="Locations & 360 Panos" />
             <WarRoomTab value="props" icon={Shirt} label="Props & Wardrobe" />
-            <WarRoomTab value="voice" icon={Mic} label="Voice Casting" />
             <WarRoomTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
           </TabsList>
         </div>
@@ -133,6 +170,7 @@ const PreProduction = () => {
             isLoading={isLoading}
             selectedCharId={selectedCharId}
             onSelect={selectChar}
+            showVoiceSeed
           />
 
           {/* Main staging area */}
@@ -230,6 +268,84 @@ const PreProduction = () => {
                     })}
                   </div>
                 )}
+
+                {/* ═══ VOICE IDENTITY SECTION ═══ */}
+                <div className="border-t border-border pt-6 mt-6 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Mic className="h-4 w-4 text-primary" />
+                    <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                      Voice Identity
+                    </h3>
+                  </div>
+
+                  {/* Voice Description */}
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
+                    <div className="flex items-center gap-2">
+                      <Mic className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Description</p>
+                    </div>
+                    <Textarea
+                      value={voiceDesc}
+                      onChange={(e) => setVoiceDesc(e.target.value)}
+                      placeholder="Gravelly, mid-40s, slight transatlantic accent…"
+                      className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
+                    />
+                    <Button onClick={handleSaveVoiceDesc} disabled={savingVoice} variant="secondary" className="gap-2">
+                      {savingVoice ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Description</>}
+                    </Button>
+                  </div>
+
+                  {/* Voice Seed */}
+                  <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
+                    <div className="flex items-center gap-2">
+                      <AudioWaveform className="h-3.5 w-3.5 text-muted-foreground" />
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Seed</p>
+                    </div>
+
+                    {selectedChar.voice_generation_seed ? (
+                      <div className="space-y-4">
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Locked Seed</p>
+                            <p className="font-display text-2xl font-bold tracking-wider text-primary tabular-nums">
+                              {selectedChar.voice_generation_seed}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
+                            <Lock className="h-3 w-3" /> Locked
+                          </div>
+                        </div>
+                        <div className="rounded-lg bg-secondary/50 border border-border p-4">
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Voice Profile — Ready for Production</p>
+                          <div className="flex items-end justify-center gap-[3px] h-10">
+                            {Array.from({ length: 32 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className="w-[3px] rounded-full bg-primary/70"
+                                style={{
+                                  height: `${12 + Math.sin(i * 0.6) * 18 + Math.cos(i * 1.1) * 10}px`,
+                                  animation: `waveform-bar ${0.8 + (i % 5) * 0.15}s ease-in-out ${i * 0.04}s infinite alternate`,
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                        <Button onClick={handleSynthesizeSeed} disabled={synthesizing} variant="outline" className="gap-2 w-full">
+                          {synthesizing ? <><Loader2 className="h-4 w-4 animate-spin" />Re-synthesizing…</> : <><AudioWaveform className="h-4 w-4" />Re-synthesize Voice Seed</>}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Generate a unique voice seed for <span className="text-primary font-semibold">{selectedChar.name}</span>. This locks the vocal identity for production.
+                        </p>
+                        <Button onClick={handleSynthesizeSeed} disabled={synthesizing} className="gap-2 w-full">
+                          {synthesizing ? <><Loader2 className="h-4 w-4 animate-spin" />Synthesizing…</> : <><AudioWaveform className="h-4 w-4" />Synthesize Voice Seed</>}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center p-8 h-full">
@@ -238,10 +354,10 @@ const PreProduction = () => {
                     <Users className="h-8 w-8 text-muted-foreground/40" />
                   </div>
                   <h2 className="font-display text-xl font-bold text-foreground">
-                    Casting — 10/5 Engine
+                    Casting & Voice
                   </h2>
                   <p className="text-sm text-muted-foreground max-w-sm">
-                    Select a character from the sidebar to begin the identity lock process.
+                    Select a character to lock their visual identity and vocal profile.
                   </p>
                 </div>
               </div>
@@ -255,9 +371,6 @@ const PreProduction = () => {
         </TabsContent>
         <TabsContent value="props" className="flex-1 m-0">
           <PlaceholderPane icon={Shirt} title="Props & Wardrobe" description="Define and lock prop inventories and wardrobe continuity for every scene." />
-        </TabsContent>
-        <TabsContent value="voice" className="flex-1 flex overflow-hidden m-0">
-          <VoiceCastingPanel characters={characters} isLoading={isLoading} />
         </TabsContent>
         <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
           <StoryboardPanel />
