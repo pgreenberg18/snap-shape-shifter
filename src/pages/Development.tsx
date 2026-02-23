@@ -697,7 +697,7 @@ const Development = () => {
                   </p>
                 )}
 
-                {/* Flashback / Flash Forward time shifts */}
+                {/* Flashback / Flash Forward time shifts — always show if detected */}
                 {timeShifts.length > 0 && (
                   <div className="border-t border-border pt-4 space-y-3">
                     <div className="flex items-center gap-2">
@@ -741,7 +741,7 @@ const Development = () => {
                     <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                       <div className="flex items-center gap-2">
                         <Eye className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
+                        <h3 className="font-display text-lg font-bold">Scene Breakdown</h3>
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                           {(analysis.scene_breakdown as any[]).length} scenes
                         </span>
@@ -762,19 +762,32 @@ const Development = () => {
                 </Collapsible>
               )}
 
-              {/* Global Elements */}
+              {/* Global Elements — collapsed by default */}
               {analysis.global_elements && (
-                <div className="rounded-xl border border-border bg-card p-6 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
-                  </div>
-                  <GlobalElementsManager data={analysis.global_elements as any} />
-                </div>
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-5 w-5 text-primary" />
+                        <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
+                      </div>
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                      <GlobalElementsManager data={analysis.global_elements as any} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
 
               {/* AI Generation Notes */}
-              <EditableAIGenerationNotes initialValue={(analysis.ai_generation_notes as string) || ""} />
+              <EditableAIGenerationNotes
+                initialValue={(analysis.ai_generation_notes as string) || ""}
+                visualSummary={(analysis.visual_summary as string) || ""}
+                timePeriod={film?.time_period || timePeriod}
+              />
             </div>
           )}
         </section>
@@ -965,7 +978,7 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, analy
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Eye className="h-5 w-5 text-primary" />
-          <h3 className="font-display text-lg font-bold">Scene-by-Scene Breakdown</h3>
+          <h3 className="font-display text-lg font-bold">Scene Breakdown</h3>
           <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
             {scenes.length} scenes
           </span>
@@ -1952,8 +1965,16 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue }: { initialValue: string }) => {
-  const [value, setValue] = useState(initialValue);
+const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod }: { initialValue: string; visualSummary?: string; timePeriod?: string }) => {
+  const [value, setValue] = useState(() => {
+    if (initialValue) return initialValue;
+    // Pre-fill based on visual summary and time period
+    const parts: string[] = [];
+    if (timePeriod) parts.push(`Time Period: ${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
+    if (visualSummary) parts.push(`Visual Direction: ${visualSummary}`);
+    if (parts.length === 0) return "";
+    return parts.join("\n\n");
+  });
   return (
     <div className="rounded-xl border border-border bg-card p-6 space-y-3">
       <div className="flex items-center gap-2">
