@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +16,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye,
+  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
@@ -45,7 +46,6 @@ const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked">[] = [
 ];
 
 const PreProduction = () => {
-  const navigate = useNavigate();
   const { projectId, versionId } = useParams();
   const { data: characters, isLoading } = useCharacters();
   const { data: film } = useFilm();
@@ -76,13 +76,13 @@ const PreProduction = () => {
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
-  // Fetch script analysis for auto-deducing metadata
+  // Fetch script analysis for auto-deducing metadata + script viewer
   const { data: scriptAnalysis } = useQuery({
     queryKey: ["script-analysis-for-chars", filmId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("script_analyses")
-        .select("scene_breakdown, global_elements")
+        .select("scene_breakdown, global_elements, storage_path")
         .eq("film_id", filmId!)
         .eq("status", "complete")
         .order("created_at", { ascending: false })
@@ -93,6 +93,13 @@ const PreProduction = () => {
     },
     enabled: !!filmId,
   });
+
+  // Script viewer state
+  const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
+  const [scriptDialogScene, setScriptDialogScene] = useState<any>(null);
+  const [scriptDialogSceneNum, setScriptDialogSceneNum] = useState<number>(0);
+  const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
+  const [scriptLoading, setScriptLoading] = useState(false);
 
   // Auto-deduce character metadata from script analysis when character is selected
   useEffect(() => {
@@ -249,6 +256,83 @@ const PreProduction = () => {
     }, 100);
   }, [characters]);
 
+  const openSceneScript = useCallback(async (sceneNumber: number) => {
+    if (!scriptAnalysis?.scene_breakdown || !Array.isArray(scriptAnalysis.scene_breakdown)) return;
+    const scenes = scriptAnalysis.scene_breakdown as any[];
+    const scene = scenes.find((s: any) => {
+      const sn = s.scene_number ? parseInt(s.scene_number, 10) : null;
+      return sn === sceneNumber;
+    }) || scenes[sceneNumber - 1];
+    if (!scene) { toast.error("Scene not found"); return; }
+
+    setScriptDialogScene(scene);
+    setScriptDialogSceneNum(sceneNumber);
+    setScriptDialogOpen(true);
+    setScriptParagraphs(null);
+
+    if (!scriptAnalysis.storage_path) {
+      setScriptParagraphs([{ type: "Action", text: "[No script file available]" }]);
+      return;
+    }
+
+    setScriptLoading(true);
+    try {
+      const { data, error } = await supabase.storage.from("scripts").download(scriptAnalysis.storage_path);
+      if (error || !data) throw error || new Error("Download failed");
+      const full = await data.text();
+      const heading = scene.scene_heading?.trim();
+      const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
+
+      if (isFdx) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(full, "text/xml");
+        const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
+        let startIdx = -1, endIdx = paragraphs.length;
+        for (let i = 0; i < paragraphs.length; i++) {
+          const p = paragraphs[i];
+          const pType = p.getAttribute("Type") || "";
+          const texts = Array.from(p.querySelectorAll("Text"));
+          const content = texts.map((t) => t.textContent || "").join("").trim();
+          if (pType === "Scene Heading") {
+            if (startIdx === -1 && heading && content.toUpperCase().includes(heading.toUpperCase())) {
+              startIdx = i;
+            } else if (startIdx !== -1) { endIdx = i; break; }
+          }
+        }
+        if (startIdx === -1) startIdx = 0;
+        const result: { type: string; text: string }[] = [];
+        for (let i = startIdx; i < endIdx; i++) {
+          const p = paragraphs[i];
+          const pType = p.getAttribute("Type") || "Action";
+          const texts = Array.from(p.querySelectorAll("Text"));
+          const content = texts.map((t) => t.textContent || "").join("");
+          if (content.trim()) result.push({ type: pType, text: content });
+        }
+        setScriptParagraphs(result);
+      } else {
+        if (!heading) { setScriptParagraphs([{ type: "Action", text: full }]); setScriptLoading(false); return; }
+        const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const startMatch = full.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
+        if (!startMatch || startMatch.index === undefined) { setScriptParagraphs([{ type: "Action", text: full }]); setScriptLoading(false); return; }
+        const sIdx = startMatch.index;
+        const afterHeading = full.substring(sIdx + startMatch[0].length);
+        const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
+        const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
+        const sceneText = full.substring(sIdx, eIdx).trim();
+        setScriptParagraphs(sceneText.split("\n").filter((l) => l.trim()).map((line) => {
+          const trimmed = line.trim();
+          if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
+          if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
+          return { type: "Action", text: trimmed };
+        }));
+      }
+    } catch {
+      setScriptParagraphs([{ type: "Action", text: "[Could not load script file]" }]);
+    } finally {
+      setScriptLoading(false);
+    }
+  }, [scriptAnalysis]);
+
   const handleSaveVoiceDesc = useCallback(async () => {
     if (!selectedChar) return;
     setSavingVoice(true);
@@ -389,9 +473,9 @@ const PreProduction = () => {
                         {ranking.sceneNumbers.map((sn) => (
                           <button
                             key={sn}
-                            onClick={() => navigate(`/projects/${projectId}/versions/${versionId}/development?scene=${sn}`)}
+                            onClick={() => openSceneScript(sn)}
                             className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                            title={`Open Scene ${sn} in script`}
+                            title={`View Scene ${sn} script`}
                           >
                             {sn}
                           </button>
@@ -623,6 +707,82 @@ const PreProduction = () => {
           <StoryboardPanel />
         </TabsContent>
       </Tabs>
+
+      {/* ═══ SCRIPT VIEWER DIALOG ═══ */}
+      <Dialog open={scriptDialogOpen} onOpenChange={setScriptDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-3">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <ScrollText className="h-4 w-4" />
+              {scriptDialogScene?.scene_heading || `Scene ${scriptDialogSceneNum}`}
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Scene {scriptDialogSceneNum} · {scriptDialogScene?.int_ext} · {scriptDialogScene?.time_of_day}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto px-6 pb-6">
+            {scriptLoading ? (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground py-20">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading script…
+              </div>
+            ) : (
+              <div
+                className="mx-auto bg-white text-black shadow-lg"
+                style={{
+                  fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+                  fontSize: "12px",
+                  lineHeight: "1.0",
+                  padding: "72px 60px 72px 90px",
+                  maxWidth: "612px",
+                  minHeight: "792px",
+                }}
+              >
+                {scriptParagraphs?.map((p, i) => {
+                  switch (p.type) {
+                    case "Scene Heading":
+                      return (
+                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
+                          <span>{scriptDialogSceneNum}</span>
+                          <span style={{ marginLeft: 24 }}>{p.text}</span>
+                        </p>
+                      );
+                    case "Character":
+                      return (
+                        <p key={i} style={{ textTransform: "uppercase", textAlign: "left", paddingLeft: "37%", marginTop: 18, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Parenthetical":
+                      return (
+                        <p key={i} style={{ paddingLeft: "28%", fontStyle: "italic", marginTop: 0, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Dialogue":
+                      return (
+                        <p key={i} style={{ paddingLeft: "17%", paddingRight: "17%", marginTop: 0, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                    case "Transition":
+                      return (
+                        <p key={i} style={{ textAlign: "right", textTransform: "uppercase", marginTop: 18, marginBottom: 12 }}>
+                          {p.text}
+                        </p>
+                      );
+                    default:
+                      return (
+                        <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>
+                          {p.text}
+                        </p>
+                      );
+                  }
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
