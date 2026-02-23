@@ -1,6 +1,27 @@
+import { useState, useCallback } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  useDraggable,
+  useDroppable,
+  PointerSensor,
+  useSensors,
+  useSensor,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, Lock } from "lucide-react";
+import { Users, ChevronRight, Lock, GripVertical, Pencil, Check, X } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface Character {
   id: string;
@@ -18,92 +39,247 @@ interface CharacterSidebarProps {
   showVoiceSeed?: boolean;
 }
 
-const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed }: CharacterSidebarProps) => (
-  <aside className="w-[280px] min-w-[240px] border-r border-border bg-card flex flex-col">
-    <div className="px-4 py-3 border-b border-border">
-      <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-        Characters
-      </h2>
-      <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-        {characters?.length ?? 0} in cast
-      </p>
-    </div>
-    <ScrollArea className="flex-1">
-      {isLoading ? (
-        <div className="p-4 space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-14 rounded-lg bg-secondary animate-pulse" />
-          ))}
-        </div>
-      ) : !characters?.length ? (
-        <div className="p-6 text-center text-sm text-muted-foreground">
-          <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
-          <p className="font-display font-semibold">No characters yet</p>
-          <p className="text-xs mt-1">Analyze a script in Development to populate the cast.</p>
-        </div>
-      ) : (
-        <div className="py-1">
-          {characters.map((char) => {
-            const isActive = selectedCharId === char.id;
-            const isLocked = showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url;
-            return (
-              <button
-                key={char.id}
-                onClick={() => onSelect(char.id)}
-                className={cn(
-                  "w-full text-left px-4 py-3 flex items-center gap-3 transition-colors border-l-2",
-                  isActive
-                    ? "border-l-primary bg-primary/5"
-                    : "border-l-transparent hover:bg-secondary/60"
-                )}
-              >
-                <div
-                  className={cn(
-                    "relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold font-display uppercase overflow-hidden",
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-secondary text-muted-foreground"
-                  )}
-                >
-                  {char.image_url ? (
-                    <img src={char.image_url} alt={char.name} className="h-full w-full object-cover" />
-                  ) : (
-                    char.name.charAt(0)
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <p
-                      className={cn(
-                        "text-sm font-display font-semibold truncate",
-                        isActive ? "text-primary" : "text-foreground"
-                      )}
-                    >
-                      {char.name}
-                    </p>
-                    {isLocked && (
-                      <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded">
-                        <Lock className="h-2.5 w-2.5" />
-                        Locked
-                      </span>
-                    )}
+const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, showVoiceSeed }: CharacterSidebarProps) => {
+  const queryClient = useQueryClient();
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [mergeDialog, setMergeDialog] = useState<{
+    sourceId: string;
+    targetId: string;
+    sourceName: string;
+    targetName: string;
+  } | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  const handleDragStart = (e: DragStartEvent) => setActiveId(e.active.id as string);
+
+  const handleDragEnd = useCallback((e: DragEndEvent) => {
+    setActiveId(null);
+    const { active, over } = e;
+    if (!over || active.id === over.id || !characters) return;
+
+    const source = characters.find((c) => c.id === active.id);
+    const target = characters.find((c) => c.id === over.id);
+    if (!source || !target) return;
+
+    setMergeDialog({
+      sourceId: source.id,
+      targetId: target.id,
+      sourceName: source.name,
+      targetName: target.name,
+    });
+  }, [characters]);
+
+  const handleMerge = useCallback(async () => {
+    if (!mergeDialog) return;
+    const { sourceId, targetId } = mergeDialog;
+
+    // Delete the source character (merge into target)
+    const { error } = await supabase.from("characters").delete().eq("id", sourceId);
+    if (error) {
+      toast.error("Failed to merge characters");
+    } else {
+      toast.success("Characters merged");
+      queryClient.invalidateQueries({ queryKey: ["characters"] });
+      // If the deleted char was selected, select the target
+      if (selectedCharId === sourceId) onSelect(targetId);
+    }
+    setMergeDialog(null);
+  }, [mergeDialog, queryClient, selectedCharId, onSelect]);
+
+  const handleRename = useCallback(async (charId: string) => {
+    if (!editName.trim()) return;
+    const { error } = await supabase.from("characters").update({ name: editName.trim() }).eq("id", charId);
+    if (error) {
+      toast.error("Failed to rename");
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["characters"] });
+      toast.success("Character renamed");
+    }
+    setEditingId(null);
+    setEditName("");
+  }, [editName, queryClient]);
+
+  const activeChar = characters?.find((c) => c.id === activeId);
+
+  return (
+    <aside className="w-[280px] min-w-[240px] border-r border-border bg-card flex flex-col">
+      <div className="px-4 py-3 border-b border-border">
+        <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+          Characters
+        </h2>
+        <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+          {characters?.length ?? 0} in cast · drag to merge duplicates
+        </p>
+      </div>
+      <ScrollArea className="flex-1">
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-14 rounded-lg bg-secondary animate-pulse" />
+            ))}
+          </div>
+        ) : !characters?.length ? (
+          <div className="p-6 text-center text-sm text-muted-foreground">
+            <Users className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+            <p className="font-display font-semibold">No characters yet</p>
+            <p className="text-xs mt-1">Analyze a script in Development to populate the cast.</p>
+          </div>
+        ) : (
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="py-1">
+              {characters.map((char) => (
+                <DraggableCharItem
+                  key={char.id}
+                  char={char}
+                  isActive={selectedCharId === char.id}
+                  isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
+                  isDragging={activeId === char.id}
+                  onSelect={() => onSelect(char.id)}
+                  isEditing={editingId === char.id}
+                  editName={editName}
+                  onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
+                  onEditChange={setEditName}
+                  onSaveEdit={() => handleRename(char.id)}
+                  onCancelEdit={() => { setEditingId(null); setEditName(""); }}
+                />
+              ))}
+            </div>
+            <DragOverlay>
+              {activeChar ? (
+                <div className="flex items-center gap-2 rounded-lg border border-primary bg-card p-2 shadow-xl rotate-2 scale-105">
+                  <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold font-display uppercase overflow-hidden shrink-0">
+                    {activeChar.image_url ? (
+                      <img src={activeChar.image_url} alt="" className="h-full w-full object-cover" />
+                    ) : activeChar.name.charAt(0)}
                   </div>
-                  {char.voice_description && (
-                    <p className="text-[11px] text-muted-foreground truncate mt-0.5">
-                      {char.voice_description}
-                    </p>
-                  )}
+                  <p className="text-sm font-display font-semibold text-foreground truncate">{activeChar.name}</p>
                 </div>
-                {isActive && (
-                  <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0" />
-                )}
-              </button>
-            );
-          })}
-        </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </ScrollArea>
+
+      {/* Merge confirmation dialog */}
+      <AlertDialog open={!!mergeDialog} onOpenChange={(open) => !open && setMergeDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Merge Characters?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will merge <span className="font-semibold text-foreground">"{mergeDialog?.sourceName}"</span> into{" "}
+              <span className="font-semibold text-foreground">"{mergeDialog?.targetName}"</span>.
+              The duplicate will be deleted. You can rename the remaining character afterward.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMerge}>Merge</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </aside>
+  );
+};
+
+/* ── Draggable character item ── */
+const DraggableCharItem = ({
+  char, isActive, isLocked, isDragging, onSelect,
+  isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit,
+}: {
+  char: Character; isActive: boolean; isLocked: boolean; isDragging: boolean;
+  onSelect: () => void;
+  isEditing: boolean; editName: string;
+  onStartEdit: () => void; onEditChange: (v: string) => void;
+  onSaveEdit: () => void; onCancelEdit: () => void;
+}) => {
+  const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: char.id });
+  const { isOver, setNodeRef: setDropRef } = useDroppable({ id: char.id });
+
+  return (
+    <div
+      ref={(node) => { setDragRef(node); setDropRef(node); }}
+      className={cn(
+        "w-full text-left px-4 py-3 flex items-center gap-2 transition-all border-l-2",
+        isActive
+          ? "border-l-primary bg-primary/5"
+          : "border-l-transparent hover:bg-secondary/60",
+        isDragging && "opacity-30",
+        isOver && !isDragging && "bg-primary/10 border-l-primary ring-1 ring-primary/30"
       )}
-    </ScrollArea>
-  </aside>
-);
+    >
+      {/* Drag handle */}
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors">
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+
+      {/* Avatar */}
+      <button onClick={onSelect} className="shrink-0">
+        <div
+          className={cn(
+            "relative flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold font-display uppercase overflow-hidden",
+            isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+          )}
+        >
+          {char.image_url ? (
+            <img src={char.image_url} alt={char.name} className="h-full w-full object-cover" />
+          ) : char.name.charAt(0)}
+        </div>
+      </button>
+
+      {/* Name / Edit */}
+      <button onClick={onSelect} className="flex-1 min-w-0 text-left">
+        {isEditing ? (
+          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+            <Input
+              autoFocus
+              value={editName}
+              onChange={(e) => onEditChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); if (e.key === "Escape") onCancelEdit(); }}
+              className="h-7 text-sm bg-background"
+            />
+            <Button size="sm" variant="ghost" onClick={onSaveEdit} className="h-7 px-1.5 shrink-0">
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="sm" variant="ghost" onClick={onCancelEdit} className="h-7 px-1.5 shrink-0">
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5">
+            <p className={cn("text-sm font-display font-semibold truncate", isActive ? "text-primary" : "text-foreground")}>
+              {char.name}
+            </p>
+            {isLocked && (
+              <span className="shrink-0 flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wider bg-primary/20 text-primary px-1.5 py-0.5 rounded">
+                <Lock className="h-2.5 w-2.5" /> Locked
+              </span>
+            )}
+          </div>
+        )}
+        {!isEditing && char.voice_description && (
+          <p className="text-[11px] text-muted-foreground truncate mt-0.5">{char.voice_description}</p>
+        )}
+      </button>
+
+      {/* Rename button */}
+      {!isEditing && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
+          className="shrink-0 text-muted-foreground/40 hover:text-foreground transition-colors p-1"
+          title="Rename character"
+        >
+          <Pencil className="h-3 w-3" />
+        </button>
+      )}
+
+      {isActive && !isEditing && (
+        <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0" />
+      )}
+    </div>
+  );
+};
 
 export default CharacterSidebar;
