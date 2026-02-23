@@ -441,7 +441,7 @@ const Development = () => {
       </section>
 
       {/* ── Time Period ── */}
-      <section>
+      {analysis?.status === "complete" && <section>
         <h2 className="font-display text-2xl font-bold mb-4 flex items-center gap-2">
           <Clock className="h-5 w-5 text-primary" /> Time Period
         </h2>
@@ -509,7 +509,7 @@ const Development = () => {
             </div>
           )}
         </div>
-      </section>
+      </section>}
 
       {/* ── Step 2: Analysis Results / Review Section ── */}
       {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
