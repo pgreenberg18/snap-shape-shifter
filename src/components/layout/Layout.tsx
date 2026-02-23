@@ -1,7 +1,9 @@
 import { ReactNode } from "react";
 import { NavLink, useLocation, useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { useFilm } from "@/hooks/useFilm";
+import { useFilm, useFilmId } from "@/hooks/useFilm";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import {
   FileText,
   Clapperboard,
@@ -11,7 +13,14 @@ import {
   Settings,
   Layers,
   ArrowLeft,
+  Loader2,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const phases = [
   { key: "development", icon: FileText, label: "Development" },
@@ -26,8 +35,77 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const { data: film } = useFilm();
+  const filmId = useFilmId();
+
+  // Check if script is currently being analyzed
+  const { data: latestAnalysis } = useQuery({
+    queryKey: ["script-analysis", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("script_analyses")
+        .select("status")
+        .eq("film_id", filmId!)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+    refetchInterval: (query) => {
+      const d = query.state.data;
+      if (d && (d.status === "pending" || d.status === "analyzing")) return 3000;
+      return false;
+    },
+  });
+
+  const isAnalyzing = latestAnalysis?.status === "pending" || latestAnalysis?.status === "analyzing";
+  const isOnDevelopment = location.pathname.includes("/development");
 
   const basePath = `/projects/${projectId}/versions/${versionId}`;
+
+  const renderNavItem = (key: string, icon: React.ElementType, label: string) => {
+    const to = `${basePath}/${key}`;
+    const isActive = location.pathname.includes(`/${key}`);
+    const Icon = icon;
+    const disabled = isAnalyzing && key !== "development";
+
+    if (disabled) {
+      return (
+        <TooltipProvider key={key}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/40 cursor-not-allowed"
+                title={label}
+              >
+                <Icon className="h-5 w-5" />
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs">Script is being analyzed…</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+
+    return (
+      <NavLink
+        key={key}
+        to={to}
+        title={label}
+        className={cn(
+          "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
+          isActive
+            ? "text-primary cinema-glow"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+        )}
+      >
+        <Icon className="h-5 w-5" />
+      </NavLink>
+    );
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -35,33 +113,20 @@ const Layout = ({ children }: { children: ReactNode }) => {
       <aside className="flex h-full w-16 flex-col items-center border-r border-border bg-card py-4">
         {/* Back to project */}
         <button
-          onClick={() => navigate(`/projects/${projectId}`)}
+          onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
           title="Back to versions"
-          className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+          className={cn(
+            "mb-4 flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
+            isAnalyzing
+              ? "text-muted-foreground/40 cursor-not-allowed"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          )}
         >
           <ArrowLeft className="h-5 w-5" />
         </button>
 
         <nav className="flex flex-1 flex-col items-center gap-1">
-          {phases.map((phase) => {
-            const to = `${basePath}/${phase.key}`;
-            const isActive = location.pathname.includes(`/${phase.key}`);
-            return (
-              <NavLink
-                key={phase.key}
-                to={to}
-                title={phase.label}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
-                  isActive
-                    ? "text-primary cinema-glow"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <phase.icon className="h-5 w-5" />
-              </NavLink>
-            );
-          })}
+          {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label))}
         </nav>
 
         {/* Bottom nav */}
@@ -69,25 +134,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           {[
             { key: "global-assets", icon: Layers, label: "Global Assets" },
             { key: "settings", icon: Settings, label: "Settings" },
-          ].map((item) => {
-            const to = `${basePath}/${item.key}`;
-            const isActive = location.pathname.includes(`/${item.key}`);
-            return (
-              <NavLink
-                key={item.key}
-                to={to}
-                title={item.label}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
-                  isActive
-                    ? "text-primary cinema-glow"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
-                )}
-              >
-                <item.icon className="h-5 w-5" />
-              </NavLink>
-            );
-          })}
+          ].map((item) => renderNavItem(item.key, item.icon, item.label))}
         </div>
       </aside>
 
@@ -107,6 +154,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
           </div>
 
           <div className="flex items-center gap-4">
+            {isAnalyzing && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" /> Analyzing…
+              </span>
+            )}
             <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               Credits: {film?.credits?.toLocaleString() ?? "—"}
             </span>
