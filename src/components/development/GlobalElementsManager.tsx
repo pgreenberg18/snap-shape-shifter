@@ -76,7 +76,7 @@ export default function GlobalElementsManager({ data }: Props) {
     buildInitialData(data),
   );
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
-  const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>("locations");
+  const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeCategory, setActiveCategory] = useState<CategoryKey | null>(null);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);

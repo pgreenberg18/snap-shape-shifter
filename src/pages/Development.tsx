@@ -796,7 +796,7 @@ const Development = () => {
                     <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
+                        <h3 className="font-display text-lg font-bold">Global Elements</h3>
                       </div>
                       <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
