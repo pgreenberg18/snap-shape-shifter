@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useContentSafety, FILM_ID } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
+import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -259,7 +260,7 @@ const Development = () => {
                     <MapPin className="h-5 w-5 text-primary" />
                     <h3 className="font-display text-lg font-bold">Global Visual Elements</h3>
                   </div>
-                  <GlobalElements data={analysis.global_elements as any} />
+                  <GlobalElementsManager data={analysis.global_elements as any} />
                 </div>
               )}
 
