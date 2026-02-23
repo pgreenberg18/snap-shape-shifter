@@ -526,22 +526,24 @@ const Development = () => {
                 disabled={scriptLocked}
               />
             </div>
-            <div className="flex justify-end">
-              <Button
-                onClick={handleSaveMeta}
-                disabled={metaSaving || scriptLocked || (!metaDirty && metaSaved)}
-                className="gap-1.5"
-                size="sm"
-              >
-                {metaSaving ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-                ) : metaSaved && !metaDirty ? (
-                  <><CheckCircle className="h-4 w-4" /> Saved</>
-                ) : (
-                  <><Save className="h-4 w-4" /> Save Details</>
-                )}
-              </Button>
-            </div>
+            {!scriptLocked && (
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleSaveMeta}
+                  disabled={metaSaving || (!metaDirty && metaSaved)}
+                  className="gap-1.5"
+                  size="sm"
+                >
+                  {metaSaving ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                  ) : metaSaved && !metaDirty ? (
+                    <><CheckCircle className="h-4 w-4" /> Saved</>
+                  ) : (
+                    <><Save className="h-4 w-4" /> Save Details</>
+                  )}
+                </Button>
+              </div>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>
