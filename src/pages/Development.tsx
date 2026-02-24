@@ -679,22 +679,78 @@ const Development = () => {
   const timeShifts = useMemo(() => {
     if (secondaryTimePeriods.length > 0) return []; // AI handled it
     if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
-    const shifts: { type: string; sceneHeading: string; sceneIndex: number }[] = [];
-    const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory"];
+
+    // Determine base year: from time_period field, or default to current year
+    const currentYear = new Date().getFullYear();
+    let baseYear = currentYear;
+    const periodStr = (film?.time_period || timePeriod || "").trim();
+    if (periodStr) {
+      const yearMatch = periodStr.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+      if (yearMatch) baseYear = parseInt(yearMatch[1], 10);
+      else if (/present/i.test(periodStr)) baseYear = currentYear;
+    }
+
+    const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory", "year earlier", "year later"];
+    const shifts: { type: string; sceneHeading: string; sceneIndex: number; calculatedYear: string }[] = [];
+
     for (const [i, scene] of (analysis.scene_breakdown as any[]).entries()) {
       const heading = (scene.scene_heading || "").toLowerCase();
       const desc = (scene.description || "").toLowerCase();
       const combined = `${heading} ${desc}`;
+      const originalHeading = scene.scene_heading || `Scene ${i + 1}`;
+
       for (const kw of FLASHBACK_KEYWORDS) {
-        if (combined.includes(kw)) {
-          const type = kw.includes("forward") || kw.includes("later") ? "Flash Forward" : kw.includes("memory") ? "Memory" : "Flashback";
-          shifts.push({ type, sceneHeading: scene.scene_heading || `Scene ${i + 1}`, sceneIndex: i });
-          break;
+        if (!combined.includes(kw)) continue;
+
+        const type = kw.includes("forward") || kw.includes("later") ? "Flash Forward"
+          : kw.includes("memory") ? "Memory" : "Flashback";
+
+        let calculatedYear = "";
+
+        // 1. Check for explicit year in heading (e.g., "INT. SCHOOL - DAY 1991")
+        const explicitYear = (originalHeading + " " + (scene.description || ""))
+          .match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+        if (explicitYear) {
+          calculatedYear = explicitYear[1];
+        } else {
+          // 2. Parse relative offsets like "20 YEARS EARLIER", "1 YEAR LATER", "SIX MONTHS AGO"
+          const numberWords: Record<string, number> = {
+            one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
+            eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
+            fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
+            nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
+          };
+
+          const relMatch = combined.match(/(\d+|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty))\s+(years?|months?|days?)\s+(earlier|ago|before|later|after|forward)/i);
+          if (relMatch) {
+            let num = parseInt(relMatch[1], 10);
+            if (isNaN(num)) num = numberWords[relMatch[1].toLowerCase()] || 0;
+            const unit = relMatch[2].toLowerCase();
+            const direction = relMatch[3].toLowerCase();
+            const isPast = ["earlier", "ago", "before"].includes(direction);
+
+            if (unit.startsWith("year") && num > 0) {
+              calculatedYear = String(isPast ? baseYear - num : baseYear + num);
+            } else if (unit.startsWith("month") && num > 0) {
+              // Approximate: show "~YEAR" for months
+              const yearOffset = Math.round(num / 12);
+              if (yearOffset >= 1) {
+                calculatedYear = `~${isPast ? baseYear - yearOffset : baseYear + yearOffset}`;
+              } else {
+                calculatedYear = `${baseYear} (${num} months ${isPast ? "earlier" : "later"})`;
+              }
+            } else if (unit.startsWith("day") && num > 0) {
+              calculatedYear = `${baseYear} (${num} days ${isPast ? "earlier" : "later"})`;
+            }
+          }
         }
+
+        shifts.push({ type, sceneHeading: originalHeading, sceneIndex: i, calculatedYear });
+        break;
       }
     }
     return shifts;
-  }, [analysis?.scene_breakdown, secondaryTimePeriods.length]);
+  }, [analysis?.scene_breakdown, secondaryTimePeriods.length, film?.time_period, timePeriod]);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
@@ -1107,7 +1163,8 @@ const Development = () => {
                             <p className="text-[10px] text-muted-foreground uppercase">{shift.type}</p>
                           </div>
                           <Input
-                            placeholder="e.g. 1955, 20 years earlier"
+                            defaultValue={shift.calculatedYear}
+                            placeholder="e.g. 1955"
                             className="w-52 h-8 text-xs"
                             disabled={scriptLocked}
                           />
