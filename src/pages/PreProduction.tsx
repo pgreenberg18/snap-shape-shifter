@@ -56,6 +56,7 @@ const PreProduction = () => {
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [cards, setCards] = useState<AuditionCard[]>([]);
+  const generatingCharIdRef = useRef<string | null>(null);
   const [locking, setLocking] = useState<number | null>(null);
   // Voice state
   const [voiceDesc, setVoiceDesc] = useState("");
@@ -183,6 +184,9 @@ const PreProduction = () => {
 
   const handleGenerate = useCallback(async () => {
     if (!selectedChar) return;
+    const charId = selectedChar.id;
+    const charName = selectedChar.name;
+    generatingCharIdRef.current = charId;
     setGenerating(true);
 
     const skeletonCards: AuditionCard[] = CARD_TEMPLATE.map((t) => ({
@@ -190,52 +194,67 @@ const PreProduction = () => {
     }));
     setCards(skeletonCards);
 
-    const results = await Promise.allSettled(
-      CARD_TEMPLATE.map(async (t) => {
+    // Capture current values so generation continues even if user navigates away
+    const genBody = {
+      characterName: charName,
+      description: charDescription || (selectedChar as any)?.description || "",
+      sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
+      ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
+      ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
+      isChild: charIsChild,
+      filmTitle: film?.title ?? "",
+      timePeriod: film?.time_period ?? "",
+      genre: "",
+    };
+
+    let successCount = 0;
+
+    // Fire all requests and update each card as it resolves
+    const promises = CARD_TEMPLATE.map(async (t) => {
+      try {
         const { data, error } = await supabase.functions.invoke("generate-headshot", {
-          body: {
-            characterName: selectedChar.name,
-            description: charDescription || (selectedChar as any)?.description || "",
-            sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
-            ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
-            ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
-            isChild: charIsChild,
-            filmTitle: film?.title ?? "",
-            timePeriod: film?.time_period ?? "",
-            genre: "",
-            cardIndex: t.id,
-          },
+          body: { ...genBody, cardIndex: t.id },
         });
         if (error) throw error;
-        return { id: t.id, imageUrl: data?.imageUrl ?? null };
-      })
-    );
+        const imageUrl = data?.imageUrl ?? null;
 
-    const finalCards: AuditionCard[] = CARD_TEMPLATE.map((t) => {
-      const result = results[t.id];
-      const imageUrl = result.status === "fulfilled" ? result.value.imageUrl : null;
-      return { ...t, imageUrl, locked: false, generating: false };
+        // Persist to DB immediately
+        if (imageUrl) {
+          successCount++;
+          await supabase.from("character_auditions").upsert({
+            character_id: charId,
+            card_index: t.id,
+            section: t.section,
+            label: t.label,
+            image_url: imageUrl,
+            locked: false,
+          }, { onConflict: "character_id,card_index" });
+        }
+
+        // Update UI only if this character is still selected
+        if (generatingCharIdRef.current === charId) {
+          setCards((prev) => prev.map((c) =>
+            c.id === t.id ? { ...c, imageUrl, generating: false } : c
+          ));
+        }
+      } catch (e) {
+        console.error(`Headshot ${t.id} failed:`, e);
+        if (generatingCharIdRef.current === charId) {
+          setCards((prev) => prev.map((c) =>
+            c.id === t.id ? { ...c, generating: false } : c
+          ));
+        }
+      }
     });
 
-    setCards(finalCards);
-    setGenerating(false);
+    await Promise.allSettled(promises);
 
-    // Persist audition cards to DB
-    for (const card of finalCards) {
-      if (card.imageUrl) {
-        await supabase.from("character_auditions").upsert({
-          character_id: selectedChar.id,
-          card_index: card.id,
-          section: card.section,
-          label: card.label,
-          image_url: card.imageUrl,
-          locked: false,
-        }, { onConflict: "character_id,card_index" });
-      }
+    if (generatingCharIdRef.current === charId) {
+      setGenerating(false);
     }
+    generatingCharIdRef.current = null;
 
-    const successCount = results.filter((r) => r.status === "fulfilled").length;
-    toast.success(`${successCount}/10 audition faces generated for ${selectedChar.name}`);
+    toast.success(`${successCount}/10 audition faces generated for ${charName}`);
   }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, film]);
 
   const handleLockIdentity = useCallback(async (card: AuditionCard) => {
@@ -411,6 +430,12 @@ const PreProduction = () => {
 
   const selectChar = useCallback(async (id: string) => {
     setSelectedCharId(id);
+    // If we're still generating for a different character, keep generating flag only if it matches
+    if (generatingCharIdRef.current && generatingCharIdRef.current !== id) {
+      setGenerating(false);
+    } else if (generatingCharIdRef.current === id) {
+      setGenerating(true);
+    }
     // Load persisted audition cards from DB
     const { data: savedCards } = await supabase
       .from("character_auditions")
@@ -418,13 +443,14 @@ const PreProduction = () => {
       .eq("character_id", id)
       .order("card_index");
     if (savedCards && savedCards.length > 0) {
+      const isGeneratingThis = generatingCharIdRef.current === id;
       const restored: AuditionCard[] = CARD_TEMPLATE.map((t) => {
         const saved = savedCards.find((s: any) => s.card_index === t.id);
         return {
           ...t,
           imageUrl: saved?.image_url ?? null,
           locked: saved?.locked ?? false,
-          generating: false,
+          generating: isGeneratingThis && !saved?.image_url,
         };
       });
       setCards(restored);
