@@ -922,7 +922,7 @@ const Development = () => {
                       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                       onDragLeave={() => setDragOver(false)}
                       onDrop={handleDrop}
-                      className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-12 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
+                      className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-5 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
                         dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                       }`}
                     >
@@ -940,17 +940,17 @@ const Development = () => {
                         </>
                       ) : (
                         <>
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary">
-                            <Type className="h-6 w-6 text-primary" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
+                            <Type className="h-4 w-4 text-primary" />
                           </div>
                           <div className="text-center">
-                            <p className="text-sm font-display font-semibold text-foreground">
+                            <p className="text-xs font-display font-semibold text-foreground">
                               {uploading ? "Uploading…" : "Drop your screenplay here"}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">{ACCEPTED_LABEL} — or click to browse</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">{ACCEPTED_LABEL} — or click to browse</p>
                           </div>
-                          <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-xs text-muted-foreground">
-                            <Upload className="h-3.5 w-3.5" />
+                          <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
+                            <Upload className="h-3 w-3" />
                             Upload Script
                           </div>
                         </>
