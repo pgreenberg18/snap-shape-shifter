@@ -1,0 +1,1 @@
+ALTER TABLE public.parsed_scenes ADD COLUMN environment_details text;

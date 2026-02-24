@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     // Call Gemini via Lovable AI gateway using tool calling for structured output
     const systemPrompt = `You are a professional script breakdown analyst for film production. Given a screenplay scene, extract structured production data. Be thorough and precise. Only include items that are explicitly mentioned or strongly implied in the scene text.`;
 
-    const userPrompt = `Analyze this screenplay scene and extract production breakdown data.
+    const userPrompt = `Analyze this screenplay scene and extract detailed production breakdown data. Be thorough — extract ALL characters, props, wardrobe details, vehicles, and environmental details.
 
 SCENE HEADING: ${scene.heading}
 
@@ -101,12 +101,12 @@ ${scene.raw_text}`;
                   characters: {
                     type: "array",
                     items: { type: "string" },
-                    description: "List of character names who appear or speak in this scene. Use UPPERCASE names as written in the script.",
+                    description: "List of ALL character names who appear, speak, or are referenced in this scene. Use UPPERCASE names as written in the script.",
                   },
                   key_objects: {
                     type: "array",
                     items: { type: "string" },
-                    description: "Notable props and objects mentioned (exclude locations, weather, lighting effects).",
+                    description: "Notable props and objects mentioned or used in the scene (exclude locations, weather, lighting). Include items characters interact with.",
                   },
                   wardrobe: {
                     type: "array",
@@ -114,19 +114,25 @@ ${scene.raw_text}`;
                       type: "object",
                       properties: {
                         character: { type: "string", description: "Character name in UPPERCASE." },
-                        clothing: { type: "string", description: "Description of what they are wearing." },
+                        clothing_style: { type: "string", description: "Description of what they are wearing — outfit, style, colours." },
+                        condition: { type: "string", description: "Condition of the clothing — e.g. pristine, muddy, torn, blood-stained, wet. Use 'normal' if not specified." },
+                        hair_makeup: { type: "string", description: "Hair and makeup details if described. Use 'not specified' if not mentioned." },
                       },
-                      required: ["character", "clothing"],
+                      required: ["character", "clothing_style", "condition", "hair_makeup"],
                     },
-                    description: "Wardrobe details for characters whose clothing is described.",
+                    description: "Wardrobe details for characters whose clothing, appearance, or condition is described or implied.",
                   },
                   picture_vehicles: {
                     type: "array",
                     items: { type: "string" },
                     description: "Any vehicles that appear on screen in this scene.",
                   },
+                  environment_details: {
+                    type: "string",
+                    description: "Describe the environment: weather, time of day, lighting, atmosphere, set dressing details. Be specific.",
+                  },
                 },
-                required: ["description", "characters", "key_objects", "wardrobe", "picture_vehicles"],
+                required: ["description", "characters", "key_objects", "wardrobe", "picture_vehicles", "environment_details"],
                 additionalProperties: false,
               },
             },
@@ -167,8 +173,9 @@ ${scene.raw_text}`;
       description: string;
       characters: string[];
       key_objects: string[];
-      wardrobe: { character: string; clothing: string }[];
+      wardrobe: { character: string; clothing_style: string; condition: string; hair_makeup: string }[];
       picture_vehicles: string[];
+      environment_details: string;
     };
 
     try {
@@ -181,6 +188,14 @@ ${scene.raw_text}`;
       );
     }
 
+    // Normalize wardrobe entries — handle both old "clothing" key and new "clothing_style" key
+    const normalizedWardrobe = (breakdown.wardrobe || []).map((w: any) => ({
+      character: w.character || "",
+      clothing_style: w.clothing_style || w.clothing || "",
+      condition: w.condition || "normal",
+      hair_makeup: w.hair_makeup || "not specified",
+    }));
+
     // Write enrichment data back to parsed_scenes
     const { error: updateErr } = await supabase
       .from("parsed_scenes")
@@ -188,8 +203,9 @@ ${scene.raw_text}`;
         description: breakdown.description || "",
         characters: breakdown.characters || [],
         key_objects: breakdown.key_objects || [],
-        wardrobe: breakdown.wardrobe || [],
+        wardrobe: normalizedWardrobe,
         picture_vehicles: breakdown.picture_vehicles || [],
+        environment_details: breakdown.environment_details || "",
         enriched: true,
       })
       .eq("id", scene_id);
@@ -240,6 +256,7 @@ ${scene.raw_text}`;
           key_objects: s.key_objects || [],
           wardrobe: s.wardrobe || [],
           picture_vehicles: s.picture_vehicles || [],
+          environment_details: s.environment_details || "",
         }));
 
         await supabase

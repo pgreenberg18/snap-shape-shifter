@@ -444,6 +444,7 @@ export type Database = {
           created_at: string
           description: string | null
           enriched: boolean
+          environment_details: string | null
           film_id: string
           heading: string
           id: string
@@ -458,6 +459,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           enriched?: boolean
+          environment_details?: string | null
           film_id: string
           heading: string
           id?: string
@@ -472,6 +474,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           enriched?: boolean
+          environment_details?: string | null
           film_id?: string
           heading?: string
           id?: string
