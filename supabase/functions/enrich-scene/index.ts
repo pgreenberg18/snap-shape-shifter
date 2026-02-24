@@ -356,25 +356,28 @@ ${scene.raw_text}`;
           estimated_page_count: s.estimated_page_count || 0,
         }));
 
+        // Save scene_breakdown but keep status as "enriching" until finalization completes
+        await supabase
+          .from("script_analyses")
+          .update({
+            scene_breakdown: sceneBreakdown,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", analysis_id);
+
         // Auto-detect primary time period from scene headings
         const yearCounts: Record<string, number> = {};
         for (const s of (allScenes || [])) {
           const heading = s.heading || "";
-          // Match explicit years like 1991, 2024, etc.
           const yearMatch = heading.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
           if (yearMatch) {
             yearCounts[yearMatch[1]] = (yearCounts[yearMatch[1]] || 0) + 1;
-          } else if (/present\s*day/i.test(heading)) {
-            const currentYear = String(new Date().getFullYear());
-            yearCounts[currentYear] = (yearCounts[currentYear] || 0) + 1;
           } else {
-            // Scenes without explicit time markers default to "present"
             const currentYear = String(new Date().getFullYear());
             yearCounts[currentYear] = (yearCounts[currentYear] || 0) + 1;
           }
         }
 
-        // Find the year with the most scenes
         let primaryYear = "";
         let maxCount = 0;
         for (const [year, count] of Object.entries(yearCounts)) {
@@ -384,7 +387,6 @@ ${scene.raw_text}`;
           }
         }
 
-        // Update film's time_period if not already set
         if (primaryYear) {
           const { data: film } = await supabase
             .from("films")
@@ -400,11 +402,31 @@ ${scene.raw_text}`;
           }
         }
 
+        // Invoke finalize-analysis to generate visual_summary, global_elements, ai_generation_notes
+        try {
+          const finalizeResponse = await fetch(
+            `${supabaseUrl}/functions/v1/finalize-analysis`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${supabaseServiceKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ analysis_id }),
+            },
+          );
+          if (!finalizeResponse.ok) {
+            console.error("finalize-analysis failed:", await finalizeResponse.text());
+          }
+        } catch (e) {
+          console.error("Failed to invoke finalize-analysis:", e);
+        }
+
+        // Mark as complete
         await supabase
           .from("script_analyses")
           .update({
             status: "complete",
-            scene_breakdown: sceneBreakdown,
             updated_at: new Date().toISOString(),
           })
           .eq("id", analysis_id);
