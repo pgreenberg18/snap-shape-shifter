@@ -308,14 +308,12 @@ const Development = () => {
     }
     if (!filmId) return;
     setUploading(true);
-    setAnalyzing(true);
 
-    // 1. Upload file to storage
+    // Upload file to storage only — analysis is triggered separately
     const path = `${filmId}/${Date.now()}_${file.name}`;
     const { error: uploadErr } = await supabase.storage.from("scripts").upload(path, file);
     if (uploadErr) {
       setUploading(false);
-      setAnalyzing(false);
       toast({ title: "Upload failed", description: uploadErr.message, variant: "destructive" });
       return;
     }
@@ -323,34 +321,8 @@ const Development = () => {
     setUploadedFile(file.name);
     setUploadedPath(path);
     setUploading(false);
-
-    // 2. Insert script_analyses row
-    const { data: record, error: insertErr } = await supabase
-      .from("script_analyses")
-      .insert({ film_id: filmId, file_name: file.name, storage_path: path, status: "pending" })
-      .select()
-      .single();
-
-    if (insertErr || !record) {
-      setAnalyzing(false);
-      toast({ title: "Failed to start analysis", description: insertErr?.message, variant: "destructive" });
-      return;
-    }
-
-    // 3. Invoke parse-script edge function
-    const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
-      body: { analysis_id: record.id },
-    });
-
-    setAnalyzing(false);
-
-    if (invokeErr) {
-      toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
-    } else {
-      toast({ title: "Analysis complete", description: "Your script has been parsed successfully." });
-      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-    }
-  }, [toast, filmId, queryClient]);
+    toast({ title: "Script uploaded", description: "Click Analyze to begin breakdown." });
+  }, [toast, filmId]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
