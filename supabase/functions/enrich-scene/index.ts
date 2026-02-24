@@ -48,9 +48,10 @@ Deno.serve(async (req) => {
       .single();
 
     if (sceneErr || !scene) {
+      // Scene was deleted (e.g. by a re-analysis) — return success so the caller moves on
       return new Response(
-        JSON.stringify({ error: "Scene not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        JSON.stringify({ success: true, skipped: true, reason: "scene_deleted" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
