@@ -2002,7 +2002,7 @@ const ContentSafetyMatrix = ({
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [flags, setFlags] = useState<ContentFlag[]>([]);
   const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [ratingJustification, setRatingJustification] = useState("");
   const [scriptText, setScriptText] = useState<string | null>(null);
