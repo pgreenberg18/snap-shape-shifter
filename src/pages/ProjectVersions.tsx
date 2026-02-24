@@ -259,13 +259,13 @@ const ProjectVersions = () => {
 
       <div className="p-8">
         {isLoading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {[1, 2].map((i) => (
-              <div key={i} className="h-44 animate-pulse rounded-xl bg-card" />
+              <div key={i} className="h-32 animate-pulse rounded-xl bg-card" />
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {versions?.map((v) => (
               <div
                 key={v.id}
@@ -275,10 +275,10 @@ const ProjectVersions = () => {
                   onClick={() => renamingId !== v.id && navigate(`/projects/${projectId}/versions/${v.id}/development`)}
                   className="flex flex-1 flex-col text-left"
                 >
-                  <div className="flex h-24 items-center justify-center bg-secondary">
-                    <Film className="h-8 w-8 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
+                  <div className="flex h-16 items-center justify-center bg-secondary">
+                    <Film className="h-6 w-6 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
                   </div>
-                  <div className="flex flex-1 flex-col p-4">
+                  <div className="flex flex-1 flex-col p-3">
                     {renamingId === v.id ? (
                       <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <Input
@@ -303,7 +303,7 @@ const ProjectVersions = () => {
                         {v.version_name || `Version ${v.version_number}`}
                       </h3>
                     )}
-                    <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-muted-foreground">
+                    <div className="mt-auto flex items-center gap-2 pt-2 text-[11px] text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       {new Date(v.created_at).toLocaleDateString()}
                     </div>

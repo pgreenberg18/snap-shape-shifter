@@ -290,7 +290,7 @@ const Projects = () => {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {projects.map((project) => (
                 <div
                   key={project.id}
@@ -301,26 +301,26 @@ const Projects = () => {
                     className="flex flex-1 flex-col text-left"
                   >
                     {/* Poster area with film-strip pattern */}
-                    <div className="relative flex h-36 items-center justify-center bg-secondary overflow-hidden">
+                    <div className="relative flex h-20 items-center justify-center bg-secondary overflow-hidden">
                       {/* Film grain overlay */}
                       <div className="absolute inset-0 opacity-[0.03]" style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                       }} />
-                      <Film className="h-12 w-12 text-muted-foreground/20 transition-all duration-300 group-hover:text-primary/40 group-hover:scale-110" />
+                      <Film className="h-8 w-8 text-muted-foreground/20 transition-all duration-300 group-hover:text-primary/40 group-hover:scale-110" />
                       {/* Sprocket holes */}
-                      <div className="absolute left-2 top-0 bottom-0 flex flex-col justify-center gap-3">
-                        {[...Array(4)].map((_, i) => (
-                          <div key={i} className="h-3 w-2 rounded-sm bg-background/20" />
+                      <div className="absolute left-1.5 top-0 bottom-0 flex flex-col justify-center gap-2">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="h-2 w-1.5 rounded-sm bg-background/20" />
                         ))}
                       </div>
-                      <div className="absolute right-2 top-0 bottom-0 flex flex-col justify-center gap-3">
-                        {[...Array(4)].map((_, i) => (
-                          <div key={i} className="h-3 w-2 rounded-sm bg-background/20" />
+                      <div className="absolute right-1.5 top-0 bottom-0 flex flex-col justify-center gap-2">
+                        {[...Array(3)].map((_, i) => (
+                          <div key={i} className="h-2 w-1.5 rounded-sm bg-background/20" />
                         ))}
                       </div>
                     </div>
 
-                    <div className="flex flex-1 flex-col p-5">
+                    <div className="flex flex-1 flex-col p-3">
                       {renamingId === project.id ? (
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           <Input
@@ -341,7 +341,7 @@ const Projects = () => {
                           </Button>
                         </div>
                       ) : (
-                        <h3 className="font-display text-base font-bold text-foreground truncate">
+                        <h3 className="font-display text-sm font-bold text-foreground truncate">
                           {project.title}
                         </h3>
                       )}
@@ -350,7 +350,7 @@ const Projects = () => {
                           {project.description}
                         </p>
                       )}
-                      <div className="mt-auto flex items-center justify-between pt-4 text-xs text-muted-foreground">
+                      <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <Film className="h-3 w-3" />
                           {versionCounts?.[project.id] || 0} version{(versionCounts?.[project.id] || 0) !== 1 ? "s" : ""}
@@ -364,7 +364,7 @@ const Projects = () => {
                   </button>
 
                   {/* Card footer actions */}
-                  <div className="border-t border-border p-2.5 flex justify-between">
+                  <div className="border-t border-border p-1.5 flex justify-between">
                     <Button
                       variant="ghost"
                       size="sm"
