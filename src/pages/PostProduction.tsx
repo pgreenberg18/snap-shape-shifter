@@ -76,7 +76,7 @@ const PostProduction = () => {
 
   const tracks = [
     { id: "video1", label: "Video 1", icon: <Film className="h-3 w-3" /> },
-    { id: "audio1", label: "Audio 1", icon: <Music className="h-3 w-3" /> },
+    { id: "audio1", label: "Dialogue", icon: <Music className="h-3 w-3" /> },
     { id: "audio2", label: "Audio 2", icon: <Music className="h-3 w-3" /> },
   ];
 
