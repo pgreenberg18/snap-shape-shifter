@@ -1889,12 +1889,22 @@ const EditableSceneContent = ({
   const [location, setLocation] = useState<string>(scene.setting || scene.location_name || scene.scene_heading || "");
   const [intExt, setIntExt] = useState<string>(scene.int_ext || "");
   const [dayNight, setDayNight] = useState<string>(scene.day_night || "");
-  const [characters, setCharacters] = useState<{ name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[]>(
-    (scene.characters || []).map((c: any) => typeof c === "string"
+  const [characters, setCharacters] = useState<{ name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[]>(() => {
+    const details = scene.character_details || [];
+    const names = scene.characters || [];
+    if (details.length > 0) {
+      return details.map((c: any) => ({
+        name: c.name || "",
+        emotional_tone: c.emotional_tone || "",
+        key_expressions: c.key_expressions || "",
+        physical_behavior: c.physical_behavior || "",
+      }));
+    }
+    return names.map((c: any) => typeof c === "string"
       ? { name: c, emotional_tone: "", key_expressions: "", physical_behavior: "" }
       : { name: c.name || "", emotional_tone: c.emotional_tone || "", key_expressions: c.key_expressions || "", physical_behavior: c.physical_behavior || "" }
-    )
-  );
+    );
+  });
   const [wardrobe, setWardrobe] = useState<{ character: string; clothing_style: string; condition: string; hair_makeup: string }[]>(
     (scene.wardrobe || []).map((w: any) => ({
       character: w.character || "",
@@ -1903,15 +1913,14 @@ const EditableSceneContent = ({
       hair_makeup: w.hair_makeup || "",
     }))
   );
-  const [cameraFeel, setCameraFeel] = useState<string>(scene.cinematic_elements?.camera_feel || "");
-  const [motionCues, setMotionCues] = useState<string>(scene.cinematic_elements?.motion_cues || "");
+  const cinematicData = scene.cinematic_elements || {};
+  const [cameraFeel, setCameraFeel] = useState<string>(cinematicData.camera_feel || "");
+  const [motionCues, setMotionCues] = useState<string>(cinematicData.motion_cues || "");
   const [shotSuggestions, setShotSuggestions] = useState<string>(
-    (scene.cinematic_elements?.shot_suggestions || []).join(" · ")
+    (cinematicData.shot_suggestions || []).join(" · ")
   );
   const [envDetails, setEnvDetails] = useState<string>(scene.environment_details || "");
   const [keyObjects, setKeyObjects] = useState<string[]>(scene.key_objects || []);
-  const [imagePrompt, setImagePrompt] = useState<string>(scene.image_prompt || "");
-  const [videoPrompt, setVideoPrompt] = useState<string>(scene.video_prompt || "");
   const [stunts, setStunts] = useState<string[]>(scene.stunts || []);
   const [sfx, setSfx] = useState<string[]>(scene.sfx || []);
   const [vfx, setVfx] = useState<string[]>(scene.vfx || []);
@@ -2062,10 +2071,14 @@ const EditableSceneContent = ({
           </div>
         </Section>
 
-        {/* Environment & Props */}
-        <Section icon={MapPin} label="Environment & Props">
+        {/* Environment */}
+        <Section icon={MapPin} label="Environment">
           <Textarea value={envDetails} onChange={(e) => setEnvDetails(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" placeholder="Environment description…" style={{ fieldSizing: 'content' } as React.CSSProperties} />
-          <div className="flex flex-wrap gap-1.5 mt-2">
+        </Section>
+
+        {/* Props */}
+        <Section icon={MapPin} label="Props">
+          <div className="flex flex-wrap gap-1.5">
             {keyObjects.map((obj, i) => (
               <span
                 key={i}
@@ -2138,12 +2151,6 @@ const EditableSceneContent = ({
         )}
 
 
-        <Section icon={Sparkles} label="AI Generation Prompts">
-          <p className="text-xs font-mono text-primary/70 mb-1">IMAGE PROMPT</p>
-          <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" style={{ fieldSizing: 'content' } as React.CSSProperties} />
-          <p className="text-xs font-mono text-primary/70 mb-1 mt-3">VIDEO PROMPT</p>
-          <Textarea value={videoPrompt} onChange={(e) => setVideoPrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" style={{ fieldSizing: 'content' } as React.CSSProperties} />
-        </Section>
 
         {/* Continuity Flags */}
         {scene.continuity_flags?.length > 0 && (
