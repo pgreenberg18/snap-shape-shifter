@@ -98,7 +98,7 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     addLabel: "Add Voice Provider",
   },
   "camera-cart": {
-    title: "Video Generation (Seedance, Kling, Sora)",
+    title: "Video Generation (Seedance, Kling, Veo, Sora)",
     description: "AI video generation for shot previsualization",
     icon: <Camera className="h-4 w-4" />,
     addLabel: "Add Video Generator",
