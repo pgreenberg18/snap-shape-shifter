@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2 } from "lucide-react";
+import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2, Package, Upload, Lock } from "lucide-react";
 
 const Release = () => {
   const [topaz, setTopaz] = useState(false);
@@ -101,23 +101,7 @@ const Release = () => {
         </div>
       </div>
 
-      {/* Legal & Compliance */}
-      <div className="rounded-xl border border-border bg-card p-8 cinema-inset">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <ShieldCheck className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-bold">Legal & Compliance</h2>
-            <p className="text-sm text-muted-foreground">Content provenance and rights management</p>
-          </div>
-        </div>
-
-        <Button variant="outline" onClick={handleC2PA} className="gap-2">
-          <ShieldCheck className="h-4 w-4" />
-          Generate C2PA Provenance Report
-        </Button>
-      </div>
+      {/* removed old Legal & Compliance — replaced by bottom section */}
 
       {/* Auto-Deliverables & Marketing */}
       <div className="rounded-xl border border-border bg-card p-8 cinema-inset">
@@ -209,6 +193,127 @@ const Release = () => {
               )}
             </Button>
           </div>
+        </div>
+      </div>
+
+      {/* Distribution & Legal */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Left — Distribution Packaging */}
+        <div className="rounded-xl border border-border bg-card p-6 cinema-inset space-y-4">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-bold">Distribution Packaging</h3>
+              <p className="text-[11px] text-muted-foreground">Festival & aggregator delivery</p>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            {/* FilmFreeway Packager */}
+            <div className="rounded-lg border border-border bg-secondary/50 p-4 cinema-inset">
+              <p className="text-[10px] font-mono text-muted-foreground mb-2">SACRED HEIST Festival Package</p>
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
+                disabled={processing === "filmfreeway"}
+                onClick={() => handleProcess("filmfreeway")}
+              >
+                {processing === "filmfreeway" ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Packaging…</>
+                ) : (
+                  <><Download className="h-3.5 w-3.5" /> Export Festival ZIP (Screener + Poster + Script)</>
+                )}
+              </Button>
+            </div>
+
+            {/* ProRes Export */}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
+              disabled={processing === "prores"}
+              onClick={() => handleProcess("prores")}
+            >
+              {processing === "prores" ? (
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Encoding…</>
+              ) : (
+                <><FileVideo className="h-3.5 w-3.5" /> ProRes 422 HQ Export</>
+              )}
+            </Button>
+
+            {/* Direct OAuth Uploads */}
+            <div>
+              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-2">Direct Upload</p>
+              <div className="flex gap-2">
+                {[
+                  { id: "youtube", label: "YouTube" },
+                  { id: "vimeo", label: "Vimeo" },
+                  { id: "tiktok", label: "TikTok" },
+                ].map((p) => (
+                  <Button
+                    key={p.id}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-[10px] font-mono gap-1 h-8 cinema-inset active:translate-y-px"
+                    disabled={processing === p.id}
+                    onClick={() => handleProcess(p.id)}
+                  >
+                    {processing === p.id ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <><Upload className="h-3 w-3" /> {p.label}</>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right — C2PA Legal Provenance Ledger */}
+        <div className="rounded-xl border bg-card p-6 cinema-inset space-y-4" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ background: "hsl(145 40% 20% / 0.3)" }}>
+              <ShieldCheck className="h-5 w-5" style={{ color: "hsl(145 50% 50%)" }} />
+            </div>
+            <div>
+              <h3 className="font-display text-lg font-bold">Chain-of-Title & Provenance</h3>
+              <p className="text-[11px] font-mono" style={{ color: "hsl(145 40% 55%)" }}>C2PA Verified</p>
+            </div>
+          </div>
+
+          {/* Metadata fields */}
+          <div className="space-y-2">
+            {[
+              { label: "Director / Producer", value: "Paul Greenberg" },
+              { label: "Entity", value: "Greenberg Direct, Inc." },
+            ].map((field) => (
+              <div key={field.label} className="rounded-lg bg-secondary/50 border border-border/50 px-4 py-2.5 cinema-inset">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">{field.label}</p>
+                <p className="text-xs font-mono text-foreground/90 mt-0.5">{field.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Compiles cryptographic hashes, API licenses, timestamps, and per-frame generative provenance claims into a legal PDF.
+          </p>
+
+          <Button
+            size="sm"
+            className="w-full text-[10px] font-mono gap-2 h-10 font-bold uppercase tracking-wider cinema-inset active:translate-y-px"
+            disabled={processing === "c2pa"}
+            onClick={() => handleProcess("c2pa")}
+          >
+            {processing === "c2pa" ? (
+              <><Loader2 className="h-4 w-4 animate-spin" /> Generating Ledger…</>
+            ) : (
+              <><Lock className="h-4 w-4" /> Generate C2PA Ledger PDF</>
+            )}
+          </Button>
         </div>
       </div>
     </div>
