@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
-  Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, ArrowLeft,
+  Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, ArrowLeft, Pencil,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -119,6 +119,7 @@ const SettingsIntegrations = () => {
   const navigate = useNavigate();
   const { data: integrations, isLoading } = useIntegrations();
   const [keys, setKeys] = useState<Record<string, string>>({});
+  const [editingId, setEditingId] = useState<string | null>(null);
   // Per-section add state
   const [addingSection, setAddingSection] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState("");
@@ -133,6 +134,8 @@ const SettingsIntegrations = () => {
     if (!key) return;
     await supabase.from("integrations").update({ api_key_encrypted: key, is_verified: true }).eq("id", id);
     queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    setKeys((p) => { const n = { ...p }; delete n[id]; return n; });
+    setEditingId(null);
     toast({ title: "Connected", description: "API key saved and verified." });
   };
 
@@ -211,25 +214,54 @@ const SettingsIntegrations = () => {
                 <p className="text-xs text-muted-foreground mb-3">{meta.description}</p>
                 <div className="space-y-3 pb-2">
                   {/* Existing DB-backed providers */}
-                  {providers?.map((provider) => (
-                    <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{provider.provider_name}</p>
-                        {provider.is_verified && <Check className="h-4 w-4 text-green-400" />}
+                  {providers?.map((provider) => {
+                    const isVerified = provider.is_verified;
+                    const isEditing = editingId === provider.id;
+                    const hasStoredKey = !!provider.api_key_encrypted;
+
+                    return (
+                      <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium">{provider.provider_name}</p>
+                          {isVerified && !isEditing && (
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <Check className="h-3.5 w-3.5 text-green-500" /> Connected & Verified
+                            </span>
+                          )}
+                        </div>
+
+                        {isVerified && hasStoredKey && !isEditing ? (
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono text-xs text-muted-foreground tracking-widest">••••••••••••••••</span>
+                            <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
+                              <Pencil className="h-3 w-3" /> Change
+                            </Button>
+                          </div>
+                        ) : (
+                          <>
+                            <Input
+                              type="password"
+                              placeholder="Enter API key…"
+                              value={keys[provider.id] ?? ""}
+                              onChange={(e) => setKeys((p) => ({ ...p, [provider.id]: e.target.value }))}
+                              className="font-mono text-xs bg-background border-border"
+                            />
+                            <div className="flex gap-2">
+                              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleConnect(provider.id)}>
+                                <Plug className="h-3.5 w-3.5" />
+                                Connect & Verify
+                              </Button>
+                              {isEditing && (
+                                <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setKeys((p) => { const n = { ...p }; delete n[provider.id]; return n; }); }}>
+                                  Cancel
+                                </Button>
+                              )}
+                            </div>
+                          </>
+                        )}
                       </div>
-                      <Input
-                        type="password"
-                        placeholder="Enter API key…"
-                        value={keys[provider.id] ?? ""}
-                        onChange={(e) => setKeys((p) => ({ ...p, [provider.id]: e.target.value }))}
-                        className="font-mono text-xs bg-background border-border"
-                      />
-                      <Button size="sm" variant="outline" className="gap-1.5" onClick={() => handleConnect(provider.id)}>
-                        <Plug className="h-3.5 w-3.5" />
-                        Connect & Verify
-                      </Button>
-                    </div>
-                  ))}
+                    );
+                  })}
 
                   {/* Locally added services */}
                   {added.map((svc) => (
