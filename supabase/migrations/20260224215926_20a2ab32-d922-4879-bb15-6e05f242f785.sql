@@ -1,0 +1,2 @@
+ALTER TABLE public.script_analyses DROP CONSTRAINT script_analyses_status_check;
+ALTER TABLE public.script_analyses ADD CONSTRAINT script_analyses_status_check CHECK (status = ANY (ARRAY['pending'::text, 'analyzing'::text, 'enriching'::text, 'complete'::text, 'error'::text]));
