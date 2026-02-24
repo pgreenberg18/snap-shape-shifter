@@ -18,9 +18,11 @@ function parseFdxToPlainText(xml: string): string {
     const textRe = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
     let combined = "";
     let tm: RegExpExecArray | null;
+
     while ((tm = textRe.exec(inner)) !== null) {
       combined += tm[1];
     }
+
     const trimmed = combined.trim();
     if (!trimmed) continue;
 
@@ -49,27 +51,33 @@ function parseFdxToPlainText(xml: string): string {
   return lines.join("\n").trim();
 }
 
-/** Extract scenes from screenplay text using regex on scene headings */
-function extractScenes(scriptText: string): Array<{ heading: string; raw_text: string }> {
-  const sceneHeadingRegex = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s.+$/gm;
-  const matches: Array<{ heading: string; index: number }> = [];
+/** Deterministic scene extraction */
+function extractScenes(scriptText: string) {
+  const normalized = scriptText
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
 
-  let match: RegExpExecArray | null;
-  while ((match = sceneHeadingRegex.exec(scriptText)) !== null) {
-    matches.push({ heading: match[0].trim(), index: match.index });
-  }
+  const sceneRegex = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s.+$/gm;
+  const matches = [...normalized.matchAll(sceneRegex)];
 
-  if (matches.length === 0) {
-    return [];
-  }
-
-  const scenes: Array<{ heading: string; raw_text: string }> = [];
+  const scenes: {
+    scene_number: number;
+    heading: string;
+    text: string;
+  }[] = [];
 
   for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index;
-    const end = i + 1 < matches.length ? matches[i + 1].index : scriptText.length;
-    const raw_text = scriptText.substring(start, end).trim();
-    scenes.push({ heading: matches[i].heading, raw_text });
+    const start = matches[i].index!;
+    const end =
+      i + 1 < matches.length
+        ? matches[i + 1].index!
+        : normalized.length;
+
+    scenes.push({
+      scene_number: i + 1,
+      heading: matches[i][0].trim(),
+      text: normalized.slice(start, end).trim(),
+    });
   }
 
   return scenes;
@@ -93,7 +101,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch the analysis record
     const { data: analysis, error: fetchErr } = await supabase
       .from("script_analyses")
       .select("*")
@@ -107,118 +114,72 @@ Deno.serve(async (req) => {
       });
     }
 
-    const filmId = analysis.film_id;
-
-    // Create a parse_jobs row
-    const { data: job, error: jobErr } = await supabase
-      .from("parse_jobs")
-      .insert({
-        film_id: filmId,
-        analysis_id: analysis_id,
-        status: "processing",
-      })
-      .select("id")
-      .single();
-
-    if (jobErr || !job) {
-      return new Response(JSON.stringify({ error: "Failed to create parse job" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const jobId = job.id;
-
-    // Mark analysis as analyzing
     await supabase
       .from("script_analyses")
       .update({ status: "analyzing" })
       .eq("id", analysis_id);
 
-    // Download the script file from storage
     const { data: fileData, error: downloadErr } = await supabase.storage
       .from("scripts")
       .download(analysis.storage_path);
 
     if (downloadErr || !fileData) {
-      const errMsg = "Failed to download script file";
-      await supabase.from("parse_jobs").update({ status: "error", error_message: errMsg, updated_at: new Date().toISOString() }).eq("id", jobId);
-      await supabase.from("script_analyses").update({ status: "error", error_message: errMsg }).eq("id", analysis_id);
-      return new Response(JSON.stringify({ error: errMsg }), {
+      await supabase
+        .from("script_analyses")
+        .update({ status: "error", error_message: "Failed to download script file" })
+        .eq("id", analysis_id);
+
+      return new Response(JSON.stringify({ error: "Failed to download script" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Extract text content from the file
-    let scriptText: string;
-    const fileName = analysis.file_name.toLowerCase();
     const rawText = await fileData.text();
+    const fileName = analysis.file_name.toLowerCase();
 
-    if (fileName.endsWith(".fdx") || rawText.trimStart().startsWith("<?xml") || rawText.includes("<FinalDraft")) {
+    let scriptText: string;
+
+    if (
+      fileName.endsWith(".fdx") ||
+      rawText.trimStart().startsWith("<?xml") ||
+      rawText.includes("<FinalDraft")
+    ) {
       scriptText = parseFdxToPlainText(rawText);
     } else {
       scriptText = rawText;
     }
 
-    // Extract scenes deterministically via regex
     const scenes = extractScenes(scriptText);
 
-    if (scenes.length === 0) {
-      const errMsg = "No scenes found in script. Expected headings like INT./EXT.";
-      await supabase.from("parse_jobs").update({ status: "error", error_message: errMsg, updated_at: new Date().toISOString() }).eq("id", jobId);
-      await supabase.from("script_analyses").update({ status: "error", error_message: errMsg }).eq("id", analysis_id);
-      return new Response(JSON.stringify({ error: errMsg }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Delete any existing parsed_scenes for this film to allow re-parse
-    await supabase.from("parsed_scenes").delete().eq("film_id", filmId);
-
-    // Insert each scene into parsed_scenes
-    const sceneRows = scenes.map((scene, index) => ({
-      film_id: filmId,
-      scene_number: index + 1,
-      heading: scene.heading,
-      raw_text: scene.raw_text,
-    }));
-
-    const { error: insertErr } = await supabase.from("parsed_scenes").insert(sceneRows);
-
-    if (insertErr) {
-      const errMsg = `Failed to insert scenes: ${insertErr.message}`;
-      await supabase.from("parse_jobs").update({ status: "error", error_message: errMsg, updated_at: new Date().toISOString() }).eq("id", jobId);
-      await supabase.from("script_analyses").update({ status: "error", error_message: errMsg }).eq("id", analysis_id);
-      return new Response(JSON.stringify({ error: errMsg }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // Update parse_jobs to completed
-    await supabase
+    const { data: job } = await supabase
       .from("parse_jobs")
-      .update({
+      .insert({
+        film_id: analysis.film_id,
         status: "completed",
-        scene_count: scenes.length,
-        updated_at: new Date().toISOString(),
+        progress: 100,
+        total_scenes: scenes.length,
       })
-      .eq("id", jobId);
+      .select()
+      .single();
 
-    // Update script_analyses status to complete
-    await supabase
-      .from("script_analyses")
-      .update({ status: "complete" })
-      .eq("id", analysis_id);
+    for (const scene of scenes) {
+      await supabase.from("parsed_scenes").insert({
+        film_id: analysis.film_id,
+        scene_number: scene.scene_number,
+        heading: scene.heading,
+        raw_text: scene.text,
+      });
+    }
 
     return new Response(
-      JSON.stringify({ success: true, scene_count: scenes.length }),
+      JSON.stringify({
+        success: true,
+        scene_count: scenes.length,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
-    console.error("parse-script error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
