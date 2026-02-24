@@ -16,96 +16,106 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
-    // Build a rich context-aware prompt
-    const ageStr = ageMin && ageMax
-      ? (ageMin === ageMax ? `${ageMin} years old` : `${ageMin}-${ageMax} years old`)
-      : isChild ? "child" : "adult";
+    // Build age string carefully to avoid contradictions
+    let ageStr = "adult";
+    if (ageMin && ageMax && ageMin > 0 && ageMax > 0) {
+      ageStr = ageMin === ageMax ? `${ageMin} years old` : `${ageMin}-${ageMax} years old`;
+    } else if (isChild) {
+      ageStr = "young person";
+    }
 
-    const sexStr = sex && sex !== "Unknown" ? sex.toLowerCase() : "";
-    const periodStr = timePeriod ? ` set in ${timePeriod}` : "";
-    const genreStr = genre ? ` (${genre} genre)` : "";
+    const sexStr = sex && sex !== "Unknown" ? sex.toLowerCase() : "person";
+    const periodStr = timePeriod ? `, ${timePeriod} era` : "";
 
     // Variation seed for different looks
     const variations = [
-      "classic Hollywood look, warm lighting",
-      "dramatic side lighting, intense expression",
-      "soft natural light, subtle expression",
-      "high contrast, powerful gaze",
-      "warm golden hour light, approachable",
-      "unexpected casting choice, unique features",
-      "unconventional look, striking appearance",
-      "character actor type, memorable face",
-      "fresh face, distinctive features",
-      "artistic portrait, cinematic quality",
+      "warm studio lighting",
+      "dramatic side lighting",
+      "soft natural light",
+      "high contrast lighting",
+      "golden hour light",
+      "cool-toned studio light",
+      "rim lighting with fill",
+      "overcast natural light",
+      "warm backlit portrait",
+      "cinematic moody lighting",
     ];
-    const variation = variations[cardIndex % variations.length] || "cinematic portrait";
+    const variation = variations[cardIndex % variations.length] || "studio lighting";
 
-    const prompt = `Generate a hyper-realistic professional headshot photograph of a ${sexStr} ${ageStr} person for the character "${characterName}" in a film called "${filmTitle}"${periodStr}${genreStr}.
+    // Strip potentially problematic details from description (parentheticals about injuries, violence, etc.)
+    const safeDesc = (description || "")
+      .replace(/injur\w*/gi, "rugged")
+      .replace(/wound\w*/gi, "weathered")
+      .replace(/blood\w*/gi, "intense")
+      .replace(/scar\w*/gi, "distinctive features")
+      .replace(/hospital\s*gown/gi, "casual attire")
+      .replace(/hit\s*man/gi, "mysterious person")
+      .trim();
 
-Character description: ${description || "No specific description provided."}
+    const prompt = `Professional casting headshot photograph: a ${sexStr}, ${ageStr}${periodStr}. ${variation}. ${safeDesc ? `Appearance notes: ${safeDesc}.` : ""} Photorealistic, shallow depth of field, 85mm lens, natural skin texture. For a film titled "${filmTitle}".`;
 
-Style: ${variation}. 
-
-This must look like a real photograph of a real person - not AI-generated, not cartoon, not illustration. Professional casting headshot quality with shallow depth of field, shot on 85mm lens. The person should look like they belong in this type of film${periodStr}. Natural skin texture, realistic hair, authentic expression.
-
-CRITICAL: This must be photorealistic. No anime, no cartoon, no illustration, no fantasy elements. A real human being photographed with a real camera.`;
-
-    // Use Gemini image generation model via chat completions endpoint
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
-        messages: [
-          { role: "user", content: prompt },
-        ],
-        modalities: ["image", "text"],
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
-
-    // Extract image from Gemini response - images come in message.images[]
+    // Try with pro model first, fall back to flash
+    const models = ["google/gemini-3-pro-image-preview", "google/gemini-2.5-flash-image"];
     let imageBytes: Uint8Array | null = null;
 
-    const choice = data.choices?.[0];
-    const message = choice?.message;
-    const images = message?.images;
+    for (const model of models) {
+      console.log(`Trying model: ${model}`);
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
 
-    if (Array.isArray(images) && images.length > 0) {
-      const imageUrl = images[0]?.image_url?.url;
-      if (imageUrl && imageUrl.startsWith("data:")) {
-        const base64 = imageUrl.split(",")[1];
-        imageBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
-      } else if (imageUrl) {
-        const imgResp = await fetch(imageUrl);
-        if (imgResp.ok) imageBytes = new Uint8Array(await imgResp.arrayBuffer());
+      if (!response.ok) {
+        if (response.status === 429) {
+          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        if (response.status === 402) {
+          return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+            status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const t = await response.text();
+        console.error(`AI gateway error (${model}):`, response.status, t);
+        continue; // try next model
       }
+
+      const data = await response.json();
+      const message = data.choices?.[0]?.message;
+      const images = message?.images;
+
+      if (Array.isArray(images) && images.length > 0) {
+        const imgUrl = images[0]?.image_url?.url;
+        if (imgUrl && imgUrl.startsWith("data:")) {
+          const base64 = imgUrl.split(",")[1];
+          imageBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        } else if (imgUrl) {
+          const imgResp = await fetch(imgUrl);
+          if (imgResp.ok) imageBytes = new Uint8Array(await imgResp.arrayBuffer());
+        }
+      }
+
+      if (imageBytes) {
+        console.log(`Image generated successfully with ${model}`);
+        break;
+      }
+
+      // Model refused or returned no image - log and try next
+      const content = message?.content || "";
+      console.warn(`Model ${model} did not return an image. Response: ${content.substring(0, 200)}`);
     }
 
     if (!imageBytes) {
-      console.error("Could not extract image from response:", JSON.stringify(data).substring(0, 2000));
-      throw new Error("No image returned from AI");
+      throw new Error("AI could not generate this headshot. Try adjusting the character description.");
     }
 
     // Upload to storage
