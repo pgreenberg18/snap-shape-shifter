@@ -318,7 +318,7 @@ const Development = () => {
   const enrichingRef = useRef(false);
 
   // Parallel batch enrichment helper (5 concurrent)
-  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string) => {
+  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void) => {
     if (enrichingRef.current || !analysisId) return; // prevent duplicate loops
     enrichingRef.current = true;
 
@@ -355,6 +355,7 @@ const Development = () => {
         i += CONCURRENCY;
       }
       enrichingRef.current = false;
+      onComplete?.();
       queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
     })();
   }, [filmId, queryClient]);
@@ -552,8 +553,8 @@ const Development = () => {
 
     const sceneIds: string[] = parseResult?.scene_ids || [];
     if (sceneIds.length > 0) {
-      toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting AI enrichment…` });
-      runEnrichmentBatches(sceneIds, analysisId);
+      const { dismiss } = toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting scene detail extraction…`, duration: Infinity });
+      runEnrichmentBatches(sceneIds, analysisId, dismiss);
     }
 
     setAnalyzing(false);
