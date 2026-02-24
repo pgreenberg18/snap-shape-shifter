@@ -640,10 +640,7 @@ const PreProduction = () => {
                             <span className="text-[10px] text-muted-foreground/50 bg-secondary px-1.5 py-0.5 rounded">{sectionCards.length}</span>
                             <div className="flex-1 border-t border-border ml-2" />
                           </div>
-                          <div className={cn(
-                            "grid gap-3",
-                            key === "archetype" ? "grid-cols-5" : key === "wildcard" ? "grid-cols-3" : "grid-cols-2"
-                          )} style={{ gridAutoRows: "1fr" }}>
+                          <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                             {sectionCards.map((card) => (
                               <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
                             ))}
