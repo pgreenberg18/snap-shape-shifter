@@ -55,6 +55,7 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
   "camera-cart": [
     { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…" },
     { id: "kling", name: "Kling AI", placeholder: "Enter Kling API key…" },
+    { id: "veo", name: "Veo (Google)", placeholder: "Enter Google API key…" },
     { id: "sora", name: "Sora (OpenAI)", placeholder: "Enter Sora API key…" },
     { id: "runway", name: "Runway Gen-3", placeholder: "Enter Runway API key…" },
     { id: "pika", name: "Pika Labs", placeholder: "Enter Pika API key…" },
