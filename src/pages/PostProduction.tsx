@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useShots, useTimelineClips } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -16,14 +16,30 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown } from "lucide-react";
+import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown, Undo2, Redo2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Clip = Tables<"post_production_clips">;
@@ -56,41 +72,115 @@ function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () 
   );
 }
 
+/* ── Undo/Redo History Hook ── */
+type TimelineState = { tracks: Track[]; clips: Clip[] };
+
+function useUndoRedo(initial: TimelineState, maxHistory = 100) {
+  const [past, setPast] = useState<TimelineState[]>([]);
+  const [present, setPresent] = useState<TimelineState>(initial);
+  const [future, setFuture] = useState<TimelineState[]>([]);
+  const skipRecord = useRef(false);
+
+  const setState = useCallback((next: TimelineState | ((prev: TimelineState) => TimelineState)) => {
+    setPresent((prev) => {
+      const nextState = typeof next === "function" ? next(prev) : next;
+      if (!skipRecord.current) {
+        setPast((p) => [...p.slice(-(maxHistory - 1)), prev]);
+        setFuture([]);
+      }
+      skipRecord.current = false;
+      return nextState;
+    });
+  }, [maxHistory]);
+
+  const undo = useCallback(() => {
+    setPast((p) => {
+      if (p.length === 0) return p;
+      const prev = p[p.length - 1];
+      setFuture((f) => [present, ...f].slice(0, maxHistory));
+      skipRecord.current = true;
+      setPresent(prev);
+      return p.slice(0, -1);
+    });
+  }, [present, maxHistory]);
+
+  const redo = useCallback(() => {
+    setFuture((f) => {
+      if (f.length === 0) return f;
+      const next = f[0];
+      setPast((p) => [...p, present].slice(-maxHistory));
+      skipRecord.current = true;
+      setPresent(next);
+      return f.slice(1);
+    });
+  }, [present, maxHistory]);
+
+  return { state: present, setState, undo, redo, canUndo: past.length > 0, canRedo: future.length > 0 };
+}
+
+type Track = { id: string; label: string; type: "video" | "audio"; icon: React.ReactNode };
+
+const INITIAL_TRACKS: Track[] = [
+  { id: "video1", label: "Video 1", type: "video", icon: <Film className="h-3 w-3" /> },
+  { id: "audio1", label: "Dialogue", type: "audio", icon: <Music className="h-3 w-3" /> },
+  { id: "audio2", label: "Foley", type: "audio", icon: <Music className="h-3 w-3" /> },
+  { id: "audio3", label: "Effects", type: "audio", icon: <Music className="h-3 w-3" /> },
+  { id: "audio4", label: "Music", type: "audio", icon: <Music className="h-3 w-3" /> },
+];
+
 const PostProduction = () => {
   const { data: shotsData, isLoading: shotsLoading } = useShots();
   const { data: clipsData, isLoading: clipsLoading } = useTimelineClips();
-  const [clips, setClips] = useState<Clip[]>([]);
   const [vfxClip, setVfxClip] = useState<Clip | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Track | null>(null);
 
-  type Track = { id: string; label: string; type: "video" | "audio"; icon: React.ReactNode };
+  const { state, setState, undo, redo, canUndo, canRedo } = useUndoRedo({
+    tracks: INITIAL_TRACKS,
+    clips: [],
+  });
 
-  const [tracks, setTracks] = useState<Track[]>([
-    { id: "video1", label: "Video 1", type: "video", icon: <Film className="h-3 w-3" /> },
-    { id: "audio1", label: "Dialogue", type: "audio", icon: <Music className="h-3 w-3" /> },
-    { id: "audio2", label: "Foley", type: "audio", icon: <Music className="h-3 w-3" /> },
-    { id: "audio3", label: "Effects", type: "audio", icon: <Music className="h-3 w-3" /> },
-    { id: "audio4", label: "Music", type: "audio", icon: <Music className="h-3 w-3" /> },
-  ]);
+  const { tracks, clips } = state;
+
+  useEffect(() => {
+    if (clipsData) setState((prev) => ({ ...prev, clips: clipsData }));
+  }, [clipsData, setState]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [undo, redo]);
 
   const addTrack = (type: "video" | "audio") => {
     const existing = tracks.filter((t) => t.type === type);
     const num = existing.length + 1;
     const label = type === "video" ? `Video ${num}` : `Audio ${num}`;
     const id = `${type}${Date.now()}`;
-    setTracks((prev) => [
+    setState((prev) => ({
       ...prev,
-      { id, label, type, icon: type === "video" ? <Film className="h-3 w-3" /> : <Music className="h-3 w-3" /> },
-    ]);
+      tracks: [
+        ...prev.tracks,
+        { id, label, type, icon: type === "video" ? <Film className="h-3 w-3" /> : <Music className="h-3 w-3" /> },
+      ],
+    }));
   };
 
-  const deleteTrack = (trackId: string) => {
-    setTracks((prev) => prev.filter((t) => t.id !== trackId));
-    setClips((prev) => prev.filter((c) => c.track !== trackId));
+  const confirmDeleteTrack = () => {
+    if (!deleteConfirm) return;
+    const trackId = deleteConfirm.id;
+    setState((prev) => ({
+      tracks: prev.tracks.filter((t) => t.id !== trackId),
+      clips: prev.clips.filter((c) => c.track !== trackId),
+    }));
+    setDeleteConfirm(null);
   };
-
-  useEffect(() => {
-    if (clipsData) setClips(clipsData);
-  }, [clipsData]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
@@ -99,13 +189,12 @@ const PostProduction = () => {
     const updated = clips.map((c) =>
       c.id === active.id ? { ...c, left_pos: Math.max(0, c.left_pos + delta.x) } : c
     );
-    setClips(updated);
+    setState((prev) => ({ ...prev, clips: updated }));
     const moved = updated.find((c) => c.id === active.id);
     if (moved) {
       await supabase.from("post_production_clips").update({ left_pos: moved.left_pos }).eq("id", moved.id);
     }
   };
-
 
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
@@ -144,7 +233,27 @@ const PostProduction = () => {
       {/* Bottom Half — Timeline */}
       <div className="flex-[5] bg-card border-t border-border flex flex-col min-h-0">
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
-          <span className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider">Timeline</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider">Timeline</span>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={undo} disabled={!canUndo}>
+                    <Undo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><span className="text-[10px]">Undo (⌘Z)</span></TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={redo} disabled={!canRedo}>
+                    <Redo2 className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom"><span className="text-[10px]">Redo (⌘⇧Z)</span></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-mono text-muted-foreground">24fps • 00:00:18:00</span>
             <DropdownMenu>
@@ -174,7 +283,7 @@ const PostProduction = () => {
                   <span className="text-[10px] font-mono text-muted-foreground flex-1 truncate">{track.label}</span>
                   {tracks.length > 1 && (
                     <button
-                      onClick={() => deleteTrack(track.id)}
+                      onClick={() => setDeleteConfirm(track)}
                       className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all p-0.5"
                       title={`Delete ${track.label}`}
                     >
@@ -196,6 +305,24 @@ const PostProduction = () => {
           </div>
         </DndContext>
       </div>
+
+      {/* Delete Track Confirmation */}
+      <AlertDialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Track?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold text-foreground">"{deleteConfirm?.label}"</span>? All clips on this track will be removed. This action can be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTrack} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete Track
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* VFX Dialog */}
       <Dialog open={!!vfxClip} onOpenChange={() => setVfxClip(null)}>
