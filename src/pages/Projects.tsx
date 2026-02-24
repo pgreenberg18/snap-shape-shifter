@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { Plus, FolderOpen, Calendar, Trash2 } from "lucide-react";
+import { Plus, FolderOpen, Calendar, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -22,6 +22,8 @@ const Projects = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
@@ -76,9 +78,23 @@ const Projects = () => {
     onError: (e) => toast.error(e.message),
   });
 
+  const renameProject = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Name cannot be empty");
+      const { error } = await supabase.from("projects").update({ title: trimmed }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      setRenamingId(null);
+      toast.success("Project renamed");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const deleteProject = useMutation({
     mutationFn: async (projectId: string) => {
-      // Get all film IDs for this project
       const { data: films } = await supabase
         .from("films")
         .select("id")
@@ -86,7 +102,6 @@ const Projects = () => {
       const filmIds = (films || []).map((f) => f.id);
 
       if (filmIds.length > 0) {
-        // Delete all related data for all versions
         await Promise.all([
           supabase.from("characters").delete().in("film_id", filmIds),
           supabase.from("shots").delete().in("film_id", filmIds),
@@ -98,10 +113,8 @@ const Projects = () => {
             (await supabase.from("shots").select("id").in("film_id", filmIds)).data?.map(s => s.id) || []
           ),
         ]);
-        // Delete films
         await supabase.from("films").delete().eq("project_id", projectId);
       }
-      // Delete project
       const { error } = await supabase.from("projects").delete().eq("id", projectId);
       if (error) throw error;
     },
@@ -167,14 +180,35 @@ const Projects = () => {
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:border-primary/40 hover:cinema-glow"
               >
                 <button
-                  onClick={() => navigate(`/projects/${project.id}`)}
+                  onClick={() => renamingId !== project.id && navigate(`/projects/${project.id}`)}
                   className="flex flex-1 flex-col text-left"
                 >
                   <div className="flex h-32 items-center justify-center bg-secondary">
                     <FolderOpen className="h-10 w-10 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
                   </div>
                   <div className="flex flex-1 flex-col p-4">
-                    <h3 className="font-display text-base font-semibold text-foreground truncate">{project.title}</h3>
+                    {renamingId === project.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          className="h-7 text-sm"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameProject.mutate({ id: project.id, name: renameValue });
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => renameProject.mutate({ id: project.id, name: renameValue })}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRenamingId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <h3 className="font-display text-base font-semibold text-foreground truncate">{project.title}</h3>
+                    )}
                     {project.description && (
                       <p className="mt-1 text-xs text-muted-foreground line-clamp-2">{project.description}</p>
                     )}
@@ -187,7 +221,20 @@ const Projects = () => {
                     </div>
                   </div>
                 </button>
-                <div className="border-t border-border p-2 flex justify-end">
+                <div className="border-t border-border p-2 flex justify-between">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingId(project.id);
+                      setRenameValue(project.title);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Rename
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
