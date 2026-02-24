@@ -39,10 +39,23 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown, Undo2, Redo2 } from "lucide-react";
+import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown, GripVertical } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Clip = Tables<"post_production_clips">;
+
+/* ── Track-based clip colors ── */
+const getClipColor = (track: string): string => {
+  if (track.startsWith("video")) return "hsl(215 15% 30% / 0.85)"; // Slate
+  if (track === "audio3" || track.includes("effect")) return "hsl(270 30% 25% / 0.85)"; // Deep purple for Effects/VFX
+  return "hsl(175 30% 22% / 0.85)"; // Dark teal for audio
+};
+
+const getClipBorder = (track: string): string => {
+  if (track.startsWith("video")) return "hsl(215 20% 50% / 0.5)";
+  if (track === "audio3" || track.includes("effect")) return "hsl(270 40% 45% / 0.5)";
+  return "hsl(175 40% 38% / 0.5)";
+};
 
 function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () => void }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: clip.id });
@@ -54,6 +67,8 @@ function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () 
     transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
     top: 4,
     bottom: 4,
+    background: getClipColor(clip.track),
+    borderColor: getClipBorder(clip.track),
   };
 
   return (
@@ -61,13 +76,23 @@ function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () 
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      onDoubleClick={clip.track === "video1" ? onDoubleClick : undefined}
+      onDoubleClick={clip.track.startsWith("video") ? onDoubleClick : undefined}
       style={style}
-      className="rounded-md border border-white/10 px-2 flex items-center text-[10px] font-mono text-foreground/80 cursor-grab active:cursor-grabbing select-none truncate"
-      title={clip.track === "video1" ? "Double-click for VFX" : clip.label}
+      className="rounded-lg border px-1 flex items-center text-[10px] font-mono text-foreground/80 cursor-grab active:cursor-grabbing select-none group/clip"
+      title={clip.track.startsWith("video") ? "Double-click for VFX" : clip.label}
     >
-      <span className="absolute inset-0 rounded-md" style={{ background: clip.color ?? "hsl(51 100% 50% / 0.3)" }} />
-      <span className="relative z-10 truncate">{clip.label}</span>
+      {/* Left trim handle */}
+      <div className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-l-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100">
+        <div className="w-px h-3 bg-foreground/30" />
+        <div className="w-px h-3 bg-foreground/30 ml-px" />
+      </div>
+      {/* Label */}
+      <span className="relative z-10 truncate px-2 flex-1">{clip.label}</span>
+      {/* Right trim handle */}
+      <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-r-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100">
+        <div className="w-px h-3 bg-foreground/30" />
+        <div className="w-px h-3 bg-foreground/30 ml-px" />
+      </div>
     </div>
   );
 }
@@ -271,6 +296,9 @@ const PostProduction = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1.5 text-muted-foreground hover:text-foreground">
+              <FileDown className="h-3 w-3" /> Export FCPXML
+            </Button>
           </div>
         </div>
 
