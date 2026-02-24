@@ -56,9 +56,9 @@ const useLatestAnalysis = (filmId: string | undefined) =>
 
 /* ── Analysis Progress Steps ── */
 const PARSING_STEPS = [
-  { label: "Uploading script", key: "upload" },
-  { label: "Parsing screenplay format", key: "parse" },
-  { label: "Extracting scenes", key: "extract" },
+  { label: "Uploading script", key: "upload", detail: "Sending your file to the server…" },
+  { label: "Parsing screenplay format", key: "parse", detail: "Detecting scene headings, dialogue, and action lines…" },
+  { label: "Extracting scenes", key: "extract", detail: "Splitting script into individual scenes…" },
 ];
 
 const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string }) => {
@@ -138,7 +138,7 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="font-display font-semibold text-lg truncate">
-            {isEnriching ? "Enriching scenes with AI…" : "Parsing your screenplay…"}
+            {isEnriching ? "Analyzing your script…" : "Parsing your screenplay…"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             Elapsed: {formatTime(elapsed)}
@@ -181,14 +181,21 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                   <span className="text-[10px] font-bold">{i + 1}</span>
                 )}
               </div>
-              <span className={cn(
-                "text-sm transition-colors flex-1",
-                isDone && "text-foreground",
-                isActive && "text-foreground font-semibold",
-                !isDone && !isActive && "text-muted-foreground/50"
-              )}>
-                {step.label}
-              </span>
+              <div className="flex-1 min-w-0">
+                <span className={cn(
+                  "text-sm transition-colors",
+                  isDone && "text-foreground",
+                  isActive && "text-foreground font-semibold",
+                  !isDone && !isActive && "text-muted-foreground/50"
+                )}>
+                  {step.label}
+                </span>
+                {isActive && (
+                  <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                    {step.detail}
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}
@@ -210,14 +217,21 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                 <span className="text-[10px] font-bold">4</span>
               )}
             </div>
-            <span className={cn(
-              "text-sm transition-colors flex-1",
-              isEnriching && "text-foreground font-semibold",
-              !isEnriching && !parsingDone && "text-muted-foreground/50",
-              parsingDone && !isEnriching && "text-foreground",
-            )}>
-              AI scene enrichment
-            </span>
+            <div className="flex-1 min-w-0">
+              <span className={cn(
+                "text-sm transition-colors",
+                isEnriching && "text-foreground font-semibold",
+                !isEnriching && !parsingDone && "text-muted-foreground/50",
+                parsingDone && !isEnriching && "text-foreground",
+              )}>
+                Extracting details from each scene
+              </span>
+              {isEnriching && (
+                <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                  Identifying characters, wardrobe, props, and environment…
+                </p>
+              )}
+            </div>
             {isEnriching && enrichTotal > 0 && (
               <span className="text-[10px] text-muted-foreground tabular-nums">
                 {enrichDone}/{enrichTotal}
