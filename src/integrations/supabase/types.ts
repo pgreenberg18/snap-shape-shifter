@@ -357,12 +357,14 @@ export type Database = {
       script_analyses: {
         Row: {
           ai_generation_notes: Json | null
+          ai_notes_approved: boolean
           created_at: string
           error_message: string | null
           file_name: string
           film_id: string
           global_elements: Json | null
           id: string
+          ratings_approved: boolean
           scene_approvals: Json | null
           scene_breakdown: Json | null
           scene_rejections: Json | null
@@ -370,15 +372,18 @@ export type Database = {
           storage_path: string
           updated_at: string
           visual_summary: string | null
+          visual_summary_approved: boolean
         }
         Insert: {
           ai_generation_notes?: Json | null
+          ai_notes_approved?: boolean
           created_at?: string
           error_message?: string | null
           file_name: string
           film_id: string
           global_elements?: Json | null
           id?: string
+          ratings_approved?: boolean
           scene_approvals?: Json | null
           scene_breakdown?: Json | null
           scene_rejections?: Json | null
@@ -386,15 +391,18 @@ export type Database = {
           storage_path: string
           updated_at?: string
           visual_summary?: string | null
+          visual_summary_approved?: boolean
         }
         Update: {
           ai_generation_notes?: Json | null
+          ai_notes_approved?: boolean
           created_at?: string
           error_message?: string | null
           file_name?: string
           film_id?: string
           global_elements?: Json | null
           id?: string
+          ratings_approved?: boolean
           scene_approvals?: Json | null
           scene_breakdown?: Json | null
           scene_rejections?: Json | null
@@ -402,6 +410,7 @@ export type Database = {
           storage_path?: string
           updated_at?: string
           visual_summary?: string | null
+          visual_summary_approved?: boolean
         }
         Relationships: [
           {

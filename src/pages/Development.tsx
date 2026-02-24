@@ -226,6 +226,24 @@ const Development = () => {
   const [ratingsApproved, setRatingsApproved] = useState(false);
   const [aiNotesApproved, setAiNotesApproved] = useState(false);
 
+  /* Sync section approval states from DB */
+  useEffect(() => {
+    if (!analysis) return;
+    setVisualSummaryApproved(!!(analysis as any).visual_summary_approved);
+    setRatingsApproved(!!(analysis as any).ratings_approved);
+    setAiNotesApproved(!!(analysis as any).ai_notes_approved);
+    // If ratings were previously approved, the content safety analysis was already run
+    if ((analysis as any).ratings_approved) setContentSafetyRun(true);
+  }, [analysis?.id]);
+
+  const persistApproval = useCallback(async (field: string, value: boolean) => {
+    if (!analysis?.id) return;
+    await supabase
+      .from("script_analyses")
+      .update({ [field]: value } as any)
+      .eq("id", analysis.id);
+  }, [analysis?.id]);
+
   const metaDirty = filmTitle !== (film?.title ?? "") || versionName !== (film?.version_name ?? "") || writers !== ((film as any)?.writers ?? "");
 
   // Reset saved state when fields change
@@ -771,7 +789,11 @@ const Development = () => {
                           size="sm"
                           variant={visualSummaryApproved ? "default" : "outline"}
                           className={cn("gap-1.5", visualSummaryApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                          onClick={() => setVisualSummaryApproved(prev => !prev)}
+                          onClick={() => {
+                            const next = !visualSummaryApproved;
+                            setVisualSummaryApproved(next);
+                            persistApproval("visual_summary_approved", next);
+                          }}
                         >
                           <ThumbsUp className="h-3 w-3" />
                           {visualSummaryApproved ? "Approved" : "Approve"}
@@ -1018,7 +1040,10 @@ const Development = () => {
                 timePeriod={film?.time_period || timePeriod}
                 signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
                 approved={aiNotesApproved}
-                onApprovedChange={setAiNotesApproved}
+                onApprovedChange={(v: boolean) => {
+                  setAiNotesApproved(v);
+                  persistApproval("ai_notes_approved", v);
+                }}
               />
             </div>
           )}
@@ -1128,7 +1153,11 @@ const Development = () => {
                         size="sm"
                         variant={ratingsApproved ? "default" : "outline"}
                         className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                        onClick={() => setRatingsApproved(prev => !prev)}
+                        onClick={() => {
+                          const next = !ratingsApproved;
+                          setRatingsApproved(next);
+                          persistApproval("ratings_approved", next);
+                        }}
                       >
                         <ThumbsUp className="h-3 w-3" />
                         {ratingsApproved ? "Approved" : "Approve"}
