@@ -55,55 +55,39 @@ const useLatestAnalysis = (filmId: string | undefined) =>
   });
 
 /* ── Analysis Progress Steps ── */
-const ANALYSIS_STEPS = [
+const PARSING_STEPS = [
   { label: "Uploading script", key: "upload" },
   { label: "Parsing screenplay format", key: "parse" },
-  { label: "Extracting scenes & characters", key: "extract" },
-  { label: "Analyzing visual style & tone", key: "style" },
-  { label: "Generating visual breakdowns", key: "visual" },
-  { label: "Composing image & video prompts", key: "prompts" },
-  { label: "Checking continuity & wardrobe", key: "continuity" },
-  { label: "Building global elements", key: "globals" },
-  { label: "Finalizing analysis", key: "finalize" },
+  { label: "Extracting scenes", key: "extract" },
 ];
 
-const AnalysisProgress = ({ status }: { status?: string }) => {
+const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string }) => {
   const [elapsed, setElapsed] = useState(0);
   const [startTime] = useState(() => Date.now());
+
+  // Poll enrichment progress from DB when status is "enriching"
+  const { data: enrichmentProgress } = useQuery({
+    queryKey: ["enrichment-progress", filmId],
+    queryFn: async () => {
+      const { count: total } = await supabase
+        .from("parsed_scenes")
+        .select("id", { count: "exact", head: true })
+        .eq("film_id", filmId!);
+      const { count: enriched } = await supabase
+        .from("parsed_scenes")
+        .select("id", { count: "exact", head: true })
+        .eq("film_id", filmId!)
+        .eq("enriched", true);
+      return { total: total || 0, enriched: enriched || 0 };
+    },
+    enabled: !!filmId && status === "enriching",
+    refetchInterval: 3000,
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setElapsed(Date.now() - startTime), 500);
     return () => clearInterval(timer);
   }, [startTime]);
-
-  // Smoother progression with more granular steps
-  const getActiveStep = () => {
-    if (status === "pending") return 0;
-    const secs = elapsed / 1000;
-    if (secs < 3) return 1;    // Parsing
-    if (secs < 10) return 2;   // Extracting
-    if (secs < 20) return 3;   // Visual style
-    if (secs < 40) return 4;   // Visual breakdowns
-    if (secs < 65) return 5;   // Composing prompts
-    if (secs < 85) return 6;   // Continuity
-    if (secs < 100) return 7;  // Global elements
-    return 8;                   // Finalizing
-  };
-
-  const activeStep = getActiveStep();
-  const progressPercent = Math.min(((activeStep + 1) / ANALYSIS_STEPS.length) * 100, 95);
-
-  const stepBounds = [0, 3, 10, 20, 40, 65, 85, 100, 130];
-  const secs = elapsed / 1000;
-
-  const getStepProgress = (i: number) => {
-    if (i < activeStep) return 100;
-    if (i > activeStep) return 0;
-    const start = stepBounds[i] ?? 0;
-    const end = stepBounds[i + 1] ?? start + 30;
-    const pct = ((secs - start) / (end - start)) * 100;
-    return Math.max(0, Math.min(pct, 95));
-  };
 
   const formatTime = (ms: number) => {
     const s = Math.floor(ms / 1000);
@@ -112,14 +96,30 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
     return m > 0 ? `${m}:${rem.toString().padStart(2, "0")}` : `${s}s`;
   };
 
+  const isEnriching = status === "enriching";
+  const enrichTotal = enrichmentProgress?.total || 0;
+  const enrichDone = enrichmentProgress?.enriched || 0;
+  const enrichPct = enrichTotal > 0 ? Math.round((enrichDone / enrichTotal) * 100) : 0;
+
+  // During parsing phase: show quick cosmetic steps
+  // During enriching phase: show real progress
+  const parsingDone = isEnriching || status === "complete";
+  const overallPct = parsingDone
+    ? (isEnriching ? 30 + Math.round(enrichPct * 0.7) : 100)
+    : Math.min(Math.round((elapsed / 1000 / 15) * 30), 29);
+
   return (
     <div className="rounded-xl border border-border bg-card p-8 space-y-6">
       <div className="flex items-center gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0" />
         <div>
-          <p className="font-display font-semibold text-lg">Analyzing your screenplay…</p>
+          <p className="font-display font-semibold text-lg">
+            {isEnriching ? "Enriching scenes with AI…" : "Parsing your screenplay…"}
+          </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Elapsed: {formatTime(elapsed)} · This typically takes a few minutes. Please be patient
+            Elapsed: {formatTime(elapsed)}
+            {isEnriching && enrichTotal > 0 && ` · ${enrichDone} of ${enrichTotal} scenes enriched`}
+            {!isEnriching && " · This usually takes a few seconds"}
           </p>
         </div>
       </div>
@@ -129,68 +129,85 @@ const AnalysisProgress = ({ status }: { status?: string }) => {
         <div className="h-2 rounded-full bg-secondary overflow-hidden">
           <div
             className="h-full rounded-full bg-primary transition-all duration-1000 ease-out"
-            style={{ width: `${progressPercent}%` }}
+            style={{ width: `${overallPct}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground text-right">{Math.round(progressPercent)}%</p>
+        <p className="text-xs text-muted-foreground text-right">{overallPct}%</p>
       </div>
 
       {/* Steps */}
       <div className="space-y-2">
-         {ANALYSIS_STEPS.map((step, i) => {
-          const isDone = i < activeStep;
-          const isActive = i === activeStep;
-          const stepProg = getStepProgress(i);
+        {PARSING_STEPS.map((step, i) => {
+          const isDone = parsingDone || (elapsed / 1000 > (i + 1) * 3);
+          const isActive = !isDone && (elapsed / 1000 > i * 3);
           return (
-            <div key={step.key} className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <div className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
-                  isDone && "bg-primary text-primary-foreground",
-                  isActive && "bg-primary/20 text-primary",
-                  !isDone && !isActive && "bg-secondary text-muted-foreground/40"
-                )}>
-                  {isDone ? (
-                    <CheckCircle className="h-3.5 w-3.5" />
-                  ) : isActive ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <span className="text-[10px] font-bold">{i + 1}</span>
-                  )}
-                </div>
-                <span className={cn(
-                  "text-sm transition-colors flex-1",
-                  isDone && "text-foreground",
-                  isActive && "text-foreground font-semibold",
-                  !isDone && !isActive && "text-muted-foreground/50"
-                )}>
-                  {step.label}
-                </span>
-                {(isDone || isActive) && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums w-8 text-right">
-                    {Math.round(stepProg)}%
-                  </span>
+            <div key={step.key} className="flex items-center gap-3">
+              <div className={cn(
+                "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
+                isDone && "bg-primary text-primary-foreground",
+                isActive && "bg-primary/20 text-primary",
+                !isDone && !isActive && "bg-secondary text-muted-foreground/40"
+              )}>
+                {isDone ? (
+                  <CheckCircle className="h-3.5 w-3.5" />
+                ) : isActive ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <span className="text-[10px] font-bold">{i + 1}</span>
                 )}
               </div>
-              {(isDone || isActive) && (
-                <div className="ml-9 h-1.5 rounded-full bg-secondary overflow-hidden">
-                  <div
-                    className={cn(
-                      "h-full rounded-full transition-all duration-700 ease-out",
-                      isDone ? "bg-primary" : "bg-primary/70"
-                    )}
-                    style={{ width: `${stepProg}%` }}
-                  />
-                </div>
-              )}
+              <span className={cn(
+                "text-sm transition-colors flex-1",
+                isDone && "text-foreground",
+                isActive && "text-foreground font-semibold",
+                !isDone && !isActive && "text-muted-foreground/50"
+              )}>
+                {step.label}
+              </span>
             </div>
           );
         })}
+
+        {/* Enrichment step — shows real progress */}
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
+              !isEnriching && !parsingDone && "bg-secondary text-muted-foreground/40",
+              isEnriching && "bg-primary/20 text-primary",
+            )}>
+              {isEnriching ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <span className="text-[10px] font-bold">4</span>
+              )}
+            </div>
+            <span className={cn(
+              "text-sm transition-colors flex-1",
+              isEnriching && "text-foreground font-semibold",
+              !isEnriching && "text-muted-foreground/50"
+            )}>
+              AI scene enrichment
+            </span>
+            {isEnriching && enrichTotal > 0 && (
+              <span className="text-[10px] text-muted-foreground tabular-nums">
+                {enrichDone}/{enrichTotal}
+              </span>
+            )}
+          </div>
+          {isEnriching && (
+            <div className="ml-9 h-1.5 rounded-full bg-secondary overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary/70 transition-all duration-700 ease-out"
+                style={{ width: `${enrichPct}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 };
-
 /* ── Main Page ── */
 const Development = () => {
   const [searchParams] = useSearchParams();
@@ -393,25 +410,28 @@ const Development = () => {
       return;
     }
 
-    // Trigger enrichment for each scene sequentially to avoid rate limits
+    // Fire enrichment calls in the background — don't await them
+    // The polling on "enriching" status will show progress to the user
     const sceneIds: string[] = parseResult?.scene_ids || [];
     if (sceneIds.length > 0) {
       toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting AI enrichment…` });
 
-      // Fire enrichment calls one at a time to respect rate limits
-      for (const sceneId of sceneIds) {
-        const { error: enrichErr } = await supabase.functions.invoke("enrich-scene", {
-          body: { scene_id: sceneId, analysis_id: analysisId },
-        });
-        if (enrichErr) {
-          console.error("Enrichment failed for scene", sceneId, enrichErr);
-          // Continue with remaining scenes
+      // Fire-and-forget: run enrichment sequentially in background
+      (async () => {
+        for (const sceneId of sceneIds) {
+          try {
+            await supabase.functions.invoke("enrich-scene", {
+              body: { scene_id: sceneId, analysis_id: analysisId },
+            });
+          } catch (err) {
+            console.error("Enrichment failed for scene", sceneId, err);
+          }
         }
-      }
+        queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+      })();
     }
 
     setAnalyzing(false);
-    toast({ title: "Analysis complete", description: "Script has been parsed and enriched." });
     queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
   };
 
@@ -519,7 +539,7 @@ const Development = () => {
     }
   };
 
-  const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
+  const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing" || analysis?.status === "enriching";
 
   const handleSaveMeta = async () => {
     if (!filmId) return;
@@ -729,7 +749,7 @@ const Development = () => {
           )}
 
           {/* Loading state with progress */}
-          {isAnalyzing && <AnalysisProgress status={analysis?.status} />}
+          {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} />}
 
           {/* Error state */}
           {analysis?.status === "error" && (
