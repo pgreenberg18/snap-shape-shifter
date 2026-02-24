@@ -78,6 +78,8 @@ const PostProduction = () => {
     { id: "video1", label: "Video 1", icon: <Film className="h-3 w-3" /> },
     { id: "audio1", label: "Dialogue", icon: <Music className="h-3 w-3" /> },
     { id: "audio2", label: "Foley", icon: <Music className="h-3 w-3" /> },
+    { id: "audio3", label: "Effects", icon: <Music className="h-3 w-3" /> },
+    { id: "audio4", label: "Music", icon: <Music className="h-3 w-3" /> },
   ];
 
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
