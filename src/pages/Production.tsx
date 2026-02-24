@@ -97,7 +97,7 @@ const Production = () => {
                     key={i}
                     onClick={() => setActiveSceneIdx(i)}
                     className={cn(
-                      "w-full text-left px-4 py-2.5 transition-colors border-l-2 group/scene relative",
+                      "w-full text-left px-4 py-2.5 transition-colors border-l-2 group/scene relative overflow-hidden",
                       isActive
                         ? "border-l-primary bg-primary/5"
                         : "border-l-transparent hover:bg-secondary/60"
@@ -105,7 +105,7 @@ const Production = () => {
                   >
                     <p
                       className={cn(
-                        "text-xs font-display font-semibold truncate group-hover/scene:whitespace-normal group-hover/scene:overflow-visible",
+                        "text-xs font-display font-semibold break-words",
                         isActive ? "text-primary" : "text-foreground"
                       )}
                     >
