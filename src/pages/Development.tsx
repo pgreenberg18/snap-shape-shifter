@@ -65,7 +65,8 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
   const [elapsed, setElapsed] = useState(0);
   const [startTime] = useState(() => Date.now());
 
-  // Poll enrichment progress from DB when status is "enriching"
+  // Poll enrichment progress from DB when enrichment is active
+  const isEnrichingPhase = status === "enriching" || status === "analyzing";
   const { data: enrichmentProgress } = useQuery({
     queryKey: ["enrichment-progress", filmId],
     queryFn: async () => {
@@ -80,7 +81,7 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         .eq("enriched", true);
       return { total: total || 0, enriched: enriched || 0 };
     },
-    enabled: !!filmId && status === "enriching",
+    enabled: !!filmId && isEnrichingPhase,
     refetchInterval: 3000,
   });
 
@@ -96,13 +97,12 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
     return m > 0 ? `${m}:${rem.toString().padStart(2, "0")}` : `${s}s`;
   };
 
-  const isEnriching = status === "enriching";
   const enrichTotal = enrichmentProgress?.total || 0;
   const enrichDone = enrichmentProgress?.enriched || 0;
   const enrichPct = enrichTotal > 0 ? Math.round((enrichDone / enrichTotal) * 100) : 0;
 
-  // During parsing phase: show quick cosmetic steps
-  // During enriching phase: show real progress
+  // Show enrichment progress once we have parsed scenes data
+  const isEnriching = isEnrichingPhase && enrichTotal > 0 && enrichDone > 0;
   const parsingDone = isEnriching || status === "complete";
   const overallPct = parsingDone
     ? (isEnriching ? 30 + Math.round(enrichPct * 0.7) : 100)
@@ -242,6 +242,71 @@ const Development = () => {
   const [visualSummaryApproved, setVisualSummaryApproved] = useState(false);
   const [ratingsApproved, setRatingsApproved] = useState(false);
   const [aiNotesApproved, setAiNotesApproved] = useState(false);
+  const enrichingRef = useRef(false);
+
+  // Parallel batch enrichment helper (5 concurrent)
+  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string) => {
+    if (enrichingRef.current) return; // prevent duplicate loops
+    enrichingRef.current = true;
+
+    const CONCURRENCY = 5;
+    const RETRY_DELAY = 3000;
+
+    (async () => {
+      let i = 0;
+      while (i < sceneIds.length) {
+        const batch = sceneIds.slice(i, i + CONCURRENCY);
+        const results = await Promise.allSettled(
+          batch.map((sceneId) =>
+            supabase.functions.invoke("enrich-scene", {
+              body: { scene_id: sceneId, analysis_id: analysisId },
+            }).then((res) => {
+              if (res.error) throw res.error;
+              return res;
+            })
+          )
+        );
+
+        // Check for rate limits — if any 429, wait and retry the whole batch
+        const hasRateLimit = results.some(
+          (r) => r.status === "rejected" && String(r.reason).includes("429")
+        );
+        if (hasRateLimit) {
+          console.warn("Rate limited, waiting before retry…");
+          await new Promise((r) => setTimeout(r, RETRY_DELAY));
+          continue; // retry same batch
+        }
+
+        i += CONCURRENCY;
+      }
+      enrichingRef.current = false;
+      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+    })();
+  }, [filmId, queryClient]);
+
+  // Resume enrichment on page load if there are unenriched scenes
+  useEffect(() => {
+    if (!analysis || !filmId) return;
+    if (analysis.status !== "enriching" && analysis.status !== "analyzing") return;
+    if (enrichingRef.current) return;
+
+    (async () => {
+      // Find unenriched scene IDs
+      const { data: unenriched } = await supabase
+        .from("parsed_scenes")
+        .select("id")
+        .eq("film_id", filmId)
+        .eq("enriched", false);
+
+      if (unenriched && unenriched.length > 0) {
+        console.log(`Resuming enrichment for ${unenriched.length} remaining scenes`);
+        runEnrichmentBatches(
+          unenriched.map((s) => s.id),
+          analysis.id
+        );
+      }
+    })();
+  }, [analysis?.id, analysis?.status, filmId, runEnrichmentBatches]);
 
   /* Sync section approval states from DB */
   useEffect(() => {
@@ -410,25 +475,10 @@ const Development = () => {
       return;
     }
 
-    // Fire enrichment calls in the background — don't await them
-    // The polling on "enriching" status will show progress to the user
     const sceneIds: string[] = parseResult?.scene_ids || [];
     if (sceneIds.length > 0) {
       toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting AI enrichment…` });
-
-      // Fire-and-forget: run enrichment sequentially in background
-      (async () => {
-        for (const sceneId of sceneIds) {
-          try {
-            await supabase.functions.invoke("enrich-scene", {
-              body: { scene_id: sceneId, analysis_id: analysisId },
-            });
-          } catch (err) {
-            console.error("Enrichment failed for scene", sceneId, err);
-          }
-        }
-        queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-      })();
+      runEnrichmentBatches(sceneIds, analysisId);
     }
 
     setAnalyzing(false);
