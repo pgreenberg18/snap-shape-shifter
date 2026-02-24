@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 
 interface SceneInfo {
   scene_number: number;
@@ -11,29 +11,21 @@ interface TypewriterSceneFeedProps {
   scenes: SceneInfo[];
 }
 
-const CHAR_DELAY = 18; // ms per character
-const PAUSE_AFTER_SCENE = 1200; // ms to hold the finished scene
-const WIPE_DURATION = 400; // ms for wipe-out animation
+const CHAR_DELAY = 16; // ms per character
+const PAUSE_AFTER_SCENE = 1400; // ms to hold the finished scene
+const WIPE_DURATION = 350; // ms for wipe-out animation
 
 const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Queue tracks which scene index we're currently DISPLAYING
+  const [displayIndex, setDisplayIndex] = useState(0);
   const [charCount, setCharCount] = useState(0);
-  const [phase, setPhase] = useState<"typing" | "hold" | "wipe" | "idle">("typing");
+  const [phase, setPhase] = useState<"typing" | "hold" | "wipe">("typing");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevLengthRef = useRef(0);
+  // Track how many scenes we've already shown so we never skip one
+  const shownUpToRef = useRef(0);
 
-  // When new scenes arrive, jump to the latest one
-  useEffect(() => {
-    if (scenes.length > prevLengthRef.current && scenes.length > 0) {
-      const newIdx = scenes.length - 1;
-      setCurrentIndex(newIdx);
-      setCharCount(0);
-      setPhase("typing");
-    }
-    prevLengthRef.current = scenes.length;
-  }, [scenes.length]);
-
-  const currentScene = scenes[currentIndex];
+  const currentScene = scenes[displayIndex] ?? null;
+  const totalAvailable = scenes.length;
 
   // Build the full text block for the current scene
   const fullText = useMemo(() => {
@@ -51,6 +43,34 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
     }
     return lines.join("\n");
   }, [currentScene]);
+
+  // Advance to next scene in queue
+  const advanceToNext = useCallback(() => {
+    const nextIdx = displayIndex + 1;
+    if (nextIdx < totalAvailable) {
+      setDisplayIndex(nextIdx);
+      setCharCount(0);
+      setPhase("typing");
+      shownUpToRef.current = nextIdx;
+    }
+    // If no next scene yet, stay idle — the effect below will pick up new arrivals
+  }, [displayIndex, totalAvailable]);
+
+  // When new scenes arrive, if we're idle (finished current + no next), start next
+  useEffect(() => {
+    if (totalAvailable === 0) return;
+    // If we haven't started yet
+    if (shownUpToRef.current === 0 && totalAvailable > 0) {
+      shownUpToRef.current = 0;
+      setDisplayIndex(0);
+      setCharCount(0);
+      setPhase("typing");
+      return;
+    }
+    // If we finished current scene and more are available
+    if (phase === "hold" || phase === "wipe") return; // let the cycle handle it
+    if (displayIndex < totalAvailable - 1 && phase === "typing" && charCount === 0) return; // already advancing
+  }, [totalAvailable]);
 
   // Typing effect
   useEffect(() => {
@@ -72,31 +92,44 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
     };
   }, [phase, fullText]);
 
-  // Hold then wipe (only if there will be more scenes — otherwise just hold)
+  // Hold → then wipe if there's a next scene, otherwise stay visible
   useEffect(() => {
     if (phase !== "hold") return;
+    const hasNext = displayIndex + 1 < totalAvailable;
+    if (!hasNext) {
+      // No next scene yet — wait for new scenes to arrive
+      // We'll re-check when totalAvailable changes
+      return;
+    }
     const timer = setTimeout(() => {
-      // Only wipe if there's a next scene queued (driven by new scenes arriving)
-      setPhase("idle");
+      setPhase("wipe");
     }, PAUSE_AFTER_SCENE);
     return () => clearTimeout(timer);
-  }, [phase]);
+  }, [phase, displayIndex, totalAvailable]);
 
-  // Trigger wipe when a new scene arrives while idle/hold
+  // When holding and new scenes arrive, trigger wipe
   useEffect(() => {
-    if (phase === "wipe") {
+    if (phase !== "hold") return;
+    if (displayIndex + 1 < totalAvailable) {
       const timer = setTimeout(() => {
-        setCharCount(0);
-        setPhase("typing");
-      }, WIPE_DURATION);
+        setPhase("wipe");
+      }, PAUSE_AFTER_SCENE);
       return () => clearTimeout(timer);
     }
-  }, [phase]);
+  }, [phase, totalAvailable, displayIndex]);
+
+  // Wipe → advance
+  useEffect(() => {
+    if (phase !== "wipe") return;
+    const timer = setTimeout(() => {
+      advanceToNext();
+    }, WIPE_DURATION);
+    return () => clearTimeout(timer);
+  }, [phase, advanceToNext]);
 
   if (!currentScene) return null;
 
   const displayedText = fullText.slice(0, charCount);
-  const isWiping = phase === "wipe";
 
   return (
     <div className="ml-9 mt-3 relative overflow-hidden rounded-md">
@@ -108,7 +141,7 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
         }}
       >
         {/* Wipe overlay */}
-        {isWiping && (
+        {phase === "wipe" && (
           <div
             className="absolute inset-0 z-10 rounded-md"
             style={{
@@ -139,7 +172,7 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
 
         {/* Scene counter */}
         <div className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">
-          {currentIndex + 1} / {scenes.length}
+          Scene {displayIndex + 1} / {totalAvailable}
         </div>
       </div>
     </div>
