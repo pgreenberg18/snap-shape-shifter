@@ -384,6 +384,89 @@ export type Database = {
         }
         Relationships: []
       }
+      parse_jobs: {
+        Row: {
+          analysis_id: string | null
+          created_at: string
+          error_message: string | null
+          film_id: string
+          id: string
+          scene_count: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          analysis_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          film_id: string
+          id?: string
+          scene_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          analysis_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          film_id?: string
+          id?: string
+          scene_count?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parse_jobs_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "script_analyses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parse_jobs_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parsed_scenes: {
+        Row: {
+          created_at: string
+          film_id: string
+          heading: string
+          id: string
+          raw_text: string
+          scene_number: number
+        }
+        Insert: {
+          created_at?: string
+          film_id: string
+          heading: string
+          id?: string
+          raw_text: string
+          scene_number: number
+        }
+        Update: {
+          created_at?: string
+          film_id?: string
+          heading?: string
+          id?: string
+          raw_text?: string
+          scene_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parsed_scenes_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       post_production_clips: {
         Row: {
           color: string | null
