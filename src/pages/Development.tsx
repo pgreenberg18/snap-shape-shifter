@@ -79,7 +79,19 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         .select("id", { count: "exact", head: true })
         .eq("film_id", filmId!)
         .eq("enriched", true);
-      return { total: total || 0, enriched: enriched || 0 };
+      // Fetch the last 3 enriched scenes for the activity feed
+      const { data: recentScenes } = await supabase
+        .from("parsed_scenes")
+        .select("scene_number, heading, description, characters")
+        .eq("film_id", filmId!)
+        .eq("enriched", true)
+        .order("scene_number", { ascending: false })
+        .limit(3);
+      return {
+        total: total || 0,
+        enriched: enriched || 0,
+        recentScenes: (recentScenes || []).reverse(),
+      };
     },
     enabled: !!filmId && isEnrichingPhase,
     refetchInterval: 3000,
@@ -100,6 +112,7 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
   const enrichTotal = enrichmentProgress?.total || 0;
   const enrichDone = enrichmentProgress?.enriched || 0;
   const enrichPct = enrichTotal > 0 ? Math.round((enrichDone / enrichTotal) * 100) : 0;
+  const recentScenes = enrichmentProgress?.recentScenes || [];
 
   // Show enrichment progress once we have parsed scenes data
   const isEnriching = isEnrichingPhase && enrichTotal > 0 && enrichDone > 0;
@@ -108,17 +121,29 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
     ? (isEnriching ? 30 + Math.round(enrichPct * 0.7) : 100)
     : Math.min(Math.round((elapsed / 1000 / 15) * 30), 29);
 
+  // Estimate remaining time
+  const estimatedRemaining = isEnriching && enrichDone > 3
+    ? Math.round(((elapsed / 1000) / enrichDone) * (enrichTotal - enrichDone))
+    : null;
+
+  const formatEstimate = (s: number) => {
+    if (s < 60) return `~${s}s remaining`;
+    const m = Math.floor(s / 60);
+    return `~${m}m remaining`;
+  };
+
   return (
     <div className="rounded-xl border border-border bg-card p-8 space-y-6">
       <div className="flex items-center gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0" />
-        <div>
-          <p className="font-display font-semibold text-lg">
+        <div className="min-w-0 flex-1">
+          <p className="font-display font-semibold text-lg truncate">
             {isEnriching ? "Enriching scenes with AI…" : "Parsing your screenplay…"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             Elapsed: {formatTime(elapsed)}
-            {isEnriching && enrichTotal > 0 && ` · ${enrichDone} of ${enrichTotal} scenes enriched`}
+            {isEnriching && enrichTotal > 0 && ` · ${enrichDone} of ${enrichTotal} scenes`}
+            {isEnriching && estimatedRemaining !== null && ` · ${formatEstimate(estimatedRemaining)}`}
             {!isEnriching && " · This usually takes a few seconds"}
           </p>
         </div>
@@ -132,7 +157,7 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
             style={{ width: `${overallPct}%` }}
           />
         </div>
-        <p className="text-xs text-muted-foreground text-right">{overallPct}%</p>
+        <p className="text-xs text-muted-foreground text-right tabular-nums">{overallPct}%</p>
       </div>
 
       {/* Steps */}
@@ -169,15 +194,18 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         })}
 
         {/* Enrichment step — shows real progress */}
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className={cn(
               "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
               !isEnriching && !parsingDone && "bg-secondary text-muted-foreground/40",
               isEnriching && "bg-primary/20 text-primary",
+              parsingDone && !isEnriching && "bg-primary text-primary-foreground",
             )}>
               {isEnriching ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : parsingDone ? (
+                <CheckCircle className="h-3.5 w-3.5" />
               ) : (
                 <span className="text-[10px] font-bold">4</span>
               )}
@@ -185,7 +213,8 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
             <span className={cn(
               "text-sm transition-colors flex-1",
               isEnriching && "text-foreground font-semibold",
-              !isEnriching && "text-muted-foreground/50"
+              !isEnriching && !parsingDone && "text-muted-foreground/50",
+              parsingDone && !isEnriching && "text-foreground",
             )}>
               AI scene enrichment
             </span>
@@ -201,6 +230,36 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                 className="h-full rounded-full bg-primary/70 transition-all duration-700 ease-out"
                 style={{ width: `${enrichPct}%` }}
               />
+            </div>
+          )}
+
+          {/* Live activity feed during enrichment */}
+          {isEnriching && recentScenes.length > 0 && (
+            <div className="ml-9 mt-2 space-y-1.5 border-l-2 border-primary/20 pl-3">
+              {recentScenes.map((scene: any) => (
+                <div key={scene.scene_number} className="text-xs space-y-0.5 animate-in fade-in duration-500">
+                  <div className="flex items-center gap-1.5">
+                    <CheckCircle className="h-3 w-3 text-primary shrink-0" />
+                    <span className="text-foreground font-medium truncate">
+                      Scene {scene.scene_number}: {scene.heading}
+                    </span>
+                  </div>
+                  {scene.description && (
+                    <p className="text-muted-foreground ml-[18px] line-clamp-1">
+                      {scene.description}
+                    </p>
+                  )}
+                  {scene.characters && scene.characters.length > 0 && (
+                    <div className="ml-[18px] flex items-center gap-1 flex-wrap">
+                      <Users className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
+                      <span className="text-muted-foreground/70 truncate">
+                        {scene.characters.slice(0, 4).join(", ")}
+                        {scene.characters.length > 4 && ` +${scene.characters.length - 4}`}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>
