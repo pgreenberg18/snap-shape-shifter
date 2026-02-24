@@ -712,12 +712,19 @@ const PreProduction = () => {
                     )}
                     <div className="px-4 pb-4 pt-2 flex items-center justify-between">
                       <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
-                      <div className="flex items-center gap-1">
-                        {[1, 2, 3].map((star) => (
-                          <button key={star} onClick={() => expandedCard && handleRate(expandedCard.id, expandedCard.rating === star ? 0 : star)} className="p-0.5">
-                            <Star className={cn("h-5 w-5 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
-                          </button>
-                        ))}
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1">
+                          {[1, 2, 3].map((star) => (
+                            <button key={star} onClick={() => expandedCard && handleRate(expandedCard.id, expandedCard.rating === star ? 0 : star)} className="p-0.5">
+                              <Star className={cn("h-5 w-5 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                            </button>
+                          ))}
+                        </div>
+                        {expandedCard && !expandedCard.locked && (
+                          <Button size="sm" onClick={() => { handleLockIdentity(expandedCard); setExpandedCard(null); }} disabled={locking === expandedCard.id} className="gap-1.5">
+                            {locking === expandedCard.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </DialogContent>
@@ -1202,13 +1209,6 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { ca
       </div>
     )}
 
-    {!card.locked && !card.generating && card.imageUrl && (
-      <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
-        <Button size="sm" onClick={(e) => { e.stopPropagation(); onLock(); }} disabled={locking} className="gap-1.5">
-          {locking ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
-        </Button>
-      </div>
-    )}
   </div>
 );
 
