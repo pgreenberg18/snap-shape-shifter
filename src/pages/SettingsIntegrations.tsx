@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useIntegrations } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
-  Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X,
+  Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, ArrowLeft,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -115,6 +116,7 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
 
 /* ── Component ── */
 const SettingsIntegrations = () => {
+  const navigate = useNavigate();
   const { data: integrations, isLoading } = useIntegrations();
   const [keys, setKeys] = useState<Record<string, string>>({});
   // Per-section add state
@@ -167,11 +169,17 @@ const SettingsIntegrations = () => {
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="mb-8">
+        <button
+          onClick={() => navigate("/projects")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back to Film Projects
+        </button>
         <div className="flex items-center gap-2 mb-2">
           <Plug className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl font-bold">External Integrations (BYOK)</h2>
+          <h2 className="font-display text-2xl font-bold">Global Settings — API Keys</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Bring Your Own Keys — connect your AI service providers to enhance the pipeline.</p>
+        <p className="text-sm text-muted-foreground">Bring Your Own Keys — connect your AI service providers. These are shared across all projects. Each version can choose which provider to use.</p>
       </div>
 
       <Accordion type="multiple" className="space-y-3">

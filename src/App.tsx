@@ -15,6 +15,7 @@ import Production from "@/pages/Production";
 import PostProduction from "@/pages/PostProduction";
 import Release from "@/pages/Release";
 import SettingsIntegrations from "@/pages/SettingsIntegrations";
+import VersionSettings from "@/pages/VersionSettings";
 import GlobalAssets from "@/pages/GlobalAssets";
 import NotFound from "@/pages/NotFound";
 
@@ -44,7 +45,10 @@ const App = () => (
               <Route path="/projects/:projectId/versions/:versionId/production" element={<VersionLayout><Production /></VersionLayout>} />
               <Route path="/projects/:projectId/versions/:versionId/post-production" element={<VersionLayout><PostProduction /></VersionLayout>} />
               <Route path="/projects/:projectId/versions/:versionId/release" element={<VersionLayout><Release /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/settings" element={<VersionLayout><SettingsIntegrations /></VersionLayout>} />
+              <Route path="/projects/:projectId/versions/:versionId/settings" element={<VersionLayout><VersionSettings /></VersionLayout>} />
+
+              {/* Global settings (API keys) */}
+              <Route path="/settings" element={<SettingsIntegrations />} />
               <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<VersionLayout><GlobalAssets /></VersionLayout>} />
 
               {/* Legacy redirects */}
