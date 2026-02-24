@@ -657,23 +657,37 @@ const PreProduction = () => {
                 {/* Audition cards grid — only show after casting call */}
                 {(cards.length > 0 || generating) && (
                   <div className="space-y-6">
-                    {sections.map(({ key, title }) => {
-                      const sectionCards = cards.filter((c) => c.section === key);
-                      return (
-                        <div key={key}>
+                    {/* Row 1: Archetypes */}
+                    {(() => {
+                      const archetypeCards = cards.filter((c) => c.section === "archetype");
+                      return archetypeCards.length > 0 && (
+                        <div>
                           <div className="flex items-center gap-2 mb-3">
-                            <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">{title}</h3>
-                            <span className="text-[10px] text-muted-foreground/50 bg-secondary px-1.5 py-0.5 rounded">{sectionCards.length}</span>
+                            <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Archetypes</h3>
+                            <span className="text-[10px] text-muted-foreground/50 bg-secondary px-1.5 py-0.5 rounded">{archetypeCards.length}</span>
                             <div className="flex-1 border-t border-border ml-2" />
                           </div>
                           <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
-                            {sectionCards.map((card) => (
+                            {archetypeCards.map((card) => (
                               <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
                             ))}
                           </div>
                         </div>
                       );
-                    })}
+                    })()}
+
+                    {/* Row 2: Wildcards + Novel AI Faces side by side */}
+                    {(() => {
+                      const wildcardCards = cards.filter((c) => c.section === "wildcard");
+                      const novelCards = cards.filter((c) => c.section === "novel");
+                      return (wildcardCards.length > 0 || novelCards.length > 0) && (
+                        <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
+                          {[...wildcardCards, ...novelCards].map((card) => (
+                            <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
