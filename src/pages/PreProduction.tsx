@@ -16,7 +16,7 @@ import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
-  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText,
+  Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
@@ -30,9 +30,10 @@ interface AuditionCard {
   imageUrl: string | null;
   locked: boolean;
   generating?: boolean;
+  rating: number;
 }
 
-const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked">[] = [
+const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked" | "rating">[] = [
   { id: 0, section: "archetype", label: "Classic" },
   { id: 1, section: "archetype", label: "Dramatic" },
   { id: 2, section: "archetype", label: "Subtle" },
@@ -58,6 +59,7 @@ const PreProduction = () => {
   const [cards, setCards] = useState<AuditionCard[]>([]);
   const generatingCharIdRef = useRef<string | null>(null);
   const [locking, setLocking] = useState<number | null>(null);
+  const [expandedCard, setExpandedCard] = useState<AuditionCard | null>(null);
   // Voice state
   const [voiceDesc, setVoiceDesc] = useState("");
   const [savingVoice, setSavingVoice] = useState(false);
@@ -190,7 +192,7 @@ const PreProduction = () => {
     setGenerating(true);
 
     const skeletonCards: AuditionCard[] = CARD_TEMPLATE.map((t) => ({
-      ...t, imageUrl: null, locked: false, generating: true,
+      ...t, imageUrl: null, locked: false, generating: true, rating: 0,
     }));
     setCards(skeletonCards);
 
@@ -273,6 +275,13 @@ const PreProduction = () => {
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     toast.success(`${selectedChar.name}'s identity locked`);
   }, [selectedChar, queryClient]);
+
+  const handleRate = useCallback(async (cardId: number, rating: number) => {
+    if (!selectedChar) return;
+    setCards((prev) => prev.map((c) => c.id === cardId ? { ...c, rating } : c));
+    if (expandedCard?.id === cardId) setExpandedCard((prev) => prev ? { ...prev, rating } : prev);
+    await supabase.from("character_auditions").update({ rating } as any).eq("character_id", selectedChar.id).eq("card_index", cardId);
+  }, [selectedChar, expandedCard]);
 
   const handleUploadReference = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -451,6 +460,7 @@ const PreProduction = () => {
           imageUrl: saved?.image_url ?? null,
           locked: saved?.locked ?? false,
           generating: isGeneratingThis && !saved?.image_url,
+          rating: (saved as any)?.rating ?? 0,
         };
       });
       setCards(restored);
@@ -659,7 +669,7 @@ const PreProduction = () => {
                   <div className="space-y-6">
                     {/* Row 1: Archetypes */}
                     {(() => {
-                      const archetypeCards = cards.filter((c) => c.section === "archetype");
+                      const archetypeCards = [...cards.filter((c) => c.section === "archetype")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
                       return archetypeCards.length > 0 && (
                         <div>
                           <div className="flex items-center gap-2 mb-3">
@@ -669,7 +679,7 @@ const PreProduction = () => {
                           </div>
                           <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                             {archetypeCards.map((card) => (
-                              <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
+                              <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
                             ))}
                           </div>
                         </div>
@@ -678,18 +688,40 @@ const PreProduction = () => {
 
                     {/* Row 2: Wildcards + Novel AI Faces side by side */}
                     {(() => {
-                      const wildcardCards = cards.filter((c) => c.section === "wildcard");
-                      const novelCards = cards.filter((c) => c.section === "novel");
-                      return (wildcardCards.length > 0 || novelCards.length > 0) && (
+                      const row2Cards = [...cards.filter((c) => c.section === "wildcard" || c.section === "novel")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                      return row2Cards.length > 0 && (
                         <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
-                          {[...wildcardCards, ...novelCards].map((card) => (
-                            <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} />
+                          {row2Cards.map((card) => (
+                            <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
                           ))}
                         </div>
                       );
                     })()}
                   </div>
                 )}
+
+                {/* Expanded headshot dialog */}
+                <Dialog open={!!expandedCard} onOpenChange={(open) => !open && setExpandedCard(null)}>
+                  <DialogContent className="max-w-lg p-0 overflow-hidden bg-card border-border">
+                    <DialogHeader className="sr-only">
+                      <DialogTitle>{expandedCard?.label}</DialogTitle>
+                      <DialogDescription>Expanded headshot view</DialogDescription>
+                    </DialogHeader>
+                    {expandedCard?.imageUrl && (
+                      <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full aspect-[4/5] object-cover" />
+                    )}
+                    <div className="px-4 pb-4 pt-2 flex items-center justify-between">
+                      <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
+                      <div className="flex items-center gap-1">
+                        {[1, 2, 3].map((star) => (
+                          <button key={star} onClick={() => expandedCard && handleRate(expandedCard.id, expandedCard.rating === star ? 0 : star)} className="p-0.5">
+                            <Star className={cn("h-5 w-5 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
 
                 {/* ═══ VOICE IDENTITY SECTION — Gated behind image lock ═══ */}
                 <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen} disabled={!hasLockedImage}>
@@ -1128,12 +1160,15 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 }
 
 /* ── Audition Card ── */
-const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; locking: boolean; onLock: () => void }) => (
-  <div className={cn(
-    "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
-    "aspect-[3/4]",
-    card.locked ? "border-primary/50 ring-2 ring-primary/30" : "border-border hover:border-primary/30 hover:cinema-glow"
-  )}>
+const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (cardId: number, rating: number) => void }) => (
+  <div
+    className={cn(
+      "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
+      "aspect-[3/4]",
+      card.locked ? "border-primary/50 ring-2 ring-primary/30" : "border-border hover:border-primary/30 hover:cinema-glow"
+    )}
+    onClick={() => card.imageUrl && !card.generating && onExpand()}
+  >
     {card.generating ? (
       <div className="h-full w-full bg-secondary flex items-center justify-center animate-pulse">
         <Loader2 className="h-6 w-6 text-muted-foreground/40 animate-spin" />
@@ -1147,7 +1182,18 @@ const AuditionCardComponent = ({ card, locking, onLock }: { card: AuditionCard; 
     )}
 
     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-background/90 to-transparent p-2 pt-6">
-      <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-foreground truncate">{card.label}</p>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-foreground truncate">{card.label}</p>
+        {!card.generating && card.imageUrl && (
+          <div className="flex items-center gap-0.5">
+            {[1, 2, 3].map((star) => (
+              <button key={star} onClick={(e) => { e.stopPropagation(); onRate(card.id, card.rating === star ? 0 : star); }} className="p-0">
+                <Star className={cn("h-3 w-3 transition-colors", (card.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/40")} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
 
     {card.locked && (

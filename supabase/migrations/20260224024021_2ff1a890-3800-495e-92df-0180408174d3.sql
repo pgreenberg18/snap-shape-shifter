@@ -1,0 +1,1 @@
+ALTER TABLE public.character_auditions ADD COLUMN IF NOT EXISTS rating smallint DEFAULT 0 CHECK (rating >= 0 AND rating <= 3);
