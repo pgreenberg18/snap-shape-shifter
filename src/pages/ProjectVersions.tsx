@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X } from "lucide-react";
+import { Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X, HelpCircle, Settings } from "lucide-react";
+import { useHelp } from "@/components/help/HelpPanel";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -171,13 +172,40 @@ const ProjectVersions = () => {
     onError: (e) => toast.error(e.message),
   });
 
+  const { toggle: toggleHelp } = useHelp();
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar with Help + Settings */}
+      <aside className="flex h-full w-16 flex-col items-center border-r border-border bg-card py-4">
+        <button
+          onClick={() => navigate("/projects")}
+          title="Back to projects"
+          className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div className="flex-1" />
+        <div className="flex flex-col items-center gap-1 mb-2">
+          <button
+            onClick={toggleHelp}
+            title="Help"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
+          <button
+            title="Settings"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+          >
+            <Settings className="h-5 w-5" />
+          </button>
+        </div>
+      </aside>
+
+      <div className="flex flex-1 flex-col overflow-hidden">
       <header className="border-b border-border bg-card px-8 py-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/projects")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <div className="flex-1">
             <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
               {project?.title || "Loading…"}
@@ -342,6 +370,7 @@ const ProjectVersions = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      </div>
     </div>
   );
 };

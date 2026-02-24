@@ -11,7 +11,7 @@ import {
   Film,
   Rocket,
   Settings,
-  
+  HelpCircle,
   ArrowLeft,
   Loader2,
 } from "lucide-react";
@@ -21,6 +21,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useHelp } from "@/components/help/HelpPanel";
 
 const phases = [
   { key: "development", icon: FileText, label: "Development" },
@@ -36,6 +37,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const { data: film } = useFilm();
   const filmId = useFilmId();
+  const { toggle: toggleHelp } = useHelp();
 
   // Check if script is currently being analyzed
   const { data: latestAnalysis } = useQuery({
@@ -60,7 +62,6 @@ const Layout = ({ children }: { children: ReactNode }) => {
   });
 
   const isAnalyzing = latestAnalysis?.status === "pending" || latestAnalysis?.status === "analyzing";
-  const isOnDevelopment = location.pathname.includes("/development");
 
   const basePath = `/projects/${projectId}/versions/${versionId}`;
 
@@ -129,8 +130,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
           {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label))}
         </nav>
 
-        {/* Bottom nav */}
+        {/* Bottom nav — Help + Settings */}
         <div className="flex flex-col items-center gap-1 mb-2">
+          <button
+            onClick={toggleHelp}
+            title="Help"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
           {renderNavItem("settings", Settings, "Settings")}
         </div>
       </aside>
