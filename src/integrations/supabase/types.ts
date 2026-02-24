@@ -108,6 +108,7 @@ export type Database = {
           image_url: string | null
           label: string
           locked: boolean
+          rating: number | null
           section: string
         }
         Insert: {
@@ -118,6 +119,7 @@ export type Database = {
           image_url?: string | null
           label: string
           locked?: boolean
+          rating?: number | null
           section: string
         }
         Update: {
@@ -128,6 +130,7 @@ export type Database = {
           image_url?: string | null
           label?: string
           locked?: boolean
+          rating?: number | null
           section?: string
         }
         Relationships: [
