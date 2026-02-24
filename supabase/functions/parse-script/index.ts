@@ -152,6 +152,12 @@ Deno.serve(async (req) => {
 
     const scenes = extractScenes(scriptText);
 
+    // Clean up old parsed_scenes for this film before inserting new ones
+    await supabase
+      .from("parsed_scenes")
+      .delete()
+      .eq("film_id", analysis.film_id);
+
     const { data: job } = await supabase
       .from("parse_jobs")
       .insert({
