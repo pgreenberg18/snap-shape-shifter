@@ -215,23 +215,21 @@ const SettingsIntegrations = () => {
                 <p className="text-xs text-muted-foreground mb-3">{meta.description}</p>
                 <div className="space-y-3 pb-2">
                   {/* Existing DB-backed providers */}
-                  {providers?.map((provider) => {
-                    const isVerified = provider.is_verified;
+                  {providers?.filter((p) => p.is_verified).map((provider) => {
                     const isEditing = editingId === provider.id;
-                    const hasStoredKey = !!provider.api_key_encrypted;
 
                     return (
                       <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-medium">{provider.provider_name}</p>
-                          {isVerified && !isEditing && (
+                          {!isEditing && (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Check className="h-3.5 w-3.5 text-green-500" /> Connected & Verified
                             </span>
                           )}
                         </div>
 
-                        {isVerified && hasStoredKey && !isEditing ? (
+                        {!isEditing ? (
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-xs text-muted-foreground tracking-widest">••••••••••••••••</span>
                             <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
@@ -242,7 +240,7 @@ const SettingsIntegrations = () => {
                           <>
                             <Input
                               type="password"
-                              placeholder="Enter API key…"
+                              placeholder="Enter new API key…"
                               value={keys[provider.id] ?? ""}
                               onChange={(e) => setKeys((p) => ({ ...p, [provider.id]: e.target.value }))}
                               className="font-mono text-xs bg-background border-border"
@@ -252,11 +250,9 @@ const SettingsIntegrations = () => {
                                 <Plug className="h-3.5 w-3.5" />
                                 Connect & Verify
                               </Button>
-                              {isEditing && (
-                                <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setKeys((p) => { const n = { ...p }; delete n[provider.id]; return n; }); }}>
-                                  Cancel
-                                </Button>
-                              )}
+                              <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setKeys((p) => { const n = { ...p }; delete n[provider.id]; return n; }); }}>
+                                Cancel
+                              </Button>
                             </div>
                           </>
                         )}
