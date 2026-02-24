@@ -172,10 +172,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Mark the script_analyses row as complete
+    // Build scene_breakdown JSON so the UI can render results
+    const sceneBreakdown = scenes.map((s) => ({
+      scene_number: s.scene_number,
+      scene_heading: s.heading,
+      description: "",
+      characters: [] as string[],
+      key_objects: [] as string[],
+      wardrobe: [] as string[],
+    }));
+
+    // Mark the script_analyses row as complete and populate scene_breakdown
     await supabase
       .from("script_analyses")
-      .update({ status: "complete" })
+      .update({ status: "complete", scene_breakdown: sceneBreakdown })
       .eq("id", analysis_id);
 
     return new Response(
