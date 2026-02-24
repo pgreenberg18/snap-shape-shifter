@@ -124,7 +124,7 @@ const SettingsIntegrations = () => {
   const [selectedService, setSelectedService] = useState("");
   const [serviceKey, setServiceKey] = useState("");
   const [saving, setSaving] = useState(false);
-  const [addedServices, setAddedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
+  const [addedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -136,20 +136,29 @@ const SettingsIntegrations = () => {
     toast({ title: "Connected", description: "API key saved and verified." });
   };
 
-  const handleAddService = (sectionId: string) => {
+  const handleAddService = async (sectionId: string) => {
     if (!selectedService || !serviceKey) return;
     setSaving(true);
     const catalog = SERVICE_CATALOGS[sectionId] || [];
     const svc = catalog.find((s) => s.id === selectedService);
-    setAddedServices((prev) => ({
-      ...prev,
-      [sectionId]: [...(prev[sectionId] || []), { id: selectedService, name: svc?.name || selectedService }],
-    }));
-    setSelectedService("");
-    setServiceKey("");
-    setAddingSection(null);
-    setSaving(false);
-    toast({ title: "Service added", description: `${svc?.name} connected.` });
+    try {
+      const { error } = await supabase.from("integrations").insert({
+        section_id: sectionId,
+        provider_name: svc?.name || selectedService,
+        api_key_encrypted: serviceKey,
+        is_verified: true,
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setSelectedService("");
+      setServiceKey("");
+      setAddingSection(null);
+      toast({ title: "Service added", description: `${svc?.name} connected and saved.` });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to save service.", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openAdd = (sectionId: string) => {
