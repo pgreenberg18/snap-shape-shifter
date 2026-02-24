@@ -1756,9 +1756,8 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
           </span>
           <div>
             <p className="font-display font-semibold text-sm">{scene.scene_heading || "Untitled Scene"}</p>
-            <p className="text-xs text-muted-foreground">
-              {scene.int_ext} · {scene.time_of_day}
-              {scriptPage && <span className="ml-2 text-primary/60">p. {scriptPage}</span>}
+            <p className="text-xs text-muted-foreground line-clamp-1">
+              {scene.description || "No description"}
             </p>
           </div>
         </button>
