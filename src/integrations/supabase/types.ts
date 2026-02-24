@@ -99,6 +99,47 @@ export type Database = {
           },
         ]
       }
+      character_auditions: {
+        Row: {
+          card_index: number
+          character_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          label: string
+          locked: boolean
+          section: string
+        }
+        Insert: {
+          card_index: number
+          character_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          label: string
+          locked?: boolean
+          section: string
+        }
+        Update: {
+          card_index?: number
+          character_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          label?: string
+          locked?: boolean
+          section?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_auditions_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           age_max: number | null

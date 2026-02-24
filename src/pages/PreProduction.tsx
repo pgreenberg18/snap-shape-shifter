@@ -220,6 +220,20 @@ const PreProduction = () => {
     setCards(finalCards);
     setGenerating(false);
 
+    // Persist audition cards to DB
+    for (const card of finalCards) {
+      if (card.imageUrl) {
+        await supabase.from("character_auditions").upsert({
+          character_id: selectedChar.id,
+          card_index: card.id,
+          section: card.section,
+          label: card.label,
+          image_url: card.imageUrl,
+          locked: false,
+        }, { onConflict: "character_id,card_index" });
+      }
+    }
+
     const successCount = results.filter((r) => r.status === "fulfilled").length;
     toast.success(`${successCount}/10 audition faces generated for ${selectedChar.name}`);
   }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, film]);
@@ -234,6 +248,9 @@ const PreProduction = () => {
     setLocking(null);
     if (error) { toast.error("Failed to lock identity"); return; }
     setCards((prev) => prev.map((c) => ({ ...c, locked: c.id === card.id })));
+    // Persist lock status to auditions table
+    await supabase.from("character_auditions").update({ locked: false }).eq("character_id", selectedChar.id);
+    await supabase.from("character_auditions").update({ locked: true }).eq("character_id", selectedChar.id).eq("card_index", card.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     toast.success(`${selectedChar.name}'s identity locked`);
   }, [selectedChar, queryClient]);
@@ -392,10 +409,29 @@ const PreProduction = () => {
     toast.success(`Voice seed locked for ${selectedChar.name}`);
   }, [selectedChar, queryClient]);
 
-  const selectChar = (id: string) => {
+  const selectChar = useCallback(async (id: string) => {
     setSelectedCharId(id);
-    setCards([]);
-  };
+    // Load persisted audition cards from DB
+    const { data: savedCards } = await supabase
+      .from("character_auditions")
+      .select("*")
+      .eq("character_id", id)
+      .order("card_index");
+    if (savedCards && savedCards.length > 0) {
+      const restored: AuditionCard[] = CARD_TEMPLATE.map((t) => {
+        const saved = savedCards.find((s: any) => s.card_index === t.id);
+        return {
+          ...t,
+          imageUrl: saved?.image_url ?? null,
+          locked: saved?.locked ?? false,
+          generating: false,
+        };
+      });
+      setCards(restored);
+    } else {
+      setCards([]);
+    }
+  }, []);
 
   const sections: { key: AuditionCard["section"]; title: string }[] = [
     { key: "archetype", title: "Archetypes" },
