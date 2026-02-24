@@ -1252,10 +1252,43 @@ const Development = () => {
                       <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
                         <DialogHeader>
                           <DialogTitle className="text-sm font-bold">{scriptPreview?.heading}</DialogTitle>
-                          <DialogDescription className="text-xs text-muted-foreground">Script excerpt for this scene</DialogDescription>
+                          <DialogDescription className="text-xs text-muted-foreground">Original screenplay formatting</DialogDescription>
                         </DialogHeader>
-                        <div className="flex-1 overflow-y-auto rounded-lg bg-secondary p-4">
-                          <pre className="whitespace-pre-wrap text-xs font-mono text-foreground leading-relaxed">{scriptPreview?.text}</pre>
+                        <div className="flex-1 overflow-y-auto px-6 pb-6">
+                          <div
+                            className="mx-auto bg-white text-black shadow-lg"
+                            style={{
+                              fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+                              fontSize: "12px",
+                              lineHeight: "1.0",
+                              padding: "72px 60px 72px 90px",
+                              maxWidth: "612px",
+                              minHeight: "400px",
+                            }}
+                          >
+                            {scriptPreview?.text.split("\n").map((line, i) => {
+                              const trimmed = line.trim();
+                              const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
+                              const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
+                              const isParenthetical = /^\(.*\)$/.test(trimmed);
+                              const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+
+                              if (isHeading) {
+                                return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{trimmed}</p>;
+                              }
+                              if (isCharacter) {
+                                return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{trimmed}</p>;
+                              }
+                              if (isParenthetical) {
+                                return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+                              }
+                              if (isDialogue) {
+                                return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+                              }
+                              if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+                              return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{trimmed}</p>;
+                            })}
+                          </div>
                         </div>
                       </DialogContent>
                     </Dialog>
