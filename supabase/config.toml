@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.generate-asset-options]
 verify_jwt = false
+
+[functions.enrich-scene]
+verify_jwt = false

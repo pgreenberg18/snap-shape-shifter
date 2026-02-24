@@ -163,13 +163,15 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
+    const sceneIds: string[] = [];
     for (const scene of scenes) {
-      await supabase.from("parsed_scenes").insert({
+      const { data: insertedScene } = await supabase.from("parsed_scenes").insert({
         film_id: analysis.film_id,
         scene_number: scene.scene_number,
         heading: scene.heading,
         raw_text: scene.text,
-      });
+      }).select("id").single();
+      if (insertedScene) sceneIds.push(insertedScene.id);
     }
 
     // Build scene_breakdown JSON so the UI can render results
@@ -182,16 +184,18 @@ Deno.serve(async (req) => {
       wardrobe: [] as string[],
     }));
 
-    // Mark the script_analyses row as complete and populate scene_breakdown
+    // Mark as "enriching" — the enrich-scene function will set "complete"
+    // after all scenes have been processed by Gemini.
     await supabase
       .from("script_analyses")
-      .update({ status: "complete", scene_breakdown: sceneBreakdown })
+      .update({ status: "enriching", scene_breakdown: sceneBreakdown })
       .eq("id", analysis_id);
 
     return new Response(
       JSON.stringify({
         success: true,
         scene_count: scenes.length,
+        scene_ids: sceneIds,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
