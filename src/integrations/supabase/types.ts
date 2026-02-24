@@ -440,48 +440,84 @@ export type Database = {
       }
       parsed_scenes: {
         Row: {
+          animals: string[] | null
           characters: string[] | null
           created_at: string
+          day_night: string | null
           description: string | null
           enriched: boolean
           environment_details: string | null
+          estimated_page_count: number | null
+          extras: string | null
           film_id: string
           heading: string
           id: string
+          int_ext: string | null
           key_objects: string[] | null
+          location_name: string | null
+          mood: string | null
           picture_vehicles: string[] | null
           raw_text: string
           scene_number: number
+          sfx: string[] | null
+          sound_cues: string[] | null
+          special_makeup: string[] | null
+          stunts: string[] | null
+          vfx: string[] | null
           wardrobe: Json | null
         }
         Insert: {
+          animals?: string[] | null
           characters?: string[] | null
           created_at?: string
+          day_night?: string | null
           description?: string | null
           enriched?: boolean
           environment_details?: string | null
+          estimated_page_count?: number | null
+          extras?: string | null
           film_id: string
           heading: string
           id?: string
+          int_ext?: string | null
           key_objects?: string[] | null
+          location_name?: string | null
+          mood?: string | null
           picture_vehicles?: string[] | null
           raw_text: string
           scene_number: number
+          sfx?: string[] | null
+          sound_cues?: string[] | null
+          special_makeup?: string[] | null
+          stunts?: string[] | null
+          vfx?: string[] | null
           wardrobe?: Json | null
         }
         Update: {
+          animals?: string[] | null
           characters?: string[] | null
           created_at?: string
+          day_night?: string | null
           description?: string | null
           enriched?: boolean
           environment_details?: string | null
+          estimated_page_count?: number | null
+          extras?: string | null
           film_id?: string
           heading?: string
           id?: string
+          int_ext?: string | null
           key_objects?: string[] | null
+          location_name?: string | null
+          mood?: string | null
           picture_vehicles?: string[] | null
           raw_text?: string
           scene_number?: number
+          sfx?: string[] | null
+          sound_cues?: string[] | null
+          special_makeup?: string[] | null
+          stunts?: string[] | null
+          vfx?: string[] | null
           wardrobe?: Json | null
         }
         Relationships: [

@@ -66,7 +66,9 @@ Deno.serve(async (req) => {
     // Call Gemini via Lovable AI gateway using tool calling for structured output
     const systemPrompt = `You are a professional script breakdown analyst for film production. Given a screenplay scene, extract structured production data. Be thorough and precise. Only include items that are explicitly mentioned or strongly implied in the scene text.`;
 
-    const userPrompt = `Analyze this screenplay scene and extract detailed production breakdown data. Be thorough — extract ALL characters, props, wardrobe details, vehicles, and environmental details.
+    const userPrompt = `Analyze this screenplay scene and extract a COMPLETE production breakdown. Be thorough — extract ALL characters, props, wardrobe details, vehicles, environmental details, stunts, effects, sound cues, animals, extras, makeup notes, and mood.
+
+Also parse the scene heading to extract: INT/EXT, DAY/NIGHT, and the cleaned location name. Estimate the page count based on the text length (1 page ≈ 55 lines of screenplay text).
 
 SCENE HEADING: ${scene.heading}
 
@@ -131,8 +133,62 @@ ${scene.raw_text}`;
                     type: "string",
                     description: "Describe the environment: weather, time of day, lighting, atmosphere, set dressing details. Be specific.",
                   },
+                  stunts: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Any stunts, action sequences, or physical feats in this scene. Empty array if none.",
+                  },
+                  sfx: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Practical special effects needed (explosions, rain, fire, smoke, breakaway glass, etc). Empty array if none.",
+                  },
+                  vfx: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Visual effects needed (green screen, CGI, compositing, digital set extensions, etc). Empty array if none.",
+                  },
+                  sound_cues: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Specific sound effects, music cues, or audio requirements mentioned or implied. Empty array if none.",
+                  },
+                  animals: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Any animals that appear on screen. Empty array if none.",
+                  },
+                  extras: {
+                    type: "string",
+                    description: "Description of background extras/crowd needed (e.g. '20 bar patrons', 'busy street crowd'). Empty string if none.",
+                  },
+                  special_makeup: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "Special makeup, prosthetics, or body effects (scars, wounds, aging, tattoos, etc). Empty array if none.",
+                  },
+                  mood: {
+                    type: "string",
+                    description: "Overall mood/tone of the scene (e.g. 'tense', 'romantic', 'chaotic', 'melancholic'). One or two words.",
+                  },
+                  int_ext: {
+                    type: "string",
+                    description: "Whether the scene is INT, EXT, or INT/EXT. Parsed from the heading.",
+                  },
+                  day_night: {
+                    type: "string",
+                    description: "Time of day from the heading: DAY, NIGHT, DAWN, DUSK, MORNING, EVENING, CONTINUOUS, etc.",
+                  },
+                  location_name: {
+                    type: "string",
+                    description: "The cleaned location name extracted from the heading (e.g. 'JOHN'S APARTMENT - KITCHEN').",
+                  },
+                  estimated_page_count: {
+                    type: "number",
+                    description: "Estimated page count for this scene. 1 page ≈ 55 lines. Use fractions like 0.125 for 1/8 page.",
+                  },
                 },
-                required: ["description", "characters", "key_objects", "wardrobe", "picture_vehicles", "environment_details"],
+                required: ["description", "characters", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count"],
                 additionalProperties: false,
               },
             },
@@ -176,6 +232,18 @@ ${scene.raw_text}`;
       wardrobe: { character: string; clothing_style: string; condition: string; hair_makeup: string }[];
       picture_vehicles: string[];
       environment_details: string;
+      stunts: string[];
+      sfx: string[];
+      vfx: string[];
+      sound_cues: string[];
+      animals: string[];
+      extras: string;
+      special_makeup: string[];
+      mood: string;
+      int_ext: string;
+      day_night: string;
+      location_name: string;
+      estimated_page_count: number;
     };
 
     try {
@@ -206,6 +274,18 @@ ${scene.raw_text}`;
         wardrobe: normalizedWardrobe,
         picture_vehicles: breakdown.picture_vehicles || [],
         environment_details: breakdown.environment_details || "",
+        stunts: breakdown.stunts || [],
+        sfx: breakdown.sfx || [],
+        vfx: breakdown.vfx || [],
+        sound_cues: breakdown.sound_cues || [],
+        animals: breakdown.animals || [],
+        extras: breakdown.extras || "",
+        special_makeup: breakdown.special_makeup || [],
+        mood: breakdown.mood || "",
+        int_ext: breakdown.int_ext || "",
+        day_night: breakdown.day_night || "",
+        location_name: breakdown.location_name || "",
+        estimated_page_count: breakdown.estimated_page_count || 0,
         enriched: true,
       })
       .eq("id", scene_id);
@@ -257,6 +337,18 @@ ${scene.raw_text}`;
           wardrobe: s.wardrobe || [],
           picture_vehicles: s.picture_vehicles || [],
           environment_details: s.environment_details || "",
+          stunts: s.stunts || [],
+          sfx: s.sfx || [],
+          vfx: s.vfx || [],
+          sound_cues: s.sound_cues || [],
+          animals: s.animals || [],
+          extras: s.extras || "",
+          special_makeup: s.special_makeup || [],
+          mood: s.mood || "",
+          int_ext: s.int_ext || "",
+          day_night: s.day_night || "",
+          location_name: s.location_name || "",
+          estimated_page_count: s.estimated_page_count || 0,
         }));
 
         // Auto-detect primary time period from scene headings
