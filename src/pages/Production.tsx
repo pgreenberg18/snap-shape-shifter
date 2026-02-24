@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { Film, Camera, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFilmId } from "@/hooks/useFilm";
@@ -30,10 +30,33 @@ const Production = () => {
   const { data: analysis } = useLatestAnalysis(filmId);
   const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
   const [viewportAspect, setViewportAspect] = useState(16 / 9);
+  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const isDragging = useRef(false);
 
   const handleAspectChange = useCallback((ratio: number) => {
     setViewportAspect(ratio);
   }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    const maxWidth = window.innerWidth * 0.3;
+
+    const onMouseMove = (ev: MouseEvent) => {
+      if (!isDragging.current) return;
+      const newWidth = Math.max(200, Math.min(maxWidth, startWidth + (ev.clientX - startX)));
+      setSidebarWidth(newWidth);
+    };
+    const onMouseUp = () => {
+      isDragging.current = false;
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [sidebarWidth]);
 
   const scenes: any[] =
     analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
@@ -45,7 +68,10 @@ const Production = () => {
   return (
     <div className="flex h-[calc(100vh-64px)]">
       {/* ── Left: Scene Navigator (25%) ── */}
-      <aside className="w-1/4 min-w-[260px] max-w-[360px] border-r border-border bg-card flex flex-col">
+      <aside
+        className="border-r border-border bg-card flex flex-col relative"
+        style={{ width: sidebarWidth, minWidth: 200, flexShrink: 0 }}
+      >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
           <Film className="h-4 w-4 text-primary" />
           <h2 className="font-display text-sm font-bold tracking-wide uppercase text-foreground">
@@ -71,7 +97,7 @@ const Production = () => {
                     key={i}
                     onClick={() => setActiveSceneIdx(i)}
                     className={cn(
-                      "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors border-l-2",
+                      "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors border-l-2 group/scene relative",
                       isActive
                         ? "border-l-primary bg-primary/5"
                         : "border-l-transparent hover:bg-secondary/60"
@@ -90,25 +116,42 @@ const Production = () => {
                     <div className="flex-1 min-w-0">
                       <p
                         className={cn(
-                          "text-xs font-display font-semibold truncate",
+                          "text-xs font-display font-semibold truncate group-hover/scene:whitespace-normal group-hover/scene:overflow-visible",
                           isActive ? "text-primary" : "text-foreground"
                         )}
                       >
                         {scene.scene_heading || "Untitled Scene"}
                       </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug">
+                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-none">
                         {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
                       </p>
                     </div>
                     {isActive && (
                       <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-1" />
                     )}
+                    {/* Hover tooltip overlay for full text */}
+                    <div className="absolute left-0 top-0 w-max max-w-[400px] bg-card border border-border rounded-md shadow-lg px-4 py-3 z-50 pointer-events-none opacity-0 group-hover/scene:opacity-100 transition-opacity duration-150 hidden group-hover/scene:block"
+                      style={{ transform: "translateX(0)" }}
+                    >
+                      <p className={cn("text-xs font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
+                        {scene.scene_heading || "Untitled Scene"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
+                        {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
+                      </p>
+                    </div>
                   </button>
                 );
               })}
             </div>
           )}
         </ScrollArea>
+
+        {/* Resize handle */}
+        <div
+          className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
+          onMouseDown={handleMouseDown}
+        />
       </aside>
 
       {/* ── Center: Shot Construction Zone ── */}
