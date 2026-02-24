@@ -231,6 +231,13 @@ Deno.serve(async (req) => {
     const safety = safetyRes.data;
     const template = templateRes.data;
 
+    // ── 2b. Fetch locked film assets ──
+    const { data: lockedAssets } = await supabase
+      .from("film_assets")
+      .select("*")
+      .eq("film_id", shot.film_id)
+      .eq("locked", true);
+
     // ── 3. Resolve identity tokens from asset_identity_registry ──
     const refCodes = extractRefCodes(shot.prompt_text);
     let identityTokens: any[] = [];
@@ -293,9 +300,24 @@ Deno.serve(async (req) => {
       generation_payload: {
         raw_script_action: shot.prompt_text ?? "",
 
-        resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography),
+        resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography, lockedAssets || []),
 
         identity_tokens: identityTokens,
+
+        locked_assets: {
+          locations: (lockedAssets || []).filter((a: any) => a.asset_type === "location").map((a: any) => ({
+            name: a.asset_name, description: a.description, image_url: a.image_url,
+          })),
+          props: (lockedAssets || []).filter((a: any) => a.asset_type === "prop").map((a: any) => ({
+            name: a.asset_name, description: a.description, image_url: a.image_url,
+          })),
+          vehicles: (lockedAssets || []).filter((a: any) => a.asset_type === "vehicle").map((a: any) => ({
+            name: a.asset_name, description: a.description, image_url: a.image_url,
+          })),
+          wardrobe: (lockedAssets || []).filter((a: any) => a.asset_type === "wardrobe").map((a: any) => ({
+            name: a.asset_name, description: a.description, image_url: a.image_url, character_id: a.character_id,
+          })),
+        },
 
         cinematography_metadata: cinematography,
 
@@ -319,11 +341,12 @@ Deno.serve(async (req) => {
   }
 });
 
-/** Build the resolved text prompt from shot + template + cinematography */
+/** Build the resolved text prompt from shot + template + cinematography + locked assets */
 function buildResolvedPrompt(
   shot: any,
   template: any,
-  cine: ReturnType<typeof parseCinematography>
+  cine: ReturnType<typeof parseCinematography>,
+  lockedAssets: any[]
 ): string {
   const parts: string[] = [];
 
@@ -349,6 +372,24 @@ function buildResolvedPrompt(
   parts.push(
     `Cinematic, ${cine.optics.sensor_profile}, ${cine.lighting_and_grade.film_texture}.`
   );
+
+  // Inject locked asset descriptions
+  const locLocked = lockedAssets.filter((a) => a.asset_type === "location");
+  if (locLocked.length > 0) {
+    parts.push(`LOCATION: ${locLocked.map((a: any) => `${a.asset_name} (${a.description})`).join("; ")}.`);
+  }
+  const propLocked = lockedAssets.filter((a) => a.asset_type === "prop");
+  if (propLocked.length > 0) {
+    parts.push(`PROPS: ${propLocked.map((a: any) => `${a.asset_name} (${a.description})`).join("; ")}.`);
+  }
+  const vehLocked = lockedAssets.filter((a) => a.asset_type === "vehicle");
+  if (vehLocked.length > 0) {
+    parts.push(`VEHICLES: ${vehLocked.map((a: any) => `${a.asset_name} (${a.description})`).join("; ")}.`);
+  }
+  const wardLocked = lockedAssets.filter((a) => a.asset_type === "wardrobe");
+  if (wardLocked.length > 0) {
+    parts.push(`WARDROBE: ${wardLocked.map((a: any) => `${a.asset_name} (${a.description})`).join("; ")}.`);
+  }
 
   // Video prompt base override from template
   if (template?.video_prompt_base) {

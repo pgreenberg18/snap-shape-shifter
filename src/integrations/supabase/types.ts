@@ -240,6 +240,60 @@ export type Database = {
           },
         ]
       }
+      film_assets: {
+        Row: {
+          asset_name: string
+          asset_type: string
+          character_id: string | null
+          created_at: string
+          description: string | null
+          film_id: string
+          id: string
+          image_url: string | null
+          locked: boolean
+          option_index: number
+        }
+        Insert: {
+          asset_name: string
+          asset_type: string
+          character_id?: string | null
+          created_at?: string
+          description?: string | null
+          film_id: string
+          id?: string
+          image_url?: string | null
+          locked?: boolean
+          option_index: number
+        }
+        Update: {
+          asset_name?: string
+          asset_type?: string
+          character_id?: string | null
+          created_at?: string
+          description?: string | null
+          film_id?: string
+          id?: string
+          image_url?: string | null
+          locked?: boolean
+          option_index?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "film_assets_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "film_assets_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       films: {
         Row: {
           copied_from_version_id: string | null

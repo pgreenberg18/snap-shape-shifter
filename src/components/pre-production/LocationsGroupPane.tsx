@@ -10,12 +10,13 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { MapPin, ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check } from "lucide-react";
+import { MapPin, ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Image } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import AssetAuditionPane from "./AssetAuditionPane";
 
 /* ── Types ── */
 interface LocationGroup {
@@ -54,6 +55,7 @@ const LocationsGroupPane = ({ locations, filmId }: LocationsGroupPaneProps) => {
   const [newGroupName, setNewGroupName] = useState("");
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [auditionLocation, setAuditionLocation] = useState<string | null>(null);
 
   // Load groups from localStorage
   useEffect(() => {
@@ -257,9 +259,25 @@ const LocationsGroupPane = ({ locations, filmId }: LocationsGroupPaneProps) => {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
                   {ungrouped.map((loc) => (
-                    <DraggableLocation key={loc} id={loc} isOverlay={false} />
+                    <DraggableLocation
+                      key={loc}
+                      id={loc}
+                      isOverlay={false}
+                      isAuditionActive={auditionLocation === loc}
+                      onAudition={() => setAuditionLocation(auditionLocation === loc ? null : loc)}
+                    />
                   ))}
                 </div>
+                {/* Audition pane for selected ungrouped location */}
+                {auditionLocation && ungrouped.includes(auditionLocation) && filmId && (
+                  <div className="mt-4 rounded-xl border border-border bg-card/50 p-4">
+                    <AssetAuditionPane
+                      filmId={filmId}
+                      assetType="location"
+                      assetName={auditionLocation}
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -274,7 +292,7 @@ const LocationsGroupPane = ({ locations, filmId }: LocationsGroupPaneProps) => {
 };
 
 /* ── Draggable location card ── */
-const DraggableLocation = ({ id, isOverlay }: { id: string; isOverlay: boolean }) => {
+const DraggableLocation = ({ id, isOverlay, isAuditionActive, onAudition }: { id: string; isOverlay: boolean; isAuditionActive?: boolean; onAudition?: () => void }) => {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id });
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id });
 
@@ -290,12 +308,23 @@ const DraggableLocation = ({ id, isOverlay }: { id: string; isOverlay: boolean }
         "rounded-lg border bg-card p-3 flex items-center gap-2 cursor-grab active:cursor-grabbing transition-all select-none",
         isOverlay && "shadow-xl ring-2 ring-primary/40 rotate-2 scale-105",
         isDragging && "opacity-30",
-        isOver && !isDragging && "border-primary ring-2 ring-primary/20 bg-primary/5"
+        isOver && !isDragging && "border-primary ring-2 ring-primary/20 bg-primary/5",
+        isAuditionActive && "border-primary ring-1 ring-primary/30 bg-primary/5"
       )}
     >
       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
       <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-      <p className="text-sm font-display font-semibold text-foreground truncate">{id}</p>
+      <p className="text-sm font-display font-semibold text-foreground truncate flex-1">{id}</p>
+      {onAudition && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onAudition(); }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="shrink-0 text-muted-foreground hover:text-primary transition-colors p-1"
+          title="Generate visual options"
+        >
+          <Image className="h-3.5 w-3.5" />
+        </button>
+      )}
     </div>
   );
 };
