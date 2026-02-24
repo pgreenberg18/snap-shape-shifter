@@ -1805,18 +1805,18 @@ const EditableSceneContent = ({
         {/* Actions row */}
         <div className="pt-2 flex justify-end gap-2">
           <Button
-            variant={rejected ? "destructive" : "default"}
+            variant="outline"
             size="sm"
-            className={cn("gap-1.5", !rejected && "bg-destructive text-destructive-foreground hover:bg-destructive/90")}
+            className={cn("gap-1.5", rejected && "bg-destructive text-destructive-foreground border-destructive hover:bg-destructive/90")}
             onClick={onToggleRejected}
           >
             <ThumbsDown className="h-3.5 w-3.5" />
             {rejected ? "Rejected ✗" : "Reject Scene"}
           </Button>
           <Button
-            variant={approved ? "secondary" : "default"}
+            variant="outline"
             size="sm"
-            className="gap-1.5"
+            className={cn("gap-1.5", approved && "bg-primary text-primary-foreground border-primary hover:bg-primary/90")}
             onClick={onToggleApproved}
           >
             <ThumbsUp className="h-3.5 w-3.5" />
