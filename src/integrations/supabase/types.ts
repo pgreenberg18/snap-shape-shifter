@@ -441,7 +441,9 @@ export type Database = {
       parsed_scenes: {
         Row: {
           animals: string[] | null
+          character_details: Json | null
           characters: string[] | null
+          cinematic_elements: Json | null
           created_at: string
           day_night: string | null
           description: string | null
@@ -468,7 +470,9 @@ export type Database = {
         }
         Insert: {
           animals?: string[] | null
+          character_details?: Json | null
           characters?: string[] | null
+          cinematic_elements?: Json | null
           created_at?: string
           day_night?: string | null
           description?: string | null
@@ -495,7 +499,9 @@ export type Database = {
         }
         Update: {
           animals?: string[] | null
+          character_details?: Json | null
           characters?: string[] | null
+          cinematic_elements?: Json | null
           created_at?: string
           day_night?: string | null
           description?: string | null

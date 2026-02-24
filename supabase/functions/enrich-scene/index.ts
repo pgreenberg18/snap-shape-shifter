@@ -105,6 +105,20 @@ ${scene.raw_text}`;
                     items: { type: "string" },
                     description: "List of ALL character names who appear, speak, or are referenced in this scene. Use UPPERCASE names as written in the script.",
                   },
+                  character_details: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string", description: "Character name in UPPERCASE." },
+                        emotional_tone: { type: "string", description: "The character's emotional state in this scene (e.g. 'anxious', 'defiant', 'grief-stricken'). Use 'neutral' if not clear." },
+                        key_expressions: { type: "string", description: "Notable facial expressions or looks described or implied (e.g. 'clenched jaw', 'tearful eyes', 'forced smile'). Use 'not specified' if none." },
+                        physical_behavior: { type: "string", description: "Physical actions, gestures, or body language (e.g. 'pacing nervously', 'slumps into chair', 'reaches for weapon'). Use 'not specified' if none." },
+                      },
+                      required: ["name", "emotional_tone", "key_expressions", "physical_behavior"],
+                    },
+                    description: "Detailed emotional and behavioral breakdown for each character in the scene.",
+                  },
                   key_objects: {
                     type: "array",
                     items: { type: "string" },
@@ -187,8 +201,22 @@ ${scene.raw_text}`;
                     type: "number",
                     description: "Estimated page count for this scene. 1 page ≈ 55 lines. Use fractions like 0.125 for 1/8 page.",
                   },
+                  cinematic_elements: {
+                    type: "object",
+                    properties: {
+                      camera_feel: { type: "string", description: "Overall camera style/feel for this scene (e.g. 'handheld, intimate', 'steady, observational', 'frenetic, chaotic'). Infer from the scene's tone and action." },
+                      motion_cues: { type: "string", description: "Camera motion suggestions (e.g. 'slow push-in on face', 'tracking shot following character', 'static wide'). Infer from the action described." },
+                      shot_suggestions: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "2-4 specific shot type suggestions for key moments (e.g. 'ECU on hands trembling', 'Wide establishing shot of empty street', 'OTS during confrontation').",
+                      },
+                    },
+                    required: ["camera_feel", "motion_cues", "shot_suggestions"],
+                    description: "Cinematic direction suggestions inferred from the scene's content, tone, and action.",
+                  },
                 },
-                required: ["description", "characters", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count"],
+                required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements"],
                 additionalProperties: false,
               },
             },
@@ -233,6 +261,7 @@ ${scene.raw_text}`;
     let breakdown: {
       description: string;
       characters: string[];
+      character_details: { name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[];
       key_objects: string[];
       wardrobe: { character: string; clothing_style: string; condition: string; hair_makeup: string }[];
       picture_vehicles: string[];
@@ -249,6 +278,7 @@ ${scene.raw_text}`;
       day_night: string;
       location_name: string;
       estimated_page_count: number;
+      cinematic_elements: { camera_feel: string; motion_cues: string; shot_suggestions: string[] };
     };
 
     try {
@@ -275,6 +305,7 @@ ${scene.raw_text}`;
       .update({
         description: breakdown.description || "",
         characters: breakdown.characters || [],
+        character_details: breakdown.character_details || [],
         key_objects: breakdown.key_objects || [],
         wardrobe: normalizedWardrobe,
         picture_vehicles: breakdown.picture_vehicles || [],
@@ -291,6 +322,7 @@ ${scene.raw_text}`;
         day_night: breakdown.day_night || "",
         location_name: breakdown.location_name || "",
         estimated_page_count: breakdown.estimated_page_count || 0,
+        cinematic_elements: breakdown.cinematic_elements || {},
         enriched: true,
       })
       .eq("id", scene_id);
@@ -338,6 +370,7 @@ ${scene.raw_text}`;
           scene_heading: s.heading,
           description: s.description || "",
           characters: s.characters || [],
+          character_details: s.character_details || [],
           key_objects: s.key_objects || [],
           wardrobe: s.wardrobe || [],
           picture_vehicles: s.picture_vehicles || [],
@@ -354,6 +387,7 @@ ${scene.raw_text}`;
           day_night: s.day_night || "",
           location_name: s.location_name || "",
           estimated_page_count: s.estimated_page_count || 0,
+          cinematic_elements: s.cinematic_elements || {},
         }));
 
         // Save scene_breakdown but keep status as "enriching" until finalization completes
