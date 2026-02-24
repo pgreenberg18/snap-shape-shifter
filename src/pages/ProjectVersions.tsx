@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Copy, ArrowLeft, Film, Calendar, Trash2 } from "lucide-react";
+import { Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -20,7 +20,10 @@ const ProjectVersions = () => {
   const queryClient = useQueryClient();
   const [newVersionOpen, setNewVersionOpen] = useState(false);
   const [versionName, setVersionName] = useState("");
+  const [versionNameError, setVersionNameError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
@@ -46,10 +49,21 @@ const ProjectVersions = () => {
     enabled: !!projectId,
   });
 
+  const isDuplicateName = (name: string, excludeId?: string) => {
+    if (!versions) return false;
+    const normalized = name.trim().toLowerCase();
+    return versions.some(
+      (v) => v.id !== excludeId && (v.version_name || `Version ${v.version_number}`).toLowerCase() === normalized
+    );
+  };
+
   const createVersion = useMutation({
     mutationFn: async () => {
       const nextNum = (versions?.length || 0) + 1;
       const name = versionName.trim() || `Version ${nextNum}`;
+      if (isDuplicateName(name)) {
+        throw new Error(`A version named "${name}" already exists`);
+      }
       const { data, error } = await supabase
         .from("films")
         .insert({
@@ -67,8 +81,28 @@ const ProjectVersions = () => {
       queryClient.invalidateQueries({ queryKey: ["versions", projectId] });
       setNewVersionOpen(false);
       setVersionName("");
+      setVersionNameError("");
       toast.success("Version created");
       navigate(`/projects/${projectId}/versions/${film.id}/development`);
+    },
+    onError: (e) => {
+      setVersionNameError(e.message);
+      toast.error(e.message);
+    },
+  });
+
+  const renameVersion = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      const trimmed = name.trim();
+      if (!trimmed) throw new Error("Name cannot be empty");
+      if (isDuplicateName(trimmed, id)) throw new Error(`"${trimmed}" already exists`);
+      const { error } = await supabase.from("films").update({ version_name: trimmed }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["versions", projectId] });
+      setRenamingId(null);
+      toast.success("Version renamed");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -118,7 +152,6 @@ const ProjectVersions = () => {
 
   const deleteVersion = useMutation({
     mutationFn: async (filmId: string) => {
-      // Delete all related data
       await Promise.all([
         supabase.from("characters").delete().eq("film_id", filmId),
         supabase.from("shots").delete().eq("film_id", filmId),
@@ -153,7 +186,7 @@ const ProjectVersions = () => {
               <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
             )}
           </div>
-          <Dialog open={newVersionOpen} onOpenChange={setNewVersionOpen}>
+          <Dialog open={newVersionOpen} onOpenChange={(o) => { setNewVersionOpen(o); if (!o) { setVersionNameError(""); setVersionName(""); } }}>
             <DialogTrigger asChild>
               <Button className="gap-2"><Plus className="h-4 w-4" />New Version</Button>
             </DialogTrigger>
@@ -162,10 +195,32 @@ const ProjectVersions = () => {
               <div className="space-y-4 pt-2">
                 <div>
                   <label className="text-sm font-medium text-foreground">Version Name</label>
-                  <Input value={versionName} onChange={(e) => setVersionName(e.target.value)} placeholder={`Version ${(versions?.length || 0) + 1}`} className="mt-1" />
+                  <Input
+                    value={versionName}
+                    onChange={(e) => {
+                      setVersionName(e.target.value);
+                      if (versionNameError) setVersionNameError("");
+                    }}
+                    placeholder={`Version ${(versions?.length || 0) + 1}`}
+                    className="mt-1"
+                  />
+                  {versionNameError && (
+                    <p className="text-xs text-destructive mt-1">{versionNameError}</p>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground">This creates a blank version. Upload a new script in the Development phase.</p>
-                <Button onClick={() => createVersion.mutate()} disabled={createVersion.isPending} className="w-full">
+                <Button
+                  onClick={() => {
+                    const name = versionName.trim() || `Version ${(versions?.length || 0) + 1}`;
+                    if (isDuplicateName(name)) {
+                      setVersionNameError(`A version named "${name}" already exists`);
+                      return;
+                    }
+                    createVersion.mutate();
+                  }}
+                  disabled={createVersion.isPending}
+                  className="w-full"
+                >
                   {createVersion.isPending ? "Creating…" : "Create Version"}
                 </Button>
               </div>
@@ -189,16 +244,37 @@ const ProjectVersions = () => {
                 className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:border-primary/40 hover:cinema-glow"
               >
                 <button
-                  onClick={() => navigate(`/projects/${projectId}/versions/${v.id}/development`)}
+                  onClick={() => renamingId !== v.id && navigate(`/projects/${projectId}/versions/${v.id}/development`)}
                   className="flex flex-1 flex-col text-left"
                 >
                   <div className="flex h-24 items-center justify-center bg-secondary">
                     <Film className="h-8 w-8 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
                   </div>
                   <div className="flex flex-1 flex-col p-4">
-                    <h3 className="font-display text-sm font-semibold text-foreground">
-                      {v.version_name || `Version ${v.version_number}`}
-                    </h3>
+                    {renamingId === v.id ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <Input
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          className="h-7 text-sm"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") renameVersion.mutate({ id: v.id, name: renameValue });
+                            if (e.key === "Escape") setRenamingId(null);
+                          }}
+                        />
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => renameVersion.mutate({ id: v.id, name: renameValue })}>
+                          <Check className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRenamingId(null)}>
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <h3 className="font-display text-sm font-semibold text-foreground">
+                        {v.version_name || `Version ${v.version_number}`}
+                      </h3>
+                    )}
                     <div className="mt-auto flex items-center gap-2 pt-3 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       {new Date(v.created_at).toLocaleDateString()}
@@ -206,6 +282,19 @@ const ProjectVersions = () => {
                   </div>
                 </button>
                 <div className="border-t border-border p-2 flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-xs"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setRenamingId(v.id);
+                      setRenameValue(v.version_name || `Version ${v.version_number}`);
+                    }}
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Rename
+                  </Button>
                   <Button
                     variant="ghost"
                     size="sm"
