@@ -11,9 +11,10 @@ interface TypewriterSceneFeedProps {
   scenes: SceneInfo[];
 }
 
-const CHAR_DELAY = 16;
-const PAUSE_AFTER_SCENE = 1400;
-const WIPE_DURATION = 350;
+const TARGET_TYPE_MS = 1750; // type entire scene in ~1.75s
+const MIN_CHAR_DELAY = 2;
+const PAUSE_AFTER_SCENE = 800;
+const WIPE_DURATION = 250;
 
 const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
   // Use scene_number as the stable key, not array index
@@ -84,9 +85,10 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
     // else stay idle — new scenes will trigger via the effect above
   }, [findNextUnshown]);
 
-  // Typing effect
+  // Typing effect — dynamic speed so each scene finishes in ~1.75s
   useEffect(() => {
     if (phase !== "typing" || !fullText) return;
+    const charDelay = Math.max(MIN_CHAR_DELAY, Math.floor(TARGET_TYPE_MS / fullText.length));
     intervalRef.current = setInterval(() => {
       setCharCount((prev) => {
         if (prev >= fullText.length) {
@@ -96,7 +98,7 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
         }
         return prev + 1;
       });
-    }, CHAR_DELAY);
+    }, charDelay);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
