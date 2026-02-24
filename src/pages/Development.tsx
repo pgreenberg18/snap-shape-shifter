@@ -346,7 +346,7 @@ const Development = () => {
 
     let analysisId: string;
 
-    if (analysis) {
+    if (analysis?.id) {
       // Reanalyze: reset existing record
       const { error: resetErr } = await supabase
         .from("script_analyses")
