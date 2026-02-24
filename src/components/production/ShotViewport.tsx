@@ -3,7 +3,7 @@ import { Camera, Sparkles, Trash2, CheckCircle, Film } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
+
 import {
   Tooltip,
   TooltipContent,
@@ -28,8 +28,6 @@ const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
   const [takes, setTakes] = useState<Take[]>(EMPTY_TAKES);
   const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
-  const [performanceIntensity, setPerformanceIntensity] = useState([50]);
-  const [focusSoftness, setFocusSoftness] = useState([30]);
   const [isGenerating, setIsGenerating] = useState(false);
 
   const activeTake = activeTakeIdx !== null ? takes[activeTakeIdx] : null;
@@ -147,25 +145,9 @@ const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
             )}
           >
             <Sparkles className="h-4 w-4" />
-            {isGenerating ? "Generating…" : "Generate Shot"}
+            {isGenerating ? "Rolling…" : "Roll Camera"}
           </Button>
 
-          {/* Divider */}
-          <div className="w-px h-10 bg-border" />
-
-          {/* Fader Sliders */}
-          <div className="flex-1 flex items-center gap-8">
-            <FaderSlider
-              label="Performance Intensity"
-              value={performanceIntensity}
-              onChange={setPerformanceIntensity}
-            />
-            <FaderSlider
-              label="Focus Softness"
-              value={focusSoftness}
-              onChange={setFocusSoftness}
-            />
-          </div>
         </div>
       </div>
 
@@ -220,35 +202,6 @@ const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
     </div>
   );
 };
-
-/* ── Fader Slider ── */
-const FaderSlider = ({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number[];
-  onChange: (v: number[]) => void;
-}) => (
-  <div className="flex-1 space-y-1.5">
-    <div className="flex items-center justify-between">
-      <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
-        {label}
-      </span>
-      <span className="text-[10px] font-mono text-primary tabular-nums">
-        {value[0]}%
-      </span>
-    </div>
-    <Slider
-      value={value}
-      onValueChange={onChange}
-      max={100}
-      step={1}
-      className="fader-slider"
-    />
-  </div>
-);
 
 /* ── Take Card ── */
 const TakeCard = ({
