@@ -353,7 +353,25 @@ const PostProduction = () => {
       <VfxFixItBay clip={vfxClip} onClose={() => setVfxClip(null)} />
       </div>
       {/* Right Sidebar */}
-      <PostProductionSidebar />
+      <PostProductionSidebar
+        onInsertMusicClip={(label) => {
+          const musicTrack = tracks.find((t) => t.id === "audio4");
+          if (!musicTrack) return;
+          const existingOnTrack = clips.filter((c) => c.track === "audio4");
+          const maxRight = existingOnTrack.reduce((m, c) => Math.max(m, c.left_pos + c.width), 0);
+          const newClip = {
+            id: `local-${Date.now()}`,
+            film_id: "",
+            label,
+            track: "audio4",
+            left_pos: maxRight + 8,
+            width: 200,
+            color: null,
+            created_at: new Date().toISOString(),
+          };
+          setState((prev) => ({ ...prev, clips: [...prev.clips, newClip] }));
+        }}
+      />
     </div>
   );
 };
