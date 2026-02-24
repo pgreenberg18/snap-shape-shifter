@@ -202,11 +202,16 @@ ${scene.raw_text}`;
       const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
       const statusCode = aiResponse.status;
-      // Surface rate limit / payment errors
-      if (statusCode === 429 || statusCode === 402) {
+      // Surface rate limit / payment / capacity errors as retryable
+      if (statusCode === 429 || statusCode === 402 || statusCode === 503) {
+        const msg = statusCode === 429
+          ? "Rate limit exceeded. Please try again shortly."
+          : statusCode === 402
+          ? "Payment required. Please add credits."
+          : "AI model temporarily unavailable. Retrying...";
         return new Response(
-          JSON.stringify({ error: statusCode === 429 ? "Rate limit exceeded. Please try again shortly." : "Payment required. Please add credits." }),
-          { status: statusCode, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: msg, retryable: true }),
+          { status: statusCode === 402 ? 402 : 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       return new Response(
