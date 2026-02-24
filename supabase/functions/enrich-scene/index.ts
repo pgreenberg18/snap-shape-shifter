@@ -259,6 +259,50 @@ ${scene.raw_text}`;
           environment_details: s.environment_details || "",
         }));
 
+        // Auto-detect primary time period from scene headings
+        const yearCounts: Record<string, number> = {};
+        for (const s of (allScenes || [])) {
+          const heading = s.heading || "";
+          // Match explicit years like 1991, 2024, etc.
+          const yearMatch = heading.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+          if (yearMatch) {
+            yearCounts[yearMatch[1]] = (yearCounts[yearMatch[1]] || 0) + 1;
+          } else if (/present\s*day/i.test(heading)) {
+            const currentYear = String(new Date().getFullYear());
+            yearCounts[currentYear] = (yearCounts[currentYear] || 0) + 1;
+          } else {
+            // Scenes without explicit time markers default to "present"
+            const currentYear = String(new Date().getFullYear());
+            yearCounts[currentYear] = (yearCounts[currentYear] || 0) + 1;
+          }
+        }
+
+        // Find the year with the most scenes
+        let primaryYear = "";
+        let maxCount = 0;
+        for (const [year, count] of Object.entries(yearCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            primaryYear = year;
+          }
+        }
+
+        // Update film's time_period if not already set
+        if (primaryYear) {
+          const { data: film } = await supabase
+            .from("films")
+            .select("time_period")
+            .eq("id", analysis.film_id)
+            .single();
+
+          if (film && !film.time_period) {
+            await supabase
+              .from("films")
+              .update({ time_period: primaryYear })
+              .eq("id", analysis.film_id);
+          }
+        }
+
         await supabase
           .from("script_analyses")
           .update({
