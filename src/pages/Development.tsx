@@ -529,8 +529,7 @@ const Development = () => {
 
     const sceneIds: string[] = parseResult?.scene_ids || [];
     if (sceneIds.length > 0) {
-      const { dismiss } = toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting scene detail extraction…`, duration: Infinity });
-      runEnrichmentBatches(sceneIds, analysisId, dismiss);
+      runEnrichmentBatches(sceneIds, analysisId);
     }
 
     setAnalyzing(false);
