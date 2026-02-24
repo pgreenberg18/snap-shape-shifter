@@ -25,6 +25,7 @@ import DnDGroupPane from "@/components/pre-production/DnDGroupPane";
 /* ── Audition card type ── */
 interface AuditionCard {
   id: number;
+  characterId: string;
   section: "archetype" | "wildcard" | "novel";
   label: string;
   imageUrl: string | null;
@@ -33,7 +34,7 @@ interface AuditionCard {
   rating: number;
 }
 
-const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked" | "rating">[] = [
+const CARD_TEMPLATE: Omit<AuditionCard, "imageUrl" | "locked" | "rating" | "characterId">[] = [
   { id: 0, section: "archetype", label: "Classic" },
   { id: 1, section: "archetype", label: "Dramatic" },
   { id: 2, section: "archetype", label: "Subtle" },
@@ -192,7 +193,7 @@ const PreProduction = () => {
     setGenerating(true);
 
     const skeletonCards: AuditionCard[] = CARD_TEMPLATE.map((t) => ({
-      ...t, imageUrl: null, locked: false, generating: true, rating: 0,
+      ...t, characterId: charId, imageUrl: null, locked: false, generating: true, rating: 0,
     }));
     setCards(skeletonCards);
 
@@ -260,28 +261,29 @@ const PreProduction = () => {
   }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, film]);
 
   const handleLockIdentity = useCallback(async (card: AuditionCard) => {
-    if (!selectedChar || !card.imageUrl) return;
+    if (!card.imageUrl || !card.characterId) return;
+    const targetCharId = card.characterId;
     setLocking(card.id);
     const { error } = await supabase
       .from("characters")
       .update({ image_url: card.imageUrl })
-      .eq("id", selectedChar.id);
+      .eq("id", targetCharId);
     setLocking(null);
     if (error) { toast.error("Failed to cast actor"); return; }
-    setCards((prev) => prev.map((c) => ({ ...c, locked: c.id === card.id })));
-    // Persist lock status to auditions table
-    await supabase.from("character_auditions").update({ locked: false }).eq("character_id", selectedChar.id);
-    await supabase.from("character_auditions").update({ locked: true }).eq("character_id", selectedChar.id).eq("card_index", card.id);
+    setCards((prev) => prev.map((c) => c.characterId === targetCharId ? { ...c, locked: c.id === card.id } : c));
+    await supabase.from("character_auditions").update({ locked: false }).eq("character_id", targetCharId);
+    await supabase.from("character_auditions").update({ locked: true }).eq("character_id", targetCharId).eq("card_index", card.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
-    toast.success(`${selectedChar.name} has been cast`);
-  }, [selectedChar, queryClient]);
+    const charName = characters?.find(c => c.id === targetCharId)?.name ?? "Character";
+    toast.success(`${charName} has been cast`);
+  }, [characters, queryClient]);
 
-  const handleRate = useCallback(async (cardId: number, rating: number) => {
-    if (!selectedChar) return;
-    setCards((prev) => prev.map((c) => c.id === cardId ? { ...c, rating } : c));
-    if (expandedCard?.id === cardId) setExpandedCard((prev) => prev ? { ...prev, rating } : prev);
-    await supabase.from("character_auditions").update({ rating } as any).eq("character_id", selectedChar.id).eq("card_index", cardId);
-  }, [selectedChar, expandedCard]);
+  const handleRate = useCallback(async (card: AuditionCard, rating: number) => {
+    if (!card.characterId) return;
+    setCards((prev) => prev.map((c) => c.id === card.id && c.characterId === card.characterId ? { ...c, rating } : c));
+    if (expandedCard?.id === card.id) setExpandedCard((prev) => prev ? { ...prev, rating } : prev);
+    await supabase.from("character_auditions").update({ rating } as any).eq("character_id", card.characterId).eq("card_index", card.id);
+  }, [expandedCard]);
 
   const handleUploadReference = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -457,6 +459,7 @@ const PreProduction = () => {
         const saved = savedCards.find((s: any) => s.card_index === t.id);
         return {
           ...t,
+          characterId: id,
           imageUrl: saved?.image_url ?? null,
           locked: saved?.locked ?? false,
           generating: isGeneratingThis && !saved?.image_url,
@@ -715,7 +718,7 @@ const PreProduction = () => {
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
                           {[1, 2, 3].map((star) => (
-                            <button key={star} onClick={() => expandedCard && handleRate(expandedCard.id, expandedCard.rating === star ? 0 : star)} className="p-0.5">
+                            <button key={star} onClick={() => expandedCard && handleRate(expandedCard, expandedCard.rating === star ? 0 : star)} className="p-0.5">
                               <Star className={cn("h-5 w-5 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
                             </button>
                           ))}
@@ -1167,7 +1170,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 }
 
 /* ── Audition Card ── */
-const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (cardId: number, rating: number) => void }) => (
+const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void }) => (
   <div
     className={cn(
       "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
@@ -1194,7 +1197,7 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { ca
         {!card.generating && card.imageUrl && (
           <div className="flex items-center gap-0.5">
             {[1, 2, 3].map((star) => (
-              <button key={star} onClick={(e) => { e.stopPropagation(); onRate(card.id, card.rating === star ? 0 : star); }} className="p-0">
+              <button key={star} onClick={(e) => { e.stopPropagation(); onRate(card, card.rating === star ? 0 : star); }} className="p-0">
                 <Star className={cn("h-3 w-3 transition-colors", (card.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/40")} />
               </button>
             ))}
