@@ -11,10 +11,10 @@ interface TypewriterSceneFeedProps {
   scenes: SceneInfo[];
 }
 
-const TARGET_TYPE_MS = 1750; // type entire scene in ~1.75s
-const MIN_CHAR_DELAY = 2;
-const PAUSE_AFTER_SCENE = 800;
-const WIPE_DURATION = 250;
+const TARGET_TYPE_MS = 900;
+const MIN_CHAR_DELAY = 1;
+const PAUSE_AFTER_SCENE = 200;
+const WIPE_DURATION = 100;
 
 const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
   // Use scene_number as the stable key, not array index
