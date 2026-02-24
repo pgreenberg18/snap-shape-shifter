@@ -166,8 +166,8 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
               <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", lightsOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-4 pb-4 space-y-4">
-                <ControlGroup icon={Sun} label="Lighting Setup">
+              <div className="pb-1">
+                <SubCollapsible icon={Sun} label="Lighting Setup">
                   <Select value={lightingSetup} onValueChange={setLightingSetup}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
                       <SelectValue />
@@ -183,9 +183,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       ))}
                     </SelectContent>
                   </Select>
-                </ControlGroup>
+                </SubCollapsible>
 
-                <ControlGroup icon={Sun} label="Color Temperature">
+                <SubCollapsible icon={Sun} label="Color Temperature">
                   <div className="space-y-3">
                     <div className="flex items-baseline justify-between">
                       <span className="font-mono text-lg font-bold text-primary tabular-nums">
@@ -208,7 +208,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       <span className="text-[8px] font-mono text-blue-400/70">6500K Cool</span>
                     </div>
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -225,9 +225,8 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
               <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", cameraOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-4 pb-4 space-y-4">
-                {/* Sensor */}
-                <ControlGroup icon={ScanLine} label="Sensor Profile">
+              <div className="pb-1">
+                <SubCollapsible icon={ScanLine} label="Sensor Profile">
                   <Select value={sensor} onValueChange={setSensor}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
                       <SelectValue />
@@ -243,10 +242,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       ))}
                     </SelectContent>
                   </Select>
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Lens */}
-                <ControlGroup icon={Focus} label="Lens Type">
+                <SubCollapsible icon={Focus} label="Lens Type">
                   <Select value={lens} onValueChange={setLens}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
                       <SelectValue />
@@ -270,10 +268,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </span>
                     </div>
                   )}
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Focal Length */}
-                <ControlGroup icon={Crosshair} label="Focal Length">
+                <SubCollapsible icon={Crosshair} label="Focal Length">
                   <div className="space-y-3">
                     <div className="flex items-baseline justify-between">
                       <span className="font-mono text-lg font-bold text-primary tabular-nums">
@@ -318,10 +315,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </div>
                     </div>
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Aperture */}
-                <ControlGroup icon={Aperture} label="Aperture (T-Stop)">
+                <SubCollapsible icon={Aperture} label="Aperture (T-Stop)">
                   <div className="space-y-2">
                     <Select value={aperture} onValueChange={setAperture}>
                       <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
@@ -354,10 +350,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </div>
                     </div>
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Rigging & Movement */}
-                <ControlGroup icon={Move} label="Rigging & Movement">
+                <SubCollapsible icon={Move} label="Rigging & Movement">
                   <Select value={rigging} onValueChange={setRigging}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
                       <SelectValue />
@@ -373,10 +368,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       ))}
                     </SelectContent>
                   </Select>
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Shutter Angle */}
-                <ControlGroup icon={Aperture} label="Motion Blur / Shutter Angle">
+                <SubCollapsible icon={Aperture} label="Motion Blur / Shutter Angle">
                   <div className="flex gap-1.5">
                     {SHUTTER_ANGLES.map((sa) => (
                       <button
@@ -406,10 +400,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </button>
                     ))}
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
 
-                {/* Texture & Polish */}
-                <ControlGroup icon={Sparkles} label="Texture & Polish">
+                <SubCollapsible icon={Sparkles} label="Texture & Polish">
                   <div className="flex flex-col gap-1.5">
                     {TEXTURE_OPTIONS.map((tex) => (
                       <button
@@ -428,7 +421,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </button>
                     ))}
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -445,8 +438,8 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
               <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform duration-200", actionOpen && "rotate-180")} />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="px-4 pb-4 space-y-4">
-                <ControlGroup icon={Drama} label="Performance Style">
+              <div className="pb-1">
+                <SubCollapsible icon={Drama} label="Performance Style">
                   <Select value={performanceStyle} onValueChange={setPerformanceStyle}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
                       <SelectValue />
@@ -462,9 +455,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       ))}
                     </SelectContent>
                   </Select>
-                </ControlGroup>
+                </SubCollapsible>
 
-                <ControlGroup icon={Users} label="Action Intensity">
+                <SubCollapsible icon={Users} label="Action Intensity">
                   <div className="flex flex-col gap-1.5">
                     {ACTION_INTENSITIES.map((ai) => (
                       <button
@@ -494,7 +487,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
                       </button>
                     ))}
                   </div>
-                </ControlGroup>
+                </SubCollapsible>
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -525,18 +518,26 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
   );
 };
 
-/* ── Control Group wrapper ── */
-const ControlGroup = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => (
-  <div className="space-y-2">
-    <div className="flex items-center gap-1.5">
-      <Icon className="h-3 w-3 text-primary/70" />
-      <span className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-muted-foreground">
-        {label}
-      </span>
-    </div>
-    {children}
-  </div>
-);
+/* ── Sub-collapsible for individual settings ── */
+const SubCollapsible = ({ icon: Icon, label, children }: { icon: any; label: string; children: React.ReactNode }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <CollapsibleTrigger className="w-full flex items-center gap-1.5 px-4 py-2 hover:bg-secondary/30 transition-colors">
+        <Icon className={cn("h-3 w-3 transition-colors", open ? "text-primary/70" : "text-muted-foreground/50")} />
+        <span className={cn("text-[10px] font-display font-bold uppercase tracking-[0.12em] flex-1 text-left", open ? "text-foreground" : "text-muted-foreground")}>
+          {label}
+        </span>
+        <ChevronDown className={cn("h-3 w-3 text-muted-foreground/50 transition-transform duration-200", open && "rotate-180")} />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="px-4 pb-3 pt-1">
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 /* ── Readout Row ── */
 const ReadoutRow = ({ label, value }: { label: string; value: string }) => (
