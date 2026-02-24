@@ -5,6 +5,7 @@ import {
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
   Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw,
+  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1883,18 +1884,18 @@ const EditableSceneContent = ({
   onToggleApproved: () => void; onToggleRejected: () => void;
 }) => {
   const [desc, setDesc] = useState<string>(scene.description || "");
-  const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || "");
-  const [lighting, setLighting] = useState<string>(scene.visual_design?.lighting_style || "");
+  const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || scene.mood || "");
+  const [lighting, setLighting] = useState<string>(scene.visual_design?.lighting_style || scene.day_night || "");
   const [palette, setPalette] = useState<string>(scene.visual_design?.color_palette || "");
   const [references, setReferences] = useState<string>(scene.visual_design?.visual_references || "");
-  const [location, setLocation] = useState<string>(scene.setting || scene.scene_heading || "");
+  const [location, setLocation] = useState<string>(scene.setting || scene.location_name || scene.scene_heading || "");
+  const [intExt, setIntExt] = useState<string>(scene.int_ext || "");
+  const [dayNight, setDayNight] = useState<string>(scene.day_night || "");
   const [characters, setCharacters] = useState<{ name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[]>(
-    (scene.characters || []).map((c: any) => ({
-      name: c.name || "",
-      emotional_tone: c.emotional_tone || "",
-      key_expressions: c.key_expressions || "",
-      physical_behavior: c.physical_behavior || "",
-    }))
+    (scene.characters || []).map((c: any) => typeof c === "string"
+      ? { name: c, emotional_tone: "", key_expressions: "", physical_behavior: "" }
+      : { name: c.name || "", emotional_tone: c.emotional_tone || "", key_expressions: c.key_expressions || "", physical_behavior: c.physical_behavior || "" }
+    )
   );
   const [wardrobe, setWardrobe] = useState<{ character: string; clothing_style: string; condition: string; hair_makeup: string }[]>(
     (scene.wardrobe || []).map((w: any) => ({
@@ -1913,6 +1914,14 @@ const EditableSceneContent = ({
   const [keyObjects, setKeyObjects] = useState<string[]>(scene.key_objects || []);
   const [imagePrompt, setImagePrompt] = useState<string>(scene.image_prompt || "");
   const [videoPrompt, setVideoPrompt] = useState<string>(scene.video_prompt || "");
+  const [stunts, setStunts] = useState<string[]>(scene.stunts || []);
+  const [sfx, setSfx] = useState<string[]>(scene.sfx || []);
+  const [vfx, setVfx] = useState<string[]>(scene.vfx || []);
+  const [soundCues, setSoundCues] = useState<string[]>(scene.sound_cues || []);
+  const [animals, setAnimals] = useState<string[]>(scene.animals || []);
+  const [extras, setExtras] = useState<string>(scene.extras || "");
+  const [specialMakeup, setSpecialMakeup] = useState<string[]>(scene.special_makeup || []);
+  const [pictureVehicles, setPictureVehicles] = useState<string[]>(scene.picture_vehicles || []);
 
   const [newItem, setNewItem] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ label: string; idx: number; kind?: string } | null>(null);
@@ -1947,12 +1956,16 @@ const EditableSceneContent = ({
         {/* Location */}
         <Section icon={LocateFixed} label="Location">
           <Textarea value={location} onChange={(e) => setLocation(e.target.value)} className="text-xs min-h-[40px] bg-background border-border" style={{ fieldSizing: 'content' } as React.CSSProperties} />
+          <div className="grid grid-cols-2 gap-2 mt-2">
+            <Tag label="INT / EXT" value={intExt || "—"} />
+            <Tag label="Time of Day" value={dayNight || "—"} />
+          </div>
         </Section>
 
-        {/* Visual Design */}
+        {/* Mood & Visual Design */}
         <Section icon={Palette} label="Visual Design">
           <div className="grid grid-cols-2 gap-2">
-            <EditableTag label="Atmosphere" value={atmosphere} onChange={setAtmosphere} />
+            <EditableTag label="Mood / Tone" value={atmosphere} onChange={setAtmosphere} />
             <EditableTag label="Lighting" value={lighting} onChange={setLighting} />
             <EditableTag label="Palette" value={palette} onChange={setPalette} />
             <EditableTag label="References" value={references} onChange={setReferences} />
@@ -2084,7 +2097,49 @@ const EditableSceneContent = ({
           </div>
         </Section>
 
-        {/* AI Generation Prompts */}
+        {/* Production Breakdown */}
+        <Section icon={Swords} label="Stunts / Action">
+          <TagList items={stunts} emptyLabel="No stunts in this scene" />
+        </Section>
+
+        <Section icon={Zap} label="SFX (Practical Effects)">
+          <TagList items={sfx} emptyLabel="No practical effects" />
+        </Section>
+
+        <Section icon={Wand2} label="VFX (Visual Effects)">
+          <TagList items={vfx} emptyLabel="No visual effects" />
+        </Section>
+
+        <Section icon={Volume2} label="Sound Cues">
+          <TagList items={soundCues} emptyLabel="No specific sound cues" />
+        </Section>
+
+        <Section icon={Dog} label="Animals">
+          <TagList items={animals} emptyLabel="No animals" />
+        </Section>
+
+        <Section icon={UserPlus} label="Extras / Background">
+          <p className="text-xs text-foreground">{extras || "None specified"}</p>
+        </Section>
+
+        <Section icon={Paintbrush} label="Special Makeup / Prosthetics">
+          <TagList items={specialMakeup} emptyLabel="No special makeup" />
+        </Section>
+
+        {pictureVehicles.length > 0 && (
+          <Section icon={Film} label="Picture Vehicles">
+            <TagList items={pictureVehicles} emptyLabel="No vehicles" />
+          </Section>
+        )}
+
+        {scene.estimated_page_count > 0 && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ScrollText className="h-3.5 w-3.5" />
+            <span>Est. {scene.estimated_page_count} page{scene.estimated_page_count !== 1 ? "s" : ""}</span>
+          </div>
+        )}
+
+
         <Section icon={Sparkles} label="AI Generation Prompts">
           <p className="text-xs font-mono text-primary/70 mb-1">IMAGE PROMPT</p>
           <Textarea value={imagePrompt} onChange={(e) => setImagePrompt(e.target.value)} className="text-xs min-h-[80px] bg-background border-border font-mono" style={{ fieldSizing: 'content' } as React.CSSProperties} />
@@ -2168,6 +2223,18 @@ const Tag = ({ label, value }: { label: string; value: string }) => (
     <p className="text-muted-foreground/60 text-[10px] uppercase tracking-wider mb-0.5">{label}</p>
     <p className="text-foreground">{value}</p>
   </div>
+);
+
+const TagList = ({ items, emptyLabel }: { items: string[]; emptyLabel: string }) => (
+  items.length > 0 ? (
+    <div className="flex flex-wrap gap-1.5">
+      {items.map((item, i) => (
+        <span key={i} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">{item}</span>
+      ))}
+    </div>
+  ) : (
+    <p className="text-xs text-muted-foreground/50 italic">{emptyLabel}</p>
+  )
 );
 
 /* ── MPAA Content Safety ── */
