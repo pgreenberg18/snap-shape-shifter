@@ -676,6 +676,41 @@ export type Database = {
           },
         ]
       }
+      version_provider_selections: {
+        Row: {
+          created_at: string
+          film_id: string
+          id: string
+          provider_service_id: string
+          section_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          film_id: string
+          id?: string
+          provider_service_id: string
+          section_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          film_id?: string
+          id?: string
+          provider_service_id?: string
+          section_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "version_provider_selections_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
