@@ -347,8 +347,8 @@ const Development = () => {
     if (invokeErr) {
       toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
     } else {
-      toast({ title: "Analysis started", description: "Your script is being parsed — results will appear shortly." });
-      queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
+      toast({ title: "Analysis complete", description: "Your script has been parsed successfully." });
+      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
     }
   }, [toast, filmId, queryClient]);
 
@@ -420,8 +420,8 @@ const Development = () => {
     if (invokeErr) {
       toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
     } else {
-      toast({ title: "Analysis started", description: "Your script is being analyzed — results will appear below." });
-      queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
+      toast({ title: "Analysis complete", description: "Your script has been parsed successfully." });
+      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
     }
   };
 
