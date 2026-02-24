@@ -10,6 +10,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import VfxFixItBay from "@/components/post-production/VfxFixItBay";
+import PostProductionSidebar from "@/components/post-production/PostProductionSidebar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -218,7 +219,9 @@ const PostProduction = () => {
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full">
+      {/* Main content */}
+      <div className="flex-1 flex flex-col min-w-0">
       {/* Top Half */}
       <div className="flex flex-[5] min-h-0">
         {/* Media Bin */}
@@ -348,6 +351,9 @@ const PostProduction = () => {
 
       {/* VFX Fix-It Bay */}
       <VfxFixItBay clip={vfxClip} onClose={() => setVfxClip(null)} />
+      </div>
+      {/* Right Sidebar */}
+      <PostProductionSidebar />
     </div>
   );
 };
