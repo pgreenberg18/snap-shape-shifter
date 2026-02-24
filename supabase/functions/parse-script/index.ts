@@ -156,9 +156,9 @@ Deno.serve(async (req) => {
       .from("parse_jobs")
       .insert({
         film_id: analysis.film_id,
+        analysis_id: analysis_id,
         status: "completed",
-        progress: 100,
-        total_scenes: scenes.length,
+        scene_count: scenes.length,
       })
       .select()
       .single();
@@ -171,6 +171,12 @@ Deno.serve(async (req) => {
         raw_text: scene.text,
       });
     }
+
+    // Mark the script_analyses row as complete
+    await supabase
+      .from("script_analyses")
+      .update({ status: "complete" })
+      .eq("id", analysis_id);
 
     return new Response(
       JSON.stringify({
