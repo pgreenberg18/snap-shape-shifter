@@ -395,6 +395,7 @@ export type Database = {
           film_id: string
           id: string
           scene_count: number | null
+          scenes_enriched: number
           status: string
           updated_at: string
         }
@@ -405,6 +406,7 @@ export type Database = {
           film_id: string
           id?: string
           scene_count?: number | null
+          scenes_enriched?: number
           status?: string
           updated_at?: string
         }
@@ -415,6 +417,7 @@ export type Database = {
           film_id?: string
           id?: string
           scene_count?: number | null
+          scenes_enriched?: number
           status?: string
           updated_at?: string
         }
@@ -437,28 +440,46 @@ export type Database = {
       }
       parsed_scenes: {
         Row: {
+          characters: string[] | null
           created_at: string
+          description: string | null
+          enriched: boolean
           film_id: string
           heading: string
           id: string
+          key_objects: string[] | null
+          picture_vehicles: string[] | null
           raw_text: string
           scene_number: number
+          wardrobe: Json | null
         }
         Insert: {
+          characters?: string[] | null
           created_at?: string
+          description?: string | null
+          enriched?: boolean
           film_id: string
           heading: string
           id?: string
+          key_objects?: string[] | null
+          picture_vehicles?: string[] | null
           raw_text: string
           scene_number: number
+          wardrobe?: Json | null
         }
         Update: {
+          characters?: string[] | null
           created_at?: string
+          description?: string | null
+          enriched?: boolean
           film_id?: string
           heading?: string
           id?: string
+          key_objects?: string[] | null
+          picture_vehicles?: string[] | null
           raw_text?: string
           scene_number?: number
+          wardrobe?: Json | null
         }
         Relationships: [
           {
@@ -719,7 +740,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_scenes_enriched: {
+        Args: { p_analysis_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

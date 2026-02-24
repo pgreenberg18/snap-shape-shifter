@@ -49,7 +49,7 @@ const useLatestAnalysis = (filmId: string | undefined) =>
     enabled: !!filmId,
     refetchInterval: (query) => {
       const d = query.state.data;
-      if (d && (d.status === "pending" || d.status === "analyzing")) return 3000;
+      if (d && (d.status === "pending" || d.status === "analyzing" || d.status === "enriching")) return 3000;
       return false;
     },
   });
@@ -383,18 +383,36 @@ const Development = () => {
       analysisId = record.id;
     }
 
-    const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
+    const { data: parseResult, error: invokeErr } = await supabase.functions.invoke("parse-script", {
       body: { analysis_id: analysisId },
     });
 
-    setAnalyzing(false);
-
     if (invokeErr) {
+      setAnalyzing(false);
       toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
-    } else {
-      toast({ title: "Analysis complete", description: "Your script has been parsed successfully." });
-      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+      return;
     }
+
+    // Trigger enrichment for each scene sequentially to avoid rate limits
+    const sceneIds: string[] = parseResult?.scene_ids || [];
+    if (sceneIds.length > 0) {
+      toast({ title: "Parsing complete", description: `${sceneIds.length} scenes found. Starting AI enrichment…` });
+
+      // Fire enrichment calls one at a time to respect rate limits
+      for (const sceneId of sceneIds) {
+        const { error: enrichErr } = await supabase.functions.invoke("enrich-scene", {
+          body: { scene_id: sceneId, analysis_id: analysisId },
+        });
+        if (enrichErr) {
+          console.error("Enrichment failed for scene", sceneId, enrichErr);
+          // Continue with remaining scenes
+        }
+      }
+    }
+
+    setAnalyzing(false);
+    toast({ title: "Analysis complete", description: "Script has been parsed and enriched." });
+    queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
   };
 
   useEffect(() => {
