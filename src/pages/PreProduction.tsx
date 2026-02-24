@@ -710,108 +710,115 @@ const PreProduction = () => {
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
-                  <DialogContent className="max-w-2xl p-0 overflow-hidden bg-card border-border max-h-[90vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl p-0 overflow-hidden bg-card border-border">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
                     </DialogHeader>
-                    {expandedCard?.imageUrl && (
-                      <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full aspect-[4/5] object-cover" />
-                    )}
-                    <div className="px-4 pb-2 pt-2 flex items-center justify-between">
-                      <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-1">
-                          {[1, 2, 3].map((star) => (
-                            <button key={star} onClick={() => expandedCard && handleRate(expandedCard, expandedCard.rating === star ? 0 : star)} className="p-0.5">
-                              <Star className={cn("h-5 w-5 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
-                            </button>
-                          ))}
-                        </div>
-                        {expandedCard && !expandedCard.locked && !modifyMode && (
-                          <Button size="sm" variant="outline" onClick={() => setModifyMode(true)} className="gap-1.5">
-                            <Pencil className="h-3.5 w-3.5" />Modify
-                          </Button>
-                        )}
-                        {expandedCard && !expandedCard.locked && (
-                          <Button size="sm" onClick={() => { handleLockIdentity(expandedCard); setExpandedCard(null); }} disabled={locking === expandedCard.id} className="gap-1.5">
-                            {locking === expandedCard.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
-                          </Button>
+                    <div className="flex">
+                      {/* Left: headshot image, compact */}
+                      <div className="w-[260px] shrink-0">
+                        {expandedCard?.imageUrl && (
+                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full object-cover" style={{ aspectRatio: "4/5" }} />
                         )}
                       </div>
-                    </div>
+                      {/* Right: controls + variations */}
+                      <div className="flex-1 flex flex-col p-4 gap-3 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
+                          <div className="flex items-center gap-1">
+                            {[1, 2, 3].map((star) => (
+                              <button key={star} onClick={() => expandedCard && handleRate(expandedCard, expandedCard.rating === star ? 0 : star)} className="p-0.5">
+                                <Star className={cn("h-4 w-4 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {expandedCard && !expandedCard.locked && !modifyMode && (
+                            <Button size="sm" variant="outline" onClick={() => setModifyMode(true)} className="gap-1.5">
+                              <Pencil className="h-3.5 w-3.5" />Modify
+                            </Button>
+                          )}
+                          {expandedCard && !expandedCard.locked && (
+                            <Button size="sm" onClick={() => { handleLockIdentity(expandedCard); setExpandedCard(null); }} disabled={locking === expandedCard.id} className="gap-1.5">
+                              {locking === expandedCard.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
+                            </Button>
+                          )}
+                        </div>
 
-                    {/* Modify section */}
-                    {modifyMode && (
-                      <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
-                        <div className="flex items-center gap-2">
-                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Describe Changes</p>
-                        </div>
-                        <Textarea
-                          value={modifyText}
-                          onChange={(e) => setModifyText(e.target.value)}
-                          placeholder="e.g. Make hair darker, add stubble, older looking, more angular jawline…"
-                          className="min-h-[60px] bg-secondary/50 border-border text-sm resize-none"
-                        />
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            disabled={!modifyText.trim() || modifyGenerating}
-                            onClick={async () => {
-                              if (!expandedCard || !selectedChar || !film) return;
-                              setModifyGenerating(true);
-                              setModifyVariations([
-                                { index: 0, imageUrl: null, generating: true },
-                                { index: 1, imageUrl: null, generating: true },
-                                { index: 2, imageUrl: null, generating: true },
-                              ]);
-                              const baseDesc = charDescription || (selectedChar as any)?.description || "";
-                              const modifiedDesc = `${baseDesc}\n\nIMPORTANT MODIFICATIONS: ${modifyText.trim()}`;
-                              const genBody = {
-                                characterName: selectedChar.name,
-                                description: modifiedDesc,
-                                sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
-                                ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
-                                ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
-                                isChild: charIsChild,
-                                filmTitle: film.title ?? "",
-                                timePeriod: film.time_period ?? "",
-                                genre: "",
-                              };
-                              // Generate 3 variations with different card indices for diversity
-                              const variationIndices = [0, 1, 2];
-                              const promises = variationIndices.map(async (vi) => {
-                                try {
-                                  const { data, error } = await supabase.functions.invoke("generate-headshot", {
-                                    body: { ...genBody, cardIndex: expandedCard.id * 3 + vi },
+                        {/* Modify section */}
+                        {modifyMode && (
+                          <div className="space-y-2 border-t border-border pt-2">
+                            <div className="flex items-center gap-2">
+                              <Pencil className="h-3 w-3 text-muted-foreground" />
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Describe Changes</p>
+                            </div>
+                            <Textarea
+                              value={modifyText}
+                              onChange={(e) => setModifyText(e.target.value)}
+                              placeholder="e.g. Make hair darker, add stubble, older looking…"
+                              className="min-h-[50px] bg-secondary/50 border-border text-sm resize-none"
+                            />
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                disabled={!modifyText.trim() || modifyGenerating}
+                                onClick={async () => {
+                                  if (!expandedCard || !selectedChar || !film || !expandedCard.imageUrl) return;
+                                  setModifyGenerating(true);
+                                  setModifyVariations([
+                                    { index: 0, imageUrl: null, generating: true },
+                                    { index: 1, imageUrl: null, generating: true },
+                                    { index: 2, imageUrl: null, generating: true },
+                                  ]);
+                                  const genBody = {
+                                    characterName: selectedChar.name,
+                                    description: charDescription || (selectedChar as any)?.description || "",
+                                    sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
+                                    ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
+                                    ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
+                                    isChild: charIsChild,
+                                    filmTitle: film.title ?? "",
+                                    timePeriod: film.time_period ?? "",
+                                    genre: "",
+                                    referenceImageUrl: expandedCard.imageUrl,
+                                    modifyInstructions: modifyText.trim(),
+                                  };
+                                  const variationIndices = [0, 1, 2];
+                                  const promises = variationIndices.map(async (vi) => {
+                                    try {
+                                      const { data, error } = await supabase.functions.invoke("generate-headshot", {
+                                        body: { ...genBody, cardIndex: expandedCard.id * 3 + vi },
+                                      });
+                                      if (error) throw error;
+                                      const imageUrl = data?.imageUrl ?? null;
+                                      setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, imageUrl, generating: false } : v));
+                                    } catch (e) {
+                                      console.error(`Modify variation ${vi} failed:`, e);
+                                      setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, generating: false } : v));
+                                    }
                                   });
-                                  if (error) throw error;
-                                  const imageUrl = data?.imageUrl ?? null;
-                                  setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, imageUrl, generating: false } : v));
-                                } catch (e) {
-                                  console.error(`Modify variation ${vi} failed:`, e);
-                                  setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, generating: false } : v));
-                                }
-                              });
-                              await Promise.allSettled(promises);
-                              setModifyGenerating(false);
-                            }}
-                            className="gap-1.5"
-                          >
-                            {modifyGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Generating…</> : <><Sparkles className="h-3.5 w-3.5" />Generate Variations</>}
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setModifyMode(false); setModifyText(""); setModifyVariations([]); }}>Cancel</Button>
-                        </div>
+                                  await Promise.allSettled(promises);
+                                  setModifyGenerating(false);
+                                }}
+                                className="gap-1.5"
+                              >
+                                {modifyGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Generating…</> : <><Sparkles className="h-3.5 w-3.5" />Generate Variations</>}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => { setModifyMode(false); setModifyText(""); setModifyVariations([]); }}>Cancel</Button>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Variation results */}
                         {modifyVariations.length > 0 && (
-                          <div className="grid grid-cols-3 gap-3 pt-2">
+                          <div className="grid grid-cols-3 gap-2 mt-auto">
                             {modifyVariations.map((v) => (
                               <div key={v.index} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
                                 {v.generating ? (
                                   <div className="aspect-[4/5] flex items-center justify-center">
-                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                   </div>
                                 ) : v.imageUrl ? (
                                   <>
@@ -821,9 +828,7 @@ const PreProduction = () => {
                                         size="sm"
                                         onClick={async () => {
                                           if (!expandedCard || !v.imageUrl) return;
-                                          // Update the card with the selected variation
                                           setCards((prev) => prev.map((c) => c.id === expandedCard.id && c.characterId === expandedCard.characterId ? { ...c, imageUrl: v.imageUrl } : c));
-                                          // Update DB
                                           await supabase.from("character_auditions").update({ image_url: v.imageUrl }).eq("character_id", expandedCard.characterId).eq("card_index", expandedCard.id);
                                           setExpandedCard((prev) => prev ? { ...prev, imageUrl: v.imageUrl! } : prev);
                                           setModifyMode(false);
@@ -840,13 +845,13 @@ const PreProduction = () => {
                                 ) : (
                                   <div className="aspect-[4/5] flex items-center justify-center text-xs text-muted-foreground">Failed</div>
                                 )}
-                                <p className="text-[10px] text-center text-muted-foreground py-1">Variation {v.index + 1}</p>
+                                <p className="text-[10px] text-center text-muted-foreground py-0.5">Var {v.index + 1}</p>
                               </div>
                             ))}
                           </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </DialogContent>
                 </Dialog>
 

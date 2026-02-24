@@ -77,7 +77,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { characterName, description, sex, ageMin, ageMax, isChild, filmTitle, timePeriod, genre, cardIndex } = await req.json();
+    const { characterName, description, sex, ageMin, ageMax, isChild, filmTitle, timePeriod, genre, cardIndex, referenceImageUrl, modifyInstructions } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
@@ -162,9 +162,22 @@ This actor must be a completely unique individual — distinct ethnicity, bone s
           messages: [
             {
               role: "system",
-              content: "You are a cinematic headshot generation engine for casting development. Generate photorealistic vertical 8×10 actor headshots that look like they came from a real casting session. Every image must be production-quality, naturally lit, and character-authentic."
+              content: referenceImageUrl
+                ? "You are a cinematic headshot modification engine. You will receive a reference headshot photo and instructions for modifications. Generate a new headshot that looks like the SAME PERSON from the reference but with the requested changes applied. Maintain the same face, bone structure, ethnicity, and core identity — only apply the specific modifications requested."
+                : "You are a cinematic headshot generation engine for casting development. Generate photorealistic vertical 8×10 actor headshots that look like they came from a real casting session. Every image must be production-quality, naturally lit, and character-authentic."
             },
-            { role: "user", content: prompt }
+            referenceImageUrl
+              ? {
+                  role: "user",
+                  content: [
+                    { type: "image_url", image_url: { url: referenceImageUrl } },
+                    { type: "text", text: modifyInstructions
+                      ? `This is the reference headshot. Generate a new variation of this SAME PERSON with these modifications: ${modifyInstructions}\n\nKeep the same person's face, ethnicity, bone structure, and core identity. Only change what is specifically requested. Output a vertical 8×10 portrait (4:5 aspect ratio), photorealistic casting headshot style, neutral backdrop, natural lighting.`
+                      : prompt
+                    },
+                  ],
+                }
+              : { role: "user", content: prompt }
           ],
           modalities: ["image", "text"],
         }),
