@@ -306,18 +306,51 @@ const Development = () => {
       toast({ title: "Unsupported format", description: `Supported: ${ACCEPTED_LABEL}`, variant: "destructive" });
       return;
     }
+    if (!filmId) return;
     setUploading(true);
+    setAnalyzing(true);
+
+    // 1. Upload file to storage
     const path = `${filmId}/${Date.now()}_${file.name}`;
-    const { error } = await supabase.storage.from("scripts").upload(path, file);
-    setUploading(false);
-    if (error) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
-    } else {
-      setUploadedFile(file.name);
-      setUploadedPath(path);
-      toast({ title: "Script uploaded", description: file.name });
+    const { error: uploadErr } = await supabase.storage.from("scripts").upload(path, file);
+    if (uploadErr) {
+      setUploading(false);
+      setAnalyzing(false);
+      toast({ title: "Upload failed", description: uploadErr.message, variant: "destructive" });
+      return;
     }
-  }, [toast]);
+
+    setUploadedFile(file.name);
+    setUploadedPath(path);
+    setUploading(false);
+
+    // 2. Insert script_analyses row
+    const { data: record, error: insertErr } = await supabase
+      .from("script_analyses")
+      .insert({ film_id: filmId, file_name: file.name, storage_path: path, status: "pending" })
+      .select()
+      .single();
+
+    if (insertErr || !record) {
+      setAnalyzing(false);
+      toast({ title: "Failed to start analysis", description: insertErr?.message, variant: "destructive" });
+      return;
+    }
+
+    // 3. Invoke parse-script edge function
+    const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
+      body: { analysis_id: record.id },
+    });
+
+    setAnalyzing(false);
+
+    if (invokeErr) {
+      toast({ title: "Analysis request failed", description: invokeErr.message, variant: "destructive" });
+    } else {
+      toast({ title: "Analysis started", description: "Your script is being parsed — results will appear shortly." });
+      queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
+    }
+  }, [toast, filmId, queryClient]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
