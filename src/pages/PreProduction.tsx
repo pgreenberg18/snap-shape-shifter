@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User,
+  Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User, Pencil,
   Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
@@ -61,6 +61,11 @@ const PreProduction = () => {
   const generatingCharIdRef = useRef<string | null>(null);
   const [locking, setLocking] = useState<number | null>(null);
   const [expandedCard, setExpandedCard] = useState<AuditionCard | null>(null);
+  // Modify flow state
+  const [modifyMode, setModifyMode] = useState(false);
+  const [modifyText, setModifyText] = useState("");
+  const [modifyVariations, setModifyVariations] = useState<{ index: number; imageUrl: string | null; generating: boolean }[]>([]);
+  const [modifyGenerating, setModifyGenerating] = useState(false);
   // Voice state
   const [voiceDesc, setVoiceDesc] = useState("");
   const [savingVoice, setSavingVoice] = useState(false);
@@ -704,8 +709,8 @@ const PreProduction = () => {
                 )}
 
                 {/* Expanded headshot dialog */}
-                <Dialog open={!!expandedCard} onOpenChange={(open) => !open && setExpandedCard(null)}>
-                  <DialogContent className="max-w-lg p-0 overflow-hidden bg-card border-border">
+                <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
+                  <DialogContent className="max-w-2xl p-0 overflow-hidden bg-card border-border max-h-[90vh] overflow-y-auto">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
@@ -713,7 +718,7 @@ const PreProduction = () => {
                     {expandedCard?.imageUrl && (
                       <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full aspect-[4/5] object-cover" />
                     )}
-                    <div className="px-4 pb-4 pt-2 flex items-center justify-between">
+                    <div className="px-4 pb-2 pt-2 flex items-center justify-between">
                       <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
                       <div className="flex items-center gap-3">
                         <div className="flex items-center gap-1">
@@ -723,6 +728,11 @@ const PreProduction = () => {
                             </button>
                           ))}
                         </div>
+                        {expandedCard && !expandedCard.locked && !modifyMode && (
+                          <Button size="sm" variant="outline" onClick={() => setModifyMode(true)} className="gap-1.5">
+                            <Pencil className="h-3.5 w-3.5" />Modify
+                          </Button>
+                        )}
                         {expandedCard && !expandedCard.locked && (
                           <Button size="sm" onClick={() => { handleLockIdentity(expandedCard); setExpandedCard(null); }} disabled={locking === expandedCard.id} className="gap-1.5">
                             {locking === expandedCard.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
@@ -730,6 +740,113 @@ const PreProduction = () => {
                         )}
                       </div>
                     </div>
+
+                    {/* Modify section */}
+                    {modifyMode && (
+                      <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
+                        <div className="flex items-center gap-2">
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Describe Changes</p>
+                        </div>
+                        <Textarea
+                          value={modifyText}
+                          onChange={(e) => setModifyText(e.target.value)}
+                          placeholder="e.g. Make hair darker, add stubble, older looking, more angular jawline…"
+                          className="min-h-[60px] bg-secondary/50 border-border text-sm resize-none"
+                        />
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            disabled={!modifyText.trim() || modifyGenerating}
+                            onClick={async () => {
+                              if (!expandedCard || !selectedChar || !film) return;
+                              setModifyGenerating(true);
+                              setModifyVariations([
+                                { index: 0, imageUrl: null, generating: true },
+                                { index: 1, imageUrl: null, generating: true },
+                                { index: 2, imageUrl: null, generating: true },
+                              ]);
+                              const baseDesc = charDescription || (selectedChar as any)?.description || "";
+                              const modifiedDesc = `${baseDesc}\n\nIMPORTANT MODIFICATIONS: ${modifyText.trim()}`;
+                              const genBody = {
+                                characterName: selectedChar.name,
+                                description: modifiedDesc,
+                                sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
+                                ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
+                                ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
+                                isChild: charIsChild,
+                                filmTitle: film.title ?? "",
+                                timePeriod: film.time_period ?? "",
+                                genre: "",
+                              };
+                              // Generate 3 variations with different card indices for diversity
+                              const variationIndices = [0, 1, 2];
+                              const promises = variationIndices.map(async (vi) => {
+                                try {
+                                  const { data, error } = await supabase.functions.invoke("generate-headshot", {
+                                    body: { ...genBody, cardIndex: expandedCard.id * 3 + vi },
+                                  });
+                                  if (error) throw error;
+                                  const imageUrl = data?.imageUrl ?? null;
+                                  setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, imageUrl, generating: false } : v));
+                                } catch (e) {
+                                  console.error(`Modify variation ${vi} failed:`, e);
+                                  setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, generating: false } : v));
+                                }
+                              });
+                              await Promise.allSettled(promises);
+                              setModifyGenerating(false);
+                            }}
+                            className="gap-1.5"
+                          >
+                            {modifyGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Generating…</> : <><Sparkles className="h-3.5 w-3.5" />Generate Variations</>}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setModifyMode(false); setModifyText(""); setModifyVariations([]); }}>Cancel</Button>
+                        </div>
+
+                        {/* Variation results */}
+                        {modifyVariations.length > 0 && (
+                          <div className="grid grid-cols-3 gap-3 pt-2">
+                            {modifyVariations.map((v) => (
+                              <div key={v.index} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
+                                {v.generating ? (
+                                  <div className="aspect-[4/5] flex items-center justify-center">
+                                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                                  </div>
+                                ) : v.imageUrl ? (
+                                  <>
+                                    <img src={v.imageUrl} alt={`Variation ${v.index + 1}`} className="w-full aspect-[4/5] object-cover" />
+                                    <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
+                                      <Button
+                                        size="sm"
+                                        onClick={async () => {
+                                          if (!expandedCard || !v.imageUrl) return;
+                                          // Update the card with the selected variation
+                                          setCards((prev) => prev.map((c) => c.id === expandedCard.id && c.characterId === expandedCard.characterId ? { ...c, imageUrl: v.imageUrl } : c));
+                                          // Update DB
+                                          await supabase.from("character_auditions").update({ image_url: v.imageUrl }).eq("character_id", expandedCard.characterId).eq("card_index", expandedCard.id);
+                                          setExpandedCard((prev) => prev ? { ...prev, imageUrl: v.imageUrl! } : prev);
+                                          setModifyMode(false);
+                                          setModifyText("");
+                                          setModifyVariations([]);
+                                          toast.success("Variation selected");
+                                        }}
+                                        className="gap-1.5"
+                                      >
+                                        <Check className="h-3.5 w-3.5" />Select
+                                      </Button>
+                                    </div>
+                                  </>
+                                ) : (
+                                  <div className="aspect-[4/5] flex items-center justify-center text-xs text-muted-foreground">Failed</div>
+                                )}
+                                <p className="text-[10px] text-center text-muted-foreground py-1">Variation {v.index + 1}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </DialogContent>
                 </Dialog>
 
