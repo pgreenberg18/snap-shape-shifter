@@ -11,7 +11,7 @@ import {
   Film,
   Rocket,
   Settings,
-  Layers,
+  
   ArrowLeft,
   Loader2,
 } from "lucide-react";
@@ -131,10 +131,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Bottom nav */}
         <div className="flex flex-col items-center gap-1 mb-2">
-          {[
-            { key: "global-assets", icon: Layers, label: "Global Assets" },
-            { key: "settings", icon: Settings, label: "Settings" },
-          ].map((item) => renderNavItem(item.key, item.icon, item.label))}
+          {renderNavItem("settings", Settings, "Settings")}
         </div>
       </aside>
 
