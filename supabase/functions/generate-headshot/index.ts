@@ -34,6 +34,19 @@ const FACE_VARIATIONS: Record<number, string> = {
   9: "rectangular face, balanced proportions",
 };
 
+const HAIR_VARIATIONS: Record<number, string> = {
+  0: "dark brown, short and neatly styled",
+  1: "warm blonde, medium length with natural wave",
+  2: "black, thick and textured",
+  3: "auburn red, shoulder length",
+  4: "light brown, cropped and clean",
+  5: "platinum blonde, tousled and relaxed",
+  6: "deep chestnut, wavy and full",
+  7: "strawberry blonde, layered",
+  8: "jet black, slicked back",
+  9: "copper red, natural curls",
+};
+
 const WARDROBE_PALETTE: Record<number, string> = {
   0: "charcoal crew neck",
   1: "navy henley",
@@ -96,6 +109,13 @@ serve(async (req) => {
     const faceShape = FACE_VARIATIONS[idx] || FACE_VARIATIONS[0];
     const wardrobe = WARDROBE_PALETTE[idx] || WARDROBE_PALETTE[0];
     const lighting = LIGHTING_VARIATIONS[idx] || LIGHTING_VARIATIONS[0];
+    const hair = HAIR_VARIATIONS[idx] || HAIR_VARIATIONS[0];
+
+    // Detect attractiveness cues in description
+    const attractiveMatch = /\b(attractive|handsome|beautiful|good.looking|gorgeous|striking|pretty|stunning)\b/i.test(description || "");
+    const attractivenessLine = attractiveMatch
+      ? "- Physical appeal: This actor is notably attractive — symmetrical features, clear skin, photogenic bone structure, naturally good-looking"
+      : "";
 
     const prompt = `Generate a single photorealistic casting headshot photograph. This is Actor ${idx + 1} of 10 for the role of "${characterName}" in the film "${filmTitle}". ${periodStr} ${genreStr}
 
@@ -103,9 +123,11 @@ CHARACTER BRIEF:
 - Gender: ${sexStr}
 - Age: ${ageStr}
 - Description: ${safeDesc || "No additional description provided."}
+${attractivenessLine}
 
 THIS SPECIFIC ACTOR (Actor ${idx + 1}):
 - Face structure: ${faceShape}
+- Hair: ${hair}
 - Expression: ${expression}
 - Wardrobe: ${wardrobe}, solid color, no logos, no patterns
 - Lighting setup: Large soft ${lighting}
