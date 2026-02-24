@@ -675,12 +675,14 @@ const Development = () => {
     return temporalAnalysis?.secondary_time_periods || [];
   }, [temporalAnalysis]);
 
+  /* State for script text preview dialog */
+  const [scriptPreview, setScriptPreview] = useState<{ heading: string; text: string } | null>(null);
+
   /* Fallback: keyword-based detection if AI didn't provide temporal_analysis */
   const timeShifts = useMemo(() => {
     if (secondaryTimePeriods.length > 0) return []; // AI handled it
     if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
 
-    // Determine base year: from time_period field, or default to current year
     const currentYear = new Date().getFullYear();
     let baseYear = currentYear;
     const periodStr = (film?.time_period || timePeriod || "").trim();
@@ -691,13 +693,42 @@ const Development = () => {
     }
 
     const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory", "year earlier", "year later"];
-    const shifts: { type: string; sceneHeading: string; sceneIndex: number; calculatedYear: string }[] = [];
+    const RETURN_KEYWORDS = ["back to present", "present day", "end flashback", "end flash back", "resume present", "return to present"];
+    const allScenes = analysis.scene_breakdown as any[];
 
-    for (const [i, scene] of (analysis.scene_breakdown as any[]).entries()) {
+    // Approximate page numbers (~3000 chars per page)
+    const CHARS_PER_PAGE = 3000;
+    let cumulativeChars = 0;
+    const scenePages: number[] = allScenes.map((scene: any) => {
+      const rawLen = (scene.raw_text || scene.description || "").length || 200;
+      const page = Math.floor(cumulativeChars / CHARS_PER_PAGE) + 1;
+      cumulativeChars += rawLen;
+      return page;
+    });
+
+    const shifts: { type: string; sceneHeading: string; sceneIndex: number; sceneNumber: number; calculatedYear: string; pageNumber: number }[] = [];
+    const seenTimePeriods = new Set<string>();
+    seenTimePeriods.add(String(baseYear));
+    seenTimePeriods.add("present");
+    let currentTimePeriod = String(baseYear);
+
+    for (const [i, scene] of allScenes.entries()) {
       const heading = (scene.scene_heading || "").toLowerCase();
       const desc = (scene.description || "").toLowerCase();
       const combined = `${heading} ${desc}`;
       const originalHeading = scene.scene_heading || `Scene ${i + 1}`;
+
+      // Check for explicit return-to-present markers
+      if (RETURN_KEYWORDS.some(kw => combined.includes(kw))) {
+        currentTimePeriod = String(baseYear);
+        continue;
+      }
+
+      // "PRESENT DAY" in heading = return to base
+      if (/present\s*day/i.test(heading)) {
+        currentTimePeriod = String(baseYear);
+        continue; // base time is already established
+      }
 
       for (const kw of FLASHBACK_KEYWORDS) {
         if (!combined.includes(kw)) continue;
@@ -706,21 +737,17 @@ const Development = () => {
           : kw.includes("memory") ? "Memory" : "Flashback";
 
         let calculatedYear = "";
-
-        // 1. Check for explicit year in heading (e.g., "INT. SCHOOL - DAY 1991")
         const explicitYear = (originalHeading + " " + (scene.description || ""))
           .match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
         if (explicitYear) {
           calculatedYear = explicitYear[1];
         } else {
-          // 2. Parse relative offsets like "20 YEARS EARLIER", "1 YEAR LATER", "SIX MONTHS AGO"
           const numberWords: Record<string, number> = {
             one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7,
             eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13,
             fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18,
             nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50,
           };
-
           const relMatch = combined.match(/(\d+|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty))\s+(years?|months?|days?)\s+(earlier|ago|before|later|after|forward)/i);
           if (relMatch) {
             let num = parseInt(relMatch[1], 10);
@@ -728,29 +755,54 @@ const Development = () => {
             const unit = relMatch[2].toLowerCase();
             const direction = relMatch[3].toLowerCase();
             const isPast = ["earlier", "ago", "before"].includes(direction);
-
             if (unit.startsWith("year") && num > 0) {
               calculatedYear = String(isPast ? baseYear - num : baseYear + num);
             } else if (unit.startsWith("month") && num > 0) {
-              // Approximate: show "~YEAR" for months
               const yearOffset = Math.round(num / 12);
-              if (yearOffset >= 1) {
-                calculatedYear = `~${isPast ? baseYear - yearOffset : baseYear + yearOffset}`;
-              } else {
-                calculatedYear = `${baseYear} (${num} months ${isPast ? "earlier" : "later"})`;
-              }
+              calculatedYear = yearOffset >= 1
+                ? `~${isPast ? baseYear - yearOffset : baseYear + yearOffset}`
+                : `${baseYear} (${num} months ${isPast ? "earlier" : "later"})`;
             } else if (unit.startsWith("day") && num > 0) {
               calculatedYear = `${baseYear} (${num} days ${isPast ? "earlier" : "later"})`;
             }
           }
         }
 
-        shifts.push({ type, sceneHeading: originalHeading, sceneIndex: i, calculatedYear });
+        // Skip if returning to an already-established time period
+        const periodKey = calculatedYear || type;
+        if (seenTimePeriods.has(periodKey)) {
+          currentTimePeriod = periodKey;
+          break;
+        }
+
+        seenTimePeriods.add(periodKey);
+        currentTimePeriod = periodKey;
+        shifts.push({
+          type,
+          sceneHeading: originalHeading,
+          sceneIndex: i,
+          sceneNumber: scene.scene_number || i + 1,
+          calculatedYear,
+          pageNumber: scenePages[i] || 1,
+        });
         break;
       }
     }
     return shifts;
   }, [analysis?.scene_breakdown, secondaryTimePeriods.length, film?.time_period, timePeriod]);
+
+  /* Fetch raw script text for a scene preview popup */
+  const fetchSceneText = useCallback(async (sceneNumber: number) => {
+    if (!filmId) return;
+    const { data } = await supabase
+      .from("parsed_scenes")
+      .select("heading, raw_text")
+      .eq("film_id", filmId)
+      .eq("scene_number", sceneNumber)
+      .limit(1)
+      .maybeSingle();
+    if (data) setScriptPreview({ heading: data.heading, text: data.raw_text });
+  }, [filmId]);
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
@@ -1160,17 +1212,38 @@ const Development = () => {
                           </span>
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase">{shift.type}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase">{shift.type} · Scene {shift.sceneNumber}</p>
                           </div>
+                          <button
+                            onClick={() => fetchSceneText(shift.sceneNumber)}
+                            className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                            title="View script page"
+                          >
+                            <FileText className="h-3 w-3" />
+                            p.{shift.pageNumber}
+                          </button>
                           <Input
                             defaultValue={shift.calculatedYear}
                             placeholder="e.g. 1955"
-                            className="w-52 h-8 text-xs"
+                            className="w-40 h-8 text-xs"
                             disabled={scriptLocked}
                           />
                         </div>
                       ))}
                     </div>
+
+                    {/* Script text preview dialog */}
+                    <Dialog open={!!scriptPreview} onOpenChange={(open) => !open && setScriptPreview(null)}>
+                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+                        <DialogHeader>
+                          <DialogTitle className="text-sm font-bold">{scriptPreview?.heading}</DialogTitle>
+                          <DialogDescription className="text-xs text-muted-foreground">Script excerpt for this scene</DialogDescription>
+                        </DialogHeader>
+                        <div className="flex-1 overflow-y-auto rounded-lg bg-secondary p-4">
+                          <pre className="whitespace-pre-wrap text-xs font-mono text-foreground leading-relaxed">{scriptPreview?.text}</pre>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 )}
               </div>
