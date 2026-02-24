@@ -160,7 +160,7 @@ const Production = () => {
       </main>
 
       {/* ── Right: Optic & Sensor Suite ── */}
-      {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} />}
+      {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />}
     </div>
   );
 };

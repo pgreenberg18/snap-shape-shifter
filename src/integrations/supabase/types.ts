@@ -371,6 +371,41 @@ export type Database = {
           },
         ]
       }
+      production_presets: {
+        Row: {
+          category: string
+          created_at: string
+          film_id: string
+          id: string
+          name: string
+          settings: Json
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          film_id: string
+          id?: string
+          name: string
+          settings?: Json
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          film_id?: string
+          id?: string
+          name?: string
+          settings?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_presets_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           created_at: string

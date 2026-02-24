@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { Aperture, Crosshair, Focus, ScanLine, Sun, Move, Sparkles, Lightbulb, Camera, Clapperboard, Users, Drama } from "lucide-react";
+import { Aperture, Crosshair, Focus, ScanLine, Sun, Move, Sparkles, Lightbulb, Camera, Clapperboard, Users, Drama, Save, FolderOpen, Trash2 } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -10,6 +10,14 @@ import { ChevronDown } from "lucide-react";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 /* ── Constants ── */
 const SENSORS = [
@@ -85,9 +93,27 @@ const ACTION_INTENSITIES = [
 
 interface OpticsSuitePanelProps {
   onAspectRatioChange: (ratio: number) => void;
+  filmId?: string;
 }
 
-const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
+/* ── Preset types ── */
+interface LightsSettings {
+  lightingSetup: string;
+  colorTemp: number;
+}
+interface CameraSettings {
+  sensor: string;
+  lens: string;
+  focalLength: number;
+  aperture: string;
+  rigging: string;
+  shutterAngle: string;
+  textures: string[];
+}
+
+const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps) => {
+  const queryClient = useQueryClient();
+
   // Camera & Optics
   const [sensor, setSensor] = useState("arri-alexa-35");
   const [lens, setLens] = useState("spherical-prime");
@@ -108,6 +134,88 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
   const [lightsOpen, setLightsOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [actionOpen, setActionOpen] = useState(false);
+
+  // ── Preset queries ──
+  const { data: lightsPresets = [] } = useQuery({
+    queryKey: ["production-presets", filmId, "lights"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("production_presets")
+        .select("*")
+        .eq("film_id", filmId!)
+        .eq("category", "lights")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+  });
+
+  const { data: cameraPresets = [] } = useQuery({
+    queryKey: ["production-presets", filmId, "camera"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("production_presets")
+        .select("*")
+        .eq("film_id", filmId!)
+        .eq("category", "camera")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+  });
+
+  const savePreset = useMutation({
+    mutationFn: async ({ category, name, settings }: { category: string; name: string; settings: any }) => {
+      const { error } = await supabase
+        .from("production_presets")
+        .insert({ film_id: filmId!, category, name, settings });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["production-presets", filmId, vars.category] });
+      toast.success("Preset saved");
+    },
+    onError: () => toast.error("Failed to save preset"),
+  });
+
+  const deletePreset = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("production_presets").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["production-presets", filmId] });
+      toast.success("Preset deleted");
+    },
+  });
+
+  const getLightsSettings = useCallback((): LightsSettings => ({
+    lightingSetup,
+    colorTemp: colorTemp[0],
+  }), [lightingSetup, colorTemp]);
+
+  const getCameraSettings = useCallback((): CameraSettings => ({
+    sensor, lens, focalLength: focalLength[0], aperture, rigging, shutterAngle, textures,
+  }), [sensor, lens, focalLength, aperture, rigging, shutterAngle, textures]);
+
+  const loadLightsPreset = useCallback((settings: LightsSettings) => {
+    setLightingSetup(settings.lightingSetup);
+    setColorTemp([settings.colorTemp]);
+    toast.success("Lights preset loaded");
+  }, []);
+
+  const loadCameraPreset = useCallback((settings: CameraSettings) => {
+    setSensor(settings.sensor);
+    setLens(settings.lens);
+    setFocalLength([settings.focalLength]);
+    setAperture(settings.aperture);
+    setRigging(settings.rigging);
+    setShutterAngle(settings.shutterAngle);
+    setTextures(settings.textures || []);
+    toast.success("Camera preset loaded");
+  }, []);
 
   useEffect(() => {
     if (lens === "anamorphic-prime") {
@@ -167,6 +275,17 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="pb-1">
+                {/* Preset bar */}
+                {filmId && (
+                  <PresetBar
+                    category="lights"
+                    presets={lightsPresets}
+                    onSave={(name) => savePreset.mutate({ category: "lights", name, settings: getLightsSettings() })}
+                    onLoad={(preset) => loadLightsPreset(preset.settings as unknown as LightsSettings)}
+                    onDelete={(id) => deletePreset.mutate(id)}
+                  />
+                )}
+
                 <SubCollapsible icon={Sun} label="Lighting Setup">
                   <Select value={lightingSetup} onValueChange={setLightingSetup}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
@@ -214,7 +333,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
           </Collapsible>
 
           {/* ═══════════════════════════════════════
-              CAMERA (Optics + Rigging + Movement + Texture)
+              CAMERA
              ═══════════════════════════════════════ */}
           <Collapsible open={cameraOpen} onOpenChange={setCameraOpen}>
             <CollapsibleTrigger className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-secondary/40 transition-colors">
@@ -226,6 +345,17 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="pb-1">
+                {/* Preset bar */}
+                {filmId && (
+                  <PresetBar
+                    category="camera"
+                    presets={cameraPresets}
+                    onSave={(name) => savePreset.mutate({ category: "camera", name, settings: getCameraSettings() })}
+                    onLoad={(preset) => loadCameraPreset(preset.settings as unknown as CameraSettings)}
+                    onDelete={(id) => deletePreset.mutate(id)}
+                  />
+                )}
+
                 <SubCollapsible icon={ScanLine} label="Sensor Profile">
                   <Select value={sensor} onValueChange={setSensor}>
                     <SelectTrigger className="h-9 bg-background border-border/60 text-sm font-mono">
@@ -427,7 +557,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
           </Collapsible>
 
           {/* ═══════════════════════════════════════
-              ACTION (Performance, Actors, Direction)
+              ACTION
              ═══════════════════════════════════════ */}
           <Collapsible open={actionOpen} onOpenChange={setActionOpen}>
             <CollapsibleTrigger className="w-full flex items-center gap-2.5 px-4 py-3 hover:bg-secondary/40 transition-colors">
@@ -514,6 +644,112 @@ const OpticsSuitePanel = ({ onAspectRatioChange }: OpticsSuitePanelProps) => {
           </div>
         </div>
       </ScrollArea>
+    </div>
+  );
+};
+
+/* ── Preset Bar ── */
+const PresetBar = ({
+  category,
+  presets,
+  onSave,
+  onLoad,
+  onDelete,
+}: {
+  category: string;
+  presets: any[];
+  onSave: (name: string) => void;
+  onLoad: (preset: any) => void;
+  onDelete: (id: string) => void;
+}) => {
+  const [saveName, setSaveName] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [loadOpen, setLoadOpen] = useState(false);
+
+  const handleSave = () => {
+    if (!saveName.trim()) return;
+    onSave(saveName.trim());
+    setSaveName("");
+    setSaveOpen(false);
+  };
+
+  return (
+    <div className="flex items-center gap-1 px-4 py-1.5 border-b border-border/20">
+      <span className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60 mr-auto">
+        Presets
+      </span>
+
+      {/* Load */}
+      <Popover open={loadOpen} onOpenChange={setLoadOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="h-6 w-6 rounded flex items-center justify-center hover:bg-secondary/60 transition-colors"
+            title={`Load ${category} preset`}
+          >
+            <FolderOpen className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-0" side="left" align="start">
+          <div className="p-2 border-b border-border/40">
+            <p className="text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground">
+              Load {category} preset
+            </p>
+          </div>
+          {presets.length === 0 ? (
+            <div className="p-3 text-center text-xs text-muted-foreground">No saved presets</div>
+          ) : (
+            <ScrollArea className="max-h-48">
+              <div className="p-1">
+                {presets.map((p) => (
+                  <div key={p.id} className="flex items-center gap-1 group">
+                    <button
+                      onClick={() => { onLoad(p); setLoadOpen(false); }}
+                      className="flex-1 text-left px-2 py-1.5 rounded text-xs font-display font-semibold text-foreground hover:bg-secondary/60 transition-colors truncate"
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      onClick={() => onDelete(p.id)}
+                      className="h-6 w-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-all"
+                    >
+                      <Trash2 className="h-3 w-3 text-destructive" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          )}
+        </PopoverContent>
+      </Popover>
+
+      {/* Save */}
+      <Popover open={saveOpen} onOpenChange={setSaveOpen}>
+        <PopoverTrigger asChild>
+          <button
+            className="h-6 w-6 rounded flex items-center justify-center hover:bg-secondary/60 transition-colors"
+            title={`Save ${category} preset`}
+          >
+            <Save className="h-3 w-3 text-muted-foreground" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-56 p-3" side="left" align="start">
+          <p className="text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground mb-2">
+            Save {category} preset
+          </p>
+          <div className="flex gap-1.5">
+            <Input
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder="Preset name…"
+              className="h-8 text-xs"
+              onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            />
+            <Button size="sm" className="h-8 px-2.5 text-xs" onClick={handleSave} disabled={!saveName.trim()}>
+              Save
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 };
