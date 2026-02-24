@@ -9,12 +9,7 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import VfxFixItBay from "@/components/post-production/VfxFixItBay";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,8 +33,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown, GripVertical } from "lucide-react";
+import { Play, Film, Music, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Clip = Tables<"post_production_clips">;
@@ -352,29 +346,8 @@ const PostProduction = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* VFX Dialog */}
-      <Dialog open={!!vfxClip} onOpenChange={() => setVfxClip(null)}>
-        <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="font-display">VFX Inpaint — {vfxClip?.label}</DialogTitle>
-          </DialogHeader>
-          <div className="flex flex-1 gap-4 min-h-0">
-            <div className="flex-1 rounded-lg bg-black flex items-center justify-center cursor-crosshair">
-              <p className="text-xs font-mono text-white/20">Paint over area to inpaint</p>
-            </div>
-            <div className="w-64 space-y-4">
-              <div>
-                <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Inpaint Prompt</label>
-                <Textarea className="mt-1.5 h-28 text-sm bg-secondary border-border resize-none" placeholder="Remove object, change background, add effect..." />
-              </div>
-              <Button className="w-full gap-2">
-                <Wand2 className="h-4 w-4" />
-                Auto-Heal VFX
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* VFX Fix-It Bay */}
+      <VfxFixItBay clip={vfxClip} onClose={() => setVfxClip(null)} />
     </div>
   );
 };

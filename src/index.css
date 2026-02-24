@@ -186,3 +186,12 @@
   0% { transform: scaleY(0.4); }
   100% { transform: scaleY(1); }
 }
+
+@keyframes scan-line {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+.animate-scan-line {
+  animation: scan-line 2s ease-in-out infinite;
+}
