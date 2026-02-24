@@ -139,7 +139,7 @@ const Projects = () => {
       {/* ── Left sidebar: User section + bottom icons ── */}
       <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
         {/* User profile area */}
-        <div className="border-b border-border p-6">
+        <div className="border-b border-border p-6 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
               <User className="h-5 w-5 text-primary" />
@@ -153,6 +153,14 @@ const Projects = () => {
               </p>
             </div>
           </div>
+          {user && (
+            <button
+              onClick={() => signOut()}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            >
+              Sign Out
+            </button>
+          )}
         </div>
 
         {/* Stats / quick info */}
@@ -163,7 +171,7 @@ const Projects = () => {
             </h3>
             <div className="space-y-3">
               <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3">
-                <span className="text-xs text-muted-foreground">Projects</span>
+                <span className="text-xs text-muted-foreground">Film Projects</span>
                 <span className="text-sm font-display font-bold text-foreground">
                   {projects?.length || 0}
                 </span>
@@ -210,17 +218,6 @@ const Projects = () => {
           </div>
         </div>
 
-        {/* Bottom: Sign out */}
-        <div className="border-t border-border p-4 space-y-1">
-          {user && (
-            <button
-              onClick={() => signOut()}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-            >
-              Sign Out
-            </button>
-          )}
-        </div>
 
         {/* Bottom icons: Help + Settings */}
         <div className="border-t border-border p-3 flex items-center gap-1">
