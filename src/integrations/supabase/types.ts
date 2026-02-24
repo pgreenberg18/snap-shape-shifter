@@ -300,6 +300,7 @@ export type Database = {
           created_at: string
           credits: number
           id: string
+          is_archived: boolean
           project_id: string | null
           script_locked: boolean
           time_period: string | null
@@ -314,6 +315,7 @@ export type Database = {
           created_at?: string
           credits?: number
           id?: string
+          is_archived?: boolean
           project_id?: string | null
           script_locked?: boolean
           time_period?: string | null
@@ -328,6 +330,7 @@ export type Database = {
           created_at?: string
           credits?: number
           id?: string
+          is_archived?: boolean
           project_id?: string | null
           script_locked?: boolean
           time_period?: string | null
