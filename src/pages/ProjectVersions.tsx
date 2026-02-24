@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import ProjectServicesDialog from "@/components/settings/ProjectServicesDialog";
 
 /* ── Size estimation helpers ── */
 const estimateJsonBytes = (val: unknown): number => {
@@ -42,6 +43,7 @@ const ProjectVersions = () => {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [servicesOpen, setServicesOpen] = useState(false);
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
@@ -321,7 +323,7 @@ const ProjectVersions = () => {
           <button onClick={toggleHelp} title="Help" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
             <HelpCircle className="h-5 w-5" />
           </button>
-          <button onClick={() => navigate("/settings")} title="Global Settings" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
+          <button onClick={() => setServicesOpen(true)} title="Project Services" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
             <Settings className="h-5 w-5" />
           </button>
         </div>
@@ -416,6 +418,15 @@ const ProjectVersions = () => {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {versions && projectId && (
+          <ProjectServicesDialog
+            projectId={projectId}
+            versions={versions}
+            open={servicesOpen}
+            onOpenChange={setServicesOpen}
+          />
+        )}
       </div>
     </div>
   );
