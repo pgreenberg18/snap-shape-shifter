@@ -80,18 +80,17 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         .select("id", { count: "exact", head: true })
         .eq("film_id", filmId!)
         .eq("enriched", true);
-      // Fetch the last 3 enriched scenes for the activity feed
+      // Fetch ALL enriched scenes ordered by scene_number
       const { data: recentScenes } = await supabase
         .from("parsed_scenes")
         .select("scene_number, heading, description, characters")
         .eq("film_id", filmId!)
         .eq("enriched", true)
-        .order("scene_number", { ascending: false })
-        .limit(3);
+        .order("scene_number", { ascending: true });
       return {
         total: total || 0,
         enriched: enriched || 0,
-        recentScenes: (recentScenes || []).reverse(),
+        recentScenes: recentScenes || [],
       };
     },
     enabled: !!filmId && isEnrichingPhase,
