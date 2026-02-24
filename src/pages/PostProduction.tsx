@@ -15,9 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Play, Film, Music, Wand2 } from "lucide-react";
+import { Play, Film, Music, Wand2, Plus, Trash2, ChevronDown } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Clip = Tables<"post_production_clips">;
@@ -56,6 +62,32 @@ const PostProduction = () => {
   const [clips, setClips] = useState<Clip[]>([]);
   const [vfxClip, setVfxClip] = useState<Clip | null>(null);
 
+  type Track = { id: string; label: string; type: "video" | "audio"; icon: React.ReactNode };
+
+  const [tracks, setTracks] = useState<Track[]>([
+    { id: "video1", label: "Video 1", type: "video", icon: <Film className="h-3 w-3" /> },
+    { id: "audio1", label: "Dialogue", type: "audio", icon: <Music className="h-3 w-3" /> },
+    { id: "audio2", label: "Foley", type: "audio", icon: <Music className="h-3 w-3" /> },
+    { id: "audio3", label: "Effects", type: "audio", icon: <Music className="h-3 w-3" /> },
+    { id: "audio4", label: "Music", type: "audio", icon: <Music className="h-3 w-3" /> },
+  ]);
+
+  const addTrack = (type: "video" | "audio") => {
+    const existing = tracks.filter((t) => t.type === type);
+    const num = existing.length + 1;
+    const label = type === "video" ? `Video ${num}` : `Audio ${num}`;
+    const id = `${type}${Date.now()}`;
+    setTracks((prev) => [
+      ...prev,
+      { id, label, type, icon: type === "video" ? <Film className="h-3 w-3" /> : <Music className="h-3 w-3" /> },
+    ]);
+  };
+
+  const deleteTrack = (trackId: string) => {
+    setTracks((prev) => prev.filter((t) => t.id !== trackId));
+    setClips((prev) => prev.filter((c) => c.track !== trackId));
+  };
+
   useEffect(() => {
     if (clipsData) setClips(clipsData);
   }, [clipsData]);
@@ -74,13 +106,6 @@ const PostProduction = () => {
     }
   };
 
-  const tracks = [
-    { id: "video1", label: "Video 1", icon: <Film className="h-3 w-3" /> },
-    { id: "audio1", label: "Dialogue", icon: <Music className="h-3 w-3" /> },
-    { id: "audio2", label: "Foley", icon: <Music className="h-3 w-3" /> },
-    { id: "audio3", label: "Effects", icon: <Music className="h-3 w-3" /> },
-    { id: "audio4", label: "Music", icon: <Music className="h-3 w-3" /> },
-  ];
 
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
@@ -120,16 +145,42 @@ const PostProduction = () => {
       <div className="flex-[5] bg-card border-t border-border flex flex-col min-h-0">
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <span className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider">Timeline</span>
-          <span className="text-[10px] font-mono text-muted-foreground">24fps • 00:00:18:00</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-mono text-muted-foreground">24fps • 00:00:18:00</span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-6 text-[10px] gap-1 text-muted-foreground">
+                  <Plus className="h-3 w-3" /> Add Track <ChevronDown className="h-2.5 w-2.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => addTrack("video")} className="text-xs gap-2">
+                  <Film className="h-3 w-3" /> Video Track
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => addTrack("audio")} className="text-xs gap-2">
+                  <Music className="h-3 w-3" /> Audio Track
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="flex-1 overflow-auto relative">
             {tracks.map((track) => (
-              <div key={track.id} className="flex border-b border-border/50">
-                <div className="w-24 shrink-0 flex items-center gap-1.5 px-3 border-r border-border/50 bg-secondary/50">
+              <div key={track.id} className="flex border-b border-border/50 group">
+                <div className="w-24 shrink-0 flex items-center gap-1 px-2 border-r border-border/50 bg-secondary/50">
                   {track.icon}
-                  <span className="text-[10px] font-mono text-muted-foreground">{track.label}</span>
+                  <span className="text-[10px] font-mono text-muted-foreground flex-1 truncate">{track.label}</span>
+                  {tracks.length > 1 && (
+                    <button
+                      onClick={() => deleteTrack(track.id)}
+                      className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all p-0.5"
+                      title={`Delete ${track.label}`}
+                    >
+                      <Trash2 className="h-2.5 w-2.5" />
+                    </button>
+                  )}
                 </div>
                 <div className="relative flex-1 h-14">
                   {clips.filter((c) => c.track === track.id).map((clip) => (
