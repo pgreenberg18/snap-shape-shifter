@@ -11,23 +11,51 @@ interface TypewriterSceneFeedProps {
   scenes: SceneInfo[];
 }
 
-const CHAR_DELAY = 16; // ms per character
-const PAUSE_AFTER_SCENE = 1400; // ms to hold the finished scene
-const WIPE_DURATION = 350; // ms for wipe-out animation
+const CHAR_DELAY = 16;
+const PAUSE_AFTER_SCENE = 1400;
+const WIPE_DURATION = 350;
 
 const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
-  // Queue tracks which scene index we're currently DISPLAYING
-  const [displayIndex, setDisplayIndex] = useState(0);
+  // Use scene_number as the stable key, not array index
+  const [currentSceneNumber, setCurrentSceneNumber] = useState<number | null>(null);
   const [charCount, setCharCount] = useState(0);
   const [phase, setPhase] = useState<"typing" | "hold" | "wipe">("typing");
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Track how many scenes we've already shown so we never skip one
-  const shownUpToRef = useRef(0);
+  const shownScenesRef = useRef<Set<number>>(new Set());
 
-  const currentScene = scenes[displayIndex] ?? null;
-  const totalAvailable = scenes.length;
+  // Sorted unique scene numbers
+  const sortedScenes = useMemo(
+    () => [...scenes].sort((a, b) => a.scene_number - b.scene_number),
+    [scenes],
+  );
 
-  // Build the full text block for the current scene
+  const currentScene = useMemo(
+    () => sortedScenes.find((s) => s.scene_number === currentSceneNumber) ?? null,
+    [sortedScenes, currentSceneNumber],
+  );
+
+  // Find the next scene we haven't shown yet
+  const findNextUnshown = useCallback((): SceneInfo | null => {
+    for (const s of sortedScenes) {
+      if (!shownScenesRef.current.has(s.scene_number)) {
+        return s;
+      }
+    }
+    return null;
+  }, [sortedScenes]);
+
+  // Bootstrap: pick the first unshown scene when data arrives
+  useEffect(() => {
+    if (currentSceneNumber !== null) return;
+    const next = findNextUnshown();
+    if (next) {
+      shownScenesRef.current.add(next.scene_number);
+      setCurrentSceneNumber(next.scene_number);
+      setCharCount(0);
+      setPhase("typing");
+    }
+  }, [sortedScenes, currentSceneNumber, findNextUnshown]);
+
   const fullText = useMemo(() => {
     if (!currentScene) return "";
     const lines: string[] = [];
@@ -44,38 +72,21 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
     return lines.join("\n");
   }, [currentScene]);
 
-  // Advance to next scene in queue
+  // Advance to next unshown scene
   const advanceToNext = useCallback(() => {
-    const nextIdx = displayIndex + 1;
-    if (nextIdx < totalAvailable) {
-      setDisplayIndex(nextIdx);
+    const next = findNextUnshown();
+    if (next) {
+      shownScenesRef.current.add(next.scene_number);
+      setCurrentSceneNumber(next.scene_number);
       setCharCount(0);
       setPhase("typing");
-      shownUpToRef.current = nextIdx;
     }
-    // If no next scene yet, stay idle — the effect below will pick up new arrivals
-  }, [displayIndex, totalAvailable]);
-
-  // When new scenes arrive, if we're idle (finished current + no next), start next
-  useEffect(() => {
-    if (totalAvailable === 0) return;
-    // If we haven't started yet
-    if (shownUpToRef.current === 0 && totalAvailable > 0) {
-      shownUpToRef.current = 0;
-      setDisplayIndex(0);
-      setCharCount(0);
-      setPhase("typing");
-      return;
-    }
-    // If we finished current scene and more are available
-    if (phase === "hold" || phase === "wipe") return; // let the cycle handle it
-    if (displayIndex < totalAvailable - 1 && phase === "typing" && charCount === 0) return; // already advancing
-  }, [totalAvailable]);
+    // else stay idle — new scenes will trigger via the effect above
+  }, [findNextUnshown]);
 
   // Typing effect
   useEffect(() => {
     if (phase !== "typing" || !fullText) return;
-
     intervalRef.current = setInterval(() => {
       setCharCount((prev) => {
         if (prev >= fullText.length) {
@@ -86,61 +97,38 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
         return prev + 1;
       });
     }, CHAR_DELAY);
-
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [phase, fullText]);
 
-  // Hold → then wipe if there's a next scene, otherwise stay visible
+  // Hold → wipe when there's a next unshown scene
   useEffect(() => {
     if (phase !== "hold") return;
-    const hasNext = displayIndex + 1 < totalAvailable;
-    if (!hasNext) {
-      // No next scene yet — wait for new scenes to arrive
-      // We'll re-check when totalAvailable changes
-      return;
-    }
-    const timer = setTimeout(() => {
-      setPhase("wipe");
-    }, PAUSE_AFTER_SCENE);
+    const next = findNextUnshown();
+    if (!next) return; // wait for more scenes
+    const timer = setTimeout(() => setPhase("wipe"), PAUSE_AFTER_SCENE);
     return () => clearTimeout(timer);
-  }, [phase, displayIndex, totalAvailable]);
-
-  // When holding and new scenes arrive, trigger wipe
-  useEffect(() => {
-    if (phase !== "hold") return;
-    if (displayIndex + 1 < totalAvailable) {
-      const timer = setTimeout(() => {
-        setPhase("wipe");
-      }, PAUSE_AFTER_SCENE);
-      return () => clearTimeout(timer);
-    }
-  }, [phase, totalAvailable, displayIndex]);
+  }, [phase, findNextUnshown, sortedScenes]);
 
   // Wipe → advance
   useEffect(() => {
     if (phase !== "wipe") return;
-    const timer = setTimeout(() => {
-      advanceToNext();
-    }, WIPE_DURATION);
+    const timer = setTimeout(() => advanceToNext(), WIPE_DURATION);
     return () => clearTimeout(timer);
   }, [phase, advanceToNext]);
 
   if (!currentScene) return null;
 
   const displayedText = fullText.slice(0, charCount);
+  const shownCount = shownScenesRef.current.size;
 
   return (
     <div className="ml-9 mt-3 relative overflow-hidden rounded-md">
       <div
         className="relative p-4 rounded-md border border-border/50"
-        style={{
-          backgroundColor: "hsl(var(--card))",
-          minHeight: "80px",
-        }}
+        style={{ backgroundColor: "hsl(var(--card))", minHeight: "80px" }}
       >
-        {/* Wipe overlay */}
         {phase === "wipe" && (
           <div
             className="absolute inset-0 z-10 rounded-md"
@@ -150,7 +138,6 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
             }}
           />
         )}
-
         <pre
           className="whitespace-pre-wrap text-xs leading-relaxed"
           style={{
@@ -169,10 +156,8 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
             />
           )}
         </pre>
-
-        {/* Scene counter */}
         <div className="absolute bottom-2 right-3 text-[10px] text-muted-foreground tabular-nums">
-          Scene {displayIndex + 1} / {totalAvailable}
+          Scene {currentScene.scene_number} / {sortedScenes.length}
         </div>
       </div>
     </div>
