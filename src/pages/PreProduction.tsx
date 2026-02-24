@@ -535,7 +535,7 @@ const PreProduction = () => {
                       Upload Reference
                     </Button>
                     <Button data-casting-call onClick={handleGenerate} disabled={generating} className="gap-2">
-                      {generating ? <><Loader2 className="h-4 w-4 animate-spin" />Casting…</> : <><Sparkles className="h-4 w-4" />Casting Call</>}
+                      {generating ? <><Loader2 className="h-4 w-4 animate-spin" />Casting…</> : cards.length > 0 ? <><Sparkles className="h-4 w-4" />Recast</> : <><Sparkles className="h-4 w-4" />Casting Call</>}
                     </Button>
                   </div>
                 </div>
