@@ -120,18 +120,6 @@ const Production = () => {
                     <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-none">
                       {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
                     </p>
-                    {/* Hover tooltip overlay for full text */}
-                    <div className="absolute left-0 top-0 w-max max-w-[400px] bg-card border border-border rounded-md shadow-lg px-4 py-2.5 z-50 pointer-events-none opacity-0 group-hover/scene:opacity-100 transition-opacity duration-150 hidden group-hover/scene:block">
-                      <p className={cn("text-xs font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
-                        <span className={cn("font-mono text-[10px] mr-1.5", isActive ? "text-primary" : "text-muted-foreground")}>
-                          {scene.scene_number ?? i + 1}.
-                        </span>
-                        {scene.scene_heading || "Untitled Scene"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
-                        {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
-                      </p>
-                    </div>
                   </button>
                 );
               })}
