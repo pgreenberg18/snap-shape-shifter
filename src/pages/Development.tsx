@@ -917,9 +917,6 @@ const Development = () => {
                         </>
                       ) : (
                         <>
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary">
-                            <Type className="h-4 w-4 text-primary" />
-                          </div>
                           <div className="text-center">
                             <p className="text-xs font-display font-semibold text-foreground">
                               {uploading ? "Uploading…" : "Drop your screenplay here"}
