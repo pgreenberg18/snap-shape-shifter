@@ -50,18 +50,19 @@ This must look like a real photograph of a real person - not AI-generated, not c
 
 CRITICAL: This must be photorealistic. No anime, no cartoon, no illustration, no fantasy elements. A real human being photographed with a real camera.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
+    // Use Gemini image generation model via chat completions endpoint
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "dall-e-3",
-        prompt,
-        n: 1,
-        size: "1024x1024",
-        quality: "hd",
+        model: "google/gemini-3-pro-image-preview",
+        messages: [
+          { role: "user", content: prompt },
+        ],
+        modalities: ["image", "text"],
       }),
     });
 
@@ -82,19 +83,32 @@ CRITICAL: This must be photorealistic. No anime, no cartoon, no illustration, no
     }
 
     const data = await response.json();
-    const imageUrl = data.data?.[0]?.url;
+    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
 
-    if (!imageUrl) {
-      console.error("Unexpected AI response:", JSON.stringify(data));
+    // Extract image from Gemini response - images come in message.images[]
+    let imageBytes: Uint8Array | null = null;
+
+    const choice = data.choices?.[0];
+    const message = choice?.message;
+    const images = message?.images;
+
+    if (Array.isArray(images) && images.length > 0) {
+      const imageUrl = images[0]?.image_url?.url;
+      if (imageUrl && imageUrl.startsWith("data:")) {
+        const base64 = imageUrl.split(",")[1];
+        imageBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+      } else if (imageUrl) {
+        const imgResp = await fetch(imageUrl);
+        if (imgResp.ok) imageBytes = new Uint8Array(await imgResp.arrayBuffer());
+      }
+    }
+
+    if (!imageBytes) {
+      console.error("Could not extract image from response:", JSON.stringify(data).substring(0, 2000));
       throw new Error("No image returned from AI");
     }
 
-    // Download the image from the URL
-    const imageResponse = await fetch(imageUrl);
-    if (!imageResponse.ok) throw new Error("Failed to download generated image");
-    const imageBytes = new Uint8Array(await imageResponse.arrayBuffer());
-
-    // Upload the base64 image to storage
+    // Upload to storage
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
