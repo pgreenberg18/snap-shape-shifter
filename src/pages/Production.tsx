@@ -97,43 +97,35 @@ const Production = () => {
                     key={i}
                     onClick={() => setActiveSceneIdx(i)}
                     className={cn(
-                      "w-full text-left px-4 py-3 flex items-start gap-3 transition-colors border-l-2 group/scene relative",
+                      "w-full text-left px-4 py-2.5 transition-colors border-l-2 group/scene relative",
                       isActive
                         ? "border-l-primary bg-primary/5"
                         : "border-l-transparent hover:bg-secondary/60"
                     )}
                   >
-                    <span
+                    <p
                       className={cn(
-                        "flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-xs font-mono font-bold mt-0.5",
-                        isActive
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-muted-foreground"
+                        "text-xs font-display font-semibold truncate group-hover/scene:whitespace-normal group-hover/scene:overflow-visible",
+                        isActive ? "text-primary" : "text-foreground"
                       )}
                     >
-                      {scene.scene_number ?? i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p
-                        className={cn(
-                          "text-xs font-display font-semibold truncate group-hover/scene:whitespace-normal group-hover/scene:overflow-visible",
-                          isActive ? "text-primary" : "text-foreground"
-                        )}
-                      >
-                        {scene.scene_heading || "Untitled Scene"}
-                      </p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-none">
-                        {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
-                      </p>
-                    </div>
-                    {isActive && (
-                      <ChevronRight className="h-3.5 w-3.5 text-primary shrink-0 mt-1" />
-                    )}
+                      <span className={cn(
+                        "font-mono text-[10px] mr-1.5",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {scene.scene_number ?? i + 1}.
+                      </span>
+                      {scene.scene_heading || "Untitled Scene"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-none">
+                      {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
+                    </p>
                     {/* Hover tooltip overlay for full text */}
-                    <div className="absolute left-0 top-0 w-max max-w-[400px] bg-card border border-border rounded-md shadow-lg px-4 py-3 z-50 pointer-events-none opacity-0 group-hover/scene:opacity-100 transition-opacity duration-150 hidden group-hover/scene:block"
-                      style={{ transform: "translateX(0)" }}
-                    >
+                    <div className="absolute left-0 top-0 w-max max-w-[400px] bg-card border border-border rounded-md shadow-lg px-4 py-2.5 z-50 pointer-events-none opacity-0 group-hover/scene:opacity-100 transition-opacity duration-150 hidden group-hover/scene:block">
                       <p className={cn("text-xs font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
+                        <span className={cn("font-mono text-[10px] mr-1.5", isActive ? "text-primary" : "text-muted-foreground")}>
+                          {scene.scene_number ?? i + 1}.
+                        </span>
                         {scene.scene_heading || "Untitled Scene"}
                       </p>
                       <p className="text-[11px] text-muted-foreground mt-0.5 leading-snug">
