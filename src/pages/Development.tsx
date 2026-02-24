@@ -24,6 +24,7 @@ import {
 import { useContentSafety, useFilm, useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
+import TypewriterSceneFeed from "@/components/development/TypewriterSceneFeed";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -247,34 +248,9 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
             </div>
           )}
 
-          {/* Live activity feed during enrichment */}
+          {/* Live typewriter feed during enrichment */}
           {isEnriching && recentScenes.length > 0 && (
-            <div className="ml-9 mt-2 space-y-1.5 border-l-2 border-primary/20 pl-3">
-              {recentScenes.map((scene: any) => (
-                <div key={scene.scene_number} className="text-xs space-y-0.5 animate-in fade-in duration-500">
-                  <div className="flex items-center gap-1.5">
-                    <CheckCircle className="h-3 w-3 text-primary shrink-0" />
-                    <span className="text-foreground font-medium truncate">
-                      Scene {scene.scene_number}: {scene.heading}
-                    </span>
-                  </div>
-                  {scene.description && (
-                    <p className="text-muted-foreground ml-[18px] line-clamp-1">
-                      {scene.description}
-                    </p>
-                  )}
-                  {scene.characters && scene.characters.length > 0 && (
-                    <div className="ml-[18px] flex items-center gap-1 flex-wrap">
-                      <Users className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
-                      <span className="text-muted-foreground/70 truncate">
-                        {scene.characters.slice(0, 4).join(", ")}
-                        {scene.characters.length > 4 && ` +${scene.characters.length - 4}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+            <TypewriterSceneFeed scenes={recentScenes} />
           )}
         </div>
       </div>
