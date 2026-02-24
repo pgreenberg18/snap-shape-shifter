@@ -128,8 +128,8 @@ const TypewriterSceneFeed = ({ scenes }: TypewriterSceneFeedProps) => {
   return (
     <div className="ml-9 mt-3 relative overflow-hidden rounded-md">
       <div
-        className="relative p-4 rounded-md border border-border/50"
-        style={{ backgroundColor: "hsl(var(--card))", minHeight: "80px" }}
+        className="relative p-4 rounded-md border border-border/50 overflow-hidden"
+        style={{ backgroundColor: "hsl(var(--card))", height: "calc(14px * 1.625 * 6 + 32px)" }}
       >
         {phase === "wipe" && (
           <div
