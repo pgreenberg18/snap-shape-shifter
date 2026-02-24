@@ -246,7 +246,7 @@ const Development = () => {
 
   // Parallel batch enrichment helper (5 concurrent)
   const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string) => {
-    if (enrichingRef.current) return; // prevent duplicate loops
+    if (enrichingRef.current || !analysisId) return; // prevent duplicate loops
     enrichingRef.current = true;
 
     const CONCURRENCY = 5;
@@ -257,14 +257,16 @@ const Development = () => {
       while (i < sceneIds.length) {
         const batch = sceneIds.slice(i, i + CONCURRENCY);
         const results = await Promise.allSettled(
-          batch.map((sceneId) =>
-            supabase.functions.invoke("enrich-scene", {
-              body: { scene_id: sceneId, analysis_id: analysisId },
+          batch.map((sceneId) => {
+            const payload = { scene_id: sceneId, analysis_id: analysisId };
+            console.log("Enriching scene:", payload);
+            return supabase.functions.invoke("enrich-scene", {
+              body: payload,
             }).then((res) => {
               if (res.error) throw res.error;
               return res;
-            })
-          )
+            });
+          })
         );
 
         // Check for rate limits — if any 429, wait and retry the whole batch
