@@ -1043,7 +1043,7 @@ const Development = () => {
                   <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 </div>
               </CollapsibleTrigger>
-              <CollapsibleContent>
+              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
                 <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
@@ -1093,7 +1093,7 @@ const Development = () => {
                     </div>
                   </div>
               </CollapsibleTrigger>
-              <CollapsibleContent>
+              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
                 <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
                   {!contentSafetyRun ? (
                     <div className="flex flex-col items-center gap-4 text-center py-4">
