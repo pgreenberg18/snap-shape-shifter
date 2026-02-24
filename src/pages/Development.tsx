@@ -761,7 +761,7 @@ const Development = () => {
                   if (invokeErr) {
                     toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
                   } else {
-                    queryClient.invalidateQueries({ queryKey: ["script-analysis"] });
+                    queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
                     toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
                   }
                 }}
