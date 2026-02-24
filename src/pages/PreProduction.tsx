@@ -267,13 +267,13 @@ const PreProduction = () => {
       .update({ image_url: card.imageUrl })
       .eq("id", selectedChar.id);
     setLocking(null);
-    if (error) { toast.error("Failed to lock identity"); return; }
+    if (error) { toast.error("Failed to cast actor"); return; }
     setCards((prev) => prev.map((c) => ({ ...c, locked: c.id === card.id })));
     // Persist lock status to auditions table
     await supabase.from("character_auditions").update({ locked: false }).eq("character_id", selectedChar.id);
     await supabase.from("character_auditions").update({ locked: true }).eq("character_id", selectedChar.id).eq("card_index", card.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
-    toast.success(`${selectedChar.name}'s identity locked`);
+    toast.success(`${selectedChar.name} has been cast`);
   }, [selectedChar, queryClient]);
 
   const handleRate = useCallback(async (cardId: number, rating: number) => {
@@ -1198,14 +1198,14 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { ca
 
     {card.locked && (
       <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md">
-        <Check className="h-3 w-3" /> Locked
+        <Check className="h-3 w-3" /> Cast
       </div>
     )}
 
     {!card.locked && !card.generating && card.imageUrl && (
       <div className="absolute inset-0 flex items-center justify-center bg-background/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity">
         <Button size="sm" onClick={(e) => { e.stopPropagation(); onLock(); }} disabled={locking} className="gap-1.5">
-          {locking ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Locking…</> : <><Lock className="h-3.5 w-3.5" />Lock Identity</>}
+          {locking ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
         </Button>
       </div>
     )}
