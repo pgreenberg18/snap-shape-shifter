@@ -81,8 +81,31 @@ const CONTEXT_MAP: Record<string, string> = {
 };
 
 /* ── Find scenes containing an item by storagePrefix type ── */
+
+/** Check if two strings are a meaningful match (not just substring noise) */
+function isSignificantMatch(itemName: string, fieldValue: string): boolean {
+  const a = itemName.toLowerCase().trim();
+  const b = fieldValue.toLowerCase().trim();
+  if (!a || !b) return false;
+  // Exact match
+  if (a === b) return true;
+  // One fully contains the other, but the shorter must be a "significant" portion
+  // to prevent "car" matching "cardinal" or "office" matching every location
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  if (!longer.includes(shorter)) return false;
+  // The shorter string must be at least 4 chars and represent a word boundary match
+  if (shorter.length < 4) return false;
+  // Check word boundary: shorter must appear as a whole word (or word prefix of 5+ chars) in longer
+  const escaped = shorter.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const wordBoundaryRegex = new RegExp(`(?:^|[\\s\\-–—/.,;:'"()])${escaped}(?:$|[\\s\\-–—/.,;:'"()])`, "i");
+  // Also accept if shorter IS the longer (already handled) or if it's at string boundaries
+  const startsOrEnds = longer.startsWith(shorter) || longer.endsWith(shorter);
+  return wordBoundaryRegex.test(` ${longer} `) || (startsOrEnds && shorter.length >= 5);
+}
+
 function findScenesForItem(itemName: string, scenes: any[], storagePrefix: string, excludeFromKeyObjects?: string[]): { sceneIndex: number; scene: any }[] {
-  const nameLower = itemName.toLowerCase();
+  const nameLower = itemName.toLowerCase().trim();
   const results: { sceneIndex: number; scene: any }[] = [];
   const excludeSet = new Set((excludeFromKeyObjects || []).map((e) => e.toLowerCase()));
 
@@ -91,19 +114,27 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
     let found = false;
 
     if (storagePrefix === "locations") {
-      const setting = (scene.setting || "").toLowerCase();
+      // Match against location_name field (most reliable) and scene_heading
+      const locationName = (scene.location_name || "").toLowerCase().trim();
       const heading = (scene.scene_heading || "").toLowerCase();
       const cleanHeading = heading.replace(/^(?:int\.?\s*\/?\s*ext\.?|ext\.?\s*\/?\s*int\.?|int\.?|ext\.?|i\/e\.?)\s*[-–—.\s]*/i, "")
-        .replace(/\s*[-–—]\s*(?:day|night|morning|evening|dawn|dusk|afternoon|later|continuous|same time|moments?\s+later|sunset|sunrise)$/i, "").trim();
-      if (setting.includes(nameLower) || nameLower.includes(setting) || heading.includes(nameLower) || cleanHeading.includes(nameLower) || nameLower.includes(cleanHeading)) found = true;
+        .replace(/\s*[-–—]\s*(?:day|night|morning|evening|dawn|dusk|afternoon|later|continuous|same time|moments?\s+later|sunset|sunrise|\d{4})\s*$/i, "").trim();
+      
+      // Primary: exact or near-exact match on location_name
+      if (locationName && (locationName === nameLower || isSignificantMatch(nameLower, locationName))) {
+        found = true;
+      }
+      // Secondary: check scene heading for the location name
+      if (!found && cleanHeading && isSignificantMatch(nameLower, cleanHeading)) {
+        found = true;
+      }
     } else if (storagePrefix === "props") {
       if (Array.isArray(scene.key_objects)) {
         found = scene.key_objects.some((o: string) => {
           if (typeof o !== "string") return false;
-          const oLower = o.toLowerCase();
-          // Skip items that belong to vehicles
+          const oLower = o.toLowerCase().trim();
           if (excludeSet.has(oLower)) return false;
-          return oLower.includes(nameLower) || nameLower.includes(oLower);
+          return isSignificantMatch(nameLower, oLower);
         });
       }
     } else if (storagePrefix === "wardrobe") {
@@ -111,13 +142,12 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
         found = scene.wardrobe.some((w: any) => {
           const style = (w?.clothing_style || "").toLowerCase();
           const condition = (w?.condition || "").toLowerCase();
-          return style.includes(nameLower) || condition.includes(nameLower) || nameLower.includes(style);
+          return isSignificantMatch(nameLower, style) || isSignificantMatch(nameLower, condition);
         });
       }
     } else if (storagePrefix === "vehicles") {
-      // Only match against picture_vehicles field
       if (Array.isArray(scene.picture_vehicles)) {
-        found = scene.picture_vehicles.some((v: string) => typeof v === "string" && v.toLowerCase().includes(nameLower));
+        found = scene.picture_vehicles.some((v: string) => typeof v === "string" && isSignificantMatch(nameLower, v));
       }
     }
 
