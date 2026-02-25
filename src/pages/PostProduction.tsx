@@ -39,7 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Play, Film, Music, Plus, Trash2, ChevronDown, ChevronRight, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X, FolderOpen, Folder } from "lucide-react";
+import { Play, Film, Music, Plus, Trash2, ChevronDown, ChevronRight, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X, FolderOpen, Folder, ZoomIn, ZoomOut } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -405,6 +405,9 @@ const PostProduction = () => {
   });
 
   const { tracks, clips } = state;
+  const [timelineZoom, setTimelineZoom] = useState(1); // 0.25 to 4
+  const [playheadPos, setPlayheadPos] = useState(0); // percentage 0-100
+  const scrubberRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (clipsData) setState((prev) => ({ ...prev, clips: clipsData }));
@@ -690,7 +693,65 @@ const PostProduction = () => {
           </div>
         </div>
 
+        {/* Zoom & Scrubber bar */}
+        <div className="flex items-center gap-2 px-4 py-1.5 border-b border-border/50 bg-secondary/30">
+          <ZoomOut className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+          <input
+            type="range"
+            min={25}
+            max={400}
+            value={timelineZoom * 100}
+            onChange={(e) => setTimelineZoom(Number(e.target.value) / 100)}
+            className="w-20 h-1 accent-primary cursor-pointer"
+            title={`Zoom: ${Math.round(timelineZoom * 100)}%`}
+          />
+          <ZoomIn className="h-3 w-3 text-muted-foreground/60 shrink-0" />
+          <span className="text-[9px] font-mono text-muted-foreground/50 w-8 shrink-0">{Math.round(timelineZoom * 100)}%</span>
+
+          {/* Scrubber / position slider */}
+          <div
+            ref={scrubberRef}
+            className="flex-1 relative h-5 cursor-pointer group/scrub ml-2"
+            onMouseDown={(e) => {
+              const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              const update = (ev: MouseEvent) => {
+                const pct = Math.max(0, Math.min(100, ((ev.clientX - rect.left) / rect.width) * 100));
+                setPlayheadPos(pct);
+              };
+              update(e.nativeEvent);
+              const onUp = () => {
+                document.removeEventListener("mousemove", update);
+                document.removeEventListener("mouseup", onUp);
+              };
+              document.addEventListener("mousemove", update);
+              document.addEventListener("mouseup", onUp);
+            }}
+          >
+            {/* Ruler ticks */}
+            <div className="absolute inset-0 flex items-end">
+              {Array.from({ length: 21 }).map((_, i) => (
+                <div key={i} className="flex-1 flex flex-col items-center">
+                  <div className={cn("w-px bg-muted-foreground/20", i % 5 === 0 ? "h-2.5" : "h-1.5")} />
+                  {i % 5 === 0 && (
+                    <span className="text-[7px] font-mono text-muted-foreground/40 mt-px">
+                      {Math.round((i / 20) * 18)}s
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Playhead indicator */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-primary z-10 pointer-events-none"
+              style={{ left: `${playheadPos}%` }}
+            >
+              <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rotate-45" />
+            </div>
+          </div>
+        </div>
+
           <div className="flex-1 overflow-auto relative">
+            <div style={{ minWidth: `${100 * timelineZoom}%` }}>
             {tracks.map((track) => (
               <div key={track.id} className="flex border-b border-border/50 group">
                 <div className="w-24 shrink-0 flex items-center gap-1 px-2 border-r border-border/50 bg-secondary/50">
@@ -713,8 +774,9 @@ const PostProduction = () => {
                 </DroppableTrack>
               </div>
             ))}
+            </div>
 
-            <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-20 pointer-events-none" style={{ left: `calc(96px + 120px)` }}>
+            <div className="absolute top-0 bottom-0 w-0.5 bg-primary z-20 pointer-events-none" style={{ left: `calc(96px + ${playheadPos}% * (100% - 96px) / 100)` }}>
               <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-primary rotate-45" />
             </div>
           </div>
