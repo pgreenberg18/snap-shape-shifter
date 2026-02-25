@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { Camera } from "lucide-react";
 import { useFilmId } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -77,6 +77,39 @@ const Production = () => {
   const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isDragging = useRef(false);
+
+  // Persisted script pane dimensions
+  const [scriptColWidth, setScriptColWidth] = useState(() => {
+    const saved = localStorage.getItem("vfs-script-col-width");
+    return saved ? Number(saved) : 380;
+  });
+  const [scriptPaneHeight, setScriptPaneHeight] = useState(() => {
+    const saved = localStorage.getItem("vfs-script-pane-height");
+    return saved ? Number(saved) : 192;
+  });
+
+  useEffect(() => { localStorage.setItem("vfs-script-col-width", String(scriptColWidth)); }, [scriptColWidth]);
+  useEffect(() => { localStorage.setItem("vfs-script-pane-height", String(scriptPaneHeight)); }, [scriptPaneHeight]);
+
+  const handleScriptColResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = scriptColWidth;
+    const onMove = (ev: MouseEvent) => setScriptColWidth(Math.max(280, Math.min(600, startW + (ev.clientX - startX))));
+    const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [scriptColWidth]);
+
+  const handleScriptHeightResize = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = scriptPaneHeight;
+    const onMove = (ev: MouseEvent) => setScriptPaneHeight(Math.max(100, Math.min(500, startH + (ev.clientY - startY))));
+    const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [scriptPaneHeight]);
 
   const scenes: any[] =
     analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
@@ -245,11 +278,13 @@ const Production = () => {
               {/* Two-column: Left = Script+Shots+Builder, Right = Viewer+TakeBin */}
               <div className="flex-1 flex min-h-0">
                 {/* Left column: Script → Shot List → Shot Builder */}
-                <div className="w-[380px] min-w-[320px] max-w-[480px] border-r border-border flex flex-col overflow-hidden shrink-0">
+                <div style={{ width: scriptColWidth }} className="min-w-[280px] max-w-[600px] flex border-r-0 flex-col overflow-hidden shrink-0 relative">
                   <ScriptWorkspace
                     scene={activeScene}
                     sceneText={sceneTextData?.raw_text ?? undefined}
                     onCreateShot={(text, characters) => createShot.mutate({ text, characters })}
+                    height={scriptPaneHeight}
+                    onResizeStart={handleScriptHeightResize}
                   />
                   <ShotList
                     shots={sceneShots}
@@ -265,6 +300,11 @@ const Production = () => {
                     onRehearsal={() => handleGenerate(true)}
                     onRollCamera={() => handleGenerate(false)}
                     isGenerating={isGenerating}
+                  />
+                  {/* Right edge resize handle */}
+                  <div
+                    onMouseDown={handleScriptColResize}
+                    className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize bg-border/30 hover:bg-primary/30 transition-colors z-10"
                   />
                 </div>
 

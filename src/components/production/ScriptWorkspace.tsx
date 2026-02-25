@@ -8,9 +8,11 @@ interface ScriptWorkspaceProps {
   scene: any;
   sceneText?: string;
   onCreateShot: (selectedText: string, characters: string[]) => void;
+  height?: number;
+  onResizeStart?: (e: React.MouseEvent) => void;
 }
 
-const ScriptWorkspace = ({ scene, sceneText, onCreateShot }: ScriptWorkspaceProps) => {
+const ScriptWorkspace = ({ scene, sceneText, onCreateShot, height, onResizeStart }: ScriptWorkspaceProps) => {
   const [selection, setSelection] = useState("");
   const textRef = useRef<HTMLDivElement>(null);
 
@@ -99,7 +101,7 @@ const ScriptWorkspace = ({ scene, sceneText, onCreateShot }: ScriptWorkspaceProp
       </div>
 
       {/* Script text */}
-      <ScrollArea className="h-48 min-h-[120px]">
+      <ScrollArea style={{ height: height ?? 192 }} className="min-h-[100px]">
         <div
           ref={textRef}
           onMouseUp={handleMouseUp}
@@ -117,6 +119,14 @@ const ScriptWorkspace = ({ scene, sceneText, onCreateShot }: ScriptWorkspaceProp
           )}
         </div>
       </ScrollArea>
+
+      {/* Bottom resize handle */}
+      {onResizeStart && (
+        <div
+          onMouseDown={onResizeStart}
+          className="h-1.5 cursor-row-resize bg-border/30 hover:bg-primary/30 transition-colors shrink-0"
+        />
+      )}
     </div>
   );
 };
