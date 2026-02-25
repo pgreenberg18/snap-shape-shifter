@@ -299,6 +299,7 @@ export type Database = {
           copied_from_version_id: string | null
           created_at: string
           credits: number
+          genres: string[] | null
           id: string
           is_archived: boolean
           project_id: string | null
@@ -314,6 +315,7 @@ export type Database = {
           copied_from_version_id?: string | null
           created_at?: string
           credits?: number
+          genres?: string[] | null
           id?: string
           is_archived?: boolean
           project_id?: string | null
@@ -329,6 +331,7 @@ export type Database = {
           copied_from_version_id?: string | null
           created_at?: string
           credits?: number
+          genres?: string[] | null
           id?: string
           is_archived?: boolean
           project_id?: string | null
