@@ -228,8 +228,8 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                 Extracting details from each scene
               </span>
               {isEnriching && (
-                <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
-                  Identifying characters, wardrobe, props, and environment…
+                <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                  Identifying characters, wardrobe, props, locations, stunts, VFX, SFX, mood, and cinematic elements…
                 </p>
               )}
             </div>
