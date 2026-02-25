@@ -162,7 +162,7 @@ Deno.serve(async (req) => {
 
 5. **Temporal Analysis**: Analyze the time structure. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
 
-6. **AI Generation Notes**: Practical production notes for AI image/video generation — consistency, character anchors, design elements, effects guidance, lighting rules.
+6. **AI Generation Notes**: Practical production notes for AI image/video generation. Structure these as SEPARATE PARAGRAPHS, one per topic. Each paragraph should start with a bold topic header (e.g. "**Character Consistency:**", "**Lighting Rules:**", "**Color Direction:**", "**VFX & Practical Effects:**", "**Set Dressing & Props:**", "**Wardrobe Anchors:**"). Reference your Visual Design analysis where relevant — cite specific color palette items, lighting language, atmospheric motifs, and symbolic elements to connect generation guidance to the visual design framework.
 
 AGGREGATED MOOD/ATMOSPHERE DATA FROM SCENES:
 ${JSON.stringify(Array.from(allMoods), null, 1)}
@@ -270,8 +270,16 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                     required: ["primary_time_period", "secondary_time_periods"],
                   },
                   ai_generation_notes: {
-                    type: "string",
-                    description: "Practical production notes for AI generation.",
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        topic: { type: "string", description: "Bold topic header, e.g. 'Character Consistency', 'Lighting Rules', 'Color Direction'." },
+                        body: { type: "string", description: "The paragraph content for this topic. Reference visual design analysis (color palette, lighting language, atmospheric motifs, symbolic elements) where relevant." },
+                      },
+                      required: ["topic", "body"],
+                    },
+                    description: "Array of topic paragraphs for AI generation guidance, each referencing visual design analysis.",
                   },
                 },
                 required: ["visual_summary", "signature_style", "visual_design", "genres", "temporal_analysis", "ai_generation_notes"],
