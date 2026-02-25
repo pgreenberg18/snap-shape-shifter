@@ -1841,7 +1841,7 @@ const Development = () => {
             <CollapsibleTrigger className="w-full">
               <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                 <div className="flex items-center gap-2">
-                  <Lock className="h-5 w-5 text-primary" />
+                  <AlertCircle className="h-5 w-5 text-destructive" />
                   <h3 className="font-display text-lg font-bold">Lock Script</h3>
                 </div>
                 <div className="flex items-center gap-2">
