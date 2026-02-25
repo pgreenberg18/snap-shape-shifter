@@ -38,6 +38,7 @@ const MediaLibraryPanel = () => {
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [scriptPreview, setScriptPreview] = useState<{ name: string; text: string } | null>(null);
 
   const toggleFolder = (key: string) => {
     setOpenFolders((prev) => {
@@ -369,7 +370,30 @@ const MediaLibraryPanel = () => {
             className="h-3.5 w-3.5 shrink-0"
           />
           <button
-            onClick={() => item.type !== "script" && setPreviewItem(item)}
+            onClick={() => {
+              if (item.type === "script") {
+                // Fetch all scenes for this script's film and display as scrollable text
+                (async () => {
+                  const { data: analysis } = await supabase
+                    .from("script_analyses")
+                    .select("film_id")
+                    .eq("id", item.id)
+                    .maybeSingle();
+                  if (!analysis) return;
+                  const { data: scenes } = await supabase
+                    .from("parsed_scenes")
+                    .select("scene_number, heading, raw_text")
+                    .eq("film_id", analysis.film_id)
+                    .order("scene_number");
+                  if (scenes && scenes.length > 0) {
+                    const fullText = scenes.map((s) => `${s.heading}\n\n${s.raw_text}`).join("\n\n\n");
+                    setScriptPreview({ name: item.name, text: fullText });
+                  }
+                })();
+              } else {
+                setPreviewItem(item);
+              }
+            }}
             className="flex flex-1 items-center gap-2.5 min-w-0"
           >
             {item.type === "image" && item.url ? (
@@ -391,9 +415,7 @@ const MediaLibraryPanel = () => {
                 {new Date(item.createdAt).toLocaleDateString()}
               </p>
             </div>
-            {item.type !== "script" && (
-              <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
-            )}
+            <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
           </button>
         </div>
       ))}
@@ -507,7 +529,53 @@ const MediaLibraryPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Script Preview Dialog */}
+      <Dialog open={!!scriptPreview} onOpenChange={(open) => !open && setScriptPreview(null)}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
+          <div className="px-6 py-4 border-b border-border">
+            <p className="text-sm font-mono font-bold text-foreground">{scriptPreview?.name}</p>
+            <p className="text-[11px] text-muted-foreground">Full screenplay text</p>
+          </div>
+          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
+            <div
+              className="mx-auto bg-white text-black shadow-lg rounded"
+              style={{
+                fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+                fontSize: "12px",
+                lineHeight: "1.0",
+                padding: "72px 60px 72px 90px",
+                maxWidth: "612px",
+                minHeight: "400px",
+              }}
+            >
+              {scriptPreview?.text.split("\n").map((line, i) => {
+                const trimmed = line.trim();
+                const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
+                const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
+                const isParenthetical = /^\(.*\)$/.test(trimmed);
+                const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+
+                if (isHeading) {
+                  return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{trimmed}</p>;
+                }
+                if (isCharacter) {
+                  return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{trimmed}</p>;
+                }
+                if (isParenthetical) {
+                  return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+                }
+                if (isDialogue) {
+                  return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+                }
+                if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+                return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{trimmed}</p>;
+              })}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
