@@ -1232,7 +1232,7 @@ const Development = () => {
                         <div className="flex justify-end">
                           <Button
                             onClick={handleSaveFormat}
-                            disabled={formatSaving || scriptLocked}
+                            disabled={formatSaving}
                             className="gap-1.5"
                             size="sm"
                           >
