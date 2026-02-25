@@ -613,9 +613,14 @@ const PreProduction = () => {
 
                 {/* ═══ CHARACTER METADATA ═══ */}
                 <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" />
-                    <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Character Details</h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-primary" />
+                      <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Character Details</h3>
+                    </div>
+                    <Button onClick={handleSaveMeta} disabled={savingMeta} variant="secondary" size="sm" className="gap-1.5 text-xs h-7">
+                      {savingMeta ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Save className="h-3.5 w-3.5" />Save</>}
+                    </Button>
                   </div>
 
                   {/* Description */}
@@ -681,10 +686,6 @@ const PreProduction = () => {
                       </Select>
                     </div>
                   </div>
-
-                  <Button onClick={handleSaveMeta} disabled={savingMeta} variant="secondary" className="gap-2">
-                    {savingMeta ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Details</>}
-                  </Button>
                 </div>
 
                 {/* Audition cards grid — only show after casting call */}
@@ -887,9 +888,14 @@ const PreProduction = () => {
                   <CollapsibleContent>
                     <div className="space-y-4 mt-4">
                       <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-                        <div className="flex items-center gap-2">
-                          <Mic className="h-3.5 w-3.5 text-muted-foreground" />
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Description</p>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Mic className="h-3.5 w-3.5 text-muted-foreground" />
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Description</p>
+                          </div>
+                          <Button onClick={handleSaveVoiceDesc} disabled={savingVoice} variant="secondary" size="sm" className="gap-1.5 text-xs h-7">
+                            {savingVoice ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Save className="h-3.5 w-3.5" />Save</>}
+                          </Button>
                         </div>
                         <Textarea
                           value={voiceDesc}
@@ -897,9 +903,6 @@ const PreProduction = () => {
                           placeholder="Gravelly, mid-40s, slight transatlantic accent…"
                           className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
                         />
-                        <Button onClick={handleSaveVoiceDesc} disabled={savingVoice} variant="secondary" className="gap-2">
-                          {savingVoice ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Description</>}
-                        </Button>
                       </div>
 
                       <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
