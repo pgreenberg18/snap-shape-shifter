@@ -60,9 +60,10 @@ const Projects = () => {
 
   const createProject = useMutation({
     mutationFn: async () => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
       const { data: project, error: projErr } = await supabase
         .from("projects")
-        .insert({ title, description: description || null })
+        .insert({ title, description: description || null, user_id: currentUser?.id })
         .select()
         .single();
       if (projErr) throw projErr;
