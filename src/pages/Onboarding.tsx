@@ -100,7 +100,7 @@ const Onboarding = () => {
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
             This is a highly confidential beta version of our revolutionary software. Please complete your profile and sign the NDA to access the studio. We appreciate your interest in our app. Thank you for your cooperation.
           </p>
-          <img src={paulSignature} alt="Paul" className="mx-auto h-16 w-auto opacity-70" />
+          <img src={paulSignature} alt="Paul" className="mx-auto h-24 w-auto opacity-50 mix-blend-lighten" />
         </div>
       </div>
 
