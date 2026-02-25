@@ -1,4 +1,9 @@
+import { useRef, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { Download } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 interface NDADocumentProps {
   fullName: string;
@@ -10,10 +15,45 @@ interface NDADocumentProps {
 }
 
 const NDADocument = ({ fullName, email, phone, address, signatureData, ndaSignedAt }: NDADocumentProps) => {
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = useCallback(async () => {
+    if (!contentRef.current) return;
+    const canvas = await html2canvas(contentRef.current, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: "#ffffff",
+    });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+    let heightLeft = pdfHeight;
+    let position = 0;
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position -= pageHeight;
+      pdf.addPage();
+      pdf.addImage(imgData, "PNG", 0, position, pdfWidth, pdfHeight);
+      heightLeft -= pageHeight;
+    }
+
+    pdf.save(`NDA_${fullName.replace(/\s+/g, "_")}.pdf`);
+  }, [fullName]);
+
   return (
     <div className="rounded-lg border border-border shadow-sm overflow-hidden">
-      <ScrollArea className="max-h-[70vh]">
-        <div className="bg-white text-gray-900 p-8 md:p-12 space-y-8 font-serif text-sm leading-relaxed">
+      <div className="flex items-center justify-end px-4 py-2 border-b border-border bg-secondary/30">
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleDownloadPdf}>
+          <Download className="h-3.5 w-3.5" /> Download PDF
+        </Button>
+      </div>
+      <ScrollArea className="h-[65vh]">
+        <div ref={contentRef} className="bg-white text-gray-900 p-8 md:p-12 space-y-8 font-serif text-sm leading-relaxed">
           {/* Header */}
           <div className="text-center space-y-2 border-b border-gray-200 pb-6">
             <h1 className="text-xl font-bold tracking-tight text-gray-900 font-sans">
@@ -78,10 +118,9 @@ const NDADocument = ({ fullName, email, phone, address, signatureData, ndaSigned
             </section>
           </div>
 
-          {/* Divider */}
+          {/* Signatory Info */}
           <div className="border-t border-gray-300 pt-6 space-y-4">
             <h2 className="text-sm font-bold text-gray-900 font-sans">Signatory Information</h2>
-
             <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm">
               <div>
                 <span className="text-gray-500 text-xs font-sans block">Full Name</span>
@@ -118,7 +157,6 @@ const NDADocument = ({ fullName, email, phone, address, signatureData, ndaSigned
               ) : (
                 <p className="text-gray-400 italic text-xs">No signature on file</p>
               )}
-
               <div className="pt-2">
                 <span className="text-gray-500 text-xs font-sans block">Date &amp; Time Signed</span>
                 <span className="text-gray-900 text-sm font-medium">
