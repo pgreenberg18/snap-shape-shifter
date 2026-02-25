@@ -971,6 +971,8 @@ const PreProduction = () => {
           <DnDGroupPane
             items={filteredProps} filmId={filmId} storagePrefix="props" icon={Package} title="Props"
             emptyMessage="No props extracted yet. Lock your script in Development."
+            subtitles={breakdownAssets?.propDescriptions}
+            expandableSubtitles
             sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
             storagePath={scriptAnalysis?.storage_path as string | undefined}
             excludeFromKeyObjects={augmentedVehicles}
