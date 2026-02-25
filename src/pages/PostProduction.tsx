@@ -406,6 +406,17 @@ const PostProduction = () => {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
   const [overTrackId, setOverTrackId] = useState<string | null>(null);
+  const [activeDrag, setActiveDrag] = useState<{ id: string; label: string; track?: string } | null>(null);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const d = event.active.data.current;
+    if (d?.type === "timeline-clip") {
+      setActiveDrag({ id: event.active.id as string, label: d.clip?.label ?? "Clip", track: d.clip?.track });
+    } else if (d?.type === "media-shot") {
+      const shot = d.shot as Shot;
+      setActiveDrag({ id: event.active.id as string, label: `SC${shot.scene_number} – ${shot.camera_angle || "Shot"}` });
+    }
+  }, []);
 
   const handleTrimClip = useCallback((id: string, newLeft: number, newWidth: number) => {
     setState((prev) => ({
@@ -426,6 +437,7 @@ const PostProduction = () => {
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, delta, over } = event;
     setOverTrackId(null);
+    setActiveDrag(null);
     const activeData = active.data.current;
 
     // Dropping a media bin shot onto a track
@@ -470,7 +482,7 @@ const PostProduction = () => {
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   return (
-    <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragOver={handleDragOver} collisionDetection={pointerWithin}>
+    <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragOver={handleDragOver} collisionDetection={pointerWithin}>
     <div className="flex h-full">
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -708,6 +720,21 @@ const PostProduction = () => {
         }}
       />
     </div>
+    <DragOverlay dropAnimation={null}>
+      {activeDrag ? (
+        <div
+          className="rounded-lg border px-3 py-1 flex items-center text-[10px] font-mono text-foreground/90 shadow-lg pointer-events-none"
+          style={{
+            background: activeDrag.track ? getClipColor(activeDrag.track) : "hsl(215 15% 30% / 0.9)",
+            borderColor: activeDrag.track ? getClipBorder(activeDrag.track) : "hsl(215 20% 50% / 0.5)",
+            width: 180,
+            height: 36,
+          }}
+        >
+          <span className="truncate">{activeDrag.label}</span>
+        </div>
+      ) : null}
+    </DragOverlay>
     </DndContext>
   );
 };
