@@ -193,8 +193,8 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
     t === "LEAD" || t === "STRONG_SUPPORT" ? "FEATURE" : t;
 
   for (const r of rankings) {
-    // BACKGROUND: no dialogue at all
-    if (r.wordsSpoken <= 0 || r.dialogueScenes <= 0) {
+    // BACKGROUND: no dialogue AND minimal appearances (fewer than 2 scenes)
+    if (r.wordsSpoken <= 0 && r.dialogueScenes <= 0 && r.appearanceScenes <= 1) {
       r.tier = "BACKGROUND";
       continue;
     }

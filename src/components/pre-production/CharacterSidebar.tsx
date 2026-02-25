@@ -54,7 +54,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({ LEAD: true });
+  const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({ LEAD: true, STRONG_SUPPORT: true, FEATURE: false, UNDER_5: false, BACKGROUND: false });
   const [searchQuery, setSearchQuery] = useState("");
   const [mergeDialog, setMergeDialog] = useState<{
     sourceId: string; targetId: string; sourceName: string; targetName: string;
