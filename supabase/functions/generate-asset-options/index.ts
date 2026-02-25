@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -360,6 +361,15 @@ REQUIREMENTS:
     if (results.length === 0) {
       throw new Error("Failed to generate any asset options. Try adjusting the asset name or try again.");
     }
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: film_id,
+      serviceName: "Gemini Image",
+      serviceCategory: "image-generation",
+      operation: "generate-asset-options",
+      credits: results.length * 2,
+    });
 
     return new Response(JSON.stringify({ options: results }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

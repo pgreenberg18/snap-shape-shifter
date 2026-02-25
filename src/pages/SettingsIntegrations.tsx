@@ -20,9 +20,12 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, ArrowLeft, Pencil,
+  Gauge, Zap, Save, Loader2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
+import { useAuth } from "@/hooks/useAuth";
 
 /* ── Service catalogs per section ── */
 type ServiceDef = { id: string; name: string; placeholder: string };
@@ -129,6 +132,25 @@ const SettingsIntegrations = () => {
   const [addedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Credit usage
+  const [creditPeriod, setCreditPeriod] = useState<"week" | "month" | "year">("month");
+  const { data: creditUsage } = useCreditUsage(creditPeriod);
+  const { data: creditSettings } = useCreditSettings();
+  const [warningInput, setWarningInput] = useState("");
+  const [cutoffInput, setCutoffInput] = useState("");
+  const [periodInput, setPeriodInput] = useState("month");
+  const [savingCredits, setSavingCredits] = useState(false);
+  const [creditSettingsLoaded, setCreditSettingsLoaded] = useState(false);
+
+  // Sync inputs from DB
+  if (creditSettings && !creditSettingsLoaded) {
+    setWarningInput(creditSettings.warning_threshold?.toString() || "");
+    setCutoffInput(creditSettings.cutoff_threshold?.toString() || "");
+    setPeriodInput(creditSettings.warning_period || "month");
+    setCreditSettingsLoaded(true);
+  }
 
   const handleConnect = async (id: string) => {
     const key = keys[id];
@@ -169,6 +191,28 @@ const SettingsIntegrations = () => {
     setAddingSection(sectionId);
     setSelectedService("");
     setServiceKey("");
+  };
+
+  const handleSaveCreditSettings = async () => {
+    if (!user) return;
+    setSavingCredits(true);
+    const payload = {
+      user_id: user.id,
+      warning_threshold: warningInput ? parseFloat(warningInput) : null,
+      cutoff_threshold: cutoffInput ? parseFloat(cutoffInput) : null,
+      warning_period: periodInput,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase
+      .from("credit_usage_settings")
+      .upsert(payload, { onConflict: "user_id" });
+    setSavingCredits(false);
+    if (error) {
+      toast({ title: "Error", description: "Failed to save credit settings.", variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["credit-settings"] });
+    toast({ title: "Saved", description: "Credit usage thresholds updated." });
   };
 
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
@@ -336,6 +380,84 @@ const SettingsIntegrations = () => {
           );
         })}
       </Accordion>
+
+      {/* ── Credit Usage & Thresholds ── */}
+      <div className="mt-10 space-y-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Gauge className="h-5 w-5 text-primary" />
+          <h2 className="font-display text-2xl font-bold">Credit Usage</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
+
+        {/* Usage breakdown */}
+        <div className="rounded-xl border border-border bg-card p-5 cinema-inset space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider">Usage Summary</h3>
+            </div>
+            <div className="flex gap-1">
+              {(["week", "month", "year"] as const).map((p) => (
+                <Button key={p} variant={creditPeriod === p ? "default" : "ghost"} size="sm" className="h-7 px-3 text-xs" onClick={() => setCreditPeriod(p)}>
+                  {p === "week" ? "Last Week" : p === "month" ? "This Month" : "This Year"}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-end gap-2">
+            <span className="font-display text-4xl font-bold tabular-nums text-foreground">{(creditUsage?.total ?? 0).toFixed(0)}</span>
+            <span className="text-sm text-muted-foreground mb-1">credits used</span>
+          </div>
+
+          {creditUsage && Object.keys(creditUsage.byService).length > 0 && (
+            <div className="space-y-2 border-t border-border pt-3">
+              {Object.entries(creditUsage.byService).sort(([,a],[,b]) => b - a).map(([svc, credits]) => (
+                <div key={svc} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">{svc}</span>
+                  <span className="text-sm font-mono font-medium tabular-nums">{credits.toFixed(0)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Threshold settings */}
+        <div className="rounded-xl border border-border bg-card p-5 cinema-inset space-y-4">
+          <div className="flex items-center gap-2">
+            <Gauge className="h-4 w-4 text-primary" />
+            <h3 className="font-display text-sm font-bold uppercase tracking-wider">Usage Thresholds</h3>
+          </div>
+          <p className="text-xs text-muted-foreground">Set optional limits. A warning notifies you; a cutoff shows an alert when exceeded.</p>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Warning Threshold</Label>
+              <Input type="number" placeholder="e.g. 500" value={warningInput} onChange={(e) => setWarningInput(e.target.value)} className="bg-secondary border-border" />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">Cutoff Limit</Label>
+              <Input type="number" placeholder="e.g. 1000" value={cutoffInput} onChange={(e) => setCutoffInput(e.target.value)} className="bg-secondary border-border" />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Monitoring Period</Label>
+            <Select value={periodInput} onValueChange={setPeriodInput}>
+              <SelectTrigger className="bg-secondary w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">Per Week</SelectItem>
+                <SelectItem value="month">Per Month</SelectItem>
+                <SelectItem value="year">Per Year</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <Button onClick={handleSaveCreditSettings} disabled={savingCredits} className="gap-2">
+            {savingCredits ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Thresholds</>}
+          </Button>
+        </div>
+      </div>
     </div>
   );
 };

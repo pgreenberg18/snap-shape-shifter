@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -345,6 +346,14 @@ Deno.serve(async (req) => {
         },
       },
     };
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: shot.film_id,
+      serviceName: "Payload Compiler",
+      serviceCategory: "script-analysis",
+      operation: "compile-generation-payload",
+    });
 
     return new Response(JSON.stringify(payload, null, 2), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

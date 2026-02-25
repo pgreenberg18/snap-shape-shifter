@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -383,6 +384,15 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
     }
 
     console.log("Finalization complete for analysis:", analysis_id);
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: analysis.film_id,
+      serviceName: "Gemini Pro",
+      serviceCategory: "script-analysis",
+      operation: "finalize-analysis",
+      credits: 2,
+    });
+
     return new Response(
       JSON.stringify({ success: true }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
