@@ -55,76 +55,80 @@ const Release = () => {
         <ExportHistoryPanel exports={exports} onClear={() => setExports([])} />
       </div>
       {/* Export Master Film */}
-      <div className="rounded-xl border border-border bg-card p-8 cinema-inset">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <FileVideo className="h-6 w-6 text-primary" />
+      <div className="rounded-xl border border-border bg-card p-5 cinema-inset">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <FileVideo className="h-4.5 w-4.5 text-primary" />
+            </div>
+            <div>
+              <h2 className="font-display text-lg font-bold leading-tight">Export Master Film</h2>
+              <p className="text-[11px] text-muted-foreground">Final render and distribution</p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-display text-2xl font-bold">Export Master Film</h2>
-            <p className="text-sm text-muted-foreground">Final render and distribution</p>
+          <Button size="sm" className="gap-1.5 h-8 px-5 text-xs" disabled={processing === "master"} onClick={() => handleProcess("master")}>
+            {processing === "master" ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
+            ) : (
+              <><Download className="h-3.5 w-3.5" /> Export Master</>
+            )}
+          </Button>
+        </div>
+
+        {/* Format spec inline */}
+        <div className="rounded-lg border border-border bg-secondary/50 px-4 py-2.5 cinema-inset mb-4">
+          <div className="flex items-center gap-6 text-[11px] font-mono">
+            <div className="flex items-center gap-1.5">
+              <Monitor className="h-3 w-3 text-primary/70" />
+              <span className="text-muted-foreground">Type:</span>
+              <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "—"}</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Res:</span>
+              <span className="text-foreground/90 font-semibold">
+                {(film as any)?.frame_width && (film as any)?.frame_height
+                  ? `${(film as any).frame_width}×${(film as any).frame_height}`
+                  : "—"}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">FPS:</span>
+              <span className="text-foreground/90 font-semibold">
+                {(film as any)?.frame_rate ? `${(film as any).frame_rate}` : "—"}
+              </span>
+            </div>
           </div>
         </div>
 
         <Tabs defaultValue="auto" className="w-full">
-          <TabsList className="w-full bg-secondary mb-6">
-            <TabsTrigger value="auto" className="flex-1">Auto</TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1">Templates</TabsTrigger>
-            <TabsTrigger value="custom" className="flex-1">Custom</TabsTrigger>
+          <TabsList className="w-full bg-secondary mb-3 h-8">
+            <TabsTrigger value="auto" className="flex-1 text-xs h-7">Auto</TabsTrigger>
+            <TabsTrigger value="templates" className="flex-1 text-xs h-7">Templates</TabsTrigger>
+            <TabsTrigger value="custom" className="flex-1 text-xs h-7">Custom</TabsTrigger>
           </TabsList>
 
           <TabsContent value="auto">
-            <div className="py-6 space-y-4">
-              <div className="flex items-center gap-3 justify-center">
-                <Monitor className="h-5 w-5 text-primary" />
-                <p className="font-display font-semibold">AI-Optimized Export</p>
-              </div>
-              <p className="text-sm text-muted-foreground text-center">
-                Best codec and bitrate auto-selected based on your format settings.
-              </p>
-              {/* Format spec readout from Development */}
-              <div className="rounded-lg border border-border bg-secondary/50 p-4 cinema-inset max-w-sm mx-auto space-y-2">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-2">Format Specification</p>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] font-mono">
-                  <span className="text-muted-foreground">Type</span>
-                  <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "Not set"}</span>
-                  <span className="text-muted-foreground">Resolution</span>
-                  <span className="text-foreground/90 font-semibold">
-                    {(film as any)?.frame_width && (film as any)?.frame_height
-                      ? `${(film as any).frame_width} × ${(film as any).frame_height}`
-                      : "Not set"}
-                  </span>
-                  <span className="text-muted-foreground">Frame Rate</span>
-                  <span className="text-foreground/90 font-semibold">
-                    {(film as any)?.frame_rate ? `${(film as any).frame_rate} fps` : "Not set"}
-                  </span>
-                </div>
-                {!(film as any)?.format_type && (
-                  <p className="text-[9px] text-muted-foreground/50 mt-2 font-mono">
-                    Set format in the Development tab → Format section.
-                  </p>
-                )}
-              </div>
-            </div>
+            <p className="text-[11px] text-muted-foreground text-center py-3 font-mono">
+              Best codec & bitrate auto-selected from your format settings.
+            </p>
           </TabsContent>
 
           <TabsContent value="templates">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-secondary p-4">
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <Label htmlFor="topaz" className="text-sm font-medium cursor-pointer">
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <Label htmlFor="topaz" className="text-[11px] font-medium cursor-pointer">
                     Topaz 4K Cinematic Upscale
                   </Label>
                 </div>
                 <Switch id="topaz" checked={topaz} onCheckedChange={setTopaz} />
               </div>
-
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 {["YouTube 4K", "Netflix ProRes", "Theater DCP"].map((t) => (
                   <button
                     key={t}
-                    className="rounded-lg border border-border bg-secondary p-4 text-sm font-medium hover:border-primary/50 transition-colors text-center"
+                    className="rounded-lg border border-border bg-secondary px-3 py-2.5 text-[11px] font-medium hover:border-primary/50 transition-colors text-center"
                   >
                     {t}
                   </button>
@@ -134,24 +138,11 @@ const Release = () => {
           </TabsContent>
 
           <TabsContent value="custom">
-            <div className="text-center py-8">
-              <p className="font-display font-semibold">Custom Export Settings</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configure codec, resolution, bitrate, and container format.
-              </p>
-            </div>
+            <p className="text-[11px] text-muted-foreground text-center py-3 font-mono">
+              Configure codec, resolution, bitrate, and container format.
+            </p>
           </TabsContent>
         </Tabs>
-
-        <div className="mt-6 flex justify-center">
-          <Button size="lg" className="gap-2 px-10" disabled={processing === "master"} onClick={() => handleProcess("master")}>
-            {processing === "master" ? (
-              <><Loader2 className="h-5 w-5 animate-spin" /> Exporting…</>
-            ) : (
-              <><Download className="h-5 w-5" /> Export Master</>
-            )}
-          </Button>
-        </div>
       </div>
 
       {/* removed old Legal & Compliance — replaced by bottom section */}
