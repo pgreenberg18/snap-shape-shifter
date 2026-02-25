@@ -554,8 +554,23 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   /* ── Highlight helper ── */
   const highlightTerms = (text: string, terms: string[]) => {
     if (terms.length === 0) return text;
-    const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
-    const re = new RegExp(`(${escaped.join("|")})`, "gi");
+    // Build patterns: use full terms first, then extract significant individual words (4+ chars)
+    const allPatterns: string[] = [];
+    for (const t of terms) {
+      // Strip parenthetical counts like "(2)" and trim
+      const clean = t.replace(/\s*\([\d]+\)\s*/g, "").trim();
+      if (clean) allPatterns.push(clean.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+      // Also add significant individual words from multi-word terms
+      const words = clean.split(/[\s,\-–—]+/).filter(w => w.length >= 4);
+      for (const w of words) {
+        const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (!allPatterns.includes(escaped)) allPatterns.push(escaped);
+      }
+    }
+    if (allPatterns.length === 0) return text;
+    // Sort longest first so full phrases match before individual words
+    allPatterns.sort((a, b) => b.length - a.length);
+    const re = new RegExp(`(${allPatterns.join("|")})`, "gi");
     const parts = text.split(re);
     if (parts.length === 1) return text;
     return parts.map((part, j) =>
