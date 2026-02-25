@@ -168,13 +168,40 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CreditUsageSection = () => {
+  const { user } = useAuth();
   const [period, setPeriod] = useState<"week" | "month" | "year">("month");
   const { data: usage } = useCreditUsage(period);
   const { data: settings } = useCreditSettings();
 
+  // Fetch all configured integrations for this user
+  const { data: integrations } = useQuery({
+    queryKey: ["user-integrations", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("integrations")
+        .select("provider_name, section_id, is_verified")
+        .eq("user_id", user!.id);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!user?.id,
+  });
+
   const total = usage?.total ?? 0;
   const warningThreshold = settings?.warning_threshold ? Number(settings.warning_threshold) : null;
   const cutoffThreshold = settings?.cutoff_threshold ? Number(settings.cutoff_threshold) : null;
+
+  // Group integrations by category and merge credit usage
+  const categorizedServices = (() => {
+    const cats: Record<string, { name: string; credits: number; verified: boolean }[]> = {};
+    for (const integ of integrations || []) {
+      const cat = integ.section_id;
+      if (!cats[cat]) cats[cat] = [];
+      const credits = usage?.byService[integ.provider_name] ?? 0;
+      cats[cat].push({ name: integ.provider_name, credits, verified: integ.is_verified });
+    }
+    return cats;
+  })();
 
   return (
     <div className="space-y-6">
@@ -209,44 +236,43 @@ const CreditUsageSection = () => {
         </div>
       </div>
 
-      {/* By Service */}
-      {usage && Object.keys(usage.byService).length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Service</h3>
-          <div className="space-y-1">
-            {Object.entries(usage.byService)
-              .sort(([, a], [, b]) => b - a)
-              .map(([service, credits]) => (
-                <div key={service} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
-                  <span className="text-sm text-foreground">{service}</span>
-                  <span className="font-mono text-sm font-medium text-primary tabular-nums">{credits.toFixed(0)}</span>
+      {/* Services by Category */}
+      {Object.keys(categorizedServices).length > 0 ? (
+        <div className="space-y-5">
+          {Object.entries(categorizedServices)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([cat, services]) => (
+              <div key={cat} className="space-y-1.5">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {CATEGORY_LABELS[cat] || cat}
+                </h3>
+                <div className="space-y-1">
+                  {services
+                    .sort((a, b) => b.credits - a.credits || a.name.localeCompare(b.name))
+                    .map((svc) => (
+                      <div key={svc.name} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-foreground">{svc.name}</span>
+                          {svc.verified && (
+                            <span className="text-[9px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <span className={`font-mono text-sm font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
+                          {svc.credits.toFixed(0)}
+                        </span>
+                      </div>
+                    ))}
                 </div>
-              ))}
-          </div>
+              </div>
+            ))}
         </div>
-      )}
-
-      {/* By Category */}
-      {usage && Object.keys(usage.byCategory).length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Category</h3>
-          <div className="space-y-1">
-            {Object.entries(usage.byCategory)
-              .sort(([, a], [, b]) => b - a)
-              .map(([cat, credits]) => (
-                <div key={cat} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
-                  <span className="text-sm text-foreground">{CATEGORY_LABELS[cat] || cat}</span>
-                  <span className="font-mono text-sm font-medium text-primary tabular-nums">{credits.toFixed(0)}</span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {(!usage || total === 0) && (
+      ) : (
         <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-12 text-center">
           <Gauge className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
-          <p className="text-sm text-muted-foreground/60 font-mono">No credit usage recorded yet.</p>
+          <p className="text-sm text-muted-foreground/60 font-mono">No services configured yet.</p>
+          <p className="text-xs text-muted-foreground/40 mt-1">Add API integrations from the Integrations page to see them here.</p>
         </div>
       )}
     </div>
