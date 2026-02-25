@@ -1428,10 +1428,11 @@ const Development = () => {
 
               {/* AI Generation Notes */}
               <EditableAIGenerationNotes
-                initialValue={(analysis.ai_generation_notes as string) || ""}
+                initialValue={analysis.ai_generation_notes as any}
                 visualSummary={(analysis.visual_summary as string) || ""}
                 timePeriod={film?.time_period || timePeriod}
                 signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
+                visualDesign={(analysis.global_elements as any)?.visual_design || null}
                 analysisId={analysis.id}
                 approved={aiNotesApproved}
                 onApprovedChange={(v: boolean) => {
