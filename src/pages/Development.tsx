@@ -2416,11 +2416,14 @@ interface ContentFlag {
   reason?: string;
 }
 
-const RATING_TEMPLATES: { rating: MPAARating; label: string; desc: string }[] = [
+type RatingOrUnrated = MPAARating | "NR";
+const RATING_TEMPLATES: { rating: RatingOrUnrated; label: string; desc: string }[] = [
   { rating: "G", label: "G — General Audiences", desc: "No objectionable content" },
   { rating: "PG", label: "PG — Parental Guidance", desc: "Mild language, brief mild violence" },
   { rating: "PG-13", label: "PG-13 — Parents Cautioned", desc: "Some violence, brief strong language" },
   { rating: "R", label: "R — Restricted", desc: "Strong language, violence, some nudity" },
+  { rating: "NC-17", label: "NC-17 — Adults Only", desc: "Explicit content not suitable for children" },
+  { rating: "NR", label: "Not Rated", desc: "Content has not been submitted for rating" },
 ];
 
 /* regex patterns and local analysis removed — now handled by AI edge function */
@@ -2694,7 +2697,7 @@ const ContentSafetyMatrix = ({
   handleToggle: (field: string, setter: (v: boolean) => void) => (val: boolean) => void;
   setLanguage: (v: boolean) => void; setNudity: (v: boolean) => void; setViolence: (v: boolean) => void;
 }) => {
-  const [selectedTemplate, setSelectedTemplate] = useState<MPAARating | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<RatingOrUnrated | null>(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
   const [flags, setFlags] = useState<ContentFlag[]>([]);
   const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
@@ -2909,8 +2912,15 @@ const ContentSafetyMatrix = ({
               })}
             </div>
             {selectedTemplate && (() => {
+              if (selectedTemplate === "NR") {
+                return (
+                  <div className="mt-4 p-4 rounded-lg bg-muted border border-border text-center">
+                    <p className="text-sm text-muted-foreground">This content will not be submitted for an MPAA rating.</p>
+                  </div>
+                );
+              }
               const ratingOrder: MPAARating[] = ["G", "PG", "PG-13", "R", "NC-17"];
-              const templateIdx = ratingOrder.indexOf(selectedTemplate);
+              const templateIdx = ratingOrder.indexOf(selectedTemplate as MPAARating);
               const conflicts = flags.filter((f) => ratingOrder.indexOf(f.severity) > templateIdx);
               if (conflicts.length === 0) {
                 return (
