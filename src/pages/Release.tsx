@@ -155,9 +155,32 @@ const Release = () => {
                 </TabsList>
 
                 <TabsContent value="auto">
-                  <p className="text-[10px] text-muted-foreground text-center py-2 font-mono">
-                    Best codec & bitrate auto-selected from format settings.
-                  </p>
+                  <div className="space-y-2">
+                    <p className="text-[9px] text-muted-foreground font-mono mb-1.5">
+                      Auto-configured from your format settings:
+                    </p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-border bg-secondary/50 px-3 py-2.5 cinema-inset">
+                      {[
+                        { label: "Codec", value: (film as any)?.format_type === "Feature Film" || (film as any)?.format_type === "Short Film" ? "H.264 (High)" : "H.264 (Main)" },
+                        { label: "Container", value: ".mp4" },
+                        { label: "Resolution", value: (film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "1920×1080" },
+                        { label: "Frame Rate", value: `${(film as any)?.frame_rate || 24} fps` },
+                        { label: "Bitrate", value: ((film as any)?.frame_height ?? 1080) >= 2160 ? "50 Mbps" : ((film as any)?.frame_height ?? 1080) >= 1080 ? "25 Mbps" : "15 Mbps" },
+                        { label: "Encoding", value: "2-Pass VBR" },
+                        { label: "Color Space", value: "Rec. 709" },
+                        { label: "Pixel Format", value: "yuv420p" },
+                        { label: "Audio Codec", value: "AAC-LC" },
+                        { label: "Audio Bitrate", value: "320 kbps" },
+                        { label: "Sample Rate", value: "48.0 kHz" },
+                        { label: "Channels", value: "Stereo (2.0)" },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="flex justify-between py-0.5">
+                          <span className="text-[9px] font-mono text-muted-foreground">{label}</span>
+                          <span className="text-[9px] font-mono text-foreground/90 font-semibold">{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </TabsContent>
 
                 <TabsContent value="templates">
