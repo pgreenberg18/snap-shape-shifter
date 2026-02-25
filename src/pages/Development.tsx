@@ -1091,11 +1091,11 @@ const Development = () => {
 
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
-                      <Select value={formatType} onValueChange={handleFormatChange} disabled={scriptLocked}>
+                      <Select value={formatType || undefined} onValueChange={handleFormatChange} disabled={scriptLocked}>
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select a format…" />
                         </SelectTrigger>
-                        <SelectContent className="bg-popover border border-border z-50">
+                        <SelectContent className="bg-popover border border-border z-[9999]">
                           {FORMAT_PRESETS.map(p => (
                             <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                           ))}
