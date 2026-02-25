@@ -146,32 +146,6 @@ const AdminPanel = () => {
         </ScrollArea>
       </div>
 
-      {/* Recent Credit Usage */}
-      <div>
-        <h4 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 px-1">
-          Recent Credit Usage
-        </h4>
-        <ScrollArea className="max-h-40">
-          <div className="space-y-1">
-            {creditLogs?.slice(0, 20).map((log) => (
-              <div
-                key={log.id}
-                className="flex items-center justify-between rounded-md bg-secondary/50 px-3 py-2 text-xs"
-              >
-                <span className="truncate text-foreground max-w-[100px]" title={log.operation}>
-                  {log.service_name}
-                </span>
-                <span className="text-primary font-mono font-medium">
-                  -{log.credits_used}
-                </span>
-              </div>
-            ))}
-            {(!creditLogs || creditLogs.length === 0) && (
-              <p className="text-xs text-muted-foreground px-3 py-2">No usage yet</p>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
     </div>
   );
 };
