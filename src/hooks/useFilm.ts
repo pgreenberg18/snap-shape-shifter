@@ -163,31 +163,37 @@ export const useBreakdownAssets = () => {
       const vehicleSet = new Set<string>();
 
       const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
-      // Filter out things that aren't actual props (effects, locations, weather, etc.)
       const NON_PROP_KEYWORDS = ["rain", "snow", "fog", "wind", "lightning", "thunder", "fire", "smoke", "explosion", "flames", "mist", "haze", "storm", "sunlight", "moonlight", "shadow", "shadows", "darkness", "light", "glow", "flicker", "house", "building", "cabin", "mansion", "apartment", "warehouse", "barn", "church", "school", "hospital", "hotel", "motel", "office", "restaurant", "bar", "club", "store", "shop", "beach house", "cottage", "shack", "tower", "castle", "palace", "temple"];
+
+      // First pass: collect all scene data per location (aggregate across scenes)
+      type LocMeta = { intExt: string; timesOfDay: Set<string>; envSnippets: string[]; moods: Set<string>; settings: Set<string> };
+      const locationMeta = new Map<string, LocMeta>();
 
       for (const s of scenes) {
         if (s.scene_heading && typeof s.scene_heading === "string" && s.scene_heading !== "N/A") {
-          // Strip INT./EXT./INT./EXT. prefix and time-of-day suffix to get clean location name
-          let heading = s.scene_heading.trim();
+          const heading = s.scene_heading.trim();
           const cleanName = heading
             .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
             .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
             .trim();
           const locationName = cleanName || heading;
-          if (!locationSet.has(locationName)) {
-            locationSet.add(locationName);
-            const intExt = heading.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0] || "";
-            const timeOfDay = s.time_of_day || heading.match(/[-–—]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|SUNSET|SUNRISE)\s*$/i)?.[1] || "";
-            const parts: string[] = [];
-            if (intExt || timeOfDay) parts.push([intExt.toUpperCase(), timeOfDay].filter(Boolean).join(" — "));
-            if (s.setting && s.setting !== "N/A") parts.push(s.setting);
-            if (s.description) parts.push(s.description);
-            if (s.environment_details) parts.push(s.environment_details);
-            const desc = parts.join(". ").replace(/\.\./g, ".");
-            if (desc) locationDescMap.set(locationName, desc);
+          locationSet.add(locationName);
+
+          const intExt = heading.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0]?.toUpperCase() || "";
+          const timeOfDay = s.time_of_day || heading.match(/[-–—]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|SUNSET|SUNRISE)\s*$/i)?.[1] || "";
+
+          if (!locationMeta.has(locationName)) {
+            locationMeta.set(locationName, { intExt, timesOfDay: new Set(), envSnippets: [], moods: new Set(), settings: new Set() });
           }
+          const meta = locationMeta.get(locationName)!;
+          if (timeOfDay) meta.timesOfDay.add(timeOfDay);
+          if (!meta.intExt && intExt) meta.intExt = intExt;
+          if (s.setting && s.setting !== "N/A") meta.settings.add(s.setting);
+          if (s.environment_details && typeof s.environment_details === "string") meta.envSnippets.push(s.environment_details);
+          if (s.mood && typeof s.mood === "string") meta.moods.add(s.mood);
         }
+
+        // Props
         if (Array.isArray(s.key_objects)) {
           for (const p of s.key_objects) {
             if (typeof p === "string" && p.length > 1) {
@@ -195,20 +201,18 @@ export const useBreakdownAssets = () => {
               if (VEHICLE_KEYWORDS.some((v) => lower.includes(v))) {
                 vehicleSet.add(p);
               } else if (NON_PROP_KEYWORDS.some((np) => lower === np || lower === np + "s")) {
-                // Skip non-props (effects, locations masquerading as props)
+                // skip
               } else {
                 propSet.add(p);
               }
             }
           }
         }
-        // Picture vehicles from dedicated field
         if (Array.isArray(s.picture_vehicles)) {
           for (const v of s.picture_vehicles) {
             if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
           }
         }
-        // Legacy vehicles field
         if (Array.isArray(s.vehicles)) {
           for (const v of s.vehicles) {
             if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
@@ -226,8 +230,64 @@ export const useBreakdownAssets = () => {
         }
       }
 
+      // Second pass: build descriptions, inheriting parent context for sub-locations
+      const sortedLocations = [...locationSet].sort();
+      for (const loc of sortedLocations) {
+        const meta = locationMeta.get(loc);
+        const parts: string[] = [];
+
+        if (meta) {
+          // INT/EXT + time of day header
+          const times = [...meta.timesOfDay].join(", ");
+          if (meta.intExt || times) parts.push([meta.intExt, times].filter(Boolean).join(" — "));
+
+          // Best environment snippet (longest = most detailed)
+          if (meta.envSnippets.length > 0) {
+            const best = meta.envSnippets.sort((a, b) => b.length - a.length)[0];
+            parts.push(best);
+          } else if (meta.settings.size > 0) {
+            parts.push([...meta.settings][0]);
+          }
+
+          // Mood
+          if (meta.moods.size > 0) {
+            parts.push("Mood: " + [...meta.moods].join(", "));
+          }
+        }
+
+        // If still empty, try to inherit from parent location (e.g., "WELLS HOME" for "WELLS HOME - KITCHEN")
+        if (parts.length <= 1 && loc.includes(" - ")) {
+          const parentName = loc.split(" - ")[0].trim();
+          const parentMeta = locationMeta.get(parentName);
+          if (parentMeta) {
+            if (parentMeta.envSnippets.length > 0) {
+              const best = parentMeta.envSnippets.sort((a, b) => b.length - a.length)[0];
+              parts.push("Part of " + parentName + ". " + best);
+            } else if (parentMeta.settings.size > 0) {
+              parts.push("Part of " + parentName + ". " + [...parentMeta.settings][0]);
+            }
+            if (parentMeta.moods.size > 0 && !parts.some((p) => p.startsWith("Mood:"))) {
+              parts.push("Mood: " + [...parentMeta.moods].join(", "));
+            }
+          }
+        }
+
+        // Final fallback: generate a minimal description from the name itself
+        if (parts.length === 0) {
+          const nameParts = loc.split(/\s*[-–—]\s*/);
+          if (nameParts.length > 1) {
+            parts.push(nameParts.join(", ") + ".");
+          } else {
+            parts.push(loc + ".");
+          }
+        }
+
+        const desc = parts.join(". ").replace(/\.\./g, ".").replace(/\.\s*\./g, ".");
+        locationDescMap.set(loc, desc);
+      }
+
       return {
-        locations: [...locationSet].sort(),
+        locations: sortedLocations,
         locationDescriptions: Object.fromEntries(locationDescMap),
         props: [...propSet].sort(),
         wardrobe: [...wardrobeMap.keys()].map((k) => {
