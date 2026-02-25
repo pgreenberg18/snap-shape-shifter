@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,6 +53,11 @@ const AssetDetailPanel = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState(refDescription || "");
   const queryClient = useQueryClient();
+
+  // Sync description when selected item or external description changes
+  useEffect(() => {
+    setDescription(refDescription || "");
+  }, [itemName, refDescription]);
 
   const handleDescChange = (val: string) => {
     setDescription(val);
