@@ -2130,7 +2130,7 @@ const EditableSceneContent = ({
         </Section>
 
         <Section icon={UserPlus} label="Extras / Background">
-          <p className="text-xs text-foreground">{extras || "None specified"}</p>
+          <p className={`text-xs ${extras ? "text-foreground" : "text-muted-foreground/50 italic"}`}>{extras || "None specified"}</p>
         </Section>
 
         <Section icon={Paintbrush} label="Special Makeup / Prosthetics">
