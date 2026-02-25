@@ -1006,14 +1006,23 @@ const PreProduction = () => {
               name: char,
               children: byCharacter.get(char)!,
             }));
+            const scenes = (scriptAnalysis?.scene_breakdown as any[] | undefined) || [];
+            const allSceneNums = scenes.map((s: any) => parseInt(s.scene_number, 10)).filter((n: number) => !isNaN(n)).sort((a: number, b: number) => a - b);
+            const headings: Record<number, string> = {};
+            for (const s of scenes) {
+              const sn = parseInt(s.scene_number, 10);
+              if (!isNaN(sn) && s.scene_heading) headings[sn] = s.scene_heading;
+            }
             return (
               <DnDGroupPane
                 items={wardrobeItems.map((w) => w.clothing)} filmId={filmId} storagePrefix="wardrobe" icon={Shirt} title="Wardrobe"
                 emptyMessage="No wardrobe data extracted yet. Lock your script in Development."
                 subtitles={wardrobeItems.reduce((acc, w) => { acc[w.clothing] = w.character; return acc; }, {} as Record<string, string>)}
-                sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
+                sceneBreakdown={scenes}
                 storagePath={scriptAnalysis?.storage_path as string | undefined}
                 initialGroups={wardrobeInitialGroups}
+                allSceneNumbers={allSceneNums}
+                sceneHeadings={headings}
               />
             );
           })()}
