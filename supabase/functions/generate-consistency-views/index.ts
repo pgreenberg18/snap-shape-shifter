@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -210,6 +211,17 @@ CRITICAL REQUIREMENTS:
     }
 
     const successCount = results.filter((r) => r.success).length;
+
+    if (successCount > 0) {
+      await logCreditUsage({
+        userId: authResult.userId,
+        filmId: character.film_id,
+        serviceName: "Gemini Image",
+        serviceCategory: "image-generation",
+        operation: "generate-consistency-views",
+        credits: successCount * 2,
+      });
+    }
 
     return new Response(
       JSON.stringify({ success: true, generated: successCount, total: 8 }),

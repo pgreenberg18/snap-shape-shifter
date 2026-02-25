@@ -24,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useHelp } from "@/components/help/HelpPanel";
+import CreditMeter from "./CreditMeter";
 
 const phases = [
   { key: "development", icon: FileText, label: "Development", tint: "hsl(215 20% 10%)" },
@@ -149,6 +150,9 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Bottom nav — Toggle + Help + Settings */}
         <div className={cn("flex flex-col gap-1 mb-2", expanded ? "w-full px-2" : "items-center")}>
+          {/* Credit Meter */}
+          <CreditMeter expanded={expanded} />
+
           {/* Expand/Collapse toggle */}
           <button
             onClick={() => setExpanded((e) => !e)}

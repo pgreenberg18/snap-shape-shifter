@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -128,6 +129,13 @@ Write concisely in a professional vehicle description style. 2-3 sentences max.`
     const description = data.choices?.[0]?.message?.content?.trim();
 
     if (!description) throw new Error("No description returned from AI");
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      serviceName: "Gemini Pro",
+      serviceCategory: "script-analysis",
+      operation: "analyze-reference-image",
+    });
 
     return new Response(JSON.stringify({ description }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

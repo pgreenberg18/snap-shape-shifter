@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -705,6 +706,14 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Style contract compiled for film ${film_id}: v${contractData.version}, ${genres.join("+")} / ${rating}, ${scenes.length} scene overrides`);
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: film_id,
+      serviceName: "Style Engine",
+      serviceCategory: "script-analysis",
+      operation: "compile-style-contract",
+    });
 
     return new Response(
       JSON.stringify({

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -153,6 +154,13 @@ Deno.serve(async (req) => {
         });
       }
     }
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      serviceName: "Gemini Pro",
+      serviceCategory: "script-analysis",
+      operation: "analyze-content-safety",
+    });
 
     return new Response(JSON.stringify({
       flags: parsed.flags || [],

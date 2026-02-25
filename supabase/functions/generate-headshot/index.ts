@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -310,6 +311,15 @@ This actor must be a completely unique individual — distinct ethnicity, bone s
     const { data: urlData } = sb.storage
       .from("character-assets")
       .getPublicUrl(fileName);
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: film_id || null,
+      serviceName: "Gemini Image",
+      serviceCategory: "image-generation",
+      operation: "generate-headshot",
+      credits: 2,
+    });
 
     return new Response(JSON.stringify({ imageUrl: urlData.publicUrl }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -278,6 +278,80 @@ export type Database = {
           },
         ]
       }
+      credit_usage_logs: {
+        Row: {
+          created_at: string
+          credits_used: number
+          film_id: string | null
+          id: string
+          metadata: Json | null
+          operation: string
+          service_category: string
+          service_name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used?: number
+          film_id?: string | null
+          id?: string
+          metadata?: Json | null
+          operation: string
+          service_category: string
+          service_name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          film_id?: string | null
+          id?: string
+          metadata?: Json | null
+          operation?: string
+          service_category?: string
+          service_name?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_usage_logs_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credit_usage_settings: {
+        Row: {
+          created_at: string
+          cutoff_threshold: number | null
+          id: string
+          updated_at: string
+          user_id: string
+          warning_period: string
+          warning_threshold: number | null
+        }
+        Insert: {
+          created_at?: string
+          cutoff_threshold?: number | null
+          id?: string
+          updated_at?: string
+          user_id: string
+          warning_period?: string
+          warning_threshold?: number | null
+        }
+        Update: {
+          created_at?: string
+          cutoff_threshold?: number | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+          warning_period?: string
+          warning_threshold?: number | null
+        }
+        Relationships: []
+      }
       film_assets: {
         Row: {
           asset_name: string
@@ -1005,6 +1079,17 @@ export type Database = {
     Functions: {
       increment_scenes_enriched: {
         Args: { p_analysis_id: string }
+        Returns: undefined
+      }
+      log_credit_usage: {
+        Args: {
+          p_credits?: number
+          p_film_id: string
+          p_operation: string
+          p_service_category: string
+          p_service_name: string
+          p_user_id: string
+        }
         Returns: undefined
       }
       user_owns_film: { Args: { p_film_id: string }; Returns: boolean }

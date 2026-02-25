@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
+import { logCreditUsage } from "../_shared/credit-logger.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -200,6 +201,14 @@ Deno.serve(async (req) => {
       .from("script_analyses")
       .update({ status: "enriching", scene_breakdown: sceneBreakdown })
       .eq("id", analysis_id);
+
+    await logCreditUsage({
+      userId: authResult.userId,
+      filmId: analysis.film_id,
+      serviceName: "Script Parser",
+      serviceCategory: "script-analysis",
+      operation: "parse-script",
+    });
 
     return new Response(
       JSON.stringify({
