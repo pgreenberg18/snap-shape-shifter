@@ -1073,7 +1073,18 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   description: string; sex: string; ageMin: number | null; ageMax: number | null; isChild: boolean;
 } | null {
   const nameUpper = charName.toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+  const nameTokens = nameUpper.split(/\s+/);
   const nameLower = charName.toLowerCase();
+  const nameFirstUpper = nameTokens[0] || nameUpper;
+
+  // Flexible name matching: full match, first-name match, or substring containment
+  const matchesCharName = (rawName: string): boolean => {
+    const norm = rawName.toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
+    if (norm === nameUpper) return true;
+    if (norm === nameFirstUpper) return true;
+    if (nameUpper.startsWith(norm + " ") || norm.startsWith(nameUpper + " ")) return true;
+    return false;
+  };
   let sex = "Unknown";
   let ageMin: number | null = null;
   let ageMax: number | null = null;
@@ -1090,8 +1101,8 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     if (!Array.isArray(scene.characters)) continue;
     for (const c of scene.characters) {
       if (typeof c === "string") continue;
-      const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
-      if (cName !== nameUpper) continue;
+      const cName = (c.name || "");
+      if (!matchesCharName(cName)) continue;
 
       // First appearance: capture scene description + character details
       if (!foundFirst) {
@@ -1107,7 +1118,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
         if (Array.isArray(scene.wardrobe)) {
           for (const w of scene.wardrobe) {
             const wChar = (w.character || "").toUpperCase().trim();
-            if (wChar !== nameUpper) continue;
+            if (!matchesCharName(wChar)) continue;
             if (w.hair_makeup) introFragments.push(w.hair_makeup);
             if (w.clothing_style) introFragments.push(w.clothing_style);
           }
@@ -1134,11 +1145,11 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   for (const scene of scenes) {
     // Check scene description for character name + pronoun proximity
     const desc = (scene.description || "").toLowerCase();
-    if (desc.includes(nameLower)) {
+    if (desc.includes(nameLower) || desc.includes(nameFirstUpper.toLowerCase())) {
       // Count pronouns in the same sentence/context as character name
       const sentences = desc.split(/[.!?]/);
       for (const sent of sentences) {
-        if (!sent.includes(nameLower)) continue;
+        if (!sent.includes(nameLower) && !sent.includes(nameFirstUpper.toLowerCase())) continue;
         const fMatches = sent.match(new RegExp(FEMALE_PRONOUNS.source, "gi"));
         const mMatches = sent.match(new RegExp(MALE_PRONOUNS.source, "gi"));
         femaleCues += fMatches?.length ?? 0;
@@ -1150,8 +1161,8 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     if (Array.isArray(scene.characters)) {
       for (const c of scene.characters) {
         if (typeof c === "string") continue;
-        const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
-        if (cName !== nameUpper) continue;
+        const cName = (c.name || "");
+        if (!matchesCharName(cName)) continue;
         const charText = [c.emotional_tone, c.physical_behavior, c.key_expressions, c.character_introduction].filter(Boolean).join(" ").toLowerCase();
         const fM = charText.match(new RegExp(FEMALE_PRONOUNS.source, "gi"));
         const mM = charText.match(new RegExp(MALE_PRONOUNS.source, "gi"));
@@ -1164,7 +1175,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     if (Array.isArray(scene.wardrobe)) {
       for (const w of scene.wardrobe) {
         const wChar = (w.character || "").toUpperCase().trim();
-        if (wChar !== nameUpper) continue;
+        if (!matchesCharName(wChar)) continue;
         const combined = [(w.clothing_style || ""), (w.hair_makeup || "")].join(" ").toLowerCase();
         if (/\b(dress|skirt|blouse|heels|lipstick|mascara|her hair|bra|pantyhose|earrings|necklace)\b/.test(combined)) femaleCues += 2;
         if (/\b(suit and tie|tie|beard|mustache|his hair|boxers|cufflinks)\b/.test(combined)) maleCues += 2;
@@ -1222,13 +1233,13 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     const textsToScan: string[] = [];
 
     const desc = scene.description || "";
-    if (desc.toLowerCase().includes(nameLower)) textsToScan.push(desc);
+    if (desc.toLowerCase().includes(nameLower) || desc.toLowerCase().includes(nameFirstUpper.toLowerCase())) textsToScan.push(desc);
 
     if (Array.isArray(scene.characters)) {
       for (const c of scene.characters) {
         if (typeof c === "string") continue;
-        const cName = (c.name || "").toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
-        if (cName !== nameUpper) continue;
+        const cName = (c.name || "");
+        if (!matchesCharName(cName)) continue;
         if (c.character_introduction) textsToScan.push(c.character_introduction);
         if (c.physical_behavior) textsToScan.push(c.physical_behavior);
         if (c.emotional_tone) textsToScan.push(c.emotional_tone);
