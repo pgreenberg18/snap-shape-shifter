@@ -35,26 +35,23 @@ const ACCEPTED_EXTENSIONS = [".fdx", ".fountain", ".rtf", ".pdf", ".docx", ".sex
 const ACCEPTED_LABEL = ".fdx, .fountain, .rtf, .pdf, .docx, .sexp, .mmsw, .fdr";
 
 const FORMAT_PRESETS = [
-  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
-  { value: "feature_film_4k", label: "Feature Film (4K)", width: 3840, height: 2160, fps: 24, aspect: "16:9" },
-  { value: "feature_film_scope", label: "Feature Film (Scope 2.39:1)", width: 2048, height: 858, fps: 24, aspect: "2.39:1" },
-  { value: "feature_film_scope_4k", label: "Feature Film (Scope 4K)", width: 4096, height: 1716, fps: 24, aspect: "2.39:1" },
-  { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
-  { value: "tv_series_4k", label: "TV Series (4K)", width: 3840, height: 2160, fps: 24, aspect: "16:9" },
-  { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
-  { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
-  { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
-  { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
+  { value: "feature_film_scope", label: "Feature Film (Scope 2.39:1)", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 } },
+  { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
+  { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
+  { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
+  { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
+  { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
   { value: "tiktok", label: "TikTok", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
   { value: "instagram_reel", label: "Instagram Reel", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
   { value: "instagram_post", label: "Instagram Post", width: 1080, height: 1080, fps: 30, aspect: "1:1" },
   { value: "instagram_story", label: "Instagram Story", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "youtube", label: "YouTube", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "youtube", label: "YouTube", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
   { value: "youtube_short", label: "YouTube Short", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
   { value: "facebook", label: "Facebook Video", width: 1280, height: 720, fps: 30, aspect: "16:9" },
   { value: "snapchat", label: "Snapchat", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
   { value: "linkedin", label: "LinkedIn Video", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
-  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
   { value: "imax", label: "IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1" },
   { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1" },
 ];
@@ -314,6 +311,7 @@ const Development = () => {
   const [frameRate, setFrameRate] = useState<number | null>(null);
   const [formatSaving, setFormatSaving] = useState(false);
   const [formatOverride, setFormatOverride] = useState(false);
+  const [fourKEnabled, setFourKEnabled] = useState(false);
   const [genres, setGenres] = useState<string[]>([]);
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [filmTitle, setFilmTitle] = useState("");
@@ -688,6 +686,7 @@ const Development = () => {
 
   const handleFormatChange = (value: string) => {
     setFormatType(value);
+    setFourKEnabled(false);
     const preset = FORMAT_PRESETS.find(p => p.value === value);
     if (preset && !formatOverride) {
       setFrameWidth(preset.width);
@@ -1110,7 +1109,10 @@ const Development = () => {
                       <>
                         {(() => {
                           const preset = FORMAT_PRESETS.find(p => p.value === formatType);
-                          return preset ? (
+                          if (!preset) return null;
+                          const displayWidth = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
+                          const displayHeight = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
+                          return (
                             <div className="rounded-lg bg-secondary/50 border border-border p-3 space-y-2">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Industry Standard</span>
@@ -1119,19 +1121,47 @@ const Development = () => {
                               <div className="grid grid-cols-3 gap-3 text-sm">
                                 <div>
                                   <span className="text-[10px] text-muted-foreground uppercase">Width</span>
-                                  <p className="font-display font-bold text-foreground">{preset.width}px</p>
+                                  <p className="font-display font-bold text-foreground">{displayWidth}px</p>
                                 </div>
                                 <div>
                                   <span className="text-[10px] text-muted-foreground uppercase">Height</span>
-                                  <p className="font-display font-bold text-foreground">{preset.height}px</p>
+                                  <p className="font-display font-bold text-foreground">{displayHeight}px</p>
                                 </div>
                                 <div>
                                   <span className="text-[10px] text-muted-foreground uppercase">Frame Rate</span>
                                   <p className="font-display font-bold text-foreground">{preset.fps} fps</p>
                                 </div>
                               </div>
+
+                              {preset.fourK && (
+                                <div className="space-y-2 pt-1">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={fourKEnabled}
+                                      onCheckedChange={(val) => {
+                                        setFourKEnabled(val);
+                                        if (!formatOverride) {
+                                          const dims = val ? preset.fourK! : { width: preset.width, height: preset.height };
+                                          setFrameWidth(dims.width);
+                                          setFrameHeight(dims.height);
+                                          setFrameRate(preset.fps);
+                                        }
+                                      }}
+                                    />
+                                    <Label className="text-xs text-muted-foreground">4K Resolution</Label>
+                                  </div>
+                                  {fourKEnabled && (
+                                    <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 p-2">
+                                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                      <p className="text-xs text-destructive">
+                                        4K video generation uses significantly more credits and takes longer to render. Use only when high-resolution output is essential.
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
-                          ) : null;
+                          );
                         })()}
 
                         <div className="flex items-center gap-2">
@@ -1142,8 +1172,10 @@ const Development = () => {
                               if (!val) {
                                 const preset = FORMAT_PRESETS.find(p => p.value === formatType);
                                 if (preset) {
-                                  setFrameWidth(preset.width);
-                                  setFrameHeight(preset.height);
+                                  const w = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
+                                  const h = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
+                                  setFrameWidth(w);
+                                  setFrameHeight(h);
                                   setFrameRate(preset.fps);
                                 }
                               }
