@@ -2,6 +2,7 @@ import { ReactNode, useState } from "react";
 import { NavLink, useLocation, useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm, useFilmId } from "@/hooks/useFilm";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -16,6 +17,7 @@ import {
   Loader2,
   ChevronsLeft,
   ChevronsRight,
+  LogOut,
 } from "lucide-react";
 import {
   Tooltip,
@@ -40,6 +42,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const { projectId, versionId } = useParams<{ projectId: string; versionId: string }>();
   const { data: film } = useFilm();
   const filmId = useFilmId();
+  const { signOut } = useAuth();
   const { toggle: toggleHelp } = useHelp();
   const [expanded, setExpanded] = useState(false);
 
@@ -216,6 +219,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
               {film?.version_name && (
                 <span className="text-muted-foreground">— {film.version_name}</span>
               )}
+            </button>
+            <button
+              onClick={async () => { await signOut(); navigate("/login"); }}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+              title="Sign out"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sign Out
             </button>
           </div>
         </header>
