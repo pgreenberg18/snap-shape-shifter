@@ -13,6 +13,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
   const { session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -29,6 +30,23 @@ const Login = () => {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     } else {
       navigate("/development");
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      toast({ title: "Enter your email", description: "Please enter your email address first.", variant: "destructive" });
+      return;
+    }
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + "/login",
+    });
+    setResetLoading(false);
+    if (error) {
+      toast({ title: "Reset failed", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Check your email", description: "A password reset link has been sent to your inbox." });
     }
   };
 
@@ -107,6 +125,17 @@ const Login = () => {
                   required
                 />
               </div>
+            </div>
+
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={resetLoading}
+                className="text-xs text-primary hover:underline font-medium disabled:opacity-50"
+              >
+                {resetLoading ? "Sending…" : "Forgot password?"}
+              </button>
             </div>
 
             <Button type="submit" className="w-full gap-2" disabled={loading}>
