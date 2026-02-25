@@ -3,6 +3,7 @@ import { NavLink, useLocation, useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm, useFilmId } from "@/hooks/useFilm";
 import { useAuth } from "@/hooks/useAuth";
+import { useAccessControl } from "@/hooks/useAccessControl";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -44,6 +45,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const filmId = useFilmId();
   const { signOut } = useAuth();
   const { toggle: toggleHelp } = useHelp();
+  const { hasPhaseAccess } = useAccessControl();
   const [expanded, setExpanded] = useState(false);
 
   // Check if script is currently being analyzed
@@ -148,7 +150,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className={cn("flex flex-1 flex-col gap-1", expanded ? "w-full px-2" : "items-center")}>
-          {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label, phase.tint))}
+          {phases.filter((phase) => hasPhaseAccess(phase.key)).map((phase) => renderNavItem(phase.key, phase.icon, phase.label, phase.tint))}
         </nav>
 
         {/* Bottom nav — Toggle + Help + Settings */}
