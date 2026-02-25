@@ -2,6 +2,37 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
+/** Deduplicate vehicle names that clearly refer to the same vehicle */
+function deduplicateVehicles(vehicles: string[]): string[] {
+  if (vehicles.length <= 1) return vehicles.sort();
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/['']s\b/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+  const groups = new Map<string, string>();
+  for (const v of vehicles) {
+    const key = normalize(v);
+    const existing = groups.get(key);
+    if (!existing || v.length > existing.length) groups.set(key, v);
+  }
+  // Merge entries where one normalized key is a substring of another
+  const keys = [...groups.keys()].sort((a, b) => a.length - b.length);
+  const merged = new Map<string, string>();
+  const consumed = new Set<string>();
+  for (const key of keys) {
+    if (consumed.has(key)) continue;
+    let bestName = groups.get(key)!;
+    for (const other of keys) {
+      if (other === key || consumed.has(other)) continue;
+      if (other.includes(key) || key.includes(other)) {
+        consumed.add(other);
+        const otherName = groups.get(other)!;
+        if (otherName.length > bestName.length) bestName = otherName;
+      }
+    }
+    consumed.add(key);
+    merged.set(key, bestName);
+  }
+  return [...merged.values()].sort();
+}
 /** Returns the current film (version) ID from the URL */
 export const useFilmId = (): string | undefined => {
   const { versionId } = useParams<{ versionId: string }>();
@@ -203,7 +234,7 @@ export const useBreakdownAssets = () => {
           const [character, clothing] = k.split("::");
           return { character, clothing };
         }),
-        vehicles: [...vehicleSet].sort(),
+        vehicles: deduplicateVehicles([...vehicleSet]),
       };
     },
     enabled: !!filmId,

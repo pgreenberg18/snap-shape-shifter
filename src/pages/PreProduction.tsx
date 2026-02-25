@@ -990,10 +990,19 @@ const PreProduction = () => {
               if (!byCharacter.has(char)) byCharacter.set(char, []);
               byCharacter.get(char)!.push(w.clothing);
             }
-            const wardrobeInitialGroups = [...byCharacter.entries()].map(([char, children]) => ({
+            // Sort character groups by ranking order (matching auditions sidebar)
+            const charOrder = (rankings || []).map(r => r.nameNormalized);
+            const sortedChars = [...byCharacter.keys()].sort((a, b) => {
+              const aIdx = charOrder.indexOf(a.toUpperCase());
+              const bIdx = charOrder.indexOf(b.toUpperCase());
+              const aPos = aIdx === -1 ? 9999 : aIdx;
+              const bPos = bIdx === -1 ? 9999 : bIdx;
+              return aPos - bPos;
+            });
+            const wardrobeInitialGroups = sortedChars.map((char) => ({
               id: `wardrobe-char-${char.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
               name: char,
-              children,
+              children: byCharacter.get(char)!,
             }));
             return (
               <DnDGroupPane
