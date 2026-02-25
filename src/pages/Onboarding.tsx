@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Film, User, Phone, MapPin, Mail, FileSignature } from "lucide-react";
+import { Film, User, Phone, MapPin, Mail } from "lucide-react";
+import SignaturePad from "@/components/SignaturePad";
 
 const Onboarding = () => {
   const { user } = useAuth();
@@ -20,6 +21,7 @@ const Onboarding = () => {
   const [email, setEmail] = useState(user?.email || "");
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,7 +40,7 @@ const Onboarding = () => {
       email: email.trim(),
       nda_signed: true,
       nda_signed_at: new Date().toISOString(),
-      signature_data: fullName.trim(),
+      signature_data: signatureData,
       onboarding_complete: true,
     });
     setLoading(false);
@@ -55,7 +57,7 @@ const Onboarding = () => {
             email: email.trim(),
             nda_signed: true,
             nda_signed_at: new Date().toISOString(),
-            signature_data: fullName.trim(),
+            signature_data: signatureData,
             onboarding_complete: true,
           })
           .eq("user_id", user.id);
@@ -91,7 +93,7 @@ const Onboarding = () => {
         />
         <div className="relative z-10 text-center space-y-6 px-12">
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
-            <FileSignature className="h-10 w-10 text-primary" />
+            <Film className="h-10 w-10 text-primary" />
           </div>
           <h1 className="font-display text-4xl font-bold tracking-tight">Almost There</h1>
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
@@ -253,22 +255,17 @@ const Onboarding = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="signature" className="text-xs text-muted-foreground">
-                  Digital Signature (type your full name)
+                <Label className="text-xs text-muted-foreground">
+                  Digital Signature
                 </Label>
-                <Input
-                  id="signature"
-                  value={fullName}
-                  disabled
-                  className="bg-background/50 border-border font-display italic text-foreground"
-                />
+                <SignaturePad onSignatureChange={setSignatureData} />
               </div>
             </div>
 
             <Button
               type="submit"
               className="w-full gap-2"
-              disabled={loading || !agreedToTerms || !fullName.trim() || !email.trim()}
+              disabled={loading || !agreedToTerms || !fullName.trim() || !email.trim() || !signatureData}
             >
               {loading ? "Saving…" : "Sign & Continue"}
             </Button>
