@@ -1123,11 +1123,13 @@ const Development = () => {
                                   {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
                                 </p>
                               </div>
-                              <Input
-                                defaultValue={period.estimated_year_or_range}
+                              <SecondaryTimePeriodInput
+                                initialValue={period.estimated_year_or_range}
                                 placeholder="e.g. 1955"
-                                className="w-32 h-7 text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold text-center"
-                                disabled={scriptLocked}
+                                disabled={!!scriptLocked}
+                                analysisId={analysis.id}
+                                periodIndex={i}
+                                globalElements={analysis.global_elements as any}
                               />
                             </div>
                             {/* Scene sluglines with page badges and yellow year */}
@@ -1343,41 +1345,17 @@ const Development = () => {
                     </div>
                   </CollapsibleTrigger>
                    <CollapsibleContent>
-                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-foreground block">Visual Summary</label>
-                        <textarea
-                          defaultValue={analysis.visual_summary as string}
-                          placeholder="Describe the overall visual story summary..."
-                          className="w-full min-h-[100px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground leading-relaxed"
-                          style={{ fieldSizing: 'content' } as React.CSSProperties}
-                        />
-                      </div>
-                      <div className="space-y-2 border-t border-border pt-4">
-                        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
-                        <textarea
-                          defaultValue={(analysis.global_elements as any)?.signature_style || ""}
-                          placeholder="Describe the overall visual signature style..."
-                          className="w-full min-h-[80px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground"
-                          style={{ fieldSizing: 'content' } as React.CSSProperties}
-                        />
-                      </div>
-                      <div className="flex justify-end pt-4 border-t border-border">
-                        <Button
-                          size="sm"
-                          variant={visualSummaryApproved ? "default" : "outline"}
-                          className={cn("gap-1.5", visualSummaryApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                          onClick={() => {
-                            const next = !visualSummaryApproved;
-                            setVisualSummaryApproved(next);
-                            persistApproval("visual_summary_approved", next);
-                          }}
-                        >
-                          <ThumbsUp className="h-3 w-3" />
-                          {visualSummaryApproved ? "Approved" : "Approve"}
-                        </Button>
-                      </div>
-                    </div>
+                    <EditableVisualSummary
+                      analysisId={analysis.id}
+                      initialSummary={analysis.visual_summary as string || ""}
+                      initialStyle={(analysis.global_elements as any)?.signature_style || ""}
+                      globalElements={analysis.global_elements as any}
+                      approved={visualSummaryApproved}
+                      onApprovedChange={(v: boolean) => {
+                        setVisualSummaryApproved(v);
+                        persistApproval("visual_summary_approved", v);
+                      }}
+                    />
                   </CollapsibleContent>
                 </Collapsible>
               )}
@@ -1454,6 +1432,7 @@ const Development = () => {
                 visualSummary={(analysis.visual_summary as string) || ""}
                 timePeriod={film?.time_period || timePeriod}
                 signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
+                analysisId={analysis.id}
                 approved={aiNotesApproved}
                 onApprovedChange={(v: boolean) => {
                   setAiNotesApproved(v);
@@ -1992,6 +1971,7 @@ const EditableSceneContent = ({
   scene: any; index: number; storagePath: string; approved: boolean; rejected: boolean;
   onToggleApproved: () => void; onToggleRejected: () => void;
 }) => {
+  const filmId = useFilmId();
   const [desc, setDesc] = useState<string>(scene.description || "");
   const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || scene.mood || "");
   const [lighting, setLighting] = useState<string>(scene.visual_design?.lighting_style || scene.day_night || "");
@@ -2043,6 +2023,48 @@ const EditableSceneContent = ({
 
   const [newItem, setNewItem] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<{ label: string; idx: number; kind?: string } | null>(null);
+
+  // Auto-save scene edits to parsed_scenes table with debounce
+  const initialMountRef = useRef(true);
+  useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      return;
+    }
+    if (!filmId) return;
+    const sceneNumber = scene.scene_number ?? index + 1;
+    const timeout = setTimeout(async () => {
+      await supabase
+        .from("parsed_scenes")
+        .update({
+          description: desc,
+          mood: atmosphere,
+          day_night: dayNight,
+          location_name: location,
+          int_ext: intExt,
+          environment_details: envDetails,
+          key_objects: keyObjects,
+          character_details: characters as any,
+          wardrobe: wardrobe as any,
+          cinematic_elements: {
+            camera_feel: cameraFeel,
+            motion_cues: motionCues,
+            shot_suggestions: shotSuggestions.split(" · ").filter(Boolean),
+          } as any,
+          stunts,
+          sfx,
+          vfx,
+          sound_cues: soundCues,
+          animals,
+          extras,
+          special_makeup: specialMakeup,
+          picture_vehicles: pictureVehicles,
+        })
+        .eq("film_id", filmId)
+        .eq("scene_number", sceneNumber);
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [desc, atmosphere, lighting, palette, references, location, intExt, dayNight, characters, wardrobe, cameraFeel, motionCues, shotSuggestions, envDetails, keyObjects, stunts, sfx, vfx, soundCues, animals, extras, specialMakeup, pictureVehicles, filmId]);
 
   const handleDeleteConfirm = () => {
     if (!deleteTarget) return;
@@ -2795,7 +2817,7 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, approved, onApprovedChange }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
+const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, analysisId, approved, onApprovedChange }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string; analysisId: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
   const [value, setValue] = useState(() => {
     if (initialValue) return initialValue;
     const parts: string[] = [];
@@ -2805,6 +2827,15 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
     if (parts.length === 0) return "";
     return parts.join("\n\n");
   });
+  const initialMountRef = useRef(true);
+  useEffect(() => {
+    if (initialMountRef.current) { initialMountRef.current = false; return; }
+    const timeout = setTimeout(() => {
+      supabase.from("script_analyses").update({ ai_generation_notes: value } as any).eq("id", analysisId);
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [value, analysisId]);
+
   return (
     <Collapsible>
       <CollapsibleTrigger className="w-full">
@@ -2846,6 +2877,99 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
         </div>
       </CollapsibleContent>
     </Collapsible>
+  );
+};
+
+/* ── Editable Visual Summary ── */
+const EditableVisualSummary = ({ analysisId, initialSummary, initialStyle, globalElements, approved, onApprovedChange }: {
+  analysisId: string; initialSummary: string; initialStyle: string; globalElements: any;
+  approved: boolean; onApprovedChange: (v: boolean) => void;
+}) => {
+  const [summary, setSummary] = useState(initialSummary);
+  const [style, setStyle] = useState(initialStyle);
+  const initialMountRef = useRef(true);
+
+  useEffect(() => {
+    if (initialMountRef.current) { initialMountRef.current = false; return; }
+    const timeout = setTimeout(async () => {
+      await supabase.from("script_analyses").update({ visual_summary: summary }).eq("id", analysisId);
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [summary, analysisId]);
+
+  useEffect(() => {
+    if (initialMountRef.current) return;
+    const timeout = setTimeout(async () => {
+      const updated = { ...globalElements, signature_style: style };
+      await supabase.from("script_analyses").update({ global_elements: updated as any }).eq("id", analysisId);
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [style, analysisId]);
+
+  return (
+    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-foreground block">Visual Summary</label>
+        <textarea
+          value={summary}
+          onChange={(e) => setSummary(e.target.value)}
+          placeholder="Describe the overall visual story summary..."
+          className="w-full min-h-[100px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground leading-relaxed"
+          style={{ fieldSizing: 'content' } as React.CSSProperties}
+        />
+      </div>
+      <div className="space-y-2 border-t border-border pt-4">
+        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
+        <textarea
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          placeholder="Describe the overall visual signature style..."
+          className="w-full min-h-[80px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground"
+          style={{ fieldSizing: 'content' } as React.CSSProperties}
+        />
+      </div>
+      <div className="flex justify-end pt-4 border-t border-border">
+        <Button
+          size="sm"
+          variant={approved ? "default" : "outline"}
+          className={cn("gap-1.5", approved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+          onClick={() => onApprovedChange(!approved)}
+        >
+          <ThumbsUp className="h-3 w-3" />
+          {approved ? "Approved" : "Approve"}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+/* ── Secondary Time Period Input ── */
+const SecondaryTimePeriodInput = ({ initialValue, placeholder, disabled, analysisId, periodIndex, globalElements }: {
+  initialValue: string; placeholder: string; disabled: boolean; analysisId: string; periodIndex: number; globalElements: any;
+}) => {
+  const [value, setValue] = useState(initialValue || "");
+  const initialMountRef = useRef(true);
+
+  useEffect(() => {
+    if (initialMountRef.current) { initialMountRef.current = false; return; }
+    const timeout = setTimeout(async () => {
+      const updated = { ...globalElements };
+      if (updated.temporal_analysis?.secondary_time_periods?.[periodIndex]) {
+        updated.temporal_analysis.secondary_time_periods[periodIndex].estimated_year_or_range = value;
+        await supabase.from("script_analyses").update({ global_elements: updated as any }).eq("id", analysisId);
+      }
+    }, 800);
+    return () => clearTimeout(timeout);
+  }, [value, analysisId, periodIndex]);
+
+  return (
+    <Input
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      placeholder={placeholder}
+      className="w-32 h-7 text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold text-center"
+      disabled={disabled}
+    />
   );
 };
 
