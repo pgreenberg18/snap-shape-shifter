@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,9 @@ import {
 } from "@/components/ui/select";
 import {
   AudioWaveform, Mic, Languages, Sparkles, Palette, Scan, Zap, Music2, Loader2,
+  Upload, Download, FileUp, Wand2, Film,
 } from "lucide-react";
+import { toast } from "sonner";
 
 /* ── Tri-State Toggle ── */
 type TriState = "auto" | "templates" | "custom";
@@ -72,6 +74,27 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   );
 }
 
+/* ── Import Button ── */
+function ImportButton({ accept, label, onFile }: { accept: string; label: string; onFile: (file: File) => void }) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input ref={ref} type="file" accept={accept} className="hidden" onChange={(e) => {
+        const f = e.target.files?.[0];
+        if (f) { onFile(f); e.target.value = ""; }
+      }} />
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={() => ref.current?.click()}
+        className="w-full text-[10px] font-mono gap-1.5 h-8 cinema-inset active:translate-y-px"
+      >
+        <Upload className="h-3 w-3" /> {label}
+      </Button>
+    </>
+  );
+}
+
 /* ── LUT Button ── */
 const LUT_PRESETS = ["Kodak 2383 Print", "Bleach Bypass", "Midnight Noir", "Teal & Orange"];
 
@@ -132,14 +155,22 @@ const LANGUAGES = [
 
 const INSTRUMENTATIONS = ["Orchestral", "Electronic", "Acoustic", "Hybrid"];
 
-type Tab = "audio" | "lustre" | "composer";
+const COLOR_FORMATS = [
+  { ext: ".cube", label: "3D LUT (.cube)" },
+  { ext: ".csp", label: "CDL (.csp)" },
+  { ext: ".3dl", label: "3D LUT (.3dl)" },
+  { ext: ".look", label: "ACES Look (.look)" },
+  { ext: ".clf", label: "CLF (.clf)" },
+];
+
+type Tab = "sound" | "color" | "score" | "fx";
 
 interface PostProductionSidebarProps {
   onInsertMusicClip?: (label: string) => void;
 }
 
 const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps) => {
-  const [tab, setTab] = useState<Tab>("audio");
+  const [tab, setTab] = useState<Tab>("sound");
   const [triState, setTriState] = useState<TriState>("auto");
   const [composerTriState, setComposerTriState] = useState<TriState>("auto");
   const [sfxPrompt, setSfxPrompt] = useState("");
@@ -150,6 +181,7 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
   const [instrumentation, setInstrumentation] = useState("");
   const [selectedPreset, setSelectedPreset] = useState("");
   const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [fxPrompt, setFxPrompt] = useState("");
 
   const handleSynthesize = () => {
     setIsSynthesizing(true);
@@ -160,10 +192,15 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
     }, 3500);
   };
 
+  const handleFileImport = (file: File, category: string) => {
+    toast.success(`Imported "${file.name}" to ${category}`);
+  };
+
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: "audio", label: "Audio", icon: AudioWaveform },
-    { id: "lustre", label: "Lustre", icon: Palette },
-    { id: "composer", label: "Composer", icon: Music2 },
+    { id: "sound", label: "Sound", icon: AudioWaveform },
+    { id: "color", label: "Color", icon: Palette },
+    { id: "score", label: "Score", icon: Music2 },
+    { id: "fx", label: "FX", icon: Wand2 },
   ];
 
   return (
@@ -188,8 +225,19 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
-        {tab === "audio" && (
+        {/* ═══ SOUND TAB ═══ */}
+        {tab === "sound" && (
           <>
+            {/* Import Audio */}
+            <div>
+              <SectionHeader icon={Upload} label="Import Audio" />
+              <ImportButton
+                accept="audio/*,.wav,.mp3,.aac,.flac,.ogg,.aiff"
+                label="Import Audio File"
+                onFile={(f) => handleFileImport(f, "Sound")}
+              />
+            </div>
+
             {/* Auto-Foley */}
             <div>
               <SectionHeader icon={Zap} label="Auto-Foley" />
@@ -244,7 +292,8 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
           </>
         )}
 
-        {tab === "lustre" && (
+        {/* ═══ COLOR TAB ═══ */}
+        {tab === "color" && (
           <>
             <TriStateToggle value={triState} onChange={setTriState} />
 
@@ -303,11 +352,49 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
                 </div>
               </>
             )}
+
+            {/* Import / Export — always visible */}
+            <div className="border-t border-border/40 pt-4 space-y-2">
+              <SectionHeader icon={FileUp} label="Import / Export" />
+              <ImportButton
+                accept=".cube,.3dl,.csp,.look,.clf,.lut,.cdl,.cc,.icc"
+                label="Import LUT / CDL / CLF"
+                onFile={(f) => handleFileImport(f, "Color")}
+              />
+              <ImportButton
+                accept=".icc,.icm"
+                label="Import ICC Profile"
+                onFile={(f) => handleFileImport(f, "Color")}
+              />
+              <div className="grid grid-cols-1 gap-1.5 mt-2">
+                {COLOR_FORMATS.map((fmt) => (
+                  <Button
+                    key={fmt.ext}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-[10px] font-mono gap-1.5 h-7 justify-start text-muted-foreground hover:text-foreground"
+                  >
+                    <Download className="h-3 w-3" /> Save as {fmt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
           </>
         )}
 
-        {tab === "composer" && (
+        {/* ═══ SCORE TAB ═══ */}
+        {tab === "score" && (
           <>
+            {/* Import */}
+            <div>
+              <SectionHeader icon={Upload} label="Import Score / Music" />
+              <ImportButton
+                accept="audio/*,.wav,.mp3,.aac,.flac,.ogg,.aiff,.mid,.midi"
+                label="Import Audio / MIDI"
+                onFile={(f) => handleFileImport(f, "Score")}
+              />
+            </div>
+
             <TriStateToggle value={composerTriState} onChange={setComposerTriState} />
 
             {composerTriState === "auto" && (
@@ -392,10 +479,61 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
             )}
           </>
         )}
+
+        {/* ═══ FX TAB ═══ */}
+        {tab === "fx" && (
+          <>
+            {/* Import VFX / Overlay */}
+            <div>
+              <SectionHeader icon={Upload} label="Import VFX / Overlay" />
+              <ImportButton
+                accept="video/*,image/*,.exr,.dpx,.tga,.png,.tiff,.mov,.mp4,.webm"
+                label="Import VFX Asset"
+                onFile={(f) => handleFileImport(f, "FX")}
+              />
+              <p className="text-[9px] text-muted-foreground/60 mt-1.5 font-mono">
+                EXR, DPX, PNG sequences, MOV (ProRes), and common video formats.
+              </p>
+            </div>
+
+            {/* Generative FX */}
+            <div>
+              <SectionHeader icon={Sparkles} label="Generative FX" />
+              <Input
+                value={fxPrompt}
+                onChange={(e) => setFxPrompt(e.target.value)}
+                placeholder="Rain particles with volumetric mist"
+                className="h-8 text-[10px] font-mono bg-background border-border/60 placeholder:text-muted-foreground/40 mb-2 cinema-inset"
+              />
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full text-[10px] font-mono gap-1.5 h-8 cinema-inset active:translate-y-px"
+              >
+                <Sparkles className="h-3 w-3" /> Generate FX Layer
+              </Button>
+            </div>
+
+            {/* Common Effects */}
+            <div>
+              <SectionHeader icon={Film} label="Quick Effects" />
+              <div className="grid grid-cols-1 gap-2">
+                {["Film Grain / Noise", "Lens Flare", "Light Leak", "Camera Shake", "Chromatic Aberration", "Vignette"].map((fx) => (
+                  <button
+                    key={fx}
+                    className="rounded-lg border border-border/60 bg-secondary/60 px-3 py-2 text-[10px] font-mono text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors text-left cinema-inset active:translate-y-px"
+                  >
+                    {fx}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Synthesize button — composer tab only */}
-      {tab === "composer" && (
+      {/* Synthesize button — score tab only */}
+      {tab === "score" && (
         <div className="border-t border-border p-4">
           {isSynthesizing ? (
             <div className="space-y-2">
