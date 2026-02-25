@@ -75,10 +75,85 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     return name;
   }).filter(Boolean);
 
+  // Auto-group wardrobe by character name
+  const wardrobeItems = extract(["recurring_wardrobe"]);
+  const wardrobeGroups: ElementGroup[] = [];
+  const wardrobeUngrouped: string[] = [];
+  const wardrobeByChar = new Map<string, string[]>();
+
+  for (const item of wardrobeItems) {
+    // Try to extract character name: "JOHN - blue suit", "JOHN: casual wear", "John's lab coat"
+    const dashMatch = item.match(/^([A-Z][A-Za-z'\s]+?)\s*[-–—:]\s+(.+)$/);
+    const possessiveMatch = item.match(/^([A-Z][A-Za-z'\s]+?)'s\s+(.+)$/i);
+    const charName = dashMatch?.[1]?.trim() || possessiveMatch?.[1]?.trim().toUpperCase();
+    if (charName && charName.length > 1) {
+      const normalized = charName.toUpperCase();
+      if (!wardrobeByChar.has(normalized)) wardrobeByChar.set(normalized, []);
+      wardrobeByChar.get(normalized)!.push(item);
+    } else {
+      wardrobeUngrouped.push(item);
+    }
+  }
+  for (const [charName, items] of wardrobeByChar) {
+    if (items.length >= 1) {
+      wardrobeGroups.push({ id: uid(), parentName: charName.charAt(0) + charName.slice(1).toLowerCase(), variants: items });
+    } else {
+      wardrobeUngrouped.push(...items);
+    }
+  }
+
+  // Auto-group locations by shared root (e.g., "Hospital Room" + "Hospital Hallway" → "Hospital")
+  const uniqueLocations = [...new Set(locationNames)];
+  const locationGroups: ElementGroup[] = [];
+  const locationUngrouped: string[] = [];
+  const locationUsed = new Set<string>();
+
+  // Extract root words and find clusters
+  const getLocationRoot = (name: string): string[] => {
+    // Split into significant words, ignoring common suffixes
+    const COMMON_SUFFIXES = new Set(["room", "hallway", "corridor", "lobby", "entrance", "exit", "office", "floor", "wing", "ward", "lot", "area", "yard", "driveway", "porch", "balcony", "rooftop", "roof", "basement", "attic", "garage", "garden", "backyard", "front", "back", "side", "interior", "exterior", "upper", "lower", "main", "parking", "waiting", "living", "dining", "bed", "bath", "kitchen", "bedroom", "bathroom"]);
+    return name.split(/[\s/]+/).map(w => w.toUpperCase()).filter(w => w.length > 2 && !COMMON_SUFFIXES.has(w.toLowerCase()));
+  };
+
+  // Group locations that share a significant root word
+  for (let i = 0; i < uniqueLocations.length; i++) {
+    if (locationUsed.has(uniqueLocations[i])) continue;
+    const rootsI = getLocationRoot(uniqueLocations[i]);
+    const cluster: string[] = [uniqueLocations[i]];
+
+    for (let j = i + 1; j < uniqueLocations.length; j++) {
+      if (locationUsed.has(uniqueLocations[j])) continue;
+      const rootsJ = getLocationRoot(uniqueLocations[j]);
+      // Check if they share a significant root word (at least 4 chars to avoid false matches)
+      const shared = rootsI.find(r => r.length >= 4 && rootsJ.includes(r));
+      if (shared) {
+        cluster.push(uniqueLocations[j]);
+        locationUsed.add(uniqueLocations[j]);
+      }
+    }
+
+    if (cluster.length >= 2) {
+      // Find the best parent name (shortest shared root word)
+      const allRoots = cluster.flatMap(getLocationRoot);
+      const rootCounts = new Map<string, number>();
+      for (const r of allRoots) if (r.length >= 4) rootCounts.set(r, (rootCounts.get(r) || 0) + 1);
+      const bestRoot = [...rootCounts.entries()]
+        .filter(([, count]) => count >= cluster.length)
+        .sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0]?.[0];
+      const parentName = bestRoot
+        ? bestRoot.charAt(0) + bestRoot.slice(1).toLowerCase()
+        : cluster[0];
+      locationGroups.push({ id: uid(), parentName, variants: cluster });
+      locationUsed.add(uniqueLocations[i]);
+    } else {
+      locationUngrouped.push(uniqueLocations[i]);
+    }
+  }
+
   return {
-    locations: { ungrouped: [...new Set(locationNames)], groups: [] },
+    locations: { ungrouped: locationUngrouped, groups: locationGroups },
     characters: { ungrouped: [...new Set(charNames)], groups: [] },
-    wardrobe: { ungrouped: extract(["recurring_wardrobe"]), groups: [] },
+    wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
     props: { ungrouped: extract(["recurring_props"]), groups: [] },
     visual_design: { ungrouped: extract(["visual_motifs"]), groups: [] },
   };
