@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,13 +7,14 @@ import { isAdminUser } from "@/components/admin/AdminPanel";
 import NDADocument from "@/components/admin/NDADocument";
 import MediaLibraryPanel from "@/components/settings/MediaLibraryPanel";
 import ExportsPanel from "@/components/settings/ExportsPanel";
+import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
-  Users, Settings, Image, FolderDown,
+  Users, Settings, Image, FolderDown, Gauge,
   Lock, Unlock, ShieldAlert,
 } from "lucide-react";
 import {
@@ -153,6 +154,101 @@ const AllNDAs = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+    </div>
+  );
+};
+
+/* ─── Credit Usage Section ─── */
+const CATEGORY_LABELS: Record<string, string> = {
+  "script-analysis": "Script Analysis",
+  "image-generation": "Image Generation",
+  "sound-stage": "Voice & Audio",
+  "camera-cart": "Video Generation",
+  "post-house": "Post-Production",
+};
+
+const CreditUsageSection = () => {
+  const [period, setPeriod] = useState<"week" | "month" | "year">("month");
+  const { data: usage } = useCreditUsage(period);
+  const { data: settings } = useCreditSettings();
+
+  const total = usage?.total ?? 0;
+  const warningThreshold = settings?.warning_threshold ? Number(settings.warning_threshold) : null;
+  const cutoffThreshold = settings?.cutoff_threshold ? Number(settings.cutoff_threshold) : null;
+
+  return (
+    <div className="space-y-6">
+      {/* Period selector */}
+      <div className="flex gap-2">
+        {(["week", "month", "year"] as const).map((p) => (
+          <Button
+            key={p}
+            variant={period === p ? "default" : "outline"}
+            size="sm"
+            onClick={() => setPeriod(p)}
+            className="text-xs uppercase tracking-wider"
+          >
+            {p === "week" ? "This Week" : p === "month" ? "This Month" : "This Year"}
+          </Button>
+        ))}
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Total Used</p>
+          <p className="font-display text-2xl font-bold text-foreground">{total.toFixed(0)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Warning At</p>
+          <p className="font-display text-2xl font-bold text-foreground">{warningThreshold ?? "—"}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Cutoff At</p>
+          <p className="font-display text-2xl font-bold text-foreground">{cutoffThreshold ?? "—"}</p>
+        </div>
+      </div>
+
+      {/* By Service */}
+      {usage && Object.keys(usage.byService).length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Service</h3>
+          <div className="space-y-1">
+            {Object.entries(usage.byService)
+              .sort(([, a], [, b]) => b - a)
+              .map(([service, credits]) => (
+                <div key={service} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
+                  <span className="text-sm text-foreground">{service}</span>
+                  <span className="font-mono text-sm font-medium text-primary tabular-nums">{credits.toFixed(0)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {/* By Category */}
+      {usage && Object.keys(usage.byCategory).length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">By Category</h3>
+          <div className="space-y-1">
+            {Object.entries(usage.byCategory)
+              .sort(([, a], [, b]) => b - a)
+              .map(([cat, credits]) => (
+                <div key={cat} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
+                  <span className="text-sm text-foreground">{CATEGORY_LABELS[cat] || cat}</span>
+                  <span className="font-mono text-sm font-medium text-primary tabular-nums">{credits.toFixed(0)}</span>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
+      {(!usage || total === 0) && (
+        <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-12 text-center">
+          <Gauge className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
+          <p className="text-sm text-muted-foreground/60 font-mono">No credit usage recorded yet.</p>
+        </div>
+      )}
     </div>
   );
 };
@@ -368,7 +464,11 @@ const SettingsAdmin = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const isAdmin = isAdminUser(user?.email);
-  const [activeSection, setActiveSection] = useState("your-nda");
+
+  // Support deep-linking via ?section= query param
+  const searchParams = new URLSearchParams(window.location.search);
+  const initialSection = searchParams.get("section") || "your-nda";
+  const [activeSection, setActiveSection] = useState(initialSection);
 
   const handleReset = () => {
     localStorage.clear();
@@ -379,6 +479,7 @@ const SettingsAdmin = () => {
 
   const sections = [
     { id: "your-nda", label: "Your Signed NDA", icon: FileSignature, adminOnly: false },
+    { id: "credit-usage", label: "Credit Usage", icon: Gauge, adminOnly: false },
     { id: "media-library", label: "Media Library", icon: Image, adminOnly: false },
     { id: "exports", label: "Exports", icon: FolderDown, adminOnly: false },
     { id: "all-ndas", label: "All Signed NDAs", icon: Users, adminOnly: true },
@@ -436,6 +537,14 @@ const SettingsAdmin = () => {
               <h2 className="font-display text-2xl font-bold text-foreground mb-4">Your Signed NDA</h2>
               <p className="text-sm text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
               {user && <YourNDA userId={user.id} />}
+            </div>
+          )}
+
+          {activeSection === "credit-usage" && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Credit Usage</h2>
+              <p className="text-sm text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
+              <CreditUsageSection />
             </div>
           )}
 
