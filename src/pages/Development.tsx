@@ -36,8 +36,11 @@ const ACCEPTED_LABEL = ".fdx, .fountain, .rtf, .pdf, .docx, .sexp, .mmsw, .fdr";
 
 const FORMAT_PRESETS = [
   { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "feature_film_4k", label: "Feature Film (4K)", width: 3840, height: 2160, fps: 24, aspect: "16:9" },
   { value: "feature_film_scope", label: "Feature Film (Scope 2.39:1)", width: 2048, height: 858, fps: 24, aspect: "2.39:1" },
+  { value: "feature_film_scope_4k", label: "Feature Film (Scope 4K)", width: 4096, height: 1716, fps: 24, aspect: "2.39:1" },
   { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "tv_series_4k", label: "TV Series (4K)", width: 3840, height: 2160, fps: 24, aspect: "16:9" },
   { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
   { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
   { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
