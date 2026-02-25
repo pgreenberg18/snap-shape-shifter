@@ -233,8 +233,8 @@ const Projects = () => {
             <HelpCircle className="h-5 w-5" />
           </button>
           <button
-            onClick={() => navigate("/settings")}
-            title="Global Settings — API Keys & Integrations"
+            onClick={() => navigate("/settings/admin")}
+            title="Settings & Admin"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
           >
             <Settings className="h-5 w-5" />

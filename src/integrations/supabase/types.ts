@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          city: string | null
+          country: string | null
+          created_at: string
+          event_type: string
+          id: string
+          ip_address: string | null
+          page_path: string | null
+          region: string | null
+          user_email: string | null
+          user_id: string
+          user_name: string | null
+        }
+        Insert: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          page_path?: string | null
+          region?: string | null
+          user_email?: string | null
+          user_id: string
+          user_name?: string | null
+        }
+        Update: {
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          page_path?: string | null
+          region?: string | null
+          user_email?: string | null
+          user_id?: string
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       ai_generation_templates: {
         Row: {
           camera_language: string | null
@@ -1001,6 +1043,93 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_access_controls: {
+        Row: {
+          access_development: boolean
+          access_post_production: boolean
+          access_pre_production: boolean
+          access_production: boolean
+          access_release: boolean
+          access_sample_projects: boolean
+          allowed_project_ids: string[] | null
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_development?: boolean
+          access_post_production?: boolean
+          access_pre_production?: boolean
+          access_production?: boolean
+          access_release?: boolean
+          access_sample_projects?: boolean
+          allowed_project_ids?: string[] | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_development?: boolean
+          access_post_production?: boolean
+          access_pre_production?: boolean
+          access_production?: boolean
+          access_release?: boolean
+          access_sample_projects?: boolean
+          allowed_project_ids?: string[] | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          address: string | null
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          nda_signed: boolean
+          nda_signed_at: string | null
+          onboarding_complete: boolean
+          phone: string | null
+          signature_data: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          nda_signed?: boolean
+          nda_signed_at?: string | null
+          onboarding_complete?: boolean
+          phone?: string | null
+          signature_data?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          nda_signed?: boolean
+          nda_signed_at?: string | null
+          onboarding_complete?: boolean
+          phone?: string | null
+          signature_data?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       version_provider_selections: {
         Row: {
