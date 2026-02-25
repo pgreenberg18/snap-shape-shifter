@@ -1151,9 +1151,9 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   let foundFirst = false;
 
   for (const scene of scenes) {
-    if (!Array.isArray(scene.characters)) continue;
-    for (const c of scene.characters) {
-      if (typeof c === "string") continue;
+    const charDetails = Array.isArray(scene.character_details) ? scene.character_details : [];
+    for (const c of charDetails) {
+      if (typeof c === "string" || !c?.name) continue;
       const cName = (c.name || "");
       if (!matchesCharName(cName)) continue;
 
@@ -1211,9 +1211,9 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     }
 
     // Check character entries for this character — look at emotional tone for gendered words
-    if (Array.isArray(scene.characters)) {
-      for (const c of scene.characters) {
-        if (typeof c === "string") continue;
+    if (Array.isArray(scene.character_details)) {
+      for (const c of scene.character_details) {
+        if (typeof c === "string" || !c?.name) continue;
         const cName = (c.name || "");
         if (!matchesCharName(cName)) continue;
         const charText = [c.emotional_tone, c.physical_behavior, c.key_expressions, c.character_introduction].filter(Boolean).join(" ").toLowerCase();
@@ -1288,9 +1288,9 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     const desc = scene.description || "";
     if (desc.toLowerCase().includes(nameLower) || desc.toLowerCase().includes(nameFirstUpper.toLowerCase())) textsToScan.push(desc);
 
-    if (Array.isArray(scene.characters)) {
-      for (const c of scene.characters) {
-        if (typeof c === "string") continue;
+    if (Array.isArray(scene.character_details)) {
+      for (const c of scene.character_details) {
+        if (typeof c === "string" || !c?.name) continue;
         const cName = (c.name || "");
         if (!matchesCharName(cName)) continue;
         if (c.character_introduction) textsToScan.push(c.character_introduction);
