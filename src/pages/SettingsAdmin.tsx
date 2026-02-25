@@ -1,0 +1,469 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useNavigate } from "react-router-dom";
+import { isAdminUser } from "@/components/admin/AdminPanel";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { toast } from "sonner";
+import {
+  FileSignature, Shield, Download, RotateCcw, Activity,
+  Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
+  Users, Settings,
+} from "lucide-react";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+/* ─── Your Signed NDA ─── */
+const YourNDA = ({ userId }: { userId: string }) => {
+  const { data: profile } = useQuery({
+    queryKey: ["user-profile", userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (!profile?.nda_signed) {
+    return <p className="text-sm text-muted-foreground">No NDA on file.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Name</span>
+          <span className="text-foreground font-medium">{profile.full_name}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Email</span>
+          <span className="text-foreground">{profile.email}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Phone</span>
+          <span className="text-foreground">{profile.phone || "—"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Address</span>
+          <span className="text-foreground">{profile.address || "—"}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Signed</span>
+          <span className="text-foreground">
+            {profile.nda_signed_at ? new Date(profile.nda_signed_at).toLocaleString() : "—"}
+          </span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Signature</span>
+          <span className="text-foreground font-display italic">{profile.signature_data}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ─── All Signed NDAs (Admin) ─── */
+const AllNDAs = () => {
+  const queryClient = useQueryClient();
+  const [deleteTarget, setDeleteTarget] = useState<{ userId: string; name: string } | null>(null);
+
+  const { data: profiles, isLoading } = useQuery({
+    queryKey: ["all-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (userId: string) => {
+      await supabase.from("user_access_controls").delete().eq("user_id", userId);
+      await supabase.from("activity_logs").delete().eq("user_id", userId);
+      await supabase.from("user_profiles").delete().eq("user_id", userId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
+      setDeleteTarget(null);
+      toast.success("User data removed");
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+
+  return (
+    <div className="space-y-3">
+      {!profiles?.length ? (
+        <p className="text-sm text-muted-foreground">No signed NDAs yet.</p>
+      ) : (
+        profiles.map((p) => (
+          <div key={p.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-foreground">{p.full_name}</p>
+              <p className="text-xs text-muted-foreground">{p.email}</p>
+              <p className="text-[11px] text-muted-foreground/60">
+                Signed: {p.nda_signed_at ? new Date(p.nda_signed_at).toLocaleDateString() : "—"}
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-destructive hover:text-destructive"
+              onClick={() => setDeleteTarget({ userId: p.user_id, name: p.full_name })}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))
+      )}
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete user "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will remove their profile, NDA, access controls, and activity logs. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteTarget && deleteUser.mutate(deleteTarget.userId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+/* ─── Access Control (Admin) ─── */
+const AccessControl = () => {
+  const queryClient = useQueryClient();
+
+  const { data: profiles } = useQuery({
+    queryKey: ["all-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_profiles").select("*").order("full_name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: accessMap } = useQuery({
+    queryKey: ["all-access-controls"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("user_access_controls").select("*");
+      if (error) throw error;
+      const map: Record<string, any> = {};
+      data?.forEach((a) => (map[a.user_id] = a));
+      return map;
+    },
+  });
+
+  const toggleAccess = useMutation({
+    mutationFn: async ({ userId, field, value }: { userId: string; field: string; value: boolean }) => {
+      const existing = accessMap?.[userId];
+      if (existing) {
+        const { error } = await supabase
+          .from("user_access_controls")
+          .update({ [field]: value })
+          .eq("user_id", userId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("user_access_controls")
+          .insert({ user_id: userId, [field]: value });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-access-controls"] }),
+    onError: (e) => toast.error(e.message),
+  });
+
+  const phases = [
+    { key: "access_development", label: "Development" },
+    { key: "access_pre_production", label: "Pre-Production" },
+    { key: "access_production", label: "Production" },
+    { key: "access_post_production", label: "Post-Production" },
+    { key: "access_release", label: "Release" },
+    { key: "access_sample_projects", label: "Sample Projects" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {!profiles?.length ? (
+        <p className="text-sm text-muted-foreground">No users yet.</p>
+      ) : (
+        profiles.map((p) => {
+          const access = accessMap?.[p.user_id] || {};
+          return (
+            <div key={p.user_id} className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">{p.full_name}</p>
+                <p className="text-xs text-muted-foreground">{p.email}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {phases.map(({ key, label }) => (
+                  <div key={key} className="flex items-center justify-between rounded bg-background/50 px-3 py-2">
+                    <span className="text-xs text-foreground">{label}</span>
+                    <Switch
+                      checked={!!access[key]}
+                      onCheckedChange={(v) =>
+                        toggleAccess.mutate({ userId: p.user_id, field: key, value: v })
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
+/* ─── Login Records (Admin) ─── */
+const LoginRecords = () => {
+  const { data: logs, isLoading } = useQuery({
+    queryKey: ["activity-logs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("activity_logs")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+
+  // Group by user_email
+  const grouped: Record<string, typeof logs> = {};
+  logs?.forEach((log) => {
+    const key = log.user_email || "unknown";
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key]!.push(log);
+  });
+
+  // Sort groups by most recent activity
+  const sortedGroups = Object.entries(grouped).sort((a, b) => {
+    const aTime = new Date(a[1]![0].created_at).getTime();
+    const bTime = new Date(b[1]![0].created_at).getTime();
+    return bTime - aTime;
+  });
+
+  return (
+    <div className="space-y-3">
+      {!sortedGroups.length ? (
+        <p className="text-sm text-muted-foreground">No activity yet.</p>
+      ) : (
+        sortedGroups.map(([email, entries]) => {
+          const latest = entries![0];
+          const pageViews = entries!.filter((e) => e.event_type === "page_view");
+          const loginEvents = entries!.filter((e) => e.event_type !== "page_view");
+
+          return (
+            <Collapsible key={email}>
+              <div className="rounded-lg border border-border bg-secondary/30 p-4">
+                <CollapsibleTrigger className="flex w-full items-center justify-between">
+                  <div className="text-left">
+                    <p className="text-sm font-medium text-foreground">
+                      {latest.user_name || email}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{email}</p>
+                    <p className="text-[11px] text-muted-foreground/60">
+                      Last: {new Date(latest.created_at).toLocaleString()}
+                      {latest.city && ` · ${latest.city}, ${latest.region || ""} ${latest.country || ""}`}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{loginEvents.length} logins</span>
+                    <span>·</span>
+                    <span>{pageViews.length} pages</span>
+                    <ChevronDown className="h-4 w-4" />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-3 space-y-1">
+                  {loginEvents.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sessions</p>
+                      {loginEvents.slice(0, 10).map((e) => (
+                        <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
+                          <Activity className="h-3 w-3 text-primary/60" />
+                          <span>{e.event_type}</span>
+                          <span className="ml-auto">{new Date(e.created_at).toLocaleString()}</span>
+                          {e.ip_address && <span className="text-muted-foreground/50">{e.ip_address}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {pageViews.length > 0 && (
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pages Visited</p>
+                      {pageViews.slice(0, 20).map((e) => (
+                        <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
+                          <Eye className="h-3 w-3 text-muted-foreground/40" />
+                          <span className="font-mono">{e.page_path}</span>
+                          <span className="ml-auto">{new Date(e.created_at).toLocaleString()}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          );
+        })
+      )}
+    </div>
+  );
+};
+
+/* ─── Main Settings Page ─── */
+const SettingsAdmin = () => {
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
+  const isAdmin = isAdminUser(user?.email);
+  const [activeSection, setActiveSection] = useState("your-nda");
+
+  const handleReset = () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    signOut();
+    toast.success("App reset. You have been signed out.");
+  };
+
+  const sections = [
+    { id: "your-nda", label: "Your Signed NDA", icon: FileSignature, adminOnly: false },
+    { id: "all-ndas", label: "All Signed NDAs", icon: Users, adminOnly: true },
+    { id: "access-control", label: "Access Control", icon: Shield, adminOnly: true },
+    { id: "downloads", label: "Downloads", icon: Download, adminOnly: true },
+    { id: "login-records", label: "Login Records", icon: Activity, adminOnly: true },
+    { id: "reset-app", label: "Reset App", icon: RotateCcw, adminOnly: false },
+  ];
+
+  const visibleSections = sections.filter((s) => !s.adminOnly || isAdmin);
+
+  return (
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar */}
+      <aside className="flex h-full w-64 flex-col border-r border-border bg-card">
+        <div className="border-b border-border p-4">
+          <Button variant="ghost" className="gap-2 w-full justify-start" onClick={() => navigate("/projects")}>
+            <ArrowLeft className="h-4 w-4" /> Back to Projects
+          </Button>
+        </div>
+        <div className="p-3">
+          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-primary px-3 mb-2">
+            <Settings className="inline h-3 w-3 mr-1" />
+            Settings
+          </h2>
+          <nav className="space-y-0.5">
+            {visibleSections.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setActiveSection(s.id)}
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                  activeSection === s.id
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <s.icon className="h-4 w-4" />
+                {s.label}
+                {s.adminOnly && (
+                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded">
+                    Admin
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+      </aside>
+
+      {/* Content */}
+      <main className="flex-1 overflow-y-auto p-8">
+        <div className="max-w-2xl">
+          {activeSection === "your-nda" && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Your Signed NDA</h2>
+              <p className="text-sm text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
+              {user && <YourNDA userId={user.id} />}
+            </div>
+          )}
+
+          {activeSection === "all-ndas" && isAdmin && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">All Signed NDAs</h2>
+              <p className="text-sm text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
+              <AllNDAs />
+            </div>
+          )}
+
+          {activeSection === "access-control" && isAdmin && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Access Control</h2>
+              <p className="text-sm text-muted-foreground mb-6">Grant or revoke access to phases and content for each user.</p>
+              <AccessControl />
+            </div>
+          )}
+
+          {activeSection === "downloads" && isAdmin && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Downloads</h2>
+              <p className="text-sm text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
+              <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-8 text-center">
+                <Download className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Download center coming soon.</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">Frame grabs, instruction manuals, and script breakdowns will be exportable here.</p>
+              </div>
+            </div>
+          )}
+
+          {activeSection === "login-records" && isAdmin && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Login Records</h2>
+              <p className="text-sm text-muted-foreground mb-6">Audit trail of login events and page navigation across all users.</p>
+              <LoginRecords />
+            </div>
+          )}
+
+          {activeSection === "reset-app" && (
+            <div>
+              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Reset App</h2>
+              <p className="text-sm text-muted-foreground mb-6">Clear all local cached data and sign out. This does not delete your account or server-side data.</p>
+              <Button variant="destructive" onClick={handleReset} className="gap-2">
+                <RotateCcw className="h-4 w-4" /> Reset &amp; Sign Out
+              </Button>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+};
+
+export default SettingsAdmin;

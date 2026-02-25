@@ -8,8 +8,12 @@ import { HelpProvider } from "@/components/help/HelpPanel";
 import HelpPanel from "@/components/help/HelpPanel";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import OnboardingGuard from "@/components/OnboardingGuard";
+import ActivityLoggerProvider from "@/components/ActivityLoggerProvider";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
+import Onboarding from "@/pages/Onboarding";
+import TermsNDA from "@/pages/TermsNDA";
 import Projects from "@/pages/Projects";
 import ProjectVersions from "@/pages/ProjectVersions";
 import Development from "@/pages/Development";
@@ -18,6 +22,7 @@ import Production from "@/pages/Production";
 import PostProduction from "@/pages/PostProduction";
 import Release from "@/pages/Release";
 import SettingsIntegrations from "@/pages/SettingsIntegrations";
+import SettingsAdmin from "@/pages/SettingsAdmin";
 import VersionSettings from "@/pages/VersionSettings";
 import GlobalAssets from "@/pages/GlobalAssets";
 import NotFound from "@/pages/NotFound";
@@ -36,25 +41,29 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <ActivityLoggerProvider />
             <HelpPanel />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Signup />} />
+              <Route path="/terms-nda" element={<TermsNDA />} />
+              <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/projects" replace />} />
-              <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
-              <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectVersions /></ProtectedRoute>} />
+              <Route path="/projects" element={<ProtectedRoute><OnboardingGuard><Projects /></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId" element={<ProtectedRoute><OnboardingGuard><ProjectVersions /></OnboardingGuard></ProtectedRoute>} />
 
               {/* Version-scoped phase routes */}
-              <Route path="/projects/:projectId/versions/:versionId/development" element={<ProtectedRoute><VersionLayout><Development /></VersionLayout></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<ProtectedRoute><VersionLayout><PreProduction /></VersionLayout></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/production" element={<ProtectedRoute><VersionLayout><Production /></VersionLayout></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<ProtectedRoute><VersionLayout><PostProduction /></VersionLayout></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/release" element={<ProtectedRoute><VersionLayout><Release /></VersionLayout></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><VersionLayout><VersionSettings /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/development" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Development /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><PreProduction /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Production /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><PostProduction /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/release" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Release /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><OnboardingGuard><VersionLayout><VersionSettings /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
 
-              {/* Global settings (API keys) */}
-              <Route path="/settings" element={<ProtectedRoute><SettingsIntegrations /></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<ProtectedRoute><VersionLayout><GlobalAssets /></VersionLayout></ProtectedRoute>} />
+              {/* Settings */}
+              <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsIntegrations /></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/settings/admin" element={<ProtectedRoute><OnboardingGuard><SettingsAdmin /></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<ProtectedRoute><OnboardingGuard><VersionLayout><GlobalAssets /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
 
               {/* Legacy redirects */}
               <Route path="/development" element={<Navigate to="/projects" replace />} />
