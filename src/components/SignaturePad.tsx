@@ -16,7 +16,7 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
     if (!canvas) return null;
     const ctx = canvas.getContext("2d");
     if (ctx) {
-      ctx.strokeStyle = "hsl(var(--foreground))";
+      ctx.strokeStyle = "#FACC15";
       ctx.lineWidth = 2;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -64,12 +64,29 @@ const SignaturePad = ({ onSignatureChange }: SignaturePadProps) => {
     ctx.stroke();
   };
 
+  const getBlackSignatureDataUrl = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return null;
+    // Create a temp canvas and redraw with black ink for storage
+    const tmp = document.createElement("canvas");
+    tmp.width = canvas.width;
+    tmp.height = canvas.height;
+    const tmpCtx = tmp.getContext("2d");
+    if (!tmpCtx) return canvas.toDataURL("image/png");
+    // Draw the existing canvas image
+    tmpCtx.drawImage(canvas, 0, 0);
+    // Composite: replace yellow with black using multiply + color overlay
+    tmpCtx.globalCompositeOperation = "source-in";
+    tmpCtx.fillStyle = "#000000";
+    tmpCtx.fillRect(0, 0, tmp.width, tmp.height);
+    return tmp.toDataURL("image/png");
+  };
+
   const endDraw = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
     setHasSignature(true);
-    const canvas = canvasRef.current;
-    if (canvas) onSignatureChange(canvas.toDataURL("image/png"));
+    onSignatureChange(getBlackSignatureDataUrl());
   };
 
   const clear = () => {
