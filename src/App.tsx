@@ -8,6 +8,7 @@ import { HelpProvider } from "@/components/help/HelpPanel";
 import HelpPanel from "@/components/help/HelpPanel";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AccessGuard from "@/components/AccessGuard";
 import OnboardingGuard from "@/components/OnboardingGuard";
 import ActivityLoggerProvider from "@/components/ActivityLoggerProvider";
 import Login from "@/pages/Login";
@@ -50,15 +51,15 @@ const App = () => (
               <Route path="/onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
               <Route path="/" element={<Navigate to="/projects" replace />} />
               <Route path="/projects" element={<ProtectedRoute><OnboardingGuard><Projects /></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId" element={<ProtectedRoute><OnboardingGuard><ProjectVersions /></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId" element={<ProtectedRoute><OnboardingGuard><AccessGuard><ProjectVersions /></AccessGuard></OnboardingGuard></ProtectedRoute>} />
 
               {/* Version-scoped phase routes */}
-              <Route path="/projects/:projectId/versions/:versionId/development" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Development /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><PreProduction /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Production /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<ProtectedRoute><OnboardingGuard><VersionLayout><PostProduction /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/release" element={<ProtectedRoute><OnboardingGuard><VersionLayout><Release /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
-              <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><OnboardingGuard><VersionLayout><VersionSettings /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/development" element={<ProtectedRoute><OnboardingGuard><AccessGuard phase="development"><VersionLayout><Development /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<ProtectedRoute><OnboardingGuard><AccessGuard phase="pre-production"><VersionLayout><PreProduction /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/production" element={<ProtectedRoute><OnboardingGuard><AccessGuard phase="production"><VersionLayout><Production /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<ProtectedRoute><OnboardingGuard><AccessGuard phase="post-production"><VersionLayout><PostProduction /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/release" element={<ProtectedRoute><OnboardingGuard><AccessGuard phase="release"><VersionLayout><Release /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><OnboardingGuard><AccessGuard><VersionLayout><VersionSettings /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
 
               {/* Settings */}
               <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsIntegrations /></OnboardingGuard></ProtectedRoute>} />
