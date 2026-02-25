@@ -74,12 +74,14 @@ Deno.serve(async (req) => {
     const allWardrobe: string[] = [];
     const wardrobeSeen = new Set<string>();
     const allProps = new Set<string>();
+    const allMoods = new Set<string>();
+    const allLighting = new Set<string>();
+    const allEnvironments = new Set<string>();
 
     for (const s of allScenes as any[]) {
       // Characters
       for (const c of (s.characters || [])) {
         if (typeof c === "string" && c.trim()) {
-          // Strip parentheticals: "HOWARD WELLS (40s)" → "HOWARD WELLS"
           let name = c.replace(/\s*\(.*?\)\s*/g, "").trim();
           const dashIdx = name.indexOf(" - ");
           if (dashIdx > 0) name = name.substring(0, dashIdx).trim();
@@ -90,7 +92,6 @@ Deno.serve(async (req) => {
       // Locations
       if (s.location_name) {
         let loc = (s.location_name as string).trim();
-        // Strip INT./EXT. prefixes and time of day suffixes
         loc = loc.replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "").trim();
         loc = loc.replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "").trim();
         if (loc) allLocations.add(loc);
@@ -108,6 +109,27 @@ Deno.serve(async (req) => {
       // Props (key_objects)
       for (const obj of (s.key_objects || [])) {
         if (typeof obj === "string" && obj.trim()) allProps.add(obj.trim());
+      }
+
+      // Mood / atmosphere
+      if (s.mood && typeof s.mood === "string" && s.mood.trim()) {
+        allMoods.add(s.mood.trim());
+      }
+
+      // Day/Night as lighting context
+      if (s.day_night && typeof s.day_night === "string" && s.day_night.trim()) {
+        allLighting.add(s.day_night.trim());
+      }
+
+      // Environment details for atmosphere
+      if (s.environment_details && typeof s.environment_details === "string" && s.environment_details.trim()) {
+        allEnvironments.add(s.environment_details.trim());
+      }
+
+      // Cinematic elements for lighting/camera
+      const cin = s.cinematic_elements;
+      if (cin && typeof cin === "object") {
+        if (cin.camera_feel) allLighting.add(`Camera: ${cin.camera_feel}`);
       }
     }
 
@@ -130,13 +152,23 @@ Deno.serve(async (req) => {
 
 2. **Signature Style**: A 2-4 sentence description of the film's distinctive visual language — what makes its look unique.
 
-3. **Visual Motifs**: List recurring visual motifs, design elements, color themes, or symbolic imagery.
+3. **Visual Design** (STRUCTURED — provide items grouped into these 4 categories):
+   a. **Color Palette**: Recurring color schemes, dominant hues, palette shifts between scenes/acts, contrast patterns (e.g. "Desaturated blues and grays for present-day", "Warm ambers for flashback sequences").
+   b. **Lighting Language**: Key lighting approaches, how light is used narratively, recurring lighting setups (e.g. "Hard overhead fluorescents in institutional scenes", "Golden hour backlighting for intimate moments").
+   c. **Atmospheric Motifs**: Recurring environmental/weather/spatial motifs that create mood (e.g. "Rain as emotional punctuation", "Claustrophobic framing in domestic scenes", "Smoke/haze in transitional moments").
+   d. **Symbolic Elements**: Visual symbols, recurring objects-as-metaphor, compositional motifs (e.g. "Mirrors and reflections for duality", "Doorways framing characters at decision points").
 
 4. **Genres**: Identify the film's genres from this list ONLY: Action, Comedy, Docu-drama, Drama, Horror, Sci-Fi, Fantasy, Animation, Thriller, Romance, Documentary, Musical, Western, Mystery, Crime, Adventure, War. Pick 1-4 that best fit.
 
 5. **Temporal Analysis**: Analyze the time structure. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
 
 6. **AI Generation Notes**: Practical production notes for AI image/video generation — consistency, character anchors, design elements, effects guidance, lighting rules.
+
+AGGREGATED MOOD/ATMOSPHERE DATA FROM SCENES:
+${JSON.stringify(Array.from(allMoods), null, 1)}
+
+AGGREGATED LIGHTING/CAMERA DATA FROM SCENES:
+${JSON.stringify(Array.from(allLighting), null, 1)}
 
 COMPLETE SCENE BREAKDOWN:
 ${JSON.stringify(sceneSummaries, null, 1)}`;
@@ -170,10 +202,32 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                     type: "string",
                     description: "2-4 sentence description of the film's distinctive visual language.",
                   },
-                  visual_motifs: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Recurring visual motifs, design elements, color themes, or symbolic imagery.",
+                  visual_design: {
+                    type: "object",
+                    description: "Structured visual design categories.",
+                    properties: {
+                      color_palette: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Recurring color schemes, dominant hues, palette shifts, contrast patterns.",
+                      },
+                      lighting_language: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Key lighting approaches, narrative use of light, recurring setups.",
+                      },
+                      atmospheric_motifs: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Recurring environmental/weather/spatial motifs that create mood.",
+                      },
+                      symbolic_elements: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "Visual symbols, objects-as-metaphor, compositional motifs.",
+                      },
+                    },
+                    required: ["color_palette", "lighting_language", "atmospheric_motifs", "symbolic_elements"],
                   },
                   genres: {
                     type: "array",
@@ -220,7 +274,7 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                     description: "Practical production notes for AI generation.",
                   },
                 },
-                required: ["visual_summary", "signature_style", "visual_motifs", "genres", "temporal_analysis", "ai_generation_notes"],
+                required: ["visual_summary", "signature_style", "visual_design", "genres", "temporal_analysis", "ai_generation_notes"],
                 additionalProperties: false,
               },
             },
@@ -262,12 +316,29 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
     }
 
     // Build global_elements — deterministic lists + AI creative analysis
+    const vd = result.visual_design || {};
     const globalElements = {
       recurring_characters: Array.from(allCharacters),
       recurring_locations: Array.from(allLocations),
       recurring_wardrobe: allWardrobe,
       recurring_props: Array.from(allProps),
-      visual_motifs: result.visual_motifs || [],
+      // Keep legacy visual_motifs for backward compat, plus new structured data
+      visual_motifs: [
+        ...(vd.color_palette || []),
+        ...(vd.lighting_language || []),
+        ...(vd.atmospheric_motifs || []),
+        ...(vd.symbolic_elements || []),
+      ],
+      visual_design: {
+        color_palette: vd.color_palette || [],
+        lighting_language: vd.lighting_language || [],
+        atmospheric_motifs: vd.atmospheric_motifs || [],
+        symbolic_elements: vd.symbolic_elements || [],
+      },
+      // Deterministic mood/lighting aggregated from scenes
+      scene_moods: Array.from(allMoods),
+      scene_lighting: Array.from(allLighting),
+      scene_environments: Array.from(allEnvironments),
       genres: result.genres || [],
       signature_style: result.signature_style || "",
       temporal_analysis: result.temporal_analysis || null,

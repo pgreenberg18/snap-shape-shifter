@@ -43,6 +43,42 @@ const CATEGORIES: CategoryMeta[] = [
 
 /* ── Helpers ───────────────────────────────────────────────── */
 
+function buildVisualDesignCategory(raw: any): CategoryData {
+  const vd = raw?.visual_design;
+  const groups: ElementGroup[] = [];
+  const ungrouped: string[] = [];
+
+  const VISUAL_CATEGORIES: { key: string; label: string }[] = [
+    { key: "color_palette", label: "Color Palette" },
+    { key: "lighting_language", label: "Lighting Language" },
+    { key: "atmospheric_motifs", label: "Atmospheric Motifs" },
+    { key: "symbolic_elements", label: "Symbolic Elements" },
+  ];
+
+  if (vd && typeof vd === "object") {
+    for (const { key, label } of VISUAL_CATEGORIES) {
+      const items: string[] = Array.isArray(vd[key]) ? vd[key].filter((s: any) => typeof s === "string" && s.trim()) : [];
+      if (items.length > 0) {
+        groups.push({ id: uid(), parentName: label, variants: items });
+      }
+    }
+  }
+
+  // Also pull scene-aggregated moods as a group if available
+  const sceneMoods: string[] = Array.isArray(raw?.scene_moods) ? [...new Set(raw.scene_moods as string[])] : [];
+  if (sceneMoods.length > 0) {
+    groups.push({ id: uid(), parentName: "Scene Moods", variants: sceneMoods });
+  }
+
+  // Fallback: if no structured data, use legacy visual_motifs flat list
+  if (groups.length === 0) {
+    const motifs = raw?.visual_motifs;
+    if (Array.isArray(motifs)) ungrouped.push(...motifs.filter((s: any) => typeof s === "string" && s.trim()));
+  }
+
+  return { ungrouped, groups };
+}
+
 function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   const extract = (keys: string[]): string[] => {
     const items: string[] = [];
@@ -219,7 +255,7 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     characters: { ungrouped: [...new Set(charNames)], groups: [] },
     wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
     props: { ungrouped: propUngrouped, groups: propGroups },
-    visual_design: { ungrouped: extract(["visual_motifs"]), groups: [] },
+    visual_design: buildVisualDesignCategory(raw),
   };
 }
 
