@@ -19,7 +19,7 @@ import {
   Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
 } from "lucide-react";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
-import StoryboardPanel from "@/components/pre-production/StoryboardPanel";
+
 import DnDGroupPane from "@/components/pre-production/DnDGroupPane";
 
 /* ── Audition card type ── */
@@ -515,7 +515,7 @@ const PreProduction = () => {
             <PreProductionTab value="props" icon={Package} label="Props" />
             <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" />
             <PreProductionTab value="vehicles" icon={Car} label="Picture Vehicles" />
-            <PreProductionTab value="storyboard" icon={Film} label="Storyboard Pre-Viz" />
+            
           </TabsList>
         </div>
 
@@ -1018,9 +1018,6 @@ const PreProduction = () => {
         </TabsContent>
         <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
           <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
-        </TabsContent>
-        <TabsContent value="storyboard" className="flex-1 flex overflow-hidden m-0">
-          <StoryboardPanel />
         </TabsContent>
       </Tabs>
 
