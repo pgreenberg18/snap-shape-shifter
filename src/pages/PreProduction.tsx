@@ -17,7 +17,12 @@ import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User, Pencil,
   Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
+  RotateCcw,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
 
 import DnDGroupPane from "@/components/pre-production/DnDGroupPane";
@@ -81,6 +86,10 @@ const PreProduction = () => {
   const [uploadingRef, setUploadingRef] = useState(false);
   const [analyzingRef, setAnalyzingRef] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Consistency views confirmation
+  const [consistencyDialogOpen, setConsistencyDialogOpen] = useState(false);
+  const [pendingConsistencyCharId, setPendingConsistencyCharId] = useState<string | null>(null);
+  const [generatingViews, setGeneratingViews] = useState(false);
 
   // Reclassified/dismissed props (persisted per film)
   const [reclassified, setReclassified] = useState<Record<string, string>>({});
@@ -296,7 +305,31 @@ const PreProduction = () => {
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     const charName = characters?.find(c => c.id === targetCharId)?.name ?? "Character";
     toast.success(`${charName} has been cast`);
+    // Prompt for consistency views
+    setPendingConsistencyCharId(targetCharId);
+    setConsistencyDialogOpen(true);
   }, [characters, queryClient]);
+
+  const handleGenerateConsistencyViews = useCallback(async () => {
+    if (!pendingConsistencyCharId) return;
+    setConsistencyDialogOpen(false);
+    setGeneratingViews(true);
+    const charName = characters?.find(c => c.id === pendingConsistencyCharId)?.name ?? "Character";
+    toast.info(`Generating 8 consistency views for ${charName}… This may take a few minutes.`);
+    try {
+      const { data, error } = await supabase.functions.invoke("generate-consistency-views", {
+        body: { character_id: pendingConsistencyCharId },
+      });
+      if (error) throw error;
+      toast.success(`${data?.generated ?? 0}/8 consistency views generated for ${charName}`);
+    } catch (e: any) {
+      console.error("Consistency views error:", e);
+      toast.error(e?.message || "Failed to generate consistency views");
+    } finally {
+      setGeneratingViews(false);
+      setPendingConsistencyCharId(null);
+    }
+  }, [pendingConsistencyCharId, characters]);
 
   const handleRate = useCallback(async (card: AuditionCard, rating: number) => {
     if (!card.characterId) return;
@@ -1117,6 +1150,38 @@ const PreProduction = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Consistency Views Confirmation Dialog */}
+      <AlertDialog open={consistencyDialogOpen} onOpenChange={setConsistencyDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 font-display">
+              <RotateCcw className="h-5 w-5 text-primary" />
+              Generate Character Consistency Views
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 text-sm leading-relaxed">
+              <span className="block">
+                8 turnaround views of{" "}
+                <span className="font-semibold text-foreground">
+                  {characters?.find(c => c.id === pendingConsistencyCharId)?.name ?? "this character"}
+                </span>{" "}
+                will be generated from different angles (front, profiles, ¾ views, and back) for the character consistency engine.
+              </span>
+              <span className="block text-xs text-muted-foreground border-l-2 border-primary/30 pl-3">
+                This will use AI credits. Make sure you are sure of your choice — the cast headshot will be used as the identity reference for all 8 views.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setConsistencyDialogOpen(false); setPendingConsistencyCharId(null); }}>
+              Do This Later
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleGenerateConsistencyViews}>
+              OK — Generate Views
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

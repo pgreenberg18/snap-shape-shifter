@@ -143,6 +143,44 @@ export type Database = {
           },
         ]
       }
+      character_consistency_views: {
+        Row: {
+          angle_index: number
+          angle_label: string
+          character_id: string
+          created_at: string
+          id: string
+          image_url: string | null
+          status: string
+        }
+        Insert: {
+          angle_index: number
+          angle_label: string
+          character_id: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          status?: string
+        }
+        Update: {
+          angle_index?: number
+          angle_label?: string
+          character_id?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_consistency_views_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           age_max: number | null
