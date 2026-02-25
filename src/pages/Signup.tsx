@@ -48,7 +48,7 @@ const Signup = () => {
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
             <Film className="h-10 w-10 text-primary" />
           </div>
-          <h1 className="font-display text-4xl font-bold tracking-tight">Join the Studio</h1>
+          <h1 className="font-display text-4xl font-bold tracking-tight">Virtual Film Studio</h1>
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
             Create your account and start directing AI-powered films in minutes.
           </p>
@@ -67,7 +67,7 @@ const Signup = () => {
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex flex-col items-center gap-3 mb-4">
             <Film className="h-10 w-10 text-primary" />
-            <h1 className="font-display text-2xl font-bold">AI Film Studio</h1>
+            <h1 className="font-display text-2xl font-bold">Virtual Film Studio</h1>
           </div>
 
           <div>
