@@ -1758,6 +1758,7 @@ const Development = () => {
                     setLanguage={setLanguage}
                     setNudity={setNudity}
                     setViolence={setViolence}
+                    alreadyAnalyzed={ratingsApproved}
                   />
                 </div>
               </CollapsibleContent>
@@ -1808,6 +1809,7 @@ const Development = () => {
                         setLanguage={setLanguage}
                         setNudity={setNudity}
                         setViolence={setViolence}
+                        alreadyAnalyzed={ratingsApproved}
                       />
                     </div>
                   )}
@@ -2938,16 +2940,17 @@ function formatScriptLines(text: string): React.ReactNode {
 }
 
 const ContentSafetyMatrix = ({
-  scenes, storagePath, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence,
+  scenes, storagePath, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence, alreadyAnalyzed,
 }: {
   scenes: any[];
   storagePath: string;
   language: boolean; nudity: boolean; violence: boolean;
   handleToggle: (field: string, setter: (v: boolean) => void) => (val: boolean) => void;
   setLanguage: (v: boolean) => void; setNudity: (v: boolean) => void; setViolence: (v: boolean) => void;
+  alreadyAnalyzed?: boolean;
 }) => {
   const [selectedTemplate, setSelectedTemplate] = useState<RatingOrUnrated | null>(null);
-  const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [scriptLoaded, setScriptLoaded] = useState(!!alreadyAnalyzed);
   const [flags, setFlags] = useState<ContentFlag[]>([]);
   const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
   const [loading, setLoading] = useState(false);
