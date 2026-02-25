@@ -68,7 +68,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   const basePath = `/projects/${projectId}/versions/${versionId}`;
 
-  const renderNavItem = (key: string, icon: React.ElementType, label: string) => {
+  const renderNavItem = (key: string, icon: React.ElementType, label: string, tint?: string) => {
     const to = `${basePath}/${key}`;
     const isActive = location.pathname.includes(`/${key}`);
     const Icon = icon;
@@ -110,6 +110,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             ? "text-primary cinema-glow"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         )}
+        style={isActive && tint ? { backgroundColor: tint } : undefined}
       >
         <Icon className="h-5 w-5 shrink-0" />
         {expanded && <span className="text-xs font-medium truncate">{label}</span>}
@@ -143,7 +144,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className={cn("flex flex-1 flex-col gap-1", expanded ? "w-full px-2" : "items-center")}>
-          {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label))}
+          {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label, phase.tint))}
         </nav>
 
         {/* Bottom nav — Toggle + Help + Settings */}
