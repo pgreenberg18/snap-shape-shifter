@@ -12,6 +12,7 @@ import {
 } from "@dnd-kit/core";
 import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, Package, MapPin, Shirt, Car, type LucideIcon } from "lucide-react";
 import AssetDetailPanel from "./AssetDetailPanel";
+import ResizableSidebar from "./ResizableSidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -581,7 +582,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* ═══ LEFT SIDEBAR — Item List ═══ */}
-      <aside className="w-[340px] min-w-[300px] border-r border-border bg-card flex flex-col">
+      <ResizableSidebar defaultWidth={340} minWidth={220} maxWidthPercent={30}>
         <div className="px-4 py-3 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <div>
@@ -695,7 +696,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             </DragOverlay>
           </DndContext>
         </ScrollArea>
-      </aside>
+      </ResizableSidebar>
 
       {/* ═══ RIGHT — Detail Panel ═══ */}
       <main className="flex-1 overflow-hidden">
