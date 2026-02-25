@@ -1261,7 +1261,7 @@ const Development = () => {
 
               {/* ── Genre ── */}
               {(() => {
-                const GENRE_OPTIONS = ["Action", "Comedy", "Docu-drama", "Drama", "Horror", "Sci-Fi", "Fantasy", "Animation", "Thriller", "Romance", "Documentary", "Musical", "Western", "Mystery", "Crime", "Adventure", "War"];
+                const GENRE_OPTIONS = ["Action", "Comedy", "Docu-drama", "Drama", "Horror", "Sci-Fi", "Fantasy", "Animation", "Thriller", "Romance", "Documentary", "Musical", "Western", "Mystery", "Crime", "Adventure", "War", "Biographical", "Historical", "Noir", "Satire", "Supernatural"];
                 const availableGenres = GENRE_OPTIONS.filter((g) => !genres.includes(g));
                 const removeGenre = (g: string) => {
                   const next = genres.filter((x) => x !== g);
