@@ -1,4 +1,5 @@
 import { useState } from "react";
+import paulSignature from "@/assets/paul-signature.png";
 import { useNavigate } from "react-router-dom";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -99,6 +100,7 @@ const Onboarding = () => {
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
             This is a highly confidential beta version of our revolutionary software. Please complete your profile and sign the NDA to access the studio. We appreciate your interest in our app. Thank you for your cooperation.
           </p>
+          <img src={paulSignature} alt="Paul" className="mx-auto h-16 w-auto opacity-70" />
         </div>
       </div>
 
