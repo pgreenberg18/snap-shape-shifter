@@ -79,7 +79,7 @@ function buildVisualDesignCategory(raw: any): CategoryData {
   return { ungrouped, groups };
 }
 
-function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
+function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryKey, CategoryData> {
   const extract = (keys: string[]): string[] => {
     const items: string[] = [];
     for (const k of keys) {
@@ -131,7 +131,12 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   const VEHICLE_WORDS = /\b(car|truck|van|corvette|sedan|motorcycle|ambulance|taxi|limousine|convertible|suv)\b/i;
 
   const rawLocations = extract(["recurring_locations"]);
-
+  // Also include locations from parsed scenes for better grouping coverage
+  if (sceneLocations) {
+    for (const sl of sceneLocations) {
+      if (sl && !rawLocations.includes(sl)) rawLocations.push(sl);
+    }
+  }
   // Step 1: Split combined sluglines (separated by /)
   const splitLocations: string[] = [];
   for (const loc of rawLocations) {
@@ -348,13 +353,16 @@ interface Props {
   data: any;
   analysisId?: string;
   onAllReviewedChange?: (allReviewed: boolean) => void;
+  sceneLocations?: string[];
 }
 
-export default function GlobalElementsManager({ data, analysisId, onAllReviewedChange }: Props) {
+export default function GlobalElementsManager({ data, analysisId, onAllReviewedChange, sceneLocations }: Props) {
   const managed = data?._managed;
-  const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() =>
-    managed?.categories || buildInitialData(data),
-  );
+  // Use managed data only if locations are present (not null), otherwise rebuild
+  const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
+    if (managed?.categories && managed.categories.locations) return managed.categories;
+    return buildInitialData(data, sceneLocations);
+  });
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());

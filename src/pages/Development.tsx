@@ -287,6 +287,18 @@ const Development = () => {
   const { data: film } = useFilm();
   const { data: safety } = useContentSafety();
   const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis(filmId);
+  const { data: sceneLocations } = useQuery({
+    queryKey: ["scene-locations", filmId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("parsed_scenes")
+        .select("location_name")
+        .eq("film_id", filmId!)
+        .not("location_name", "is", null);
+      return [...new Set((data || []).map(d => d.location_name).filter(Boolean))] as string[];
+    },
+    enabled: !!filmId,
+  });
   const queryClient = useQueryClient();
   const [language, setLanguage] = useState(false);
   const [nudity, setNudity] = useState(false);
@@ -1676,7 +1688,7 @@ const Development = () => {
                   </CollapsibleTrigger>
                   <CollapsibleContent>
                     <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                      <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} onAllReviewedChange={setAllElementsReviewed} />
+                      <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
                     </div>
                   </CollapsibleContent>
                 </Collapsible>
