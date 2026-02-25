@@ -4,10 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   DndContext,
   useDraggable,
+  useDroppable,
   DragEndEvent,
+  DragOverEvent,
+  DragStartEvent,
+  DragOverlay,
   PointerSensor,
   useSensor,
   useSensors,
+  pointerWithin,
 } from "@dnd-kit/core";
 import VfxFixItBay from "@/components/post-production/VfxFixItBay";
 import PostProductionSidebar from "@/components/post-production/PostProductionSidebar";
@@ -37,8 +42,10 @@ import { Button } from "@/components/ui/button";
 import { Play, Film, Music, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 
 type Clip = Tables<"post_production_clips">;
+type Shot = Tables<"shots">;
 
 export type ImportedFile = {
   id: string;
@@ -63,18 +70,63 @@ const getClipBorder = (track: string): string => {
   return "hsl(175 40% 38% / 0.5)";
 };
 
-function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () => void }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: clip.id });
+/* ── Trim handle logic ── */
+function useTrimHandle(
+  side: "left" | "right",
+  clipId: string,
+  currentLeft: number,
+  currentWidth: number,
+  onTrim: (id: string, newLeft: number, newWidth: number) => void
+) {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const startX = e.clientX;
+    const startLeft = currentLeft;
+    const startWidth = currentWidth;
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      if (side === "left") {
+        const newLeft = Math.max(0, startLeft + dx);
+        const newWidth = Math.max(30, startWidth - dx);
+        onTrim(clipId, newLeft, newWidth);
+      } else {
+        const newWidth = Math.max(30, startWidth + dx);
+        onTrim(clipId, startLeft, newWidth);
+      }
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [side, clipId, currentLeft, currentWidth, onTrim]);
+
+  return handleMouseDown;
+}
+
+/* ── Draggable Timeline Clip ── */
+function DraggableClip({ clip, onDoubleClick, onTrim }: { clip: Clip; onDoubleClick: () => void; onTrim: (id: string, left: number, width: number) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: clip.id,
+    data: { type: "timeline-clip", clip },
+  });
+
+  const leftTrim = useTrimHandle("left", clip.id, clip.left_pos, clip.width, onTrim);
+  const rightTrim = useTrimHandle("right", clip.id, clip.left_pos, clip.width, onTrim);
 
   const style: React.CSSProperties = {
     position: "absolute",
     left: clip.left_pos,
     width: clip.width,
-    transform: transform ? `translate3d(${transform.x}px, 0, 0)` : undefined,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     top: 4,
     bottom: 4,
     background: getClipColor(clip.track),
     borderColor: getClipBorder(clip.track),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 1,
   };
 
   return (
@@ -88,17 +140,107 @@ function DraggableClip({ clip, onDoubleClick }: { clip: Clip; onDoubleClick: () 
       title={clip.track.startsWith("video") ? "Double-click for VFX" : clip.label}
     >
       {/* Left trim handle */}
-      <div className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-l-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100">
+      <div
+        onMouseDown={leftTrim}
+        className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-l-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100 z-20"
+      >
         <div className="w-px h-3 bg-foreground/30" />
         <div className="w-px h-3 bg-foreground/30 ml-px" />
       </div>
       {/* Label */}
       <span className="relative z-10 truncate px-2 flex-1">{clip.label}</span>
       {/* Right trim handle */}
-      <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-r-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100">
+      <div
+        onMouseDown={rightTrim}
+        className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize flex items-center justify-center rounded-r-lg hover:bg-white/10 transition-colors opacity-0 group-hover/clip:opacity-100 z-20"
+      >
         <div className="w-px h-3 bg-foreground/30" />
         <div className="w-px h-3 bg-foreground/30 ml-px" />
       </div>
+    </div>
+  );
+}
+
+/* ── Draggable Media Bin Shot ── */
+function DraggableShot({ shot, index }: { shot: Shot; index: number }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: `media-shot-${shot.id}`,
+    data: { type: "media-shot", shot },
+  });
+
+  const style: React.CSSProperties = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 100 : 1,
+  };
+
+  // Generate a deterministic dark frame color based on scene number
+  const frameBg = `hsl(${(shot.scene_number * 47) % 360} 15% 18%)`;
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      style={style}
+      className="rounded-lg border border-border overflow-hidden cursor-grab active:cursor-grabbing select-none group/shot cinema-inset"
+    >
+      {/* Video frame / thumbnail */}
+      <div className="relative aspect-video w-full" style={{ background: frameBg }}>
+        {shot.video_url ? (
+          <video
+            src={shot.video_url}
+            className="absolute inset-0 w-full h-full object-cover"
+            muted
+            preload="metadata"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <Film className="h-6 w-6 text-white/15" />
+          </div>
+        )}
+        {/* Scene / Shot / Take overlay */}
+        <div className="absolute top-1.5 left-1.5 flex gap-1">
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
+            style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
+            SC{shot.scene_number}
+          </span>
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
+            style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
+            SH{index + 1}
+          </span>
+          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
+            style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
+            T1
+          </span>
+        </div>
+      </div>
+      {/* Info bar */}
+      <div className="px-2 py-1.5 bg-secondary/80">
+        <p className="text-[10px] font-mono text-foreground/80 truncate">
+          {shot.camera_angle || shot.prompt_text?.slice(0, 50) || "Untitled shot"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Droppable Track ── */
+function DroppableTrack({ track, children, isOver }: { track: Track; children: React.ReactNode; isOver: boolean }) {
+  const { setNodeRef } = useDroppable({
+    id: `track-${track.id}`,
+    data: { type: "track", trackId: track.id },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "relative flex-1 h-14 transition-colors",
+        isOver && "bg-primary/10"
+      )}
+    >
+      {children}
     </div>
   );
 }
@@ -234,22 +376,72 @@ const PostProduction = () => {
   };
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+  const [overTrackId, setOverTrackId] = useState<string | null>(null);
+
+  const handleTrimClip = useCallback((id: string, newLeft: number, newWidth: number) => {
+    setState((prev) => ({
+      ...prev,
+      clips: prev.clips.map((c) => c.id === id ? { ...c, left_pos: newLeft, width: newWidth } : c),
+    }));
+  }, [setState]);
+
+  const handleDragOver = useCallback((event: DragOverEvent) => {
+    const { over } = event;
+    if (over?.data?.current?.type === "track") {
+      setOverTrackId(over.data.current.trackId as string);
+    } else {
+      setOverTrackId(null);
+    }
+  }, []);
 
   const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, delta } = event;
-    const updated = clips.map((c) =>
-      c.id === active.id ? { ...c, left_pos: Math.max(0, c.left_pos + delta.x) } : c
-    );
-    setState((prev) => ({ ...prev, clips: updated }));
-    const moved = updated.find((c) => c.id === active.id);
-    if (moved) {
-      await supabase.from("post_production_clips").update({ left_pos: moved.left_pos }).eq("id", moved.id);
+    const { active, delta, over } = event;
+    setOverTrackId(null);
+    const activeData = active.data.current;
+
+    // Dropping a media bin shot onto a track
+    if (activeData?.type === "media-shot" && over?.data?.current?.type === "track") {
+      const shot = activeData.shot as Shot;
+      const targetTrack = over.data.current.trackId as string;
+      const existingOnTrack = clips.filter((c) => c.track === targetTrack);
+      const maxRight = existingOnTrack.reduce((m, c) => Math.max(m, c.left_pos + c.width), 0);
+      const newClip: Clip = {
+        id: `local-${Date.now()}`,
+        film_id: shot.film_id,
+        label: `SC${shot.scene_number} – ${shot.camera_angle || shot.prompt_text?.slice(0, 25) || "Shot"}`,
+        track: targetTrack,
+        left_pos: maxRight + 8,
+        width: 200,
+        color: null,
+        created_at: new Date().toISOString(),
+      };
+      setState((prev) => ({ ...prev, clips: [...prev.clips, newClip] }));
+      return;
+    }
+
+    // Moving an existing timeline clip (horizontal + vertical)
+    if (activeData?.type === "timeline-clip") {
+      const targetTrack = over?.data?.current?.type === "track" ? (over.data.current.trackId as string) : undefined;
+      const updated = clips.map((c) => {
+        if (c.id !== active.id) return c;
+        return {
+          ...c,
+          left_pos: Math.max(0, c.left_pos + delta.x),
+          track: targetTrack || c.track,
+        };
+      });
+      setState((prev) => ({ ...prev, clips: updated }));
+      const moved = updated.find((c) => c.id === active.id);
+      if (moved) {
+        await supabase.from("post_production_clips").update({ left_pos: moved.left_pos, track: moved.track }).eq("id", moved.id);
+      }
     }
   };
 
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   return (
+    <DndContext sensors={sensors} onDragEnd={handleDragEnd} onDragOver={handleDragOver} collisionDetection={pointerWithin}>
     <div className="flex h-full">
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -281,16 +473,17 @@ const PostProduction = () => {
 
             <div className="flex-1 overflow-y-auto p-3">
               {/* Shots tab */}
-              <TabsContent value="shots" className="mt-0 space-y-2">
-                {shotsData?.map((shot) => (
-                  <div key={shot.id} className="rounded-lg border border-border bg-secondary p-3 cinema-inset">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-muted-foreground">SC{shot.scene_number}</span>
-                      <span className="text-[10px] text-muted-foreground">{shot.camera_angle}</span>
-                    </div>
-                    <p className="mt-1 text-xs text-foreground/80 line-clamp-2">{shot.prompt_text}</p>
-                  </div>
+              <TabsContent value="shots" className="mt-0 grid grid-cols-2 gap-2">
+                {shotsData?.map((shot, idx) => (
+                  <DraggableShot key={shot.id} shot={shot} index={idx} />
                 ))}
+                {(!shotsData || shotsData.length === 0) && (
+                  <div className="col-span-2 text-center py-8">
+                    <Film className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                    <p className="text-[11px] text-muted-foreground/50 font-mono">No shots available.</p>
+                    <p className="text-[9px] text-muted-foreground/40 font-mono mt-1">Create shots in the Production tab.</p>
+                  </div>
+                )}
               </TabsContent>
 
               {/* Imported file tabs */}
@@ -396,7 +589,6 @@ const PostProduction = () => {
           </div>
         </div>
 
-        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
           <div className="flex-1 overflow-auto relative">
             {tracks.map((track) => (
               <div key={track.id} className="flex border-b border-border/50 group">
@@ -413,11 +605,11 @@ const PostProduction = () => {
                     </button>
                   )}
                 </div>
-                <div className="relative flex-1 h-14">
+                <DroppableTrack track={track} isOver={overTrackId === track.id}>
                   {clips.filter((c) => c.track === track.id).map((clip) => (
-                    <DraggableClip key={clip.id} clip={clip} onDoubleClick={() => setVfxClip(clip)} />
+                    <DraggableClip key={clip.id} clip={clip} onDoubleClick={() => setVfxClip(clip)} onTrim={handleTrimClip} />
                   ))}
-                </div>
+                </DroppableTrack>
               </div>
             ))}
 
@@ -425,7 +617,6 @@ const PostProduction = () => {
               <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-2.5 h-2.5 bg-primary rotate-45" />
             </div>
           </div>
-        </DndContext>
       </div>
 
       {/* Delete Track Confirmation */}
@@ -471,6 +662,7 @@ const PostProduction = () => {
         }}
       />
     </div>
+    </DndContext>
   );
 };
 
