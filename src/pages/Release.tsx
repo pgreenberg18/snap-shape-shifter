@@ -4,9 +4,34 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2, Package, Upload, Lock, Monitor } from "lucide-react";
-import ExportHistoryPanel, { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
+import {
+  Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film,
+  Loader2, Package, Upload, Lock, Monitor, Trash2, FolderDown,
+} from "lucide-react";
+import { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
 import { useFilm } from "@/hooks/useFilm";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+
+/* ── Type icon map ── */
+const TYPE_ICONS: Record<string, React.ReactNode> = {
+  social: <Smartphone className="h-3 w-3" />,
+  poster: <Image className="h-3 w-3" />,
+  trailer: <Film className="h-3 w-3" />,
+  filmfreeway: <Package className="h-3 w-3" />,
+  prores: <FileVideo className="h-3 w-3" />,
+  youtube: <FileVideo className="h-3 w-3" />,
+  vimeo: <FileVideo className="h-3 w-3" />,
+  tiktok: <Smartphone className="h-3 w-3" />,
+  c2pa: <Lock className="h-3 w-3" />,
+  master: <FileVideo className="h-3 w-3" />,
+};
 
 const Release = () => {
   const [topaz, setTopaz] = useState(false);
@@ -14,6 +39,21 @@ const Release = () => {
   const [exports, setExports] = useState<ExportRecord[]>([]);
   const { toast } = useToast();
   const { data: film } = useFilm();
+
+  /* Custom export state */
+  const [customCodec, setCustomCodec] = useState("h264");
+  const [customContainer, setCustomContainer] = useState("mp4");
+  const [customBitrate, setCustomBitrate] = useState([25]);
+  const [customWidth, setCustomWidth] = useState("1920");
+  const [customHeight, setCustomHeight] = useState("1080");
+  const [customFps, setCustomFps] = useState("24");
+  const [customAudioCodec, setCustomAudioCodec] = useState("aac");
+  const [customAudioBitrate, setCustomAudioBitrate] = useState([320]);
+  const [customSampleRate, setCustomSampleRate] = useState("48000");
+  const [customColorSpace, setCustomColorSpace] = useState("rec709");
+  const [customPixelFormat, setCustomPixelFormat] = useState("yuv420p");
+  const [customDeinterlace, setCustomDeinterlace] = useState(false);
+  const [custom2Pass, setCustom2Pass] = useState(true);
 
   const EXPORT_LABELS: Record<string, { label: string; fileName: string }> = {
     master: { label: "Master Film Export", fileName: "master_export.mov" },
@@ -46,313 +86,396 @@ const Release = () => {
     }, 4000);
   }, [toast]);
 
+  /* Small section header */
+  const SH = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
+    <div className="flex items-center gap-2 mb-2.5">
+      <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
+        <Icon className="h-3.5 w-3.5 text-primary" />
+      </div>
+      <h3 className="font-display text-sm font-bold">{label}</h3>
+    </div>
+  );
+
+  /* Processing button helper */
+  const ProcBtn = ({ id, icon: Icon, label, variant = "secondary" }: { id: string; icon: React.ElementType; label: string; variant?: "secondary" | "outline" }) => (
+    <Button
+      variant={variant}
+      size="sm"
+      className="w-full text-[10px] font-mono gap-1.5 h-8 cinema-inset active:translate-y-px"
+      disabled={processing === id}
+      onClick={() => handleProcess(id)}
+    >
+      {processing === id ? (
+        <><Loader2 className="h-3 w-3 animate-spin" /> Processing…</>
+      ) : (
+        <><Icon className="h-3 w-3" /> {label}</>
+      )}
+    </Button>
+  );
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
-      {/* Top bar with Export History */}
-      <div className="flex items-center justify-between">
-        <div />
-        <ExportHistoryPanel exports={exports} onClear={() => setExports([])} />
-      </div>
-      {/* Export Master Film */}
-      <div className="rounded-xl border border-border bg-card p-5 cinema-inset">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <FileVideo className="h-4.5 w-4.5 text-primary" />
-            </div>
-            <div>
-              <h2 className="font-display text-lg font-bold leading-tight">Export Master Film</h2>
-              <p className="text-[11px] text-muted-foreground">Final render and distribution</p>
-            </div>
-          </div>
-          <Button size="sm" className="gap-1.5 h-8 px-5 text-xs" disabled={processing === "master"} onClick={() => handleProcess("master")}>
-            {processing === "master" ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
-            ) : (
-              <><Download className="h-3.5 w-3.5" /> Export Master</>
-            )}
-          </Button>
-        </div>
-
-        {/* Format spec inline */}
-        <div className="rounded-lg border border-border bg-secondary/50 px-4 py-2.5 cinema-inset mb-4">
-          <div className="flex items-center gap-6 text-[11px] font-mono">
-            <div className="flex items-center gap-1.5">
-              <Monitor className="h-3 w-3 text-primary/70" />
-              <span className="text-muted-foreground">Type:</span>
-              <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "—"}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">Res:</span>
-              <span className="text-foreground/90 font-semibold">
-                {(film as any)?.frame_width && (film as any)?.frame_height
-                  ? `${(film as any).frame_width}×${(film as any).frame_height}`
-                  : "—"}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-muted-foreground">FPS:</span>
-              <span className="text-foreground/90 font-semibold">
-                {(film as any)?.frame_rate ? `${(film as any).frame_rate}` : "—"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <Tabs defaultValue="auto" className="w-full">
-          <TabsList className="w-full bg-secondary mb-3 h-8">
-            <TabsTrigger value="auto" className="flex-1 text-xs h-7">Auto</TabsTrigger>
-            <TabsTrigger value="templates" className="flex-1 text-xs h-7">Templates</TabsTrigger>
-            <TabsTrigger value="custom" className="flex-1 text-xs h-7">Custom</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="auto">
-            <p className="text-[11px] text-muted-foreground text-center py-3 font-mono">
-              Best codec & bitrate auto-selected from your format settings.
-            </p>
-          </TabsContent>
-
-          <TabsContent value="templates">
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between rounded-lg bg-secondary px-3 py-2">
+    <div className="flex h-full">
+      {/* ═══ LEFT — All Controls ═══ */}
+      <ScrollArea className="flex-1 min-w-0">
+        <div className="p-4 space-y-4">
+          {/* Row 1: Export Master + Deliverables side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Export Master Film */}
+            <div className="rounded-lg border border-border bg-card p-4 cinema-inset">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  <Label htmlFor="topaz" className="text-[11px] font-medium cursor-pointer">
-                    Topaz 4K Cinematic Upscale
-                  </Label>
+                  <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
+                    <FileVideo className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <h2 className="font-display text-sm font-bold">Export Master Film</h2>
                 </div>
-                <Switch id="topaz" checked={topaz} onCheckedChange={setTopaz} />
+                <Button size="sm" className="gap-1.5 h-7 px-4 text-[10px]" disabled={processing === "master"} onClick={() => handleProcess("master")}>
+                  {processing === "master" ? (
+                    <><Loader2 className="h-3 w-3 animate-spin" /> Exporting…</>
+                  ) : (
+                    <><Download className="h-3 w-3" /> Export</>
+                  )}
+                </Button>
               </div>
-              <div className="grid grid-cols-3 gap-2">
-                {["YouTube 4K", "Netflix ProRes", "Theater DCP"].map((t) => (
-                  <button
-                    key={t}
-                    className="rounded-lg border border-border bg-secondary px-3 py-2.5 text-[11px] font-medium hover:border-primary/50 transition-colors text-center"
-                  >
-                    {t}
-                  </button>
+
+              {/* Format spec */}
+              <div className="rounded-md border border-border bg-secondary/50 px-3 py-2 cinema-inset mb-3">
+                <div className="flex items-center gap-4 text-[10px] font-mono flex-wrap">
+                  <span className="text-muted-foreground">Type: <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "—"}</span></span>
+                  <span className="text-muted-foreground">Res: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "—"}</span></span>
+                  <span className="text-muted-foreground">FPS: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_rate || "—"}</span></span>
+                </div>
+              </div>
+
+              <Tabs defaultValue="auto" className="w-full">
+                <TabsList className="w-full bg-secondary h-7 mb-2.5">
+                  <TabsTrigger value="auto" className="flex-1 text-[10px] h-6">Auto</TabsTrigger>
+                  <TabsTrigger value="templates" className="flex-1 text-[10px] h-6">Templates</TabsTrigger>
+                  <TabsTrigger value="custom" className="flex-1 text-[10px] h-6">Custom</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="auto">
+                  <p className="text-[10px] text-muted-foreground text-center py-2 font-mono">
+                    Best codec & bitrate auto-selected from format settings.
+                  </p>
+                </TabsContent>
+
+                <TabsContent value="templates">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between rounded-md bg-secondary px-2.5 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3 text-primary" />
+                        <Label htmlFor="topaz" className="text-[10px] font-medium cursor-pointer">Topaz 4K Upscale</Label>
+                      </div>
+                      <Switch id="topaz" checked={topaz} onCheckedChange={setTopaz} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {["YouTube 4K", "Netflix ProRes", "Theater DCP"].map((t) => (
+                        <button key={t} className="rounded-md border border-border bg-secondary px-2 py-2 text-[10px] font-medium hover:border-primary/50 transition-colors text-center">
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="custom">
+                  <div className="space-y-3">
+                    {/* Video Settings */}
+                    <div>
+                      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Video</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
+                          <Select value={customCodec} onValueChange={setCustomCodec}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["h264", "h265", "prores_422", "prores_4444", "dnxhd", "vp9", "av1"].map(c => (
+                                <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Container</Label>
+                          <Select value={customContainer} onValueChange={setCustomContainer}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["mp4", "mov", "mkv", "mxf", "avi", "webm"].map(c => (
+                                <SelectItem key={c} value={c} className="text-[10px]">.{c}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="mt-2">
+                        <div className="flex justify-between">
+                          <Label className="text-[9px] text-muted-foreground">Bitrate</Label>
+                          <span className="text-[9px] font-mono text-foreground/80">{customBitrate[0]} Mbps</span>
+                        </div>
+                        <Slider value={customBitrate} onValueChange={setCustomBitrate} min={1} max={200} step={1} className="mt-1" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 mt-2">
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Width</Label>
+                          <Input value={customWidth} onChange={e => setCustomWidth(e.target.value)} className="h-7 text-[10px] font-mono" />
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Height</Label>
+                          <Input value={customHeight} onChange={e => setCustomHeight(e.target.value)} className="h-7 text-[10px] font-mono" />
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">FPS</Label>
+                          <Select value={customFps} onValueChange={setCustomFps}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["23.976", "24", "25", "29.97", "30", "48", "50", "59.94", "60"].map(f => (
+                                <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 mt-2">
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Color Space</Label>
+                          <Select value={customColorSpace} onValueChange={setCustomColorSpace}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["rec709", "rec2020", "dci_p3", "srgb", "aces_cg"].map(c => (
+                                <SelectItem key={c} value={c} className="text-[10px]">{c.replace("_", " ").toUpperCase()}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Pixel Format</Label>
+                          <Select value={customPixelFormat} onValueChange={setCustomPixelFormat}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["yuv420p", "yuv422p", "yuv444p", "yuv420p10le", "yuv422p10le", "rgb48"].map(p => (
+                                <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="flex gap-4 mt-2">
+                        <div className="flex items-center gap-1.5">
+                          <Switch id="2pass" checked={custom2Pass} onCheckedChange={setCustom2Pass} />
+                          <Label htmlFor="2pass" className="text-[9px] cursor-pointer">2-Pass Encode</Label>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Switch id="deinterlace" checked={customDeinterlace} onCheckedChange={setCustomDeinterlace} />
+                          <Label htmlFor="deinterlace" className="text-[9px] cursor-pointer">Deinterlace</Label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Audio Settings */}
+                    <div>
+                      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Audio</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
+                          <Select value={customAudioCodec} onValueChange={setCustomAudioCodec}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["aac", "pcm_s24le", "pcm_s16le", "flac", "ac3", "eac3", "opus"].map(c => (
+                                <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Bitrate</Label>
+                          <Select value={String(customAudioBitrate[0])} onValueChange={v => setCustomAudioBitrate([Number(v)])}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["128", "192", "256", "320", "512", "1536"].map(b => (
+                                <SelectItem key={b} value={b} className="text-[10px]">{b} kbps</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Sample Rate</Label>
+                          <Select value={customSampleRate} onValueChange={setCustomSampleRate}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {["44100", "48000", "96000"].map(s => (
+                                <SelectItem key={s} value={s} className="text-[10px]">{(Number(s)/1000).toFixed(1)} kHz</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </TabsContent>
+              </Tabs>
+            </div>
+
+            {/* Deliverables & Marketing */}
+            <div className="rounded-lg border border-border bg-card p-4 cinema-inset">
+              <SH icon={Sparkles} label="Deliverables & Marketing" />
+              <div className="grid grid-cols-1 gap-2.5">
+                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                  <p className="text-[10px] font-mono font-semibold mb-0.5">Multi-Ratio Social Masters</p>
+                  <p className="text-[9px] text-muted-foreground mb-2">Auto-reframe 16:9 → 9:16 via object tracking.</p>
+                  <ProcBtn id="social" icon={Smartphone} label="Generate Social Cutdowns" />
+                </div>
+                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                  <p className="text-[10px] font-mono font-semibold mb-0.5">Marketing Assets</p>
+                  <p className="text-[9px] text-muted-foreground mb-2">27×40 theatrical poster & Electronic Press Kit.</p>
+                  <ProcBtn id="poster" icon={Image} label="Generate Poster & EPK" />
+                </div>
+                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                  <p className="text-[10px] font-mono font-semibold mb-0.5">Trailer Engine</p>
+                  <p className="text-[9px] text-muted-foreground mb-2">Auto-cut 60s trailer from high-action beats.</p>
+                  <ProcBtn id="trailer" icon={Film} label="Generate 60s Trailer" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Distribution + C2PA side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Distribution Packaging */}
+            <div className="rounded-lg border border-border bg-card p-4 cinema-inset space-y-2.5">
+              <SH icon={Package} label="Distribution Packaging" />
+              <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                <p className="text-[9px] font-mono text-muted-foreground mb-1.5">Festival Package</p>
+                <ProcBtn id="filmfreeway" icon={Download} label="Export Festival ZIP (Screener + Poster + Script)" />
+              </div>
+              <ProcBtn id="prores" icon={FileVideo} label="ProRes 422 HQ Export" />
+              <div>
+                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Direct Upload</p>
+                <div className="flex gap-1.5">
+                  {[
+                    { id: "youtube", label: "YouTube" },
+                    { id: "vimeo", label: "Vimeo" },
+                    { id: "tiktok", label: "TikTok" },
+                  ].map((p) => (
+                    <Button
+                      key={p.id}
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-[9px] font-mono gap-1 h-7 cinema-inset active:translate-y-px"
+                      disabled={processing === p.id}
+                      onClick={() => handleProcess(p.id)}
+                    >
+                      {processing === p.id ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <><Upload className="h-3 w-3" /> {p.label}</>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* C2PA Legal Provenance */}
+            <div className="rounded-lg border bg-card p-4 cinema-inset space-y-2.5" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
+              <div className="flex items-center gap-2 mb-1">
+                <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: "hsl(145 40% 20% / 0.3)" }}>
+                  <ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(145 50% 50%)" }} />
+                </div>
+                <div>
+                  <h3 className="font-display text-sm font-bold">Chain-of-Title & Provenance</h3>
+                  <p className="text-[9px] font-mono" style={{ color: "hsl(145 40% 55%)" }}>C2PA Verified</p>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {[
+                  { label: "Director / Producer", value: "Paul Greenberg" },
+                  { label: "Entity", value: "Greenberg Direct, Inc." },
+                ].map((field) => (
+                  <div key={field.label} className="rounded-md bg-secondary/50 border border-border/50 px-3 py-2 cinema-inset">
+                    <p className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">{field.label}</p>
+                    <p className="text-[11px] font-mono text-foreground/90">{field.value}</p>
+                  </div>
                 ))}
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="custom">
-            <p className="text-[11px] text-muted-foreground text-center py-3 font-mono">
-              Configure codec, resolution, bitrate, and container format.
-            </p>
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* removed old Legal & Compliance — replaced by bottom section */}
-
-      {/* Auto-Deliverables & Marketing */}
-      <div className="rounded-xl border border-border bg-card p-8 cinema-inset">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <div>
-            <h2 className="font-display text-2xl font-bold">Auto-Deliverables & Marketing</h2>
-            <p className="text-sm text-muted-foreground">Automated assets for distribution and promotion</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Card 1 — Multi-Ratio Social Masters */}
-          <div className="rounded-xl border border-border bg-secondary/50 p-5 flex flex-col cinema-inset">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-              <Smartphone className="h-5 w-5 text-primary" />
-            </div>
-            <h3 className="font-display text-sm font-bold mb-1">Multi-Ratio Social Masters</h3>
-            <p className="text-[11px] text-muted-foreground mb-4 flex-1">
-              Auto-reframe 16:9 master to 9:16 vertical using object tracking.
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
-              disabled={processing === "social"}
-              onClick={() => handleProcess("social")}
-            >
-              {processing === "social" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
-              ) : (
-                <><Smartphone className="h-3.5 w-3.5" /> Generate Social Cutdowns</>
-              )}
-            </Button>
-          </div>
-
-          {/* Card 2 — Marketing Assets */}
-          <div className="rounded-xl border border-border bg-secondary/50 p-5 flex flex-col cinema-inset">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-              <Image className="h-5 w-5 text-primary" />
-            </div>
-            <h3 className="font-display text-sm font-bold mb-1">Marketing Assets</h3>
-            <p className="text-[11px] text-muted-foreground mb-4 flex-1">
-              Generate 27×40 theatrical poster and Electronic Press Kit (EPK).
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
-              disabled={processing === "poster"}
-              onClick={() => handleProcess("poster")}
-            >
-              {processing === "poster" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
-              ) : (
-                <><Image className="h-3.5 w-3.5" /> Generate Poster & EPK</>
-              )}
-            </Button>
-          </div>
-
-          {/* Card 3 — Trailer Engine */}
-          <div className="rounded-xl border border-border bg-secondary/50 p-5 flex flex-col cinema-inset">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-              <Film className="h-5 w-5 text-primary" />
-            </div>
-            <h3 className="font-display text-sm font-bold mb-1">Trailer Engine</h3>
-            <p className="text-[11px] text-muted-foreground mb-4 flex-1">
-              Auto-cut a 60-second trailer based on high-action structural beats.
-            </p>
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
-              disabled={processing === "trailer"}
-              onClick={() => handleProcess("trailer")}
-            >
-              {processing === "trailer" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Processing…</>
-              ) : (
-                <><Film className="h-3.5 w-3.5" /> Generate 60s Trailer</>
-              )}
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      {/* Distribution & Legal */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Left — Distribution Packaging */}
-        <div className="rounded-xl border border-border bg-card p-6 cinema-inset space-y-4">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Package className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-bold">Distribution Packaging</h3>
-              <p className="text-[11px] text-muted-foreground">Festival & aggregator delivery</p>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            {/* FilmFreeway Packager */}
-            <div className="rounded-lg border border-border bg-secondary/50 p-4 cinema-inset">
-              <p className="text-[10px] font-mono text-muted-foreground mb-2">SACRED HEIST Festival Package</p>
+              <p className="text-[9px] text-muted-foreground leading-relaxed">
+                Cryptographic hashes, API licenses, timestamps, and per-frame provenance claims compiled into a legal PDF.
+              </p>
               <Button
-                variant="secondary"
                 size="sm"
-                className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
-                disabled={processing === "filmfreeway"}
-                onClick={() => handleProcess("filmfreeway")}
+                className="w-full text-[9px] font-mono gap-1.5 h-8 font-bold uppercase tracking-wider cinema-inset active:translate-y-px"
+                disabled={processing === "c2pa"}
+                onClick={() => handleProcess("c2pa")}
               >
-                {processing === "filmfreeway" ? (
-                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Packaging…</>
+                {processing === "c2pa" ? (
+                  <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
                 ) : (
-                  <><Download className="h-3.5 w-3.5" /> Export Festival ZIP (Screener + Poster + Script)</>
+                  <><Lock className="h-3.5 w-3.5" /> Generate C2PA Ledger PDF</>
                 )}
               </Button>
             </div>
-
-            {/* ProRes Export */}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="w-full text-[10px] font-mono gap-1.5 h-9 cinema-inset active:translate-y-px"
-              disabled={processing === "prores"}
-              onClick={() => handleProcess("prores")}
-            >
-              {processing === "prores" ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Encoding…</>
-              ) : (
-                <><FileVideo className="h-3.5 w-3.5" /> ProRes 422 HQ Export</>
-              )}
-            </Button>
-
-            {/* Direct OAuth Uploads */}
-            <div>
-              <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-2">Direct Upload</p>
-              <div className="flex gap-2">
-                {[
-                  { id: "youtube", label: "YouTube" },
-                  { id: "vimeo", label: "Vimeo" },
-                  { id: "tiktok", label: "TikTok" },
-                ].map((p) => (
-                  <Button
-                    key={p.id}
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-[10px] font-mono gap-1 h-8 cinema-inset active:translate-y-px"
-                    disabled={processing === p.id}
-                    onClick={() => handleProcess(p.id)}
-                  >
-                    {processing === p.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <><Upload className="h-3 w-3" /> {p.label}</>
-                    )}
-                  </Button>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
+      </ScrollArea>
 
-        {/* Right — C2PA Legal Provenance Ledger */}
-        <div className="rounded-xl border bg-card p-6 cinema-inset space-y-4" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-lg flex items-center justify-center" style={{ background: "hsl(145 40% 20% / 0.3)" }}>
-              <ShieldCheck className="h-5 w-5" style={{ color: "hsl(145 50% 50%)" }} />
-            </div>
-            <div>
-              <h3 className="font-display text-lg font-bold">Chain-of-Title & Provenance</h3>
-              <p className="text-[11px] font-mono" style={{ color: "hsl(145 40% 55%)" }}>C2PA Verified</p>
-            </div>
+      {/* ═══ RIGHT — Finished Exports ═══ */}
+      <div className="w-64 shrink-0 border-l border-border bg-card flex flex-col">
+        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+          <div className="flex items-center gap-1.5">
+            <FolderDown className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-display font-bold uppercase tracking-wider">Finished Exports</span>
           </div>
+          {exports.length > 0 && (
+            <span className="h-4 min-w-4 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center px-1">
+              {exports.length}
+            </span>
+          )}
+        </div>
 
-          {/* Metadata fields */}
-          <div className="space-y-2">
-            {[
-              { label: "Director / Producer", value: "Paul Greenberg" },
-              { label: "Entity", value: "Greenberg Direct, Inc." },
-            ].map((field) => (
-              <div key={field.label} className="rounded-lg bg-secondary/50 border border-border/50 px-4 py-2.5 cinema-inset">
-                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60">{field.label}</p>
-                <p className="text-xs font-mono text-foreground/90 mt-0.5">{field.value}</p>
+        <ScrollArea className="flex-1">
+          <div className="p-2 space-y-1.5">
+            {exports.length === 0 ? (
+              <div className="text-center py-10">
+                <FolderDown className="h-6 w-6 text-muted-foreground/20 mx-auto mb-2" />
+                <p className="text-[10px] text-muted-foreground/50 font-mono">No exports yet.</p>
+                <p className="text-[9px] text-muted-foreground/35 font-mono mt-0.5">Exported files will appear here.</p>
               </div>
-            ))}
-          </div>
-
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            Compiles cryptographic hashes, API licenses, timestamps, and per-frame generative provenance claims into a legal PDF.
-          </p>
-
-          <Button
-            size="sm"
-            className="w-full text-[10px] font-mono gap-2 h-10 font-bold uppercase tracking-wider cinema-inset active:translate-y-px"
-            disabled={processing === "c2pa"}
-            onClick={() => handleProcess("c2pa")}
-          >
-            {processing === "c2pa" ? (
-              <><Loader2 className="h-4 w-4 animate-spin" /> Generating Ledger…</>
             ) : (
-              <><Lock className="h-4 w-4" /> Generate C2PA Ledger PDF</>
+              exports.map((record) => (
+                <div
+                  key={record.id}
+                  className="flex items-center gap-2 rounded-md border border-border bg-secondary/50 px-2.5 py-2 group/export"
+                >
+                  <div className="h-6 w-6 rounded bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                    {TYPE_ICONS[record.type] ?? <FileVideo className="h-3 w-3" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-mono font-semibold truncate">{record.label}</p>
+                    <p className="text-[8px] font-mono text-muted-foreground/50 truncate">
+                      {record.fileName} · {format(record.timestamp, "h:mm a")}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 shrink-0 opacity-0 group-hover/export:opacity-100 transition-opacity"
+                    onClick={() => triggerDownload(record)}
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))
             )}
-          </Button>
-        </div>
+          </div>
+        </ScrollArea>
+
+        {exports.length > 0 && (
+          <div className="border-t border-border px-2 py-2">
+            <Button variant="ghost" size="sm" className="w-full gap-1 text-[9px] text-muted-foreground h-7" onClick={() => setExports([])}>
+              <Trash2 className="h-3 w-3" /> Clear All
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
