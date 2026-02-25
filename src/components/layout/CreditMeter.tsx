@@ -145,7 +145,7 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
                   className="h-6 px-2 text-[10px] font-bold uppercase tracking-wider"
                   onClick={() => setPeriod(p)}
                 >
-                  {p === "week" ? "Wk" : p === "month" ? "Mo" : "Yr"}
+                  {p === "week" ? "Week" : p === "month" ? "Month" : "Year"}
                 </Button>
               ))}
             </div>
