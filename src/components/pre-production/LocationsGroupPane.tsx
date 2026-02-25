@@ -59,7 +59,11 @@ const LocationsGroupPane = ({ locations, filmId }: LocationsGroupPaneProps) => {
 
   // Load groups from localStorage
   useEffect(() => {
-    if (filmId) setGroups(loadGroups(filmId));
+    if (filmId) {
+      const loaded = loadGroups(filmId);
+      setGroups(loaded);
+      setCollapsed(new Set(loaded.map((g) => g.id)));
+    }
   }, [filmId]);
 
   // Persist whenever groups change
