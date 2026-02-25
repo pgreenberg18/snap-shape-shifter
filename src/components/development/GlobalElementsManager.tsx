@@ -332,7 +332,49 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
         variants: g.variants.filter((v) => !selected.has(v)),
       })).filter((g) => g.variants.length > 0);
       cat.groups = [...cat.groups, newGroup];
-      return { ...prev, [activeCategory]: cat };
+
+      const updated = { ...prev, [activeCategory]: cat };
+
+      // When characters are merged, also consolidate their wardrobe groups
+      if (activeCategory === "characters") {
+        const mergedCharNames = new Set(items.map((n) => n.toUpperCase()));
+        const parentUpper = mergeParentName.trim().toUpperCase();
+        mergedCharNames.add(parentUpper);
+
+        const wardrobe = { ...updated.wardrobe };
+        const consolidatedVariants: string[] = [];
+        const keptGroups: ElementGroup[] = [];
+
+        for (const wg of wardrobe.groups) {
+          if (mergedCharNames.has(wg.parentName.toUpperCase())) {
+            consolidatedVariants.push(...wg.variants);
+          } else {
+            keptGroups.push(wg);
+          }
+        }
+
+        // Also pull matching ungrouped wardrobe items
+        const remainingUngrouped: string[] = [];
+        for (const item of wardrobe.ungrouped) {
+          const upper = item.toUpperCase();
+          if ([...mergedCharNames].some((cn) => upper.startsWith(cn + " ") || upper.startsWith(cn + "'S ") || upper.startsWith(cn + "S ") || upper.startsWith(cn + " - ") || upper.startsWith(cn + ": "))) {
+            consolidatedVariants.push(item);
+          } else {
+            remainingUngrouped.push(item);
+          }
+        }
+
+        if (consolidatedVariants.length > 0) {
+          const parentLabel = mergeParentName.trim().charAt(0).toUpperCase() + mergeParentName.trim().slice(1).toLowerCase();
+          keptGroups.push({ id: uid(), parentName: parentLabel, variants: consolidatedVariants });
+        }
+
+        wardrobe.groups = keptGroups;
+        wardrobe.ungrouped = remainingUngrouped;
+        updated.wardrobe = wardrobe;
+      }
+
+      return updated;
     });
 
     clearSelection();
