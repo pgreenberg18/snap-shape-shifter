@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useHelp } from "@/components/help/HelpPanel";
 import { useAuth } from "@/hooks/useAuth";
+import AdminPanel, { isAdminUser } from "@/components/admin/AdminPanel";
 
 const Projects = () => {
   const navigate = useNavigate();
@@ -215,7 +216,9 @@ const Projects = () => {
                 </DialogContent>
               </Dialog>
             </div>
-          </div>
+        </div>
+
+          {isAdminUser(user?.email) && <AdminPanel />}
         </div>
 
 
