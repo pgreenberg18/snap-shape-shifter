@@ -167,9 +167,10 @@ type Tab = "sound" | "color" | "score" | "fx";
 
 interface PostProductionSidebarProps {
   onInsertMusicClip?: (label: string) => void;
+  onFileImport?: (file: File, tab: string, category: string) => void;
 }
 
-const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps) => {
+const PostProductionSidebar = ({ onInsertMusicClip, onFileImport }: PostProductionSidebarProps) => {
   const [tab, setTab] = useState<Tab>("sound");
   const [triState, setTriState] = useState<TriState>("auto");
   const [composerTriState, setComposerTriState] = useState<TriState>("auto");
@@ -193,6 +194,8 @@ const PostProductionSidebar = ({ onInsertMusicClip }: PostProductionSidebarProps
   };
 
   const handleFileImport = (file: File, category: string) => {
+    const importTab = tab;
+    onFileImport?.(file, importTab, category);
     toast.success(`Imported "${file.name}" to ${category}`);
   };
 

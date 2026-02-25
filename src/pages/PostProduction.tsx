@@ -34,10 +34,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Play, Film, Music, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown } from "lucide-react";
+import { Play, Film, Music, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 type Clip = Tables<"post_production_clips">;
+
+export type ImportedFile = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  tab: string;
+  category: string;
+  importedAt: string;
+};
 
 /* ── Track-based clip colors ── */
 const getClipColor = (track: string): string => {
@@ -153,6 +164,26 @@ const PostProduction = () => {
   const { data: clipsData, isLoading: clipsLoading } = useTimelineClips();
   const [vfxClip, setVfxClip] = useState<Clip | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Track | null>(null);
+  const [importedFiles, setImportedFiles] = useState<ImportedFile[]>([]);
+  const [activeImportTab, setActiveImportTab] = useState<string>("sound");
+
+  const handleFileImport = useCallback((file: File, tab: string, category: string) => {
+    const imported: ImportedFile = {
+      id: `imp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      tab,
+      category,
+      importedAt: new Date().toISOString(),
+    };
+    setImportedFiles((prev) => [...prev, imported]);
+    setActiveImportTab(tab);
+  }, []);
+
+  const removeImportedFile = useCallback((id: string) => {
+    setImportedFiles((prev) => prev.filter((f) => f.id !== id));
+  }, []);
 
   const { state, setState, undo, redo, canUndo, canRedo } = useUndoRedo({
     tracks: INITIAL_TRACKS,
@@ -224,20 +255,86 @@ const PostProduction = () => {
       <div className="flex-1 flex flex-col min-w-0">
       {/* Top Half */}
       <div className="flex flex-[5] min-h-0">
-        {/* Media Bin */}
-        <div className="w-1/3 border-r border-border p-4 overflow-y-auto">
-          <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Media Bin</h3>
-          <div className="space-y-2">
-            {shotsData?.map((shot) => (
-              <div key={shot.id} className="rounded-lg border border-border bg-secondary p-3 cinema-inset">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-mono text-muted-foreground">SC{shot.scene_number}</span>
-                  <span className="text-[10px] text-muted-foreground">{shot.camera_angle}</span>
-                </div>
-                <p className="mt-1 text-xs text-foreground/80 line-clamp-2">{shot.prompt_text}</p>
-              </div>
-            ))}
-          </div>
+        {/* Media Bin + Imported Files */}
+        <div className="w-1/3 border-r border-border flex flex-col overflow-hidden">
+          <Tabs value={activeImportTab} onValueChange={setActiveImportTab} className="flex flex-col h-full">
+            <div className="px-3 pt-3 pb-0 shrink-0">
+              <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Media Bin</h3>
+              <TabsList className="w-full h-8 bg-secondary/60 border border-border/50 p-0.5">
+                <TabsTrigger value="shots" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <Film className="h-3 w-3" /> Shots
+                </TabsTrigger>
+                <TabsTrigger value="sound" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <AudioWaveform className="h-3 w-3" /> Sound
+                </TabsTrigger>
+                <TabsTrigger value="color" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <Palette className="h-3 w-3" /> Color
+                </TabsTrigger>
+                <TabsTrigger value="score" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <Music2 className="h-3 w-3" /> Score
+                </TabsTrigger>
+                <TabsTrigger value="fx" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <Wand2 className="h-3 w-3" /> FX
+                </TabsTrigger>
+              </TabsList>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {/* Shots tab */}
+              <TabsContent value="shots" className="mt-0 space-y-2">
+                {shotsData?.map((shot) => (
+                  <div key={shot.id} className="rounded-lg border border-border bg-secondary p-3 cinema-inset">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-muted-foreground">SC{shot.scene_number}</span>
+                      <span className="text-[10px] text-muted-foreground">{shot.camera_angle}</span>
+                    </div>
+                    <p className="mt-1 text-xs text-foreground/80 line-clamp-2">{shot.prompt_text}</p>
+                  </div>
+                ))}
+              </TabsContent>
+
+              {/* Imported file tabs */}
+              {(["sound", "color", "score", "fx"] as const).map((tabKey) => {
+                const tabFiles = importedFiles.filter((f) => f.tab === tabKey);
+                const FileIcon = tabKey === "sound" || tabKey === "score" ? FileAudio : tabKey === "fx" ? FileVideo : FileImage;
+                return (
+                  <TabsContent key={tabKey} value={tabKey} className="mt-0 space-y-2">
+                    {tabFiles.length === 0 ? (
+                      <div className="text-center py-8">
+                        <FileIcon className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-[11px] text-muted-foreground/50 font-mono">
+                          No files imported yet.
+                        </p>
+                        <p className="text-[9px] text-muted-foreground/40 font-mono mt-1">
+                          Use the {tabKey === "sound" ? "Sound" : tabKey === "color" ? "Color" : tabKey === "score" ? "Score" : "FX"} panel to import files.
+                        </p>
+                      </div>
+                    ) : (
+                      tabFiles.map((f) => (
+                        <div key={f.id} className="rounded-lg border border-border bg-secondary/60 p-3 cinema-inset group">
+                          <div className="flex items-center gap-2">
+                            <FileIcon className="h-4 w-4 text-primary/60 shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[11px] font-mono text-foreground/90 truncate">{f.name}</p>
+                              <p className="text-[9px] font-mono text-muted-foreground/50">
+                                {(f.size / 1024).toFixed(1)} KB · {f.category}
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => removeImportedFile(f.id)}
+                              className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-destructive transition-all p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+                );
+              })}
+            </div>
+          </Tabs>
         </div>
 
         {/* Playback Monitor */}
@@ -354,6 +451,7 @@ const PostProduction = () => {
       </div>
       {/* Right Sidebar */}
       <PostProductionSidebar
+        onFileImport={handleFileImport}
         onInsertMusicClip={(label) => {
           const musicTrack = tracks.find((t) => t.id === "audio4");
           if (!musicTrack) return;
