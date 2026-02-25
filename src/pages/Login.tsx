@@ -43,7 +43,7 @@ const Login = () => {
             <Film className="h-10 w-10 text-primary" />
           </div>
           <h1 className="font-display text-4xl font-bold tracking-tight">
-            AI Film Studio
+            Virtual Film Studio
           </h1>
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
             Direct your vision. From script to screen, powered by artificial intelligence.
@@ -63,7 +63,7 @@ const Login = () => {
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex flex-col items-center gap-3 mb-4">
             <Film className="h-10 w-10 text-primary" />
-            <h1 className="font-display text-2xl font-bold">AI Film Studio</h1>
+            <h1 className="font-display text-2xl font-bold">Virtual Film Studio</h1>
           </div>
 
           <div>

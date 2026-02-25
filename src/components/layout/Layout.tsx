@@ -185,17 +185,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
         {/* Top Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-6">
           <div className="flex items-center gap-2">
-            <h1 className="font-display text-base font-semibold tracking-tight">
-              {film?.title ?? "Loading…"}
-            </h1>
-            {film?.version_name && (
-              <span className="text-xs text-muted-foreground">
-                — {film.version_name}
-              </span>
-            )}
+            <Film className="h-4 w-4 text-primary" />
+            <span className="font-display text-sm font-bold tracking-tight text-foreground">
+              Virtual Film Studio
+            </span>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             {isAnalyzing && (
               <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
                 <Loader2 className="h-3 w-3 animate-spin" /> Analyzing…
@@ -204,6 +200,19 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
               Credits: {film?.credits?.toLocaleString() ?? "—"}
             </span>
+            <button
+              onClick={() => navigate(`/projects/${projectId}`)}
+              className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+              title="View versions"
+            >
+              <Clapperboard className="h-3.5 w-3.5 text-primary" />
+              <span className="font-display truncate max-w-[200px]">
+                {film?.title ?? "Loading…"}
+              </span>
+              {film?.version_name && (
+                <span className="text-muted-foreground">— {film.version_name}</span>
+              )}
+            </button>
           </div>
         </header>
 

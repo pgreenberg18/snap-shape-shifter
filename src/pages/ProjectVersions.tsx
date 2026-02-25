@@ -333,6 +333,10 @@ const ProjectVersions = () => {
         <header className="border-b border-border bg-card px-8 py-6">
           <div className="flex items-center gap-4">
             <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Film className="h-4 w-4 text-primary" />
+                <span className="text-xs font-display font-semibold text-muted-foreground tracking-wide uppercase">Virtual Film Studio</span>
+              </div>
               <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
                 {project?.title || "Loading…"}
               </h1>
