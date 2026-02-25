@@ -201,9 +201,9 @@ const PostProductionSidebar = ({ onInsertMusicClip, onFileImport }: PostProducti
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "sound", label: "Sound", icon: AudioWaveform },
-    { id: "color", label: "Color", icon: Palette },
     { id: "score", label: "Score", icon: Music2 },
     { id: "fx", label: "FX", icon: Wand2 },
+    { id: "color", label: "Color", icon: Palette },
   ];
 
   return (
