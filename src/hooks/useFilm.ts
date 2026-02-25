@@ -159,6 +159,7 @@ export const useBreakdownAssets = () => {
       const locationSet = new Set<string>();
       const locationDescMap = new Map<string, string>();
       const propSet = new Set<string>();
+      const propContextMap = new Map<string, { scenes: string[]; locations: string[]; characters: Set<string> }>();
       const wardrobeMap = new Map<string, string>();
       const vehicleSet = new Set<string>();
 
@@ -193,8 +194,15 @@ export const useBreakdownAssets = () => {
           if (s.mood && typeof s.mood === "string") meta.moods.add(s.mood);
         }
 
-        // Props
+        // Props — collect with scene context
         if (Array.isArray(s.key_objects)) {
+          const sceneLocation = s.scene_heading ? s.scene_heading.trim()
+            .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
+            .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
+            .trim() : "";
+          const sceneChars: string[] = Array.isArray(s.characters) ? s.characters : [];
+          const sceneDesc: string = s.description || "";
+
           for (const p of s.key_objects) {
             if (typeof p === "string" && p.length > 1) {
               const lower = p.toLowerCase();
@@ -204,6 +212,13 @@ export const useBreakdownAssets = () => {
                 // skip
               } else {
                 propSet.add(p);
+                if (!propContextMap.has(p)) {
+                  propContextMap.set(p, { scenes: [], locations: [], characters: new Set() });
+                }
+                const ctx = propContextMap.get(p)!;
+                if (sceneDesc) ctx.scenes.push(sceneDesc);
+                if (sceneLocation) ctx.locations.push(sceneLocation);
+                for (const c of sceneChars) ctx.characters.add(c);
               }
             }
           }
@@ -286,10 +301,34 @@ export const useBreakdownAssets = () => {
         locationDescMap.set(loc, desc);
       }
 
+      // Build prop descriptions from scene context
+      const propDescMap: Record<string, string> = {};
+      for (const prop of propSet) {
+        const ctx = propContextMap.get(prop);
+        const parts: string[] = [];
+        if (ctx) {
+          const chars = [...ctx.characters];
+          if (chars.length > 0) parts.push("Used by " + chars.slice(0, 3).join(", "));
+          const uniqueLocs = [...new Set(ctx.locations)];
+          if (uniqueLocs.length > 0) parts.push("Found in " + uniqueLocs.slice(0, 2).join(", "));
+          if (ctx.scenes.length > 0) {
+            // Pick shortest scene description as a concise context snippet
+            const snippet = ctx.scenes.sort((a, b) => a.length - b.length)[0];
+            if (snippet.length <= 120) {
+              parts.push(snippet);
+            } else {
+              parts.push(snippet.slice(0, 117) + "…");
+            }
+          }
+        }
+        propDescMap[prop] = parts.length > 0 ? parts.join(". ") : prop;
+      }
+
       return {
         locations: sortedLocations,
         locationDescriptions: Object.fromEntries(locationDescMap),
         props: [...propSet].sort(),
+        propDescriptions: propDescMap,
         wardrobe: [...wardrobeMap.keys()].map((k) => {
           const [character, clothing] = k.split("::");
           return { character, clothing };
