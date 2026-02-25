@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireAuth, isResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,6 +159,9 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authResult = await requireAuth(req);
+    if (isResponse(authResult)) return authResult;
+
     const { shot_id } = await req.json();
     if (!shot_id) {
       return new Response(
