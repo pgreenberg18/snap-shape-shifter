@@ -7,6 +7,9 @@ import Layout from "@/components/layout/Layout";
 import { HelpProvider } from "@/components/help/HelpPanel";
 import HelpPanel from "@/components/help/HelpPanel";
 import { AuthProvider } from "@/hooks/useAuth";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Login from "@/pages/Login";
+import Signup from "@/pages/Signup";
 import Projects from "@/pages/Projects";
 import ProjectVersions from "@/pages/ProjectVersions";
 import Development from "@/pages/Development";
@@ -35,21 +38,23 @@ const App = () => (
           <BrowserRouter>
             <HelpPanel />
             <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
               <Route path="/" element={<Navigate to="/projects" replace />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/projects/:projectId" element={<ProjectVersions />} />
+              <Route path="/projects" element={<ProtectedRoute><Projects /></ProtectedRoute>} />
+              <Route path="/projects/:projectId" element={<ProtectedRoute><ProjectVersions /></ProtectedRoute>} />
 
               {/* Version-scoped phase routes */}
-              <Route path="/projects/:projectId/versions/:versionId/development" element={<VersionLayout><Development /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<VersionLayout><PreProduction /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/production" element={<VersionLayout><Production /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<VersionLayout><PostProduction /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/release" element={<VersionLayout><Release /></VersionLayout>} />
-              <Route path="/projects/:projectId/versions/:versionId/settings" element={<VersionLayout><VersionSettings /></VersionLayout>} />
+              <Route path="/projects/:projectId/versions/:versionId/development" element={<ProtectedRoute><VersionLayout><Development /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/pre-production" element={<ProtectedRoute><VersionLayout><PreProduction /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/production" element={<ProtectedRoute><VersionLayout><Production /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/post-production" element={<ProtectedRoute><VersionLayout><PostProduction /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/release" element={<ProtectedRoute><VersionLayout><Release /></VersionLayout></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><VersionLayout><VersionSettings /></VersionLayout></ProtectedRoute>} />
 
               {/* Global settings (API keys) */}
-              <Route path="/settings" element={<SettingsIntegrations />} />
-              <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<VersionLayout><GlobalAssets /></VersionLayout>} />
+              <Route path="/settings" element={<ProtectedRoute><SettingsIntegrations /></ProtectedRoute>} />
+              <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<ProtectedRoute><VersionLayout><GlobalAssets /></VersionLayout></ProtectedRoute>} />
 
               {/* Legacy redirects */}
               <Route path="/development" element={<Navigate to="/projects" replace />} />
