@@ -100,17 +100,6 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     return cutIdx ? name.substring(0, cutIdx).trim() : name.trim();
   });
 
-  // Strip location descriptions and INT/EXT prefixes, time of day — keep only the slugline location name
-  const locationNames = extract(["recurring_locations"]).map((loc) => {
-    // Remove descriptors after " – " or " - "
-    let name = loc.replace(/\s*[–—-]\s+.*$/, "").trim();
-    // Strip INT./EXT./I/E. prefixes
-    name = name.replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "").trim();
-    // Strip time of day suffixes
-    name = name.replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "").trim();
-    return name;
-  }).filter(Boolean);
-
   // Auto-group wardrobe by character name
   const wardrobeItems = extract(["recurring_wardrobe"]);
   const wardrobeGroups: ElementGroup[] = [];
@@ -118,7 +107,6 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   const wardrobeByChar = new Map<string, string[]>();
 
   for (const item of wardrobeItems) {
-    // Try to extract character name: "JOHN - blue suit", "JOHN: casual wear", "John's lab coat"
     const dashMatch = item.match(/^([A-Z][A-Za-z'\s]+?)\s*[-–—:]\s+(.+)$/);
     const possessiveMatch = item.match(/^([A-Z][A-Za-z'\s]+?)'s\s+(.+)$/i);
     const charName = dashMatch?.[1]?.trim() || possessiveMatch?.[1]?.trim().toUpperCase();
@@ -138,58 +126,144 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     }
   }
 
-  // Auto-group locations by shared root (e.g., "Hospital Room" + "Hospital Hallway" → "Hospital")
-  const uniqueLocations = [...new Set(locationNames)];
-  const locationGroups: ElementGroup[] = [];
-  const locationUngrouped: string[] = [];
-  const locationUsed = new Set<string>();
+  // ── Location processing ──────────────────────────────────
+  const VEHICLE_PATTERNS = /^(?:CAR|HOWARD'S CAR|COP CAR|LARRY'S CAR|RACHEL'S CAR|CORVETTE|CARGO VAN|VAN|TRUCK|BUS|SUV|SEDAN|MOTORCYCLE|AMBULANCE|TAXI|LIMOUSINE|CONVERTIBLE)$/i;
+  const VEHICLE_WORDS = /\b(car|truck|van|corvette|sedan|motorcycle|ambulance|taxi|limousine|convertible|suv)\b/i;
 
-  // Extract root words and find clusters
-  const getLocationRoot = (name: string): string[] => {
-    // Split into significant words, ignoring common suffixes
-    const COMMON_SUFFIXES = new Set(["room", "hallway", "corridor", "lobby", "entrance", "exit", "office", "floor", "wing", "ward", "lot", "area", "yard", "driveway", "porch", "balcony", "rooftop", "roof", "basement", "attic", "garage", "garden", "backyard", "front", "back", "side", "interior", "exterior", "upper", "lower", "main", "parking", "waiting", "living", "dining", "bed", "bath", "kitchen", "bedroom", "bathroom"]);
-    return name.split(/[\s/]+/).map(w => w.toUpperCase()).filter(w => w.length > 2 && !COMMON_SUFFIXES.has(w.toLowerCase()));
+  const rawLocations = extract(["recurring_locations"]);
+
+  // Step 1: Split combined sluglines (separated by /)
+  const splitLocations: string[] = [];
+  for (const loc of rawLocations) {
+    // Split on " / " but not on sub-location dashes like "WELLS' HOME - KITCHEN"
+    const parts = loc.split(/\s*\/\s*/);
+    for (const part of parts) {
+      const cleaned = part
+        .replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "")
+        .replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "")
+        .trim();
+      if (cleaned) splitLocations.push(cleaned);
+    }
+  }
+
+  // Step 2: Normalize for deduplication
+  const normalizeLocation = (name: string): string => {
+    let n = name.toUpperCase().trim();
+    // Normalize separators: ". " and "  " → " - "
+    n = n.replace(/\.\s+/g, " - ").replace(/\s{2,}/g, " ");
+    // Normalize possessives: ' and ' → '
+    n = n.replace(/['']/g, "'");
+    // WELLS' HOUSE → WELLS' HOME (normalize variant)
+    n = n.replace(/\bHOUSE\b/g, "HOME");
+    // UNIVERSITY LABORATORY → UNIVERSITY - LABORATORY, UNIVERSITY LAB → UNIVERSITY - LABORATORY
+    n = n.replace(/\bLAB\b/g, "LABORATORY");
+    // Normalize "UNIVERSITY LABORATORY" → "UNIVERSITY - LABORATORY" when no separator exists
+    // but only if it's clearly a sub-location pattern
+    return n;
   };
 
-  // Group locations that share a significant root word
-  for (let i = 0; i < uniqueLocations.length; i++) {
-    if (locationUsed.has(uniqueLocations[i])) continue;
-    const rootsI = getLocationRoot(uniqueLocations[i]);
-    const cluster: string[] = [uniqueLocations[i]];
+  // Deduplicate: keep the most descriptive version of each normalized form
+  const locByNorm = new Map<string, string>();
+  for (const loc of splitLocations) {
+    const norm = normalizeLocation(loc);
+    const existing = locByNorm.get(norm);
+    if (!existing || loc.length > existing.length) {
+      locByNorm.set(norm, loc);
+    }
+  }
 
-    for (let j = i + 1; j < uniqueLocations.length; j++) {
-      if (locationUsed.has(uniqueLocations[j])) continue;
-      const rootsJ = getLocationRoot(uniqueLocations[j]);
-      // Check if they share a significant root word (at least 4 chars to avoid false matches)
-      const shared = rootsI.find(r => r.length >= 4 && rootsJ.includes(r));
-      if (shared) {
-        cluster.push(uniqueLocations[j]);
-        locationUsed.add(uniqueLocations[j]);
+  // Step 3: Filter out vehicles
+  const dedupedLocations = [...locByNorm.values()].filter(loc => {
+    const upper = loc.toUpperCase().trim();
+    if (VEHICLE_PATTERNS.test(upper)) return false;
+    // Filter entries that are purely a vehicle reference (e.g. "HOWARD'S CAR")
+    // but keep compound locations like "MEDICAL BUILDING - PARKING LOT"
+    const dashIdx = upper.indexOf(" - ");
+    const baseName = dashIdx > 0 ? upper.substring(0, dashIdx).trim() : upper;
+    if (VEHICLE_WORDS.test(baseName) && baseName.split(/\s+/).length <= 3) return false;
+    return true;
+  });
+
+  // Step 4: Group by shared base location
+  // Extract the base/root of a location: "WELLS' HOME - KITCHEN" → "WELLS' HOME"
+  const getLocationBase = (name: string): string => {
+    const upper = name.toUpperCase().replace(/['']/g, "'").replace(/\.\s+/g, " - ");
+    // Normalize HOUSE→HOME
+    const normalized = upper.replace(/\bHOUSE\b/g, "HOME");
+    // Get base before first separator
+    const sepMatch = normalized.match(/^(.+?)\s*[-–—]\s+/);
+    if (sepMatch) return sepMatch[1].trim();
+    // For multi-word locations, try to find a groupable root
+    // e.g., "UNIVERSITY PARKING LOT" → check if "UNIVERSITY" is a base
+    return normalized.trim();
+  };
+
+  // Build a map of base → locations
+  const baseMap = new Map<string, string[]>();
+  const COMMON_SUFFIXES_LOC = new Set(["ROOM", "HALLWAY", "CORRIDOR", "LOBBY", "ENTRANCE", "EXIT", "OFFICE", "FLOOR", "LOT", "AREA", "PARKING LOT", "STAIR WELL", "SIDE STREET", "FRONT ENTRANCE", "SIDE ENTRANCE", "BACK DECK", "DECK"]);
+
+  for (const loc of dedupedLocations) {
+    const base = getLocationBase(loc);
+    // Try to find if this location's base matches or is contained in an existing base
+    let matched = false;
+    for (const [existingBase, items] of baseMap) {
+      // Check if bases are essentially the same or one contains the other
+      if (existingBase === base ||
+          existingBase.startsWith(base + " ") || base.startsWith(existingBase + " ") ||
+          existingBase.startsWith(base + "'") || base.startsWith(existingBase + "'")) {
+        // Use the shorter base as the canonical one
+        const canonBase = existingBase.length <= base.length ? existingBase : base;
+        if (canonBase !== existingBase) {
+          const items2 = baseMap.get(existingBase)!;
+          baseMap.delete(existingBase);
+          baseMap.set(canonBase, items2);
+        }
+        baseMap.get(canonBase)!.push(loc);
+        matched = true;
+        break;
       }
     }
+    if (!matched) {
+      if (!baseMap.has(base)) baseMap.set(base, []);
+      baseMap.get(base)!.push(loc);
+    }
+  }
 
-    if (cluster.length >= 2) {
-      // Find the best parent name (shortest shared root word)
-      const allRoots = cluster.flatMap(getLocationRoot);
-      const rootCounts = new Map<string, number>();
-      for (const r of allRoots) if (r.length >= 4) rootCounts.set(r, (rootCounts.get(r) || 0) + 1);
-      const bestRoot = [...rootCounts.entries()]
-        .filter(([, count]) => count >= cluster.length)
-        .sort((a, b) => b[1] - a[1] || a[0].length - b[0].length)[0]?.[0];
-      const parentName = bestRoot
-        ? bestRoot.charAt(0) + bestRoot.slice(1).toLowerCase()
-        : cluster[0];
-      locationGroups.push({ id: uid(), parentName, variants: cluster });
-      locationUsed.add(uniqueLocations[i]);
+  // Now also try to merge bases that share a significant word (e.g., "UNIVERSITY" groups with "UNIVERSITY PARKING LOT")
+  const bases = [...baseMap.keys()];
+  for (let i = 0; i < bases.length; i++) {
+    for (let j = i + 1; j < bases.length; j++) {
+      if (!baseMap.has(bases[i]) || !baseMap.has(bases[j])) continue;
+      const a = bases[i], b = bases[j];
+      // Check if one base starts with the other (e.g., "HOSPITAL" matches "HOSPITAL CORRIDOR")
+      if (a.startsWith(b + " ") || a.startsWith(b + "'") || b.startsWith(a + " ") || b.startsWith(a + "'") || a === b) {
+        const canon = a.length <= b.length ? a : b;
+        const other = canon === a ? b : a;
+        const merged = [...baseMap.get(canon)!, ...baseMap.get(other)!];
+        baseMap.delete(other);
+        baseMap.set(canon, merged);
+      }
+    }
+  }
+
+  const locationGroups: ElementGroup[] = [];
+  const locationUngrouped: string[] = [];
+
+  for (const [base, items] of baseMap) {
+    // Deduplicate within group
+    const unique = [...new Set(items)];
+    if (unique.length >= 2) {
+      const parentName = base.charAt(0) + base.slice(1).toLowerCase().replace(/'/g, "'");
+      locationGroups.push({ id: uid(), parentName, variants: unique });
     } else {
-      locationUngrouped.push(uniqueLocations[i]);
+      locationUngrouped.push(...unique);
     }
   }
 
   // Filter vehicles and locations out of props, then deduplicate similar items
-  const VEHICLE_PATTERNS = /\b(car|truck|van|bus|suv|sedan|pickup|motorcycle|bike|bicycle|helicopter|plane|airplane|aircraft|jet|boat|ship|yacht|ambulance|taxi|cab|limousine|limo|convertible|coupe|wagon|minivan|rv|trailer|tractor|forklift|scooter|moped|hovercraft|submarine)\b/i;
+  const VEHICLE_PATTERNS_PROPS = /\b(car|truck|van|bus|suv|sedan|pickup|motorcycle|bike|bicycle|helicopter|plane|airplane|aircraft|jet|boat|ship|yacht|ambulance|taxi|cab|limousine|limo|convertible|coupe|wagon|minivan|rv|trailer|tractor|forklift|scooter|moped|hovercraft|submarine)\b/i;
   const rawProps = extract(["recurring_props"]);
-  const locationNamesUpper = new Set([...uniqueLocations, ...locationUngrouped, ...locationGroups.flatMap(g => g.variants)].map(l => l.toUpperCase()));
+  const locationNamesUpper = new Set([...locationUngrouped, ...locationGroups.flatMap(g => g.variants)].map(l => l.toUpperCase()));
 
   // Step 1: Filter out vehicles and locations
   const filteredProps = rawProps.filter(p => {
@@ -197,7 +271,7 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     // Remove if it matches a known location
     if (locationNamesUpper.has(upper)) return false;
     // Remove if it's clearly a vehicle
-    if (VEHICLE_PATTERNS.test(p)) return false;
+    if (VEHICLE_PATTERNS_PROPS.test(p)) return false;
     return true;
   });
 
