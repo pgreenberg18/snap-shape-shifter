@@ -502,18 +502,19 @@ const SettingsAdmin = () => {
     toast.success("App reset. You have been signed out.");
   };
 
-  const sections = [
-    { id: "your-nda", label: "Your Signed NDA", icon: FileSignature, adminOnly: false },
-    { id: "credit-usage", label: "Credit Usage", icon: Gauge, adminOnly: false },
-    { id: "media-library", label: "Media Library", icon: Image, adminOnly: false },
-    { id: "all-ndas", label: "All Signed NDAs", icon: Users, adminOnly: true },
-    { id: "access-control", label: "Access Control", icon: Shield, adminOnly: true },
-    { id: "downloads", label: "Downloads", icon: Download, adminOnly: true },
-    { id: "login-records", label: "Login Records", icon: Activity, adminOnly: true },
-    { id: "reset-app", label: "Reset App", icon: RotateCcw, adminOnly: false },
+  const userSections = [
+    { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
+    { id: "credit-usage", label: "Credit Usage", icon: Gauge },
+    { id: "media-library", label: "Media Library", icon: Image },
+    { id: "reset-app", label: "Reset App", icon: RotateCcw },
   ];
 
-  const visibleSections = sections.filter((s) => !s.adminOnly || isAdmin);
+  const adminSections = [
+    { id: "all-ndas", label: "All Signed NDAs", icon: Users },
+    { id: "access-control", label: "Access Control", icon: Shield },
+    { id: "downloads", label: "Downloads", icon: Download },
+    { id: "login-records", label: "Login Records", icon: Activity },
+  ];
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -524,13 +525,13 @@ const SettingsAdmin = () => {
             <ArrowLeft className="h-4 w-4" /> Back to Projects
           </Button>
         </div>
-        <div className="p-3">
+        <div className="p-3 flex-1 flex flex-col">
           <h2 className="text-[11px] font-semibold uppercase tracking-wider text-primary px-3 mb-2">
             <Settings className="inline h-3 w-3 mr-1" />
             Settings
           </h2>
           <nav className="space-y-0.5">
-            {visibleSections.map((s) => (
+            {userSections.map((s) => (
               <button
                 key={s.id}
                 onClick={() => setActiveSection(s.id)}
@@ -542,14 +543,35 @@ const SettingsAdmin = () => {
               >
                 <s.icon className="h-4 w-4" />
                 {s.label}
-                {s.adminOnly && (
-                  <span className="ml-auto text-[9px] uppercase tracking-wider bg-primary/10 text-primary px-1.5 py-0.5 rounded">
-                    Admin
-                  </span>
-                )}
               </button>
             ))}
           </nav>
+
+          {isAdmin && (
+            <>
+              <div className="border-t border-border my-4" />
+              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
+                <Shield className="inline h-3 w-3 mr-1" />
+                System Management
+              </h2>
+              <nav className="space-y-0.5">
+                {adminSections.map((s) => (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSection(s.id)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                      activeSection === s.id
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    }`}
+                  >
+                    <s.icon className="h-4 w-4" />
+                    {s.label}
+                  </button>
+                ))}
+              </nav>
+            </>
+          )}
         </div>
       </aside>
 
