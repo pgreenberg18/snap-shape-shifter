@@ -1,13 +1,19 @@
 import { useState, useCallback, useRef } from "react";
-import { Film, Camera, ChevronRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Camera } from "lucide-react";
 import { useFilmId } from "@/hooks/useFilm";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import ShotViewport from "@/components/production/ShotViewport";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import SceneNavigator from "@/components/production/SceneNavigator";
+import ScriptWorkspace from "@/components/production/ScriptWorkspace";
+import ShotList from "@/components/production/ShotList";
+import type { Shot } from "@/components/production/ShotList";
+import ShotBuilder from "@/components/production/ShotBuilder";
+import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMonitor";
+import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
 
+/* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
   useQuery({
     queryKey: ["script-analysis", filmId],
@@ -25,29 +31,98 @@ const useLatestAnalysis = (filmId: string | undefined) =>
     enabled: !!filmId,
   });
 
+const useSceneText = (filmId: string | undefined, sceneNumber: number | undefined) =>
+  useQuery({
+    queryKey: ["scene-text", filmId, sceneNumber],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("parsed_scenes")
+        .select("raw_text, characters, key_objects, wardrobe, location_name")
+        .eq("film_id", filmId!)
+        .eq("scene_number", sceneNumber!)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId && sceneNumber != null,
+  });
+
+const useShotsForFilm = (filmId: string | undefined) =>
+  useQuery({
+    queryKey: ["shots", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("shots")
+        .select("*")
+        .eq("film_id", filmId!)
+        .order("scene_number", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!filmId,
+  });
+
 const Production = () => {
   const filmId = useFilmId();
+  const queryClient = useQueryClient();
   const { data: analysis } = useLatestAnalysis(filmId);
+  const { data: allShots = [] } = useShotsForFilm(filmId);
+
   const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
+  const [activeShotId, setActiveShotId] = useState<string | null>(null);
   const [viewportAspect, setViewportAspect] = useState(16 / 9);
   const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [takes, setTakes] = useState<Take[]>(EMPTY_TAKES);
+  const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const isDragging = useRef(false);
 
-  const handleAspectChange = useCallback((ratio: number) => {
-    setViewportAspect(ratio);
-  }, []);
+  const scenes: any[] =
+    analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
+      ? (analysis.scene_breakdown as any[])
+      : [];
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const activeScene = activeSceneIdx !== null ? scenes[activeSceneIdx] : null;
+  const activeSceneNumber = activeScene?.scene_number ?? (activeSceneIdx !== null ? activeSceneIdx + 1 : undefined);
+
+  const { data: sceneTextData } = useSceneText(filmId, activeSceneNumber);
+
+  // Shots for current scene
+  const sceneShots: Shot[] = activeSceneNumber
+    ? allShots.filter((s) => s.scene_number === activeSceneNumber)
+    : [];
+
+  // Shot counts per scene
+  const shotCounts: Record<number, number> = {};
+  allShots.forEach((s) => {
+    shotCounts[s.scene_number] = (shotCounts[s.scene_number] || 0) + 1;
+  });
+
+  const activeShot = sceneShots.find((s) => s.id === activeShotId) ?? null;
+
+  // Scene elements from parsed data
+  const sceneElements = sceneTextData ? {
+    location: sceneTextData.location_name ?? undefined,
+    characters: sceneTextData.characters as string[] | undefined,
+    props: sceneTextData.key_objects as string[] | undefined,
+    wardrobe: Array.isArray(sceneTextData.wardrobe)
+      ? (sceneTextData.wardrobe as any[]).map((w: any) => typeof w === "string" ? w : w?.description ?? "").filter(Boolean)
+      : undefined,
+  } : undefined;
+
+  const handleAspectChange = useCallback((ratio: number) => setViewportAspect(ratio), []);
+
+  // Sidebar resize
+  const handleResizeStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     isDragging.current = true;
     const startX = e.clientX;
     const startWidth = sidebarWidth;
     const maxWidth = window.innerWidth * 0.3;
-
     const onMouseMove = (ev: MouseEvent) => {
       if (!isDragging.current) return;
-      const newWidth = Math.max(200, Math.min(maxWidth, startWidth + (ev.clientX - startX)));
-      setSidebarWidth(newWidth);
+      setSidebarWidth(Math.max(200, Math.min(maxWidth, startWidth + (ev.clientX - startX))));
     };
     const onMouseUp = () => {
       isDragging.current = false;
@@ -58,133 +133,176 @@ const Production = () => {
     document.addEventListener("mouseup", onMouseUp);
   }, [sidebarWidth]);
 
-  const scenes: any[] =
-    analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
-      ? (analysis.scene_breakdown as any[])
-      : [];
+  // Create shot mutation
+  const createShot = useMutation({
+    mutationFn: async ({ text, characters }: { text: string; characters: string[] }) => {
+      if (!filmId || !activeSceneNumber) return;
+      const { data, error } = await supabase
+        .from("shots")
+        .insert({
+          film_id: filmId,
+          scene_number: activeSceneNumber,
+          prompt_text: text,
+          camera_angle: null,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["shots", filmId] });
+      if (data) setActiveShotId(data.id);
+    },
+  });
 
-  const activeScene = activeSceneIdx !== null ? scenes[activeSceneIdx] : null;
+  const updateShot = useMutation({
+    mutationFn: async ({ id, updates }: { id: string; updates: { prompt_text?: string; camera_angle?: string } }) => {
+      const { error } = await supabase.from("shots").update(updates).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shots", filmId] }),
+  });
+
+  // Take actions
+  const handleRateTake = (idx: number, rating: number) => {
+    setTakes((prev) => prev.map((t, i) => i === idx ? { ...t, rating } : t));
+  };
+  const handleCircleTake = (idx: number) => {
+    setTakes((prev) => prev.map((t, i) => ({ ...t, circled: i === idx ? !t.circled : false })));
+  };
+  const handleDeleteTake = (idx: number) => {
+    setTakes((prev) => prev.map((t, i) => i === idx ? { ...t, thumbnailUrl: null, rating: 0, circled: false } : t));
+    setActiveTakeIdx((prev) => (prev === idx ? null : prev));
+  };
+
+  // Generation (mock)
+  const handleGenerate = useCallback((isRehearsal: boolean) => {
+    setIsGenerating(true);
+    const emptyIdx = takes.findIndex((t) => !t.thumbnailUrl);
+    const targetIdx = emptyIdx !== -1 ? emptyIdx : takes.length - 1;
+    setTimeout(() => {
+      setTakes((prev) =>
+        prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: `generated-${Date.now()}` } : t)
+      );
+      setActiveTakeIdx(targetIdx);
+      setIsGenerating(false);
+    }, isRehearsal ? 2000 : 3500);
+  }, [takes]);
+
+  // Reset takes when switching shots
+  const handleSelectShot = (id: string) => {
+    setActiveShotId(id);
+    setTakes(EMPTY_TAKES);
+    setActiveTakeIdx(null);
+  };
+
+  const handleSelectScene = (idx: number) => {
+    setActiveSceneIdx(idx);
+    setActiveShotId(null);
+    setTakes(EMPTY_TAKES);
+    setActiveTakeIdx(null);
+  };
 
   return (
-    <div className="flex h-[calc(100vh-64px)]">
-      {/* ── Left: Scene Navigator (25%) ── */}
-      <aside
-        className="border-r border-border bg-card flex flex-col relative"
-        style={{ width: sidebarWidth, minWidth: 200, flexShrink: 0 }}
-      >
-        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-          <Film className="h-4 w-4 text-primary" />
-          <h2 className="font-display text-sm font-bold tracking-wide uppercase text-foreground">
-            Scene Navigator
-          </h2>
-          <span className="ml-auto text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
-            {scenes.length}
-          </span>
-        </div>
-
-        <ScrollArea className="flex-1">
-          {scenes.length === 0 ? (
-            <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-              <p className="font-display font-semibold mb-1">No scenes available</p>
-              <p className="text-xs">Upload and analyze a script in the Development phase first.</p>
-            </div>
-          ) : (
-            <div className="py-1">
-              {scenes.map((scene: any, i: number) => {
-                const isActive = activeSceneIdx === i;
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setActiveSceneIdx(i)}
-                    className={cn(
-                      "w-full text-left px-4 py-2.5 transition-colors border-l-2 group/scene relative overflow-hidden",
-                      isActive
-                        ? "border-l-primary bg-primary/5"
-                        : "border-l-transparent hover:bg-secondary/60"
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        "text-xs font-display font-semibold break-words",
-                        isActive ? "text-primary" : "text-foreground"
-                      )}
-                    >
-                      <span className={cn(
-                        "font-mono text-[10px] mr-1.5",
-                        isActive ? "text-primary" : "text-muted-foreground"
-                      )}>
-                        {scene.scene_number ?? i + 1}.
-                      </span>
-                      {scene.scene_heading || "Untitled Scene"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-none">
-                      {scene.description || `${scene.int_ext || ""} · ${scene.time_of_day || ""}`}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </ScrollArea>
-
-        {/* Resize handle */}
-        <div
-          className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-primary/20 active:bg-primary/30 transition-colors z-10"
-          onMouseDown={handleMouseDown}
+    <TooltipProvider delayDuration={300}>
+      <div className="flex h-[calc(100vh-64px)]">
+        {/* ── LEFT: Scene Navigator ── */}
+        <SceneNavigator
+          scenes={scenes}
+          activeSceneIdx={activeSceneIdx}
+          onSelectScene={handleSelectScene}
+          shotCounts={shotCounts}
+          width={sidebarWidth}
+          onResizeStart={handleResizeStart}
         />
-      </aside>
 
-      {/* ── Center: Shot Construction Zone ── */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        {activeScene ? (
-          <div className="flex-1 flex flex-col">
-            {/* Scene header bar */}
-            <div className="flex items-center gap-3 px-6 py-4 border-b border-border bg-card/60 backdrop-blur-sm">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-mono font-bold">
-                {activeScene.scene_number ?? (activeSceneIdx! + 1)}
-              </span>
-              <div>
-                <h1 className="font-display text-lg font-bold text-foreground">
-                  {activeScene.scene_heading || "Untitled Scene"}
-                </h1>
-                <p className="text-xs text-muted-foreground">
-                  {activeScene.int_ext} · {activeScene.time_of_day}
-                  {activeScene.setting && ` · ${activeScene.setting}`}
+        {/* ── CENTER: Script / Shots / Viewer ── */}
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0">
+          {activeScene ? (
+            <>
+              {/* Scene header */}
+              <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-card/60 backdrop-blur-sm shrink-0">
+                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-mono font-bold">
+                  {activeSceneNumber}
+                </span>
+                <div className="min-w-0">
+                  <h1 className="font-display text-base font-bold text-foreground truncate">
+                    {activeScene.scene_heading || "Untitled Scene"}
+                  </h1>
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {activeScene.int_ext} · {activeScene.time_of_day}
+                    {activeScene.setting && ` · ${activeScene.setting}`}
+                  </p>
+                </div>
+                <div className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded bg-secondary/80 border border-border/50 shrink-0">
+                  <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
+                    {viewportAspect > 2 ? "2.39:1" : "16:9"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Two-column: Left = Script+Shots+Builder, Right = Viewer+TakeBin */}
+              <div className="flex-1 flex min-h-0">
+                {/* Left column: Script → Shot List → Shot Builder */}
+                <div className="w-[380px] min-w-[320px] max-w-[480px] border-r border-border flex flex-col overflow-hidden shrink-0">
+                  <ScriptWorkspace
+                    scene={activeScene}
+                    sceneText={sceneTextData?.raw_text ?? undefined}
+                    onCreateShot={(text, characters) => createShot.mutate({ text, characters })}
+                  />
+                  <ShotList
+                    shots={sceneShots}
+                    activeShotId={activeShotId}
+                    onSelectShot={handleSelectShot}
+                    onAddShot={() => createShot.mutate({ text: "", characters: [] })}
+                  />
+                  <ShotBuilder
+                    shot={activeShot}
+                    scene={activeScene}
+                    sceneElements={sceneElements}
+                    onUpdateShot={(id, updates) => updateShot.mutate({ id, updates })}
+                    onRehearsal={() => handleGenerate(true)}
+                    onRollCamera={() => handleGenerate(false)}
+                    isGenerating={isGenerating}
+                  />
+                </div>
+
+                {/* Right column: Playback Monitor + Take Bin */}
+                <div className="flex-1 flex flex-col overflow-y-auto py-3 min-w-0">
+                  <PlaybackMonitor
+                    aspectRatio={viewportAspect}
+                    takes={takes}
+                    activeTakeIdx={activeTakeIdx}
+                    onSelectTake={setActiveTakeIdx}
+                    onRateTake={handleRateTake}
+                    onCircleTake={handleCircleTake}
+                    onDeleteTake={handleDeleteTake}
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center space-y-3">
+                <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="font-display text-xl font-bold text-foreground">
+                  Select a Scene to Begin
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-sm">
+                  Choose a scene from the navigator to start building shots, camera angles, and AI generation prompts.
                 </p>
               </div>
-              {/* Aspect ratio indicator */}
-              <div className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded bg-secondary/80 border border-border/50">
-                <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
-                  {viewportAspect > 2 ? "2.39:1" : "16:9"}
-                </span>
-              </div>
             </div>
+          )}
+        </main>
 
-            {/* Shot Construction Viewport */}
-            <div className="flex-1 overflow-y-auto py-4">
-              <ShotViewport aspectRatio={viewportAspect} />
-            </div>
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="text-center space-y-3">
-              <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
-                <Camera className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h2 className="font-display text-xl font-bold text-foreground">
-                Select a Scene to Begin Shot Construction
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Choose a scene from the navigator to start building shots, camera angles, and AI generation prompts.
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-
-      {/* ── Right: Optic & Sensor Suite ── */}
-      {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />}
-    </div>
+        {/* ── RIGHT: Master Control Deck ── */}
+        {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />}
+      </div>
+    </TooltipProvider>
   );
 };
 
