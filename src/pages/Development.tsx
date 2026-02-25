@@ -5,7 +5,7 @@ import {
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
   Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw,
-  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home,
+  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -282,6 +282,8 @@ const Development = () => {
   const [reviewStats, setReviewStats] = useState<{ approved: number; rejected: number; pending: number } | null>(null);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
+  const [genres, setGenres] = useState<string[]>([]);
+  const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [filmTitle, setFilmTitle] = useState("");
   const [versionName, setVersionName] = useState("");
   const [writers, setWriters] = useState("");
@@ -411,7 +413,8 @@ const Development = () => {
     if (film?.title != null) setFilmTitle(film.title);
     if (film?.version_name != null) setVersionName(film.version_name ?? "");
     if ((film as any)?.writers != null) setWriters((film as any).writers ?? "");
-  }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers]);
+    if ((film as any)?.genres != null) setGenres((film as any).genres ?? []);
+  }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers, (film as any)?.genres]);
 
   /* Auto-scroll to scene from ?scene= query param and open its script */
   useEffect(() => {
@@ -994,65 +997,6 @@ const Development = () => {
           {/* Complete results */}
           {analysis?.status === "complete" && (
             <div className="space-y-6">
-              {/* Visual Summary */}
-              {analysis.visual_summary && (
-                <Collapsible>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Film className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {visualSummaryApproved ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-500" />
-                        )}
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                   <CollapsibleContent>
-                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                      <div className="space-y-2">
-                        <label className="text-xs font-semibold text-foreground block">Visual Summary</label>
-                        <textarea
-                          defaultValue={analysis.visual_summary as string}
-                          placeholder="Describe the overall visual story summary..."
-                          className="w-full min-h-[100px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground leading-relaxed"
-                          style={{ fieldSizing: 'content' } as React.CSSProperties}
-                        />
-                      </div>
-                      <div className="space-y-2 border-t border-border pt-4">
-                        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
-                        <textarea
-                          defaultValue={(analysis.global_elements as any)?.signature_style || ""}
-                          placeholder="Describe the overall visual signature style..."
-                          className="w-full min-h-[80px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground"
-                          style={{ fieldSizing: 'content' } as React.CSSProperties}
-                        />
-                      </div>
-                      <div className="flex justify-end pt-4 border-t border-border">
-                        <Button
-                          size="sm"
-                          variant={visualSummaryApproved ? "default" : "outline"}
-                          className={cn("gap-1.5", visualSummaryApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                          onClick={() => {
-                            const next = !visualSummaryApproved;
-                            setVisualSummaryApproved(next);
-                            persistApproval("visual_summary_approved", next);
-                          }}
-                        >
-                          <ThumbsUp className="h-3 w-3" />
-                          {visualSummaryApproved ? "Approved" : "Approve"}
-                        </Button>
-                      </div>
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
               {/* ── Time Period ── */}
               <Collapsible>
                 <CollapsibleTrigger className="w-full">
@@ -1270,6 +1214,128 @@ const Development = () => {
                 </CollapsibleContent>
               </Collapsible>
 
+              {/* ── Genre ── */}
+              {(() => {
+                const GENRE_OPTIONS = ["Action", "Comedy", "Docu-drama", "Drama", "Horror", "Sci-Fi", "Fantasy", "Animation", "Thriller", "Romance", "Documentary", "Musical", "Western", "Mystery", "Crime", "Adventure", "War"];
+                const availableGenres = GENRE_OPTIONS.filter((g) => !genres.includes(g));
+                const removeGenre = (g: string) => {
+                  const next = genres.filter((x) => x !== g);
+                  setGenres(next);
+                  supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
+                };
+                const addGenre = (g: string) => {
+                  if (genres.includes(g)) return;
+                  const next = [...genres, g];
+                  setGenres(next);
+                  setGenreDropdownOpen(false);
+                  supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
+                };
+                return (
+                  <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Clapperboard className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Genre</h3>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {genres.map((g) => (
+                        <span key={g} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
+                          {g}
+                          <button onClick={() => removeGenre(g)} className="hover:text-destructive transition-colors" disabled={scriptLocked}>
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                      {/* Add genre dropdown */}
+                      {availableGenres.length > 0 && !scriptLocked && (
+                        <div className="relative">
+                          <button
+                            onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
+                          >
+                            <Plus className="h-3 w-3" />
+                            Add
+                          </button>
+                          {genreDropdownOpen && (
+                            <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44 max-h-60 overflow-y-auto">
+                              {availableGenres.map((g) => (
+                                <button
+                                  key={g}
+                                  onClick={() => addGenre(g)}
+                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground"
+                                >
+                                  {g}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {genres.length === 0 && (
+                      <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* Visual Summary */}
+              {analysis.visual_summary && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Film className="h-5 w-5 text-primary" />
+                        <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {visualSummaryApproved ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                        )}
+                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                   <CollapsibleContent>
+                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground block">Visual Summary</label>
+                        <textarea
+                          defaultValue={analysis.visual_summary as string}
+                          placeholder="Describe the overall visual story summary..."
+                          className="w-full min-h-[100px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground leading-relaxed"
+                          style={{ fieldSizing: 'content' } as React.CSSProperties}
+                        />
+                      </div>
+                      <div className="space-y-2 border-t border-border pt-4">
+                        <label className="text-xs font-semibold text-foreground block">Signature Style</label>
+                        <textarea
+                          defaultValue={(analysis.global_elements as any)?.signature_style || ""}
+                          placeholder="Describe the overall visual signature style..."
+                          className="w-full min-h-[80px] text-sm bg-background border border-border rounded-md p-3 resize-y text-foreground placeholder:text-muted-foreground"
+                          style={{ fieldSizing: 'content' } as React.CSSProperties}
+                        />
+                      </div>
+                      <div className="flex justify-end pt-4 border-t border-border">
+                        <Button
+                          size="sm"
+                          variant={visualSummaryApproved ? "default" : "outline"}
+                          className={cn("gap-1.5", visualSummaryApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                          onClick={() => {
+                            const next = !visualSummaryApproved;
+                            setVisualSummaryApproved(next);
+                            persistApproval("visual_summary_approved", next);
+                          }}
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                          {visualSummaryApproved ? "Approved" : "Approve"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
               {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
                 <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
                   <CollapsibleTrigger className="w-full">

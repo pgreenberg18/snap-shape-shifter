@@ -132,9 +132,11 @@ Deno.serve(async (req) => {
 
 3. **Visual Motifs**: List recurring visual motifs, design elements, color themes, or symbolic imagery.
 
-4. **Temporal Analysis**: Analyze the time structure. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
+4. **Genres**: Identify the film's genres from this list ONLY: Action, Comedy, Docu-drama, Drama, Horror, Sci-Fi, Fantasy, Animation, Thriller, Romance, Documentary, Musical, Western, Mystery, Crime, Adventure, War. Pick 1-4 that best fit.
 
-5. **AI Generation Notes**: Practical production notes for AI image/video generation — consistency, character anchors, design elements, effects guidance, lighting rules.
+5. **Temporal Analysis**: Analyze the time structure. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
+
+6. **AI Generation Notes**: Practical production notes for AI image/video generation — consistency, character anchors, design elements, effects guidance, lighting rules.
 
 COMPLETE SCENE BREAKDOWN:
 ${JSON.stringify(sceneSummaries, null, 1)}`;
@@ -173,6 +175,11 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                     items: { type: "string" },
                     description: "Recurring visual motifs, design elements, color themes, or symbolic imagery.",
                   },
+                  genres: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "1-4 genres from: Action, Comedy, Docu-drama, Drama, Horror, Sci-Fi, Fantasy, Animation, Thriller, Romance, Documentary, Musical, Western, Mystery, Crime, Adventure, War.",
+                  },
                   temporal_analysis: {
                     type: "object",
                     properties: {
@@ -208,7 +215,7 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                     description: "Practical production notes for AI generation.",
                   },
                 },
-                required: ["visual_summary", "signature_style", "visual_motifs", "temporal_analysis", "ai_generation_notes"],
+                required: ["visual_summary", "signature_style", "visual_motifs", "genres", "temporal_analysis", "ai_generation_notes"],
                 additionalProperties: false,
               },
             },
@@ -256,6 +263,7 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
       recurring_wardrobe: allWardrobe,
       recurring_props: Array.from(allProps),
       visual_motifs: result.visual_motifs || [],
+      genres: result.genres || [],
       signature_style: result.signature_style || "",
       temporal_analysis: result.temporal_analysis || null,
     };
@@ -276,6 +284,22 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
         JSON.stringify({ error: "Failed to save finalization data" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // Auto-save detected genres to the films table (if no genres set yet)
+    const detectedGenres = result.genres || [];
+    if (detectedGenres.length > 0) {
+      const { data: filmData } = await supabase
+        .from("films")
+        .select("genres")
+        .eq("id", analysis.film_id)
+        .single();
+      if (!filmData?.genres || (filmData.genres as string[]).length === 0) {
+        await supabase
+          .from("films")
+          .update({ genres: detectedGenres })
+          .eq("id", analysis.film_id);
+      }
     }
 
     console.log("Finalization complete for analysis:", analysis_id);
