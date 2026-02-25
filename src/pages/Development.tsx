@@ -2356,12 +2356,20 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
                   <p className="text-sm text-muted-foreground">{scene.description}</p>
                 </Section>
               )}
-              {scene.characters?.length > 0 && (
+              {((scene.character_details as any[])?.length > 0 || scene.characters?.length > 0) && (
                 <Section icon={Users} label="Characters">
-                  {scene.characters.map((c: any, ci: number) => (
-                    <div key={ci} className="bg-secondary rounded-lg p-3">
+                  {((scene.character_details as any[])?.length > 0 ? (scene.character_details as any[]) : (scene.characters || []).map((name: string) => ({ name, emotional_tone: "", key_expressions: "", physical_behavior: "" }))).map((c: any, ci: number) => (
+                    <div key={ci} className="bg-secondary rounded-lg p-3 space-y-1">
                       <p className="text-sm font-semibold">{c.name}</p>
-                      {c.emotional_tone && <p className="text-xs text-muted-foreground mt-1">Tone: {c.emotional_tone}</p>}
+                      {c.emotional_tone && c.emotional_tone !== "neutral" && (
+                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Emotion:</span> {c.emotional_tone}</p>
+                      )}
+                      {c.key_expressions && c.key_expressions !== "not specified" && (
+                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Expressions:</span> {c.key_expressions}</p>
+                      )}
+                      {c.physical_behavior && c.physical_behavior !== "not specified" && (
+                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Behavior:</span> {c.physical_behavior}</p>
+                      )}
                     </div>
                   ))}
                 </Section>
