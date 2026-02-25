@@ -48,8 +48,26 @@ const AdminPanel = () => {
     },
   });
 
+  const { data: userProfiles } = useQuery({
+    queryKey: ["admin-user-profiles"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_profiles")
+        .select("user_id, full_name, email");
+      if (error) throw error;
+      const map: Record<string, { name: string; email: string }> = {};
+      data?.forEach((p) => { map[p.user_id] = { name: p.full_name, email: p.email }; });
+      return map;
+    },
+  });
+
   const uniqueUsers = new Set(allProjects?.map((p) => p.user_id).filter(Boolean));
-  const totalCreditsUsed = creditLogs?.reduce((sum, l) => sum + (l.credits_used || 0), 0) || 0;
+  const totalCreditsUsed = allFilms?.reduce((sum, f) => sum + (f.credits || 0), 0) || 0;
+  const recentCreditsUsed = creditLogs?.reduce((sum, l) => sum + (l.credits_used || 0), 0) || 0;
+  const userName = (uid: string | null) => {
+    if (!uid || !userProfiles) return "—";
+    return userProfiles[uid]?.name || userProfiles[uid]?.email || uid.slice(0, 8) + "…";
+  };
 
   return (
     <div className="space-y-4">
@@ -88,10 +106,18 @@ const AdminPanel = () => {
         </div>
         <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
           <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-            <Activity className="h-3 w-3" /> Credits Used (recent)
+            <Activity className="h-3 w-3" /> Total Credits Allocated
           </span>
           <span className="text-sm font-display font-bold text-foreground">
             {totalCreditsUsed.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/10 px-4 py-3">
+          <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+            <Activity className="h-3 w-3" /> Credits Used (recent 50)
+          </span>
+          <span className="text-sm font-display font-bold text-foreground">
+            {recentCreditsUsed.toLocaleString()}
           </span>
         </div>
       </div>
@@ -111,8 +137,8 @@ const AdminPanel = () => {
                 <span className="truncate text-foreground font-medium max-w-[120px]" title={p.title}>
                   {p.title}
                 </span>
-                <span className="text-muted-foreground text-[10px] font-mono truncate max-w-[80px]" title={p.user_id || ""}>
-                  {p.user_id ? p.user_id.slice(0, 8) + "…" : "—"}
+                <span className="text-muted-foreground text-[10px] font-mono truncate max-w-[100px]" title={p.user_id || ""}>
+                  {userName(p.user_id)}
                 </span>
               </div>
             ))}
