@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useShots, useTimelineClips } from "@/hooks/useFilm";
+import { useShots, useTimelineClips, useFilmId } from "@/hooks/useFilm";
+import { useStyleContract } from "@/hooks/useStyleContract";
 import { supabase } from "@/integrations/supabase/client";
+import StyleDriftDetector from "@/components/post-production/StyleDriftDetector";
 import {
   DndContext,
   useDraggable,
@@ -376,6 +378,8 @@ const INITIAL_TRACKS: Track[] = [
 const PostProduction = () => {
   const { data: shotsData, isLoading: shotsLoading } = useShots();
   const { data: clipsData, isLoading: clipsLoading } = useTimelineClips();
+  const filmId = useFilmId();
+  const { data: styleContract } = useStyleContract();
   const [vfxClip, setVfxClip] = useState<Clip | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Track | null>(null);
   const [importedFiles, setImportedFiles] = useState<ImportedFile[]>([]);
@@ -559,6 +563,16 @@ const PostProduction = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
+              {/* Style Drift Detection */}
+              {shotsData && shotsData.length > 0 && styleContract && (
+                <div className="mb-3">
+                  <StyleDriftDetector
+                    shots={shotsData}
+                    contractVersion={styleContract.version}
+                    filmId={filmId || ""}
+                  />
+                </div>
+              )}
               {/* Shots tab — grouped by scene */}
               <TabsContent value="shots" className="mt-0 space-y-1">
                 {(() => {

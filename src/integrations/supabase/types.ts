@@ -851,6 +851,7 @@ export type Database = {
           id: string
           prompt_text: string | null
           scene_number: number
+          style_contract_version: number | null
           video_url: string | null
         }
         Insert: {
@@ -860,6 +861,7 @@ export type Database = {
           id?: string
           prompt_text?: string | null
           scene_number: number
+          style_contract_version?: number | null
           video_url?: string | null
         }
         Update: {
@@ -869,6 +871,7 @@ export type Database = {
           id?: string
           prompt_text?: string | null
           scene_number?: number
+          style_contract_version?: number | null
           video_url?: string | null
         }
         Relationships: [
