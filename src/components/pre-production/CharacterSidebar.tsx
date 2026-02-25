@@ -16,6 +16,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/utils";
 import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import ResizableSidebar from "./ResizableSidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { CharacterRanking, CharacterTier } from "@/hooks/useCharacterRanking";
@@ -149,7 +150,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   };
 
   return (
-    <aside className="w-[340px] min-w-[300px] border-r border-border bg-card flex flex-col">
+    <ResizableSidebar defaultWidth={340} minWidth={220} maxWidthPercent={30}>
       <div className="px-4 py-3 border-b border-border space-y-2">
         <div>
           <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
@@ -263,7 +264,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </aside>
+    </ResizableSidebar>
   );
 };
 
