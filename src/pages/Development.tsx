@@ -2510,7 +2510,7 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
     return (
       <>
         {formatScriptLines(before)}
-        <mark className="bg-amber-400/30 text-foreground rounded px-0.5">{highlight}</mark>
+        <mark className="rounded px-0.5" style={{ backgroundColor: "#FACC15", color: "#000" }}>{highlight}</mark>
         {formatScriptLines(after)}
       </>
     );
