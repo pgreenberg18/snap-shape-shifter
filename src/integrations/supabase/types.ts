@@ -299,6 +299,10 @@ export type Database = {
           copied_from_version_id: string | null
           created_at: string
           credits: number
+          format_type: string | null
+          frame_height: number | null
+          frame_rate: number | null
+          frame_width: number | null
           genres: string[] | null
           id: string
           is_archived: boolean
@@ -315,6 +319,10 @@ export type Database = {
           copied_from_version_id?: string | null
           created_at?: string
           credits?: number
+          format_type?: string | null
+          frame_height?: number | null
+          frame_rate?: number | null
+          frame_width?: number | null
           genres?: string[] | null
           id?: string
           is_archived?: boolean
@@ -331,6 +339,10 @@ export type Database = {
           copied_from_version_id?: string | null
           created_at?: string
           credits?: number
+          format_type?: string | null
+          frame_height?: number | null
+          frame_rate?: number | null
+          frame_width?: number | null
           genres?: string[] | null
           id?: string
           is_archived?: boolean

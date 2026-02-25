@@ -323,8 +323,11 @@ Deno.serve(async (req) => {
 
         execution_params: {
           duration_seconds: 5,
-          fps: 24,
-          resolution: "4K",
+          fps: film?.frame_rate || 24,
+          resolution: film?.frame_width && film?.frame_height
+            ? `${film.frame_width}x${film.frame_height}`
+            : "4K",
+          format_type: film?.format_type || null,
           seed: shot.video_url ? null : Math.floor(Math.random() * 9_000_000) + 1_000_000,
         },
       },
