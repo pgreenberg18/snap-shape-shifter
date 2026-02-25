@@ -2410,10 +2410,57 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState("");
+  const [scriptPopupOpen, setScriptPopupOpen] = useState(false);
+
+  // Estimate page number: ~55 lines per page in standard screenplay format
+  const estimatePageNumber = (): number | null => {
+    if (!scriptText) return null;
+    const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
+    const idx = scriptText.indexOf(excerptClean);
+    const searchIdx = idx >= 0 ? idx : scriptText.toUpperCase().indexOf(flag.sceneHeading.toUpperCase());
+    if (searchIdx < 0) return null;
+    const linesBeforeExcerpt = scriptText.substring(0, searchIdx).split("\n").length;
+    return Math.max(1, Math.ceil(linesBeforeExcerpt / 55));
+  };
+
+  // Get a page-sized window of script text around the flagged excerpt
+  const getScriptPageText = (): { text: string; highlightStart: number; highlightEnd: number } => {
+    if (!scriptText) return { text: "", highlightStart: -1, highlightEnd: -1 };
+    const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
+    let idx = scriptText.indexOf(excerptClean);
+    let highlightLen = excerptClean.length;
+
+    if (idx < 0) {
+      // Try scene heading
+      idx = scriptText.toUpperCase().indexOf(flag.sceneHeading.toUpperCase());
+      highlightLen = flag.sceneHeading.length;
+    }
+    if (idx < 0) return { text: scriptText.substring(0, 3000), highlightStart: -1, highlightEnd: -1 };
+
+    // Show ~55 lines centered around the excerpt (one "page")
+    const lines = scriptText.split("\n");
+    let charCount = 0;
+    let excerptLine = 0;
+    for (let i = 0; i < lines.length; i++) {
+      if (charCount + lines[i].length >= idx) { excerptLine = i; break; }
+      charCount += lines[i].length + 1;
+    }
+
+    const pageStart = Math.max(0, excerptLine - 20);
+    const pageEnd = Math.min(lines.length, pageStart + 55);
+    const pageLines = lines.slice(pageStart, pageEnd);
+    const pageText = pageLines.join("\n");
+
+    // Recalculate highlight position within the page
+    const pageCharOffset = lines.slice(0, pageStart).reduce((sum, l) => sum + l.length + 1, 0);
+    const hlStart = idx - pageCharOffset;
+    const hlEnd = hlStart + highlightLen;
+
+    return { text: pageText, highlightStart: hlStart, highlightEnd: hlEnd };
+  };
 
   const openEditor = () => {
     if (scriptText) {
-      // Find the scene's text in the full script and show a window around the excerpt
       const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
       const idx = scriptText.indexOf(excerptClean);
       if (idx >= 0) {
@@ -2421,7 +2468,6 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
         const lineEnd = scriptText.indexOf("\n", Math.min(scriptText.length, idx + excerptClean.length + 200));
         setEditText(scriptText.substring(lineStart >= 0 ? lineStart + 1 : 0, lineEnd >= 0 ? lineEnd : scriptText.length));
       } else {
-        // Show scene heading area
         const headIdx = scriptText.toUpperCase().indexOf(flag.sceneHeading.toUpperCase());
         if (headIdx >= 0) {
           const end = Math.min(scriptText.length, headIdx + 800);
@@ -2436,7 +2482,6 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
 
   const handleSave = () => {
     if (!scriptText || !onSaveScript) return;
-    // Replace the old section with the edited one
     const excerptClean = flag.excerpt.replace(/^…|…$/g, "").trim();
     const idx = scriptText.indexOf(excerptClean);
     if (idx >= 0) {
@@ -2449,92 +2494,177 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
     setEditing(false);
   };
 
+  const pageNum = estimatePageNumber();
+  const pageData = scriptPopupOpen ? getScriptPageText() : null;
+
+  // Render highlighted script text
+  const renderHighlightedScript = () => {
+    if (!pageData) return null;
+    const { text, highlightStart, highlightEnd } = pageData;
+    if (highlightStart < 0 || highlightEnd < 0) {
+      return formatScriptLines(text);
+    }
+    const before = text.substring(0, highlightStart);
+    const highlight = text.substring(highlightStart, highlightEnd);
+    const after = text.substring(highlightEnd);
+    return (
+      <>
+        {formatScriptLines(before)}
+        <mark className="bg-amber-400/30 text-foreground rounded px-0.5">{highlight}</mark>
+        {formatScriptLines(after)}
+      </>
+    );
+  };
+
   return (
-    <div className="rounded-lg border border-destructive/20 bg-destructive/5 overflow-hidden">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full p-3 flex items-center justify-between hover:bg-destructive/10 transition-colors text-left"
-      >
-        <div className="flex items-center gap-3 flex-1 min-w-0">
-          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-destructive/10 text-destructive text-xs font-bold font-mono shrink-0">
-            {flag.sceneIndex + 1}
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">{flag.sceneHeading}</p>
-            <p className="text-xs text-destructive font-medium truncate">{flag.excerpt}</p>
+    <>
+      <div className="rounded-lg border border-destructive/20 bg-destructive/5 overflow-hidden">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full p-3 flex items-center justify-between hover:bg-destructive/10 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-destructive/10 text-destructive text-xs font-bold font-mono shrink-0">
+              {flag.sceneIndex + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-semibold text-foreground truncate">{flag.sceneHeading}</p>
+                {pageNum && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setScriptPopupOpen(true); }}
+                    className="shrink-0 text-[10px] font-mono text-primary hover:text-primary/80 bg-primary/10 hover:bg-primary/20 px-1.5 py-0.5 rounded transition-colors"
+                    title={`View script page ${pageNum}`}
+                  >
+                    p.{pageNum}
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-destructive font-medium truncate">{flag.excerpt}</p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 ml-2">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
-          <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" || flag.severity === "NC-17" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
-          {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
-        </div>
-      </button>
-      {expanded && (
-        <div className="border-t border-destructive/10 p-4 space-y-4 bg-card/50">
-          {flag.reason && (
-            <div className="rounded-lg bg-secondary p-3">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Why flagged</p>
-              <p className="text-sm text-foreground">{flag.reason}</p>
-            </div>
-          )}
-          {scene && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
-                {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
-                {scene.setting && <Tag label="Setting" value={scene.setting} />}
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{flag.category}</span>
+            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded", flag.severity === "R" || flag.severity === "NC-17" ? "bg-destructive/20 text-destructive" : "bg-amber-500/20 text-amber-400")}>{flag.severity}</span>
+            {expanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+          </div>
+        </button>
+        {expanded && (
+          <div className="border-t border-destructive/10 p-4 space-y-4 bg-card/50">
+            {flag.reason && (
+              <div className="rounded-lg bg-secondary p-3">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground/60 mb-1">Why flagged</p>
+                <p className="text-sm text-foreground">{flag.reason}</p>
               </div>
-              {scene.description && (
-                <Section icon={Eye} label="Description">
-                  <p className="text-sm text-muted-foreground">{scene.description}</p>
-                </Section>
-              )}
-              {((scene.character_details as any[])?.length > 0 || scene.characters?.length > 0) && (
-                <Section icon={Users} label="Characters">
-                  {((scene.character_details as any[])?.length > 0 ? (scene.character_details as any[]) : (scene.characters || []).map((name: string) => ({ name, emotional_tone: "", key_expressions: "", physical_behavior: "" }))).map((c: any, ci: number) => (
-                    <div key={ci} className="bg-secondary rounded-lg p-3 space-y-1">
-                      <p className="text-sm font-semibold">{c.name}</p>
-                      {c.emotional_tone && c.emotional_tone !== "neutral" && (
-                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Emotion:</span> {c.emotional_tone}</p>
-                      )}
-                      {c.key_expressions && c.key_expressions !== "not specified" && (
-                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Expressions:</span> {c.key_expressions}</p>
-                      )}
-                      {c.physical_behavior && c.physical_behavior !== "not specified" && (
-                        <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Behavior:</span> {c.physical_behavior}</p>
-                      )}
-                    </div>
-                  ))}
-                </Section>
-              )}
-            </>
-          )}
-          {scriptText && onSaveScript && !editing && (
-            <Button variant="outline" size="sm" onClick={openEditor} className="gap-1.5">
-              <ScrollText className="h-3.5 w-3.5" /> Edit Script
-            </Button>
-          )}
-          {editing && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">Edit Script Text</p>
-              <Textarea
-                value={editText}
-                onChange={(e) => setEditText(e.target.value)}
-                className="min-h-[160px] text-xs font-mono bg-background resize-y"
-              />
-              <div className="flex gap-2">
-                <Button size="sm" onClick={handleSave}>Save & Re-analyze</Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+            )}
+            {scene && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
+                  {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
+                  {scene.setting && <Tag label="Setting" value={scene.setting} />}
+                </div>
+                {scene.description && (
+                  <Section icon={Eye} label="Description">
+                    <p className="text-sm text-muted-foreground">{scene.description}</p>
+                  </Section>
+                )}
+                {((scene.character_details as any[])?.length > 0 || scene.characters?.length > 0) && (
+                  <Section icon={Users} label="Characters">
+                    {((scene.character_details as any[])?.length > 0 ? (scene.character_details as any[]) : (scene.characters || []).map((name: string) => ({ name, emotional_tone: "", key_expressions: "", physical_behavior: "" }))).map((c: any, ci: number) => (
+                      <div key={ci} className="bg-secondary rounded-lg p-3 space-y-1">
+                        <p className="text-sm font-semibold">{c.name}</p>
+                        {c.emotional_tone && c.emotional_tone !== "neutral" && (
+                          <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Emotion:</span> {c.emotional_tone}</p>
+                        )}
+                        {c.key_expressions && c.key_expressions !== "not specified" && (
+                          <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Expressions:</span> {c.key_expressions}</p>
+                        )}
+                        {c.physical_behavior && c.physical_behavior !== "not specified" && (
+                          <p className="text-xs text-muted-foreground"><span className="text-muted-foreground/60">Behavior:</span> {c.physical_behavior}</p>
+                        )}
+                      </div>
+                    ))}
+                  </Section>
+                )}
+              </>
+            )}
+            {scriptText && onSaveScript && !editing && (
+              <Button variant="outline" size="sm" onClick={openEditor} className="gap-1.5">
+                <ScrollText className="h-3.5 w-3.5" /> Edit Script
+              </Button>
+            )}
+            {editing && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">Edit Script Text</p>
+                <Textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className="min-h-[160px] text-xs font-mono bg-background resize-y"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleSave}>Save & Re-analyze</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
+                </div>
               </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Script Page Popup Dialog */}
+      <Dialog open={scriptPopupOpen} onOpenChange={setScriptPopupOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b border-border">
+            <DialogTitle className="flex items-center gap-3 text-base">
+              <ScrollText className="h-4 w-4 text-primary" />
+              <span>Script — Page {pageNum}</span>
+              <span className="text-xs font-normal text-muted-foreground ml-auto">Scene {flag.sceneIndex + 1}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[70vh] p-0">
+            <div className="bg-white mx-6 my-4 rounded shadow-md" style={{ padding: "48px 60px", minHeight: 600 }}>
+              <pre className="whitespace-pre-wrap text-black leading-relaxed" style={{ fontFamily: "'Courier Prime', 'Courier New', monospace", fontSize: 12 }}>
+                {renderHighlightedScript()}
+              </pre>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
+/** Format plain-text script lines with screenplay styling */
+function formatScriptLines(text: string): React.ReactNode {
+  if (!text) return null;
+  const lines = text.split("\n");
+  return lines.map((line, i) => {
+    const trimmed = line.trim();
+    if (!trimmed) return <br key={i} />;
+    // Scene heading
+    if (/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s/i.test(trimmed)) {
+      return <div key={i} className="font-bold uppercase mt-3 mb-1">{trimmed}</div>;
+    }
+    // Character name (indented, all caps)
+    if (/^\s{2,}[A-Z][A-Z\s.'()-]+$/.test(line) && trimmed.length < 40) {
+      return <div key={i} className="text-center uppercase mt-2">{trimmed}</div>;
+    }
+    // Parenthetical
+    if (/^\s*\(/.test(line) && trimmed.endsWith(")")) {
+      return <div key={i} className="italic" style={{ marginLeft: "25%" }}>{trimmed}</div>;
+    }
+    // Dialogue (indented)
+    if (/^\s{2,}/.test(line) && !line.startsWith("    ")) {
+      return <div key={i} style={{ marginLeft: "15%", marginRight: "15%" }}>{trimmed}</div>;
+    }
+    // Transition
+    if (/^(FADE|CUT|DISSOLVE|SMASH|MATCH)\s*(TO|IN|OUT)/i.test(trimmed)) {
+      return <div key={i} className="text-right uppercase mt-2">{trimmed}</div>;
+    }
+    return <div key={i}>{line}</div>;
+  });
+}
 
 const ContentSafetyMatrix = ({
   scenes, storagePath, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence,
