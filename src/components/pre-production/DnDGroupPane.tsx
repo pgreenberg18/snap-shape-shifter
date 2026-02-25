@@ -10,7 +10,8 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, Package, MapPin, Shirt, Car, type LucideIcon } from "lucide-react";
+import AssetDetailPanel from "./AssetDetailPanel";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,6 +142,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [mergeDialog, setMergeDialog] = useState<{ source: string; target: string } | null>(null);
   const [analyzingItem, setAnalyzingItem] = useState<string | null>(null);
 
+  const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   // Script viewer state
@@ -467,6 +469,30 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
   const mergedCount = mergedAway.size;
 
+  // Map storagePrefix to assetType for the detail panel
+  const assetTypeMap: Record<string, "location" | "prop" | "wardrobe" | "vehicle"> = {
+    locations: "location",
+    props: "prop",
+    wardrobe: "wardrobe",
+    vehicles: "vehicle",
+  };
+  const detailAssetType = assetTypeMap[storagePrefix] || "prop";
+
+  // Compute scene numbers for selected item
+  const selectedSceneNumbers = useMemo(() => {
+    if (!selectedItem || !sceneBreakdown) return [];
+    const matches = findScenesForItem(selectedItem, sceneBreakdown, storagePrefix);
+    return matches.map((m) => {
+      const sn = m.scene.scene_number ? parseInt(m.scene.scene_number, 10) : m.sceneIndex + 1;
+      return sn;
+    }).filter((v, i, a) => a.indexOf(v) === i).sort((a, b) => a - b);
+  }, [selectedItem, sceneBreakdown, storagePrefix]);
+
+  // When an item is clicked in the sidebar, select it for the detail panel
+  const handleSelectItem = useCallback((itemName: string) => {
+    setSelectedItem((prev) => prev === itemName ? null : itemName);
+  }, []);
+
   if (items.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center p-12 text-center">
@@ -493,139 +519,156 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="px-6 py-4 border-b border-border space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold text-foreground">{title}</h2>
-            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-              {visibleItems.length}{mergedCount > 0 ? ` (${mergedCount} merged)` : ""}
-            </span>
+    <div className="flex-1 flex overflow-hidden">
+      {/* ═══ LEFT SIDEBAR — Item List ═══ */}
+      <aside className="w-[340px] min-w-[300px] border-r border-border bg-card flex flex-col">
+        <div className="px-4 py-3 border-b border-border space-y-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>
+              <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+                {visibleItems.length} items{mergedCount > 0 ? ` · ${mergedCount} merged` : ""} · drag to merge
+              </p>
+            </div>
+            <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={() => setCreatingGroup(true)}>
+              <Plus className="h-3 w-3" /> Group
+            </Button>
           </div>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => setCreatingGroup(true)}>
-            <Plus className="h-3.5 w-3.5" /> New Group
-          </Button>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={`Search ${title.toLowerCase()}…`}
+              className="h-8 text-sm pl-8 bg-background"
+            />
+          </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder={`Search ${title.toLowerCase()}…`}
-            className="h-9 text-sm pl-9 bg-background"
-          />
-        </div>
-        <p className="text-xs text-muted-foreground">
-          Drag items onto each other to merge duplicates · Drag into groups to organize · Click any item to view its script references
-        </p>
-      </div>
 
-      <ScrollArea className="flex-1">
-        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-          <div className="p-4 space-y-4">
-            {creatingGroup && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                <Input autoFocus value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()} placeholder="Group name…" className="h-8 text-sm bg-background" />
-                <Button size="sm" onClick={handleCreateGroup} className="h-8 shrink-0">Create</Button>
-                <Button size="sm" variant="ghost" onClick={() => setCreatingGroup(false)} className="h-8 shrink-0 px-2"><X className="h-4 w-4" /></Button>
-              </div>
-            )}
-
-            {filteredGroups.map((group) => (
-              <GroupDropZone
-                key={group.id}
-                group={group}
-                icon={Icon}
-                isCollapsed={collapsed.has(group.id)}
-                onToggle={() => toggleCollapse(group.id)}
-                onDelete={() => handleDeleteGroup(group.id)}
-                onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
-                isEditing={editingGroupId === group.id}
-                editName={editName}
-                onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
-                onEditChange={setEditName}
-                onSaveEdit={() => handleRenameGroup(group.id)}
-                subtitles={subtitles}
-                displayName={displayName}
-                refImages={refImages}
-                refDescriptions={refDescriptions}
-                analyzingItem={analyzingItem}
-                onUploadReference={handleUploadReference}
-                onItemClick={handleItemClick}
-                onGroupClick={handleGroupClick}
-                expandableSubtitles={expandableSubtitles}
-                expandedItems={expandedItems}
-              />
-            ))}
-
-            {ungrouped.length > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
-                    {groups.length > 0 ? "Ungrouped" : `All ${title}`}
-                  </h3>
-                  <div className="flex-1 border-t border-border ml-2" />
+        <ScrollArea className="flex-1">
+          <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+            <div className="py-1">
+              {creatingGroup && (
+                <div className="flex items-center gap-2 mx-3 mt-2 rounded-lg border border-primary/30 bg-primary/5 p-2">
+                  <Input autoFocus value={newGroupName} onChange={(e) => setNewGroupName(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleCreateGroup()} placeholder="Group name…" className="h-7 text-xs bg-background" />
+                  <Button size="sm" onClick={handleCreateGroup} className="h-7 text-xs shrink-0">Create</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setCreatingGroup(false)} className="h-7 shrink-0 px-1.5"><X className="h-3.5 w-3.5" /></Button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              )}
+
+              {/* Groups */}
+              {filteredGroups.map((group) => (
+                <SidebarGroup
+                  key={group.id}
+                  group={group}
+                  icon={Icon}
+                  isCollapsed={collapsed.has(group.id)}
+                  onToggle={() => toggleCollapse(group.id)}
+                  onDelete={() => handleDeleteGroup(group.id)}
+                  onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
+                  isEditing={editingGroupId === group.id}
+                  editName={editName}
+                  onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
+                  onEditChange={setEditName}
+                  onSaveEdit={() => handleRenameGroup(group.id)}
+                  displayName={displayName}
+                  selectedItem={selectedItem}
+                  onSelectItem={handleSelectItem}
+                  refImages={refImages}
+                />
+              ))}
+
+              {/* Ungrouped */}
+              {ungrouped.length > 0 && (
+                <div className="px-2 py-1">
+                  <div className="flex items-center gap-2 px-2 py-2">
+                    <h3 className="font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                      {filteredGroups.length > 0 ? "Ungrouped" : `All ${title}`}
+                    </h3>
+                    <span className="text-[10px] text-muted-foreground/50">{ungrouped.length}</span>
+                    <div className="flex-1 border-t border-border/30 ml-1" />
+                  </div>
                   {ungrouped.map((item) => (
-                    <DraggableItem
+                    <SidebarItem
                       key={item}
                       id={item}
                       label={displayName(item)}
                       icon={Icon}
-                      isOverlay={false}
-                      subtitle={expandableSubtitles ? (expandedItems.has(item) ? (refDescriptions[item] || subtitles?.[item]) : undefined) : (refDescriptions[item] || subtitles?.[item])}
+                      isSelected={selectedItem === item}
+                      onSelect={() => handleSelectItem(item)}
                       refImageUrl={refImages[item]}
-                      isAnalyzing={analyzingItem === item}
-                      onUploadReference={(file) => handleUploadReference(item, file)}
-                      isEditing={editingItemId === item}
-                      editName={editName}
-                      onStartEdit={() => { setEditingItemId(item); setEditingGroupId(null); setEditName(displayName(item)); }}
-                      onEditChange={setEditName}
-                      onSaveEdit={() => handleRenameItem(item)}
-                      onCancelEdit={() => { setEditingItemId(null); setEditName(""); }}
-                      onClick={() => handleItemClick(item)}
                       reclassifyOptions={reclassifyOptions}
                       onReclassify={onReclassify}
                     />
                   ))}
                 </div>
-              </div>
-            )}
+              )}
 
-            {mergedCount > 0 && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Merged Away</h3>
-                  <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{mergedCount}</span>
-                  <div className="flex-1 border-t border-border ml-2" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+              {/* Merged away */}
+              {mergedCount > 0 && (
+                <div className="px-2 py-1">
+                  <div className="flex items-center gap-2 px-2 py-2">
+                    <h3 className="font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Merged Away</h3>
+                    <span className="text-[10px] text-muted-foreground/50">{mergedCount}</span>
+                    <div className="flex-1 border-t border-border/30 ml-1" />
+                  </div>
                   {[...mergedAway].filter((m) => items.includes(m)).map((item) => (
-                    <div key={item} className="rounded-lg border border-dashed border-border bg-secondary/20 p-3 flex items-center gap-2 opacity-60">
-                      <Icon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <p className="text-sm text-muted-foreground truncate flex-1 line-through">{displayName(item)}</p>
+                    <div key={item} className="flex items-center gap-2 px-4 py-2 opacity-50">
+                      <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
+                      <p className="text-xs text-muted-foreground truncate flex-1 line-through">{displayName(item)}</p>
                       <button onClick={() => handleUnmerge(item)} className="text-muted-foreground hover:text-foreground transition-colors p-0.5 shrink-0" title="Restore">
                         <X className="h-3 w-3" />
                       </button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <DragOverlay>
-            {activeId ? (
-              <div className="rounded-lg border border-primary bg-card p-3 flex items-center gap-2 shadow-xl rotate-2 scale-105">
-                <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
-                <p className="text-sm font-display font-semibold text-foreground truncate">{displayName(activeId)}</p>
+            <DragOverlay>
+              {activeId ? (
+                <div className="rounded-lg border border-primary bg-card p-2 flex items-center gap-2 shadow-xl rotate-2 scale-105">
+                  <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+                  <p className="text-sm font-display font-semibold text-foreground truncate">{displayName(activeId)}</p>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        </ScrollArea>
+      </aside>
+
+      {/* ═══ RIGHT — Detail Panel ═══ */}
+      <main className="flex-1 overflow-hidden">
+        {selectedItem && filmId ? (
+          <AssetDetailPanel
+            itemName={selectedItem}
+            displayName={displayName(selectedItem)}
+            icon={Icon}
+            filmId={filmId}
+            assetType={detailAssetType}
+            subtitle={subtitles?.[selectedItem]}
+            refImageUrl={refImages[selectedItem]}
+            refDescription={refDescriptions[selectedItem]}
+            sceneNumbers={selectedSceneNumbers}
+            onOpenScene={(sn) => openScriptForItems([selectedItem], `Scene ${sn} — ${displayName(selectedItem)}`)}
+            onUploadReference={(file) => handleUploadReference(selectedItem, file)}
+            isAnalyzing={analyzingItem === selectedItem}
+            onDescriptionChange={(desc) => persistRefDescs({ ...refDescriptions, [selectedItem]: desc })}
+          />
+        ) : (
+          <div className="flex-1 flex items-center justify-center p-8 h-full">
+            <div className="text-center space-y-3">
+              <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+                <Icon className="h-8 w-8 text-muted-foreground/40" />
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      </ScrollArea>
+              <h2 className="font-display text-xl font-bold text-foreground">{title}</h2>
+              <p className="text-sm text-muted-foreground max-w-sm">
+                Select an item from the list to view details, upload references, and generate visual options.
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* Merge confirmation */}
       <AlertDialog open={!!mergeDialog} onOpenChange={(open) => !open && setMergeDialog(null)}>
@@ -867,7 +910,150 @@ const DraggableItem = ({
   );
 };
 
-/* ── Group drop zone ── */
+/* ── Sidebar Item (compact list row) ── */
+const SidebarItem = ({
+  id, label, icon: Icon, isSelected, onSelect, refImageUrl,
+  reclassifyOptions, onReclassify,
+}: {
+  id: string; label: string; icon: LucideIcon; isSelected: boolean;
+  onSelect: () => void; refImageUrl?: string;
+  reclassifyOptions?: ReclassifyOption[];
+  onReclassify?: (item: string, target: string) => void;
+}) => {
+  const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id });
+  const { isOver, setNodeRef: setDropRef } = useDroppable({ id });
+
+  return (
+    <div
+      ref={(node) => { setDragRef(node); setDropRef(node); }}
+      className={cn(
+        "w-full text-left px-4 py-2.5 flex items-center gap-2 transition-all border-l-2 cursor-pointer",
+        isSelected ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/60",
+        isOver && !isSelected && "bg-primary/10 border-l-primary ring-1 ring-primary/30"
+      )}
+      onClick={onSelect}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors" onClick={(e) => e.stopPropagation()}>
+        <GripVertical className="h-3.5 w-3.5" />
+      </div>
+      <div className="shrink-0">
+        <div className={cn(
+          "relative flex h-8 w-8 items-center justify-center rounded-lg overflow-hidden",
+          isSelected ? "bg-primary/20" : "bg-secondary"
+        )}>
+          {refImageUrl ? (
+            <img src={refImageUrl} alt={label} className="h-full w-full object-cover" />
+          ) : (
+            <Icon className="h-4 w-4 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={cn("text-sm font-display font-semibold truncate", isSelected ? "text-primary" : "text-foreground")}>
+          {label}
+        </p>
+      </div>
+      {reclassifyOptions && reclassifyOptions.length > 0 && onReclassify && (
+        <div onClick={(e) => e.stopPropagation()}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="shrink-0 text-muted-foreground/40 hover:text-foreground transition-colors p-0.5">
+                <ArrowRightLeft className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="min-w-[160px]">
+              {reclassifyOptions.map((opt) => {
+                const OptIcon = opt.icon;
+                return (
+                  <DropdownMenuItem key={opt.value} onClick={() => onReclassify(id, opt.value)} className="gap-2 text-xs">
+                    <OptIcon className="h-3.5 w-3.5" />
+                    Move to {opt.label}
+                  </DropdownMenuItem>
+                );
+              })}
+              <DropdownMenuItem onClick={() => onReclassify(id, "_dismiss")} className="gap-2 text-xs text-muted-foreground">
+                <X className="h-3.5 w-3.5" />
+                Not a prop (dismiss)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Sidebar Group (collapsible) ── */
+const SidebarGroup = ({
+  group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
+  isEditing, editName, onStartEdit, onEditChange, onSaveEdit,
+  displayName, selectedItem, onSelectItem, refImages,
+}: {
+  group: ItemGroup; icon: LucideIcon; isCollapsed: boolean; onToggle: () => void;
+  onDelete: () => void; onRemoveChild: (item: string) => void;
+  isEditing: boolean; editName: string;
+  onStartEdit: () => void; onEditChange: (v: string) => void; onSaveEdit: () => void;
+  displayName: (item: string) => string;
+  selectedItem: string | null; onSelectItem: (name: string) => void;
+  refImages: Record<string, string>;
+}) => {
+  const { isOver, setNodeRef } = useDroppable({ id: `group::${group.id}` });
+
+  return (
+    <div ref={setNodeRef} className={cn(
+      "mx-2 my-1 rounded-xl border transition-all",
+      isOver ? "border-primary ring-2 ring-primary/20 bg-primary/5" : "border-border bg-card/50"
+    )}>
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <button onClick={onToggle} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+          {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+        </button>
+        {isEditing ? (
+          <div className="flex items-center gap-1 flex-1 min-w-0">
+            <Input autoFocus value={editName} onChange={(e) => onEditChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); }} className="h-7 text-xs bg-background flex-1" />
+            <Button size="sm" variant="ghost" onClick={onSaveEdit} className="h-7 px-1.5"><Check className="h-3 w-3" /></Button>
+          </div>
+        ) : (
+          <>
+            <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
+            <p className="font-display text-sm font-bold text-foreground flex-1 truncate">{group.name}</p>
+            <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{group.children.length}</span>
+            <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }} className="text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"><Pencil className="h-2.5 w-2.5" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-muted-foreground/40 hover:text-destructive transition-colors p-0.5"><X className="h-3 w-3" /></button>
+          </>
+        )}
+      </div>
+      {!isCollapsed && group.children.length > 0 && (
+        <div className="pb-1">
+          {group.children.map((item) => (
+            <div
+              key={item}
+              onClick={() => onSelectItem(item)}
+              className={cn(
+                "flex items-center gap-2 px-6 py-2 cursor-pointer transition-all border-l-2",
+                selectedItem === item ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/40"
+              )}
+            >
+              <div className="h-6 w-6 rounded overflow-hidden bg-secondary flex items-center justify-center shrink-0">
+                {refImages[item] ? (
+                  <img src={refImages[item]} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <Icon className="h-3 w-3 text-muted-foreground" />
+                )}
+              </div>
+              <p className={cn("text-sm truncate flex-1", selectedItem === item ? "text-primary font-semibold" : "text-foreground")}>{displayName(item)}</p>
+              <button onClick={(e) => { e.stopPropagation(); onRemoveChild(item); }} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0 opacity-0 group-hover:opacity-100">
+                <X className="h-2.5 w-2.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+/* ── Old components kept for backwards compatibility with Locations tab ── */
 const GroupDropZone = ({
   group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit, subtitles, displayName,
