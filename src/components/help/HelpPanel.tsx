@@ -16,69 +16,24 @@ interface HelpArticle {
 }
 
 const HELP_ARTICLES: HelpArticle[] = [
+  /* ═══════════════════════════════════════════
+     GENERAL / PROJECTS
+     ═══════════════════════════════════════════ */
   {
     id: "getting-started",
     title: "Getting Started",
     context: ["projects", "home"],
     category: "General",
     content:
-      "Welcome to Virtual Film Studio! Start by creating a new project. Each project can have multiple versions so you can iterate on your film. Click 'New Project' to begin.",
-  },
-  {
-    id: "upload-script",
-    title: "Uploading a Screenplay",
-    context: ["development"],
-    category: "Development",
-    content:
-      "In the Development phase, fill in your film details (title, version, writers) then upload your screenplay file (.fdx or .txt). After uploading, click the 'Analyze' button to extract scenes, characters, locations, and wardrobe from the script.",
-  },
-  {
-    id: "script-analysis",
-    title: "Script Analysis & Breakdown",
-    context: ["development"],
-    category: "Development",
-    content:
-      "Once analysis is complete you'll see a full scene breakdown with visual summaries, content ratings, and AI generation notes. Review and approve each section before locking the script. Locking prevents further changes and unlocks downstream phases.",
-  },
-  {
-    id: "pre-production",
-    title: "Pre-Production Phase",
-    context: ["pre-production"],
-    category: "Pre-Production",
-    content:
-      "Pre-Production is where you cast characters (audition headshots), design locations, choose props and wardrobe, and build storyboards. Use the sidebar panels to manage each asset category. Lock your choices before moving to Production.",
-  },
-  {
-    id: "characters",
-    title: "Character Casting & Auditions",
-    context: ["pre-production"],
-    category: "Pre-Production",
-    content:
-      "Generate AI headshot options for each character. Rate and rank them, then lock your final casting choice. The locked headshot becomes the character's identity reference used throughout all downstream generation.",
-  },
-  {
-    id: "production",
-    title: "Production Phase",
-    context: ["production"],
-    category: "Production",
-    content:
-      "Production is your virtual soundstage. Configure camera settings, lighting, and lens options in the Optics Suite. Generate shots scene-by-scene using AI. Review each shot in the viewport before approving.",
-  },
-  {
-    id: "post-production",
-    title: "Post-Production Phase",
-    context: ["post-production"],
-    category: "Post-Production",
-    content:
-      "Arrange your approved shots on the timeline. Add VFX fixes, color grading notes, and audio layers. The timeline supports drag-and-drop clip arrangement across multiple tracks.",
-  },
-  {
-    id: "release",
-    title: "Release Phase",
-    context: ["release"],
-    category: "Release",
-    content:
-      "Prepare your film for distribution. Review the final cut, add credits and metadata, then export or publish your completed project.",
+      "Welcome to Virtual Film Studio — your AI-powered cinematic production pipeline.\n\n" +
+      "**Creating a Project**\nClick 'New Project' on the Projects dashboard. Give it a title and optional description. Each project acts as a top-level container for your entire film.\n\n" +
+      "**Workflow Overview**\nEvery project flows through five sequential phases:\n" +
+      "1. **Development** — Upload & analyze your screenplay, set format specs, review AI breakdowns.\n" +
+      "2. **Pre-Production** — Cast characters, design locations, choose wardrobe & props, build storyboards.\n" +
+      "3. **Production** — Build shots scene-by-scene with camera, lighting & lens controls, then generate imagery.\n" +
+      "4. **Post-Production** — Arrange clips on a multi-track timeline, add VFX fixes, color grading, sound & music.\n" +
+      "5. **Release** — Export master files, generate marketing assets, package for festivals, and produce C2PA provenance.\n\n" +
+      "**Tips**\n• Work through phases in order — each phase builds on locked assets from the previous one.\n• Use the Help panel (?) on any page for context-specific guidance.\n• Credits are consumed by AI generation tasks. Monitor your balance in the header bar.",
   },
   {
     id: "versions",
@@ -86,7 +41,11 @@ const HELP_ARTICLES: HelpArticle[] = [
     context: ["projects", "versions"],
     category: "General",
     content:
-      "Each project can have multiple versions. Duplicate a version to branch your work — all characters, shots, and analysis data are copied. You can rename or delete versions from the version cards. Version names must be unique within a project.",
+      "Versions let you branch and iterate without losing previous work.\n\n" +
+      "**Creating Versions**\nFrom the project's version list, click 'New Version' or duplicate an existing one. Duplicating copies all characters, shots, analysis data, and timeline clips.\n\n" +
+      "**Version Names**\nEach version has a unique name within its project (e.g. 'Director's Cut', 'Festival Edit'). Rename by clicking the version name on its card.\n\n" +
+      "**Archiving & Deleting**\nArchive versions you're not actively editing — they're hidden from the main list but can be restored. Delete permanently removes all associated data.\n\n" +
+      "**Version Settings**\nAccess per-version settings (format, integrations, provider selections) from the Settings icon on each version card or via the sidebar Settings link.",
   },
   {
     id: "settings",
@@ -94,7 +53,74 @@ const HELP_ARTICLES: HelpArticle[] = [
     context: ["settings"],
     category: "Settings",
     content:
-      "Configure API integrations for AI services used in script analysis, image generation, video generation, and audio. Each integration section shows which services are available and lets you add API keys.",
+      "Configure external service integrations used across your production pipeline.\n\n" +
+      "**Integration Sections**\nIntegrations are organized by function:\n" +
+      "• **Script Analysis** — AI services for screenplay parsing and scene breakdown.\n" +
+      "• **Image Generation** — Services for headshots, storyboards, and shot generation.\n" +
+      "• **Video Generation** — AI video synthesis for takes and animations.\n" +
+      "• **Audio & Voice** — Text-to-speech, voice cloning, and sound effect generation.\n\n" +
+      "**Adding API Keys**\nClick on an integration provider, paste your API key, and verify the connection. Keys are encrypted and stored securely.\n\n" +
+      "**Provider Selection**\nWhen multiple providers are available for a section, select your preferred default. This choice is version-specific so different versions can use different services.\n\n" +
+      "**Troubleshooting**\n• If verification fails, double-check your key and ensure it has the required scopes.\n• Some providers require specific plan tiers for certain features.",
+  },
+
+  /* ═══════════════════════════════════════════
+     DEVELOPMENT
+     ═══════════════════════════════════════════ */
+  {
+    id: "dev-overview",
+    title: "Development Phase Overview",
+    context: ["development"],
+    category: "Development",
+    content:
+      "The Development phase is where your project takes shape. Here you define your film's metadata, upload the screenplay, and run AI analysis.\n\n" +
+      "**Key Panels**\n" +
+      "• **Film Details** — Title, version name, writers, genres, time period.\n" +
+      "• **Format Specifications** — Resolution, frame rate, aspect ratio (16:9, 2.39:1, 9:16, etc.).\n" +
+      "• **Script Upload & Analysis** — Upload .fdx or .txt, then analyze to extract scenes.\n" +
+      "• **Scene Breakdown** — AI-generated breakdown with headings, characters, locations, wardrobe, props.\n" +
+      "• **Visual Summary** — AI interpretation of the script's visual style and tone.\n" +
+      "• **Content Safety** — Flag violence, nudity, language for generation guardrails.\n" +
+      "• **Global Elements** — Cross-cutting themes, motifs, and tone extracted by AI.\n" +
+      "• **AI Generation Notes** — Director's notes that influence all downstream AI generation.\n\n" +
+      "**Workflow**\n1. Fill in film details and format specs.\n2. Upload your screenplay.\n3. Click 'Analyze' and wait for the AI breakdown.\n4. Review each section — approve, edit, or regenerate.\n5. Lock the script to proceed to Pre-Production.",
+  },
+  {
+    id: "upload-script",
+    title: "Uploading a Screenplay",
+    context: ["development"],
+    category: "Development",
+    content:
+      "**Supported Formats**\n• Final Draft (.fdx) — industry standard, preserves scene headings and character cues.\n• Plain Text (.txt) — should follow standard screenplay formatting conventions.\n\n" +
+      "**How to Upload**\n1. Navigate to the Development phase.\n2. Locate the Script Upload panel.\n3. Drag & drop your file or click to browse.\n4. The file name and size will appear confirming upload.\n\n" +
+      "**After Upload**\nClick the 'Analyze Script' button. The AI will parse scene headings, extract characters, identify locations, catalog wardrobe and props, and generate a visual summary.\n\n" +
+      "**Re-uploading**\nYou can upload a new script at any time before locking. This replaces the previous upload and all analysis data. After locking, the script cannot be changed.",
+  },
+  {
+    id: "script-analysis",
+    title: "Script Analysis & Breakdown",
+    context: ["development"],
+    category: "Development",
+    content:
+      "After uploading, the AI performs a comprehensive multi-pass analysis:\n\n" +
+      "**Pass 1 — Scene Parsing**\nExtracts individual scenes with headings (INT/EXT, location, time of day), character appearances, dialogue blocks, and action lines.\n\n" +
+      "**Pass 2 — Scene Enrichment**\nFor each scene, the AI identifies: key objects/props, wardrobe descriptions, mood/tone, sound cues, VFX requirements, stunts, picture vehicles, animals, and extras.\n\n" +
+      "**Pass 3 — Global Analysis**\nCross-references all scenes to produce: character arc summaries, location frequency, global themes, visual motifs, and content safety recommendations.\n\n" +
+      "**Reviewing Results**\nEach scene card shows extracted data. Click to expand details. Use the approval checkboxes to sign off on each scene's breakdown. Rejected scenes can be re-analyzed.\n\n" +
+      "**Progress Tracking**\nThe analysis progress bar shows enrichment status. The sidebar 'Analyzing…' badge remains until all passes complete.",
+  },
+  {
+    id: "format-specs",
+    title: "Format Specifications",
+    context: ["development"],
+    category: "Development",
+    content:
+      "Format settings determine the technical specs for all generated assets.\n\n" +
+      "**Presets**\nChoose from 20+ industry-standard presets:\n" +
+      "• Feature Film (1920×1080, 24fps, 16:9)\n• Short Film, Music Video, Commercial\n• TikTok / Instagram Reel (1080×1920, 30fps, 9:16)\n• IMAX (4096×2160), YouTube 4K, and more.\n\n" +
+      "**4K Resolution Toggle**\nFor eligible presets, enable 4K to double resolution (e.g. 3840×2160). Note: 4K increases generation cost and processing time.\n\n" +
+      "**Custom Overrides**\nManually set width, height, and frame rate after selecting a preset. Custom values persist unless you re-select a preset.\n\n" +
+      "**Impact**\nThese settings flow into Production (shot generation dimensions), Post-Production (timeline frame rate), and Release (export defaults).",
   },
   {
     id: "content-safety",
@@ -102,15 +128,335 @@ const HELP_ARTICLES: HelpArticle[] = [
     context: ["development"],
     category: "Development",
     content:
-      "Content safety flags (violence, nudity, language) are set per-version. These flags inform AI generation to stay within your desired content boundaries. Run the content safety analysis after script breakdown to get AI-recommended ratings.",
+      "Content safety flags inform AI generation boundaries for your project.\n\n" +
+      "**Flags**\n• **Violence** — Controls depiction of physical conflict, blood, weapons.\n• **Nudity** — Controls exposure levels in character generation.\n• **Language** — Controls profanity and mature dialogue in voice generation.\n\n" +
+      "**Modes**\n• **Auto** — AI determines appropriate levels from script context.\n• **Manual** — You explicitly set each flag on/off.\n\n" +
+      "**AI Safety Analysis**\nRun the analyzer to get AI-recommended ratings based on script content. Review recommendations and override as needed.\n\n" +
+      "**How It Works**\nWhen enabled, safety flags are injected into all downstream generation prompts as negative constraints, preventing the AI from producing content outside your boundaries.",
   },
   {
     id: "global-elements",
-    title: "Global Elements",
+    title: "Global Elements & AI Notes",
     context: ["development"],
     category: "Development",
     content:
-      "Global elements are cross-cutting story attributes extracted by AI: time period, visual motifs, recurring themes, and tone. Review these to ensure AI generation stays consistent across all scenes.",
+      "**Global Elements**\nCross-cutting story attributes extracted by AI analysis:\n" +
+      "• Time period and historical context\n• Visual motifs and recurring imagery\n• Dominant color palettes and lighting moods\n• Thematic threads across scenes\n• Tonal arc (comedy, drama, thriller beats)\n\n" +
+      "Review these carefully — they influence consistency across all generated imagery.\n\n" +
+      "**AI Generation Notes**\nDirector's notes that are prepended to every AI generation prompt throughout the pipeline. Use them to establish:\n" +
+      "• Visual style references (e.g. 'Inspired by Roger Deakins cinematography')\n• Color palette preferences\n• Mood and atmosphere direction\n• Any overarching creative constraints\n\n" +
+      "Approve the AI-suggested notes or write your own. These notes are version-specific.",
+  },
+
+  /* ═══════════════════════════════════════════
+     PRE-PRODUCTION
+     ═══════════════════════════════════════════ */
+  {
+    id: "preprod-overview",
+    title: "Pre-Production Phase Overview",
+    context: ["pre-production"],
+    category: "Pre-Production",
+    content:
+      "Pre-Production is your casting and design studio. Here you finalize the visual identity of every element before shooting begins.\n\n" +
+      "**Sidebar Panels**\n" +
+      "• **Characters** — Cast and audition AI-generated headshots.\n• **Locations** — Design and approve location concepts.\n• **Props & Wardrobe** — Browse and lock key objects and costume designs.\n• **Storyboards** — Build shot-by-shot visual sequences per scene.\n• **Voice Casting** — Preview and select AI voice options per character.\n\n" +
+      "**Workflow**\n1. Start with Characters — generate audition options, rate, rank, and lock your cast.\n2. Move to Locations and Props to establish the visual world.\n3. Build storyboards to plan shot composition.\n4. Cast voices for dialogue generation.\n\n" +
+      "**Locking Assets**\nLocked assets become the reference identity used in Production. Changes after locking require re-generation of dependent shots.",
+  },
+  {
+    id: "characters",
+    title: "Character Casting & Auditions",
+    context: ["pre-production"],
+    category: "Pre-Production",
+    content:
+      "**Generating Headshots**\nSelect a character from the sidebar. Click 'Generate Options' to produce AI headshot variations. Each generation creates multiple options across sections (Close-up, Profile, Full Body).\n\n" +
+      "**Rating & Ranking**\nRate each headshot 1–3 stars. Use drag-and-drop to rank your favorites within each section. The ranking influences which reference the AI prioritizes.\n\n" +
+      "**Locking a Character**\nOnce satisfied, click 'Lock' on your chosen headshot. This becomes the character's canonical identity — all future generation (storyboards, shots, video) will reference this locked image for visual consistency.\n\n" +
+      "**Editing Character Details**\nUpdate name, description, age range, sex, and other attributes from the character detail panel. Changes to locked characters flag them as 'dirty' for regeneration.\n\n" +
+      "**Reference Images**\nUpload your own reference photo as an alternative to AI generation. Useful for real actors or specific visual targets.",
+  },
+  {
+    id: "locations-props",
+    title: "Locations, Props & Wardrobe",
+    context: ["pre-production"],
+    category: "Pre-Production",
+    content:
+      "**Locations**\nLocations are extracted from script scene headings. For each location:\n" +
+      "• Generate AI concept art options.\n• Rate and select your preferred design.\n• Lock the chosen concept as the canonical location reference.\n\n" +
+      "**Props & Key Objects**\nProps identified during script analysis appear in a categorized list. Generate visual options for critical props, lock selections.\n\n" +
+      "**Wardrobe**\nWardrobe items are linked to specific characters. Each entry includes:\n• Description extracted from the script\n• AI-generated costume concept options\n• Lock status for downstream consistency\n\n" +
+      "**Asset Identity Registry**\nAll locked assets are registered in the Asset Identity Registry with internal reference codes. This ensures consistent visual identity across all generation tasks.",
+  },
+  {
+    id: "storyboards",
+    title: "Storyboard Builder",
+    context: ["pre-production"],
+    category: "Pre-Production",
+    content:
+      "**Creating Storyboard Frames**\nSelect a scene from the navigator, then add frames to build a shot-by-shot visual plan.\n\n" +
+      "**Frame Options**\n• Describe the shot composition in the prompt field.\n• Select camera angle, shot size, and movement.\n• Generate AI storyboard artwork for each frame.\n\n" +
+      "**Reordering**\nDrag frames to reorder the sequence. The storyboard order informs the suggested shot order in Production.\n\n" +
+      "**Annotations**\nAdd text notes to individual frames for camera directions, actor blocking, or VFX callouts.\n\n" +
+      "**Export**\nExport the storyboard as a PDF contact sheet for offline review.",
+  },
+  {
+    id: "voice-casting",
+    title: "Voice Casting",
+    context: ["pre-production"],
+    category: "Pre-Production",
+    content:
+      "**Previewing Voices**\nSelect a character and browse available AI voice options. Click 'Preview' to hear a sample line read in each voice.\n\n" +
+      "**Voice Parameters**\n• Voice description — text prompt guiding the voice synthesis.\n• Generation seed — numeric seed for reproducible voice characteristics.\n\n" +
+      "**Selecting a Voice**\nLock your chosen voice per character. The locked voice is used for all dialogue generation in Post-Production.\n\n" +
+      "**Custom Voice Upload**\nUpload a reference audio clip to clone a specific voice (subject to service provider capabilities).",
+  },
+
+  /* ═══════════════════════════════════════════
+     PRODUCTION
+     ═══════════════════════════════════════════ */
+  {
+    id: "prod-overview",
+    title: "Production Phase Overview",
+    context: ["production"],
+    category: "Production",
+    content:
+      "Production is your virtual soundstage — a three-pane cinematic workspace.\n\n" +
+      "**Left Pane — Scene Navigator**\nBrowse all scenes from the script breakdown. Each scene shows INT/EXT badges, time-of-day icons, and real-time shot counts. Click a scene to load it.\n\n" +
+      "**Center Pane — Working Area**\nContains three sub-panels:\n" +
+      "• **Script Workspace** — The scene's raw text. Highlight text to create new Shot Objects.\n" +
+      "• **Shot Builder** — Configure the selected shot's prompt, camera angle, and generation settings.\n" +
+      "• **Playback Monitor** — Preview generated imagery with a professional camera HUD overlay.\n\n" +
+      "**Right Pane — Optics Suite**\nThe Master Control Deck for camera, lighting, and lens settings that apply to all generation.\n\n" +
+      "**Workflow**\n1. Select a scene from the navigator.\n2. Highlight script text to create shots.\n3. Configure each shot in the builder.\n4. Set camera/lighting in the Optics Suite.\n5. Generate takes and review in the monitor.\n6. Rate and circle your best take.",
+  },
+  {
+    id: "scene-navigator",
+    title: "Scene Navigator",
+    context: ["production"],
+    category: "Production",
+    content:
+      "**Scene List**\nAll scenes from the locked script appear in order. Each card shows:\n• Scene number and heading\n• INT/EXT badge\n• Time of day (DAY, NIGHT, DUSK, etc.)\n• Shot count indicator\n\n" +
+      "**Selecting a Scene**\nClick a scene to load it into the center workspace. The script text, characters, and location data populate automatically.\n\n" +
+      "**Resizing**\nDrag the right edge of the navigator to resize its width. The width persists across sessions.\n\n" +
+      "**Scene Status**\nScenes with completed shots show a filled indicator. Empty scenes show no count badge.",
+  },
+  {
+    id: "script-workspace",
+    title: "Script Workspace & Shot Creation",
+    context: ["production"],
+    category: "Production",
+    content:
+      "**Reading the Script**\nThe scene's raw text is displayed in a scrollable pane. Resize the pane height by dragging the bottom edge.\n\n" +
+      "**Creating Shots**\nHighlight any portion of the script text, then click 'Create Shot'. A new Shot Object is created with the selected text as its prompt basis.\n\n" +
+      "**Shot Objects**\nEach shot contains:\n• Prompt text — describes what the AI should generate.\n• Camera angle — selected from presets or typed custom.\n• Scene elements — auto-populated characters, location, props, wardrobe.\n\n" +
+      "**Editing Shots**\nSelect a shot from the Shot Stack (below the monitor) to load it into the Shot Builder for editing.",
+  },
+  {
+    id: "shot-builder",
+    title: "Shot Builder",
+    context: ["production"],
+    category: "Production",
+    content:
+      "**Prompt Text**\nThe main text field describing the shot. Be descriptive about composition, action, and mood. The prompt is combined with Optics Suite settings and AI Generation Notes for final generation.\n\n" +
+      "**Camera Angle**\nSelect from presets: Wide, Medium, Close-Up, Over-the-Shoulder, POV, Bird's Eye, Low Angle, Dutch Angle, etc. Or type a custom angle description.\n\n" +
+      "**Scene Elements**\nAutomatically populated from the parsed scene data:\n• Location name\n• Characters present\n• Key props\n• Wardrobe items\n\n" +
+      "**Generation Controls**\n• **Rehearsal** — Fast, low-quality preview generation for composition check.\n• **Roll Camera** — Full-quality generation that consumes credits.\n\n" +
+      "Generated results appear in the Playback Monitor's Take Bin.",
+  },
+  {
+    id: "playback-monitor",
+    title: "Playback Monitor & Take Bin",
+    context: ["production"],
+    category: "Production",
+    content:
+      "**The Monitor**\nA cinematic viewport displaying generated imagery with a professional camera HUD overlay showing aspect ratio, scene/shot info, and safe zones.\n\n" +
+      "**Take Bin**\nA 5-slot filmstrip below the monitor. Each generation fills the next empty slot.\n• Click a take to preview it in the monitor.\n• Rate takes 1–3 stars.\n• Circle your preferred take (only one can be circled per shot).\n• Delete takes to free slots for regeneration.\n\n" +
+      "**Aspect Ratio**\nThe monitor respects the aspect ratio set in the Optics Suite (16:9, 2.39:1, etc.). A badge in the scene header shows the current ratio.\n\n" +
+      "**Shot Stack**\nBelow the monitor, all shots for the current scene are listed. Click to select, use '+' to add new shots.",
+  },
+  {
+    id: "optics-suite",
+    title: "Optics Suite (Master Control Deck)",
+    context: ["production"],
+    category: "Production",
+    content:
+      "The right-side panel houses professional camera and lighting controls.\n\n" +
+      "**Camera Settings**\n• Aspect Ratio — 16:9, 2.39:1 (anamorphic), 4:3, 1:1, 9:16.\n• Shot Size — Extreme Wide to Extreme Close-Up.\n• Camera Movement — Static, Pan, Tilt, Dolly, Crane, Steadicam, Handheld.\n• Camera Height — Ground level to overhead.\n\n" +
+      "**Lens Settings**\n• Focal Length — 14mm ultra-wide to 200mm telephoto.\n• Aperture (f-stop) — Controls depth of field.\n• Focus Distance — Near, mid, far, or rack focus.\n\n" +
+      "**Lighting**\n• Key Light — Direction, intensity, color temperature.\n• Fill Light — Ratio relative to key.\n• Backlight / Rim — Edge separation control.\n• Practical Lights — In-scene light sources.\n• Time of Day — Affects natural lighting simulation.\n\n" +
+      "**Presets**\nSave and load custom preset combinations. Presets are version-specific.",
+  },
+
+  /* ═══════════════════════════════════════════
+     POST-PRODUCTION
+     ═══════════════════════════════════════════ */
+  {
+    id: "postprod-overview",
+    title: "Post-Production Phase Overview",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "Post-Production is your non-linear editing suite with a multi-track timeline, media bin, and specialized processing modules.\n\n" +
+      "**Layout**\n" +
+      "• **Left Panel** — Media Bin with all generated shots organized by scene, plus imported media tabs.\n" +
+      "• **Center Top** — Playback monitor for previewing your edit.\n" +
+      "• **Center Bottom** — Multi-track timeline with zoom, scrubber, and undo/redo.\n" +
+      "• **Right Sidebar** — Processing modules: Sound, Color, Score, FX.\n\n" +
+      "**Getting Started**\n1. Expand scene folders in the Media Bin to see your shots.\n2. Drag shots onto video tracks in the timeline.\n3. Arrange, trim, and layer clips.\n4. Add audio, effects, and color grading from the right sidebar.\n5. Use the VFX Fix-It Bay for targeted inpainting on video clips.",
+  },
+  {
+    id: "timeline",
+    title: "Timeline & Track Management",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Tracks**\nThe timeline includes default tracks:\n• Video 1 (slate blue clips)\n• Dialogue (dark teal)\n• Foley (dark teal)\n• Effects (deep purple)\n• Music (dark teal)\n\n" +
+      "**Adding & Removing Tracks**\nUse the 'Add Track' dropdown to add Video or Audio tracks. Delete tracks via the trash icon (hover to reveal). Deleting removes all clips on that track.\n\n" +
+      "**Clip Operations**\n• **Drag** — Move clips horizontally on a track or between tracks.\n• **Trim** — Hover clip edges to reveal trim handles; drag to adjust in/out points.\n• **Double-click** — Opens the VFX Fix-It Bay for video clips.\n\n" +
+      "**Zoom & Scrubber**\nUse the zoom slider to scale the timeline view (25%–400%). Drag the scrubber/playhead to navigate to any point.\n\n" +
+      "**Undo/Redo**\nUp to 100 steps of undo history. Use ⌘Z / ⌘⇧Z or the toolbar buttons.\n\n" +
+      "**FCPXML Export**\nExport your timeline as Final Cut Pro XML for finishing in professional NLE software.",
+  },
+  {
+    id: "media-bin",
+    title: "Media Bin & Shot Browser",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Scene Folders**\nShots are organized into collapsible scene folders. Each folder shows the scene number and shot count. Click to expand and see thumbnails.\n\n" +
+      "**Shot Thumbnails**\nEach shot displays:\n• Scene/Shot/Take label (e.g. SC1 / SH2 / T1)\n• Video preview (if generated)\n• Camera angle or prompt text\n\n" +
+      "**Trim Before Placing**\nClick a shot to select it and reveal trim handles on the thumbnail. Drag the left/right edges to set in/out points before dragging to the timeline.\n\n" +
+      "**Dragging to Timeline**\nGrab any shot and drop it onto a timeline track. It creates a new clip at the drop position.\n\n" +
+      "**Imported Media**\nFiles imported via the sidebar modules (Sound, Color, Score, FX) appear in categorized tabs below the shot browser.",
+  },
+  {
+    id: "vfx-fix-it",
+    title: "VFX Fix-It Bay",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Accessing**\nDouble-click any video clip on the timeline to open the VFX Fix-It Bay modal.\n\n" +
+      "**Manual Masking**\nUse the brush tool to paint a red mask over the area you want to fix. Adjust brush size for precision.\n\n" +
+      "**Surgical Prompt**\nType a description of what should replace the masked area (e.g. 'Remove boom mic from top of frame' or 'Replace background with sunset').\n\n" +
+      "**Lock Original**\nEnable 'Lock as reference' to keep the rest of the frame identical while only modifying the masked region.\n\n" +
+      "**Processing**\nClick 'Apply Fix' to run the AI inpainting. The result replaces the clip's content. You can undo to revert.\n\n" +
+      "**Use Cases**\n• Remove unwanted artifacts from AI generation.\n• Fix continuity errors between shots.\n• Add or modify set elements.\n• Clean up edge artifacts.",
+  },
+  {
+    id: "sound-module",
+    title: "Sound Module (Audio/Foley/ADR)",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Tri-State Modes**\n• **Auto** — AI automatically generates ambient audio, foley, and dialogue based on scene analysis.\n• **Templates** — Choose from preset sound design packages (Urban, Forest, Interior, Sci-Fi, etc.).\n• **Custom** — Full manual control over every audio parameter.\n\n" +
+      "**Importing Audio**\nClick 'Import' to add external audio files (.wav, .mp3, .aiff, .flac). Files appear in the Imported Media tab and can be dragged to audio tracks.\n\n" +
+      "**Foley Generation**\nAI generates footsteps, door sounds, object interactions based on script action lines.\n\n" +
+      "**ADR (Automated Dialogue Replacement)**\nRegenerate character dialogue lines with your locked voice cast. Adjust timing and emotion.",
+  },
+  {
+    id: "color-module",
+    title: "Color Module (Grading & LUTs)",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Tri-State Modes**\n• **Auto** — AI applies a cohesive color grade based on mood and time of day.\n• **Templates** — Industry-standard looks: Film Noir, Teal & Orange, Bleach Bypass, etc.\n• **Custom** — Manual color wheel adjustments, curves, and LUT application.\n\n" +
+      "**Supported LUT Formats**\n• 3D LUTs: .cube, .3dl\n• CDL: .csp\n• ACES Look: .look\n• CLF: .clf\n\n" +
+      "**Importing LUTs**\nDrag & drop or browse to import LUT files. They appear in the Color tab of Imported Media for easy application.\n\n" +
+      "**Application**\nColor grades apply globally or per-clip. Use the timeline selection to target specific clips.",
+  },
+  {
+    id: "score-module",
+    title: "Score Module (AI Composer)",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**AI Music Generation**\nDescribe the mood, tempo, and instrumentation for each scene. The AI composer generates original score cues.\n\n" +
+      "**Tri-State Modes**\n• **Auto** — AI scores the entire film based on emotional beats detected in the script.\n• **Templates** — Pre-composed genre packages (Orchestral Drama, Electronic Thriller, Acoustic Indie).\n• **Custom** — Specify BPM, key, instruments, and style per cue.\n\n" +
+      "**Insert to Timeline**\nGenerated music clips can be inserted directly onto the Music track via the 'Insert' button.\n\n" +
+      "**Importing Music**\nImport your own music files to use alongside or instead of AI-generated score.",
+  },
+  {
+    id: "fx-module",
+    title: "FX Module (Visual Effects)",
+    context: ["post-production"],
+    category: "Post-Production",
+    content:
+      "**Supported Formats**\nImport visual effect elements:\n• EXR sequences (multi-layer compositing)\n• DPX film scans\n• MOV overlays with alpha\n• PNG sequences\n\n" +
+      "**Tri-State Modes**\n• **Auto** — AI applies effects identified during script analysis (fire, rain, explosions, etc.).\n• **Templates** — Pre-built effect packages: Weather, Particles, Light Leaks, Lens Flares.\n• **Custom** — Layer and composite imported VFX elements manually.\n\n" +
+      "**VFX vs Fix-It Bay**\nThe FX module is for additive effects (overlays, compositing). The VFX Fix-It Bay is for corrective work (inpainting, removal, replacement).",
+  },
+
+  /* ═══════════════════════════════════════════
+     RELEASE
+     ═══════════════════════════════════════════ */
+  {
+    id: "release-overview",
+    title: "Release Phase Overview",
+    context: ["release"],
+    category: "Release",
+    content:
+      "The Release phase is your finishing and distribution hub. Export your film in any format, generate marketing materials, and package for festivals.\n\n" +
+      "**Sections**\n" +
+      "• **Export Master Film** — Primary export with Auto, Templates, and Custom encoding options.\n" +
+      "• **Deliverables & Marketing** — Social cutdowns, posters, EPK, and trailer generation.\n" +
+      "• **Distribution Packaging** — Festival bundles, ProRes masters, and direct platform uploads.\n" +
+      "• **C2PA Provenance** — Cryptographic chain-of-title documentation.\n" +
+      "• **Finished Exports** — Right sidebar listing all completed export files.\n\n" +
+      "**Workflow**\n1. Review format settings (shown in the spec bar).\n2. Choose Auto, Template, or Custom export settings.\n3. Click Export to generate the master file.\n4. Generate marketing assets as needed.\n5. Package for distribution or upload directly.\n6. Generate C2PA ledger for legal provenance.",
+  },
+  {
+    id: "export-master",
+    title: "Export Settings (Auto / Templates / Custom)",
+    context: ["release"],
+    category: "Release",
+    content:
+      "**Auto Mode**\nDisplays all settings auto-configured from your Development format specs:\n• Codec, Container, Resolution, Frame Rate\n• Bitrate (calculated from resolution), Encoding method\n• Color Space, Pixel Format\n• Audio Codec, Bitrate, Sample Rate, Channels\n\n" +
+      "**Templates Mode**\nQuick-select optimized presets:\n• YouTube 4K — H.264 High, 3840×2160, 40 Mbps\n• Netflix ProRes — ProRes 422 HQ, 1920×1080\n• Theater DCP — JPEG2000 in MXF container\n• Topaz 4K Upscale toggle — AI upscaling to 4K from lower resolutions.\n\n" +
+      "**Custom Mode**\nFull manual control over every encoding parameter:\n• Video: Codec (H.264, H.265, ProRes 422/4444, DNxHD, VP9, AV1), Container (.mp4, .mov, .mkv, .mxf, .avi, .webm)\n• Bitrate slider (1–200 Mbps), Width, Height, FPS\n• Color Space (Rec. 709, Rec. 2020, DCI-P3, sRGB, ACES CG)\n• Pixel Format (yuv420p through rgb48)\n• 2-Pass Encode and Deinterlace toggles\n• Audio: Codec (AAC, PCM, FLAC, AC3, EAC3, Opus), Bitrate, Sample Rate",
+  },
+  {
+    id: "deliverables",
+    title: "Marketing & Deliverables",
+    context: ["release"],
+    category: "Release",
+    content:
+      "**Multi-Ratio Social Masters**\nAutomatically reframes your 16:9 master into 9:16 (Stories/Reels), 1:1 (Posts), and 4:5 (Feed) using AI object tracking to keep subjects centered.\n\n" +
+      "**Poster & EPK**\nGenerates a 27×40 inch theatrical poster and Electronic Press Kit including:\n• Key art variations\n• Behind-the-scenes stills\n• Synopsis and credits sheet\n• Technical specifications document\n\n" +
+      "**Trailer Engine**\nAI-cuts a 60-second trailer by identifying high-action and emotional beats from your timeline. Includes auto-generated title cards and music.",
+  },
+  {
+    id: "distribution",
+    title: "Distribution & Direct Upload",
+    context: ["release"],
+    category: "Release",
+    content:
+      "**Festival Package**\nOne-click export of a complete festival submission bundle:\n• Screener file (watermarked)\n• Poster / Key art\n• Script PDF\n• Synopsis and director's statement\nPackaged as a single ZIP for FilmFreeway or Withoutabox upload.\n\n" +
+      "**ProRes 422 HQ Export**\nBroadcast-quality master in Apple ProRes 422 HQ codec. Required by many distributors and post houses.\n\n" +
+      "**Direct Platform Upload**\nOne-click authenticated upload to:\n• **YouTube** — Uploads with metadata, thumbnail, and privacy settings.\n• **Vimeo** — Staff pick quality, review link generation.\n• **TikTok** — Auto-formatted for vertical video.\n\n" +
+      "Note: Platform uploads require OAuth connection via Settings > Integrations.",
+  },
+  {
+    id: "c2pa-provenance",
+    title: "C2PA Chain-of-Title & Provenance",
+    context: ["release"],
+    category: "Release",
+    content:
+      "**What is C2PA?**\nThe Coalition for Content Provenance and Authenticity (C2PA) standard provides cryptographic proof of content origin and editing history.\n\n" +
+      "**What's Included**\nThe generated ledger PDF contains:\n• Director/Producer identification\n• Production entity and copyright notice\n• Cryptographic hash of the master file\n• Per-frame provenance claims\n• AI service API licenses and usage timestamps\n• Complete editing history chain\n• Digital signature and verification QR code\n\n" +
+      "**Why It Matters**\nFor AI-generated content, C2PA provenance:\n• Establishes legal authorship and copyright claims.\n• Documents that all AI usage was properly licensed.\n• Provides verifiable chain of custody for distributors.\n• Meets emerging regulatory requirements for AI-generated media.\n\n" +
+      "**Generating the Ledger**\nClick 'Generate C2PA Ledger PDF' to compile all provenance data into a signed document.",
+  },
+  {
+    id: "finished-exports",
+    title: "Finished Exports Panel",
+    context: ["release"],
+    category: "Release",
+    content:
+      "**Location**\nThe right sidebar of the Release page lists all completed export files.\n\n" +
+      "**File Information**\nEach entry shows:\n• Export type icon and label\n• File name\n• Timestamp of completion\n\n" +
+      "**Re-downloading**\nHover over any export entry to reveal the download button. Click to re-download the file.\n\n" +
+      "**Clearing History**\nUse 'Clear All' at the bottom to remove all export entries. This only clears the list display — already-downloaded files remain on your device.\n\n" +
+      "**Session Scope**\nExport history is maintained for the current session. Refreshing the page resets the list.",
   },
 ];
 
