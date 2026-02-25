@@ -795,6 +795,41 @@ export type Database = {
           },
         ]
       }
+      wardrobe_scene_assignments: {
+        Row: {
+          character_name: string
+          clothing_item: string
+          created_at: string
+          film_id: string
+          id: string
+          scene_number: number
+        }
+        Insert: {
+          character_name: string
+          clothing_item: string
+          created_at?: string
+          film_id: string
+          id?: string
+          scene_number: number
+        }
+        Update: {
+          character_name?: string
+          clothing_item?: string
+          created_at?: string
+          film_id?: string
+          id?: string
+          scene_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_scene_assignments_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

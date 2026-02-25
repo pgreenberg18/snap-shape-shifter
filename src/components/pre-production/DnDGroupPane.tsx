@@ -56,6 +56,10 @@ interface DnDGroupPaneProps {
   initialGroups?: { id: string; name: string; children: string[] }[];
   /** Names to exclude from key_objects matching (e.g. vehicle names excluded from props) */
   excludeFromKeyObjects?: string[];
+  /** All scene numbers in the film (for wardrobe per-scene assignment) */
+  allSceneNumbers?: number[];
+  /** Scene headings keyed by scene number */
+  sceneHeadings?: Record<number, string>;
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -158,7 +162,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -715,6 +719,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             onUploadReference={(file) => handleUploadReference(selectedItem, file)}
             isAnalyzing={analyzingItem === selectedItem}
             onDescriptionChange={(desc) => persistRefDescs({ ...refDescriptions, [selectedItem]: desc })}
+            allSceneNumbers={allSceneNumbers}
+            sceneHeadings={sceneHeadings}
           />
         ) : (
           <div className="flex-1 flex items-center justify-center p-8 h-full">
