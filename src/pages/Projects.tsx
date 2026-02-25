@@ -26,6 +26,21 @@ const Projects = () => {
   const queryClient = useQueryClient();
   const { toggle: toggleHelp } = useHelp();
   const { user, signOut } = useAuth();
+
+  const { data: userProfile } = useQuery({
+    queryKey: ["user-profile-name", user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("full_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user,
+  });
+
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -148,7 +163,7 @@ const Projects = () => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-display font-semibold text-foreground truncate">
-                {user?.email?.split("@")[0] || "Director"}
+                {userProfile?.full_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Director"}
               </p>
               <p className="text-[11px] text-muted-foreground truncate">
                 {user?.email || "Welcome back"}
