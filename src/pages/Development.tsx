@@ -1091,7 +1091,7 @@ const Development = () => {
 
                     <div className="space-y-1.5">
                       <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
-                      <Select value={formatType || undefined} onValueChange={handleFormatChange} disabled={scriptLocked}>
+                      <Select value={formatType || undefined} onValueChange={handleFormatChange}>
                         <SelectTrigger className="bg-background">
                           <SelectValue placeholder="Select a format…" />
                         </SelectTrigger>
@@ -1145,7 +1145,7 @@ const Development = () => {
                                 }
                               }
                             }}
-                            disabled={scriptLocked}
+                            disabled={false}
                           />
                           <Label className="text-xs text-muted-foreground">Override defaults</Label>
                         </div>
@@ -1158,7 +1158,7 @@ const Development = () => {
                                 type="number"
                                 value={frameWidth ?? ""}
                                 onChange={(e) => setFrameWidth(e.target.value ? parseInt(e.target.value) : null)}
-                                disabled={scriptLocked}
+                                disabled={false}
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1167,7 +1167,7 @@ const Development = () => {
                                 type="number"
                                 value={frameHeight ?? ""}
                                 onChange={(e) => setFrameHeight(e.target.value ? parseInt(e.target.value) : null)}
-                                disabled={scriptLocked}
+                                disabled={false}
                               />
                             </div>
                             <div className="space-y-1.5">
@@ -1176,7 +1176,7 @@ const Development = () => {
                                 type="number"
                                 value={frameRate ?? ""}
                                 onChange={(e) => setFrameRate(e.target.value ? parseFloat(e.target.value) : null)}
-                                disabled={scriptLocked}
+                                disabled={false}
                               />
                             </div>
                           </div>
