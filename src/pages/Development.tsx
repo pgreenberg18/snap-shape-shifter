@@ -1751,7 +1751,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity text-left"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-sm font-bold font-mono">
+          <span className="flex h-8 w-8 min-w-8 items-center justify-center rounded-lg bg-primary/10 text-primary text-xs font-bold font-mono shrink-0">
             {scene.scene_number ?? index + 1}
           </span>
           <div>
