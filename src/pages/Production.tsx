@@ -275,9 +275,9 @@ const Production = () => {
                 </div>
               </div>
 
-              {/* Two-column: Left = Script+Shots+Builder, Right = Viewer+TakeBin */}
+              {/* Two-column: Left = Script+Builder, Right = Viewer+TakeBin+ShotStack */}
               <div className="flex-1 flex min-h-0">
-                {/* Left column: Script → Shot List → Shot Builder */}
+                {/* Left column: Script → Shot Builder */}
                 <div style={{ width: scriptColWidth }} className="min-w-[280px] max-w-[600px] flex border-r-0 flex-col overflow-hidden shrink-0 relative">
                   <ScriptWorkspace
                     scene={activeScene}
@@ -285,12 +285,6 @@ const Production = () => {
                     onCreateShot={(text, characters) => createShot.mutate({ text, characters })}
                     height={scriptPaneHeight}
                     onResizeStart={handleScriptHeightResize}
-                  />
-                  <ShotList
-                    shots={sceneShots}
-                    activeShotId={activeShotId}
-                    onSelectShot={handleSelectShot}
-                    onAddShot={() => createShot.mutate({ text: "", characters: [] })}
                   />
                   <ShotBuilder
                     shot={activeShot}
@@ -308,7 +302,7 @@ const Production = () => {
                   />
                 </div>
 
-                {/* Right column: Playback Monitor + Take Bin */}
+                {/* Right column: Playback Monitor + Take Bin + Shot Stack */}
                 <div className="flex-1 flex flex-col overflow-y-auto py-3 min-w-0">
                   <PlaybackMonitor
                     aspectRatio={viewportAspect}
@@ -318,6 +312,12 @@ const Production = () => {
                     onRateTake={handleRateTake}
                     onCircleTake={handleCircleTake}
                     onDeleteTake={handleDeleteTake}
+                  />
+                  <ShotList
+                    shots={sceneShots}
+                    activeShotId={activeShotId}
+                    onSelectShot={handleSelectShot}
+                    onAddShot={() => createShot.mutate({ text: "", characters: [] })}
                   />
                 </div>
               </div>
