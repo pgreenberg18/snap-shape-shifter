@@ -664,10 +664,18 @@ const Development = () => {
       }
     }
 
+    // Auto-compile the Director's Style Contract from all Development data
+    // This propagates genre, rating, visual DNA, and scene overrides to all downstream generation
+    supabase.functions.invoke("compile-style-contract", { body: { film_id: filmId } })
+      .then(({ error }) => {
+        if (error) console.error("Style contract compilation failed:", error);
+        else console.log("Director's Style Contract compiled successfully");
+      });
+
     setLocking(false);
     setBreakdownOpen(false);
     queryClient.invalidateQueries({ queryKey: ["film", filmId] });
-    toast({ title: "Script Locked", description: "Breakdown finalized. Characters and assets propagated to Pre-Production." });
+    toast({ title: "Script Locked", description: "Breakdown finalized. Style contract compiled. All data propagated through Production." });
   };
 
   const handleUnlockScript = async () => {
