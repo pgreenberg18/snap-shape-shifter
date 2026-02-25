@@ -127,7 +127,7 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   }
 
   // ── Location processing ──────────────────────────────────
-  const VEHICLE_PATTERNS = /^(?:CAR|HOWARD'S CAR|COP CAR|LARRY'S CAR|RACHEL'S CAR|CORVETTE|CARGO VAN|VAN|TRUCK|BUS|SUV|SEDAN|MOTORCYCLE|AMBULANCE|TAXI|LIMOUSINE|CONVERTIBLE)$/i;
+  const VEHICLE_PATTERNS = /^(?:CAR|HOWARD'S CAR|COP CAR|LARRY'S CAR|RACHEL'S CAR|CORVETTE|CARGO VAN.*|VAN|TRUCK|BUS|SUV|SEDAN|MOTORCYCLE|AMBULANCE|TAXI|LIMOUSINE|CONVERTIBLE)$/i;
   const VEHICLE_WORDS = /\b(car|truck|van|corvette|sedan|motorcycle|ambulance|taxi|limousine|convertible|suv)\b/i;
 
   const rawLocations = extract(["recurring_locations"]);
@@ -177,10 +177,10 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     const upper = loc.toUpperCase().trim();
     if (VEHICLE_PATTERNS.test(upper)) return false;
     // Filter entries that are purely a vehicle reference (e.g. "HOWARD'S CAR")
-    // but keep compound locations like "MEDICAL BUILDING - PARKING LOT"
-    const dashIdx = upper.indexOf(" - ");
-    const baseName = dashIdx > 0 ? upper.substring(0, dashIdx).trim() : upper;
-    if (VEHICLE_WORDS.test(baseName) && baseName.split(/\s+/).length <= 3) return false;
+    // Check if the entire location is a vehicle (possessive + vehicle word)
+    const stripped = upper.replace(/^[A-Z']+'S\s+/i, "").trim();
+    if (VEHICLE_WORDS.test(stripped) && stripped.split(/\s+/).length <= 2) return false;
+    if (VEHICLE_WORDS.test(upper) && upper.split(/\s+/).length <= 2) return false;
     return true;
   });
 
@@ -252,7 +252,13 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
   for (const [base, items] of baseMap) {
     // Deduplicate within group
     const unique = [...new Set(items)];
-    if (unique.length >= 2) {
+    // Group if 2+ items, OR if there's a single item with a sub-location separator
+    // (meaning it's a sub-location like "DOCTOR'S OFFICE - ULTRASOUND ROOM")
+    const hasSubLocations = unique.some(loc => {
+      const upper = loc.toUpperCase().replace(/['']/g, "'").replace(/\.\s+/g, " - ");
+      return upper.replace(/\bHOUSE\b/g, "HOME").includes(" - ");
+    });
+    if (unique.length >= 2 || (unique.length === 1 && hasSubLocations)) {
       const parentName = base.charAt(0) + base.slice(1).toLowerCase().replace(/'/g, "'");
       locationGroups.push({ id: uid(), parentName, variants: unique });
     } else {
