@@ -155,11 +155,13 @@ const AssetDetailPanel = ({
 
         {/* Description / Details */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-          <div className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-primary" />
-            <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-              {assetType === "wardrobe" ? "Wardrobe Details" : assetType === "vehicle" ? "Vehicle Details" : assetType === "location" ? "Location Details" : "Prop Details"}
-            </h3>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Icon className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                {assetType === "wardrobe" ? "Wardrobe Details" : assetType === "vehicle" ? "Vehicle Details" : assetType === "location" ? "Location Details" : "Prop Details"}
+              </h3>
+            </div>
           </div>
 
           <div className="space-y-1.5">
