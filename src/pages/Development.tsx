@@ -1292,7 +1292,7 @@ const Development = () => {
                       ))}
                       {/* Add genre dropdown */}
                       {availableGenres.length > 0 && !scriptLocked && (
-                        <div className="relative">
+                        <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGenreDropdownOpen(false); }}>
                           <button
                             onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
                             className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
