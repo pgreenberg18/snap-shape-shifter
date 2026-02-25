@@ -244,7 +244,7 @@ const ProjectVersions = () => {
           onClick={() => renamingId !== v.id && navigate(`/projects/${projectId}/versions/${v.id}/development`)}
           className="flex flex-1 flex-col text-left"
         >
-          <div className="flex h-16 items-center justify-center bg-secondary">
+          <div className="flex aspect-video items-center justify-center bg-secondary">
             <Film className="h-6 w-6 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
           </div>
           <div className="flex flex-1 flex-col p-3">
