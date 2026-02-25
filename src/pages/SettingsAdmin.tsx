@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { isAdminUser } from "@/components/admin/AdminPanel";
+import NDADocument from "@/components/admin/NDADocument";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
@@ -40,36 +41,14 @@ const YourNDA = ({ userId }: { userId: string }) => {
   }
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-lg border border-border bg-secondary/30 p-4 space-y-2 text-sm">
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Name</span>
-          <span className="text-foreground font-medium">{profile.full_name}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Email</span>
-          <span className="text-foreground">{profile.email}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Phone</span>
-          <span className="text-foreground">{profile.phone || "—"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Address</span>
-          <span className="text-foreground">{profile.address || "—"}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Signed</span>
-          <span className="text-foreground">
-            {profile.nda_signed_at ? new Date(profile.nda_signed_at).toLocaleString() : "—"}
-          </span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-muted-foreground">Signature</span>
-          <span className="text-foreground font-display italic">{profile.signature_data}</span>
-        </div>
-      </div>
-    </div>
+    <NDADocument
+      fullName={profile.full_name}
+      email={profile.email}
+      phone={profile.phone}
+      address={profile.address}
+      signatureData={profile.signature_data}
+      ndaSignedAt={profile.nda_signed_at}
+    />
   );
 };
 
@@ -112,23 +91,43 @@ const AllNDAs = () => {
         <p className="text-sm text-muted-foreground">No signed NDAs yet.</p>
       ) : (
         profiles.map((p) => (
-          <div key={p.id} className="flex items-center justify-between rounded-lg border border-border bg-secondary/30 px-4 py-3">
-            <div>
-              <p className="text-sm font-medium text-foreground">{p.full_name}</p>
-              <p className="text-xs text-muted-foreground">{p.email}</p>
-              <p className="text-[11px] text-muted-foreground/60">
-                Signed: {p.nda_signed_at ? new Date(p.nda_signed_at).toLocaleDateString() : "—"}
-              </p>
+          <Collapsible key={p.id}>
+            <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
+              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors">
+                <div className="text-left">
+                  <p className="text-sm font-medium text-foreground">{p.full_name}</p>
+                  <p className="text-xs text-muted-foreground">{p.email}</p>
+                  <p className="text-[11px] text-muted-foreground/60">
+                    Signed: {p.nda_signed_at ? new Date(p.nda_signed_at).toLocaleDateString() : "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTarget({ userId: p.user_id, name: p.full_name });
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="px-4 pb-4">
+                <NDADocument
+                  fullName={p.full_name}
+                  email={p.email}
+                  phone={p.phone}
+                  address={p.address}
+                  signatureData={p.signature_data}
+                  ndaSignedAt={p.nda_signed_at}
+                />
+              </CollapsibleContent>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-destructive hover:text-destructive"
-              onClick={() => setDeleteTarget({ userId: p.user_id, name: p.full_name })}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          </Collapsible>
         ))
       )}
 
