@@ -39,7 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
-import { Play, Film, Music, Plus, Trash2, ChevronDown, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X } from "lucide-react";
+import { Play, Film, Music, Plus, Trash2, ChevronDown, ChevronRight, Undo2, Redo2, FileDown, AudioWaveform, Palette, Music2, Wand2, FileAudio, FileImage, FileVideo, X, FolderOpen, Folder } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
@@ -241,6 +241,35 @@ function DroppableTrack({ track, children, isOver }: { track: Track; children: R
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/* ── Collapsible Scene Folder ── */
+function SceneShotFolder({ sceneNumber, shots, globalIndex }: { sceneNumber: number; shots: Shot[]; globalIndex: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg border border-border/60 overflow-hidden">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2 bg-secondary/60 hover:bg-secondary/80 transition-colors text-left"
+      >
+        {open ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+        {open ? <FolderOpen className="h-3.5 w-3.5 text-primary/70" /> : <Folder className="h-3.5 w-3.5 text-primary/70" />}
+        <span className="text-[10px] font-mono font-bold" style={{ color: "#FFD600" }}>
+          Scene {sceneNumber}
+        </span>
+        <span className="text-[9px] font-mono text-muted-foreground/60 ml-auto">
+          {shots.length} shot{shots.length !== 1 ? "s" : ""}
+        </span>
+      </button>
+      {open && (
+        <div className="grid grid-cols-2 gap-1.5 p-1.5 bg-card/30">
+          {shots.map((shot, idx) => (
+            <DraggableShot key={shot.id} shot={shot} index={globalIndex + idx} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -472,18 +501,35 @@ const PostProduction = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-3">
-              {/* Shots tab */}
-              <TabsContent value="shots" className="mt-0 grid grid-cols-2 gap-2">
-                {shotsData?.map((shot, idx) => (
-                  <DraggableShot key={shot.id} shot={shot} index={idx} />
-                ))}
-                {(!shotsData || shotsData.length === 0) && (
-                  <div className="col-span-2 text-center py-8">
-                    <Film className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                    <p className="text-[11px] text-muted-foreground/50 font-mono">No shots available.</p>
-                    <p className="text-[9px] text-muted-foreground/40 font-mono mt-1">Create shots in the Production tab.</p>
-                  </div>
-                )}
+              {/* Shots tab — grouped by scene */}
+              <TabsContent value="shots" className="mt-0 space-y-1">
+                {(() => {
+                  if (!shotsData || shotsData.length === 0) {
+                    return (
+                      <div className="text-center py-8">
+                        <Film className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                        <p className="text-[11px] text-muted-foreground/50 font-mono">No shots available.</p>
+                        <p className="text-[9px] text-muted-foreground/40 font-mono mt-1">Create shots in the Production tab.</p>
+                      </div>
+                    );
+                  }
+                  // Group shots by scene_number
+                  const grouped = new Map<number, typeof shotsData>();
+                  shotsData.forEach((shot) => {
+                    const arr = grouped.get(shot.scene_number) || [];
+                    arr.push(shot);
+                    grouped.set(shot.scene_number, arr);
+                  });
+                  const sceneNumbers = [...grouped.keys()].sort((a, b) => a - b);
+                  return sceneNumbers.map((sceneNum) => {
+                    const sceneShots = grouped.get(sceneNum)!;
+                    return (
+                      <SceneShotFolder key={sceneNum} sceneNumber={sceneNum} shots={sceneShots} globalIndex={
+                        shotsData.findIndex((s) => s.id === sceneShots[0].id)
+                      } />
+                    );
+                  });
+                })()}
               </TabsContent>
 
               {/* Imported file tabs */}
