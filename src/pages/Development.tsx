@@ -1100,7 +1100,7 @@ const Development = () => {
                         </SelectTrigger>
                         <SelectContent className="bg-popover border border-border z-[9999]">
                           {FORMAT_PRESETS.map(p => (
-                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                            <SelectItem key={p.value} value={p.value}>{p.label} ({p.aspect})</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
