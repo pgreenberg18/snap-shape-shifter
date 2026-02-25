@@ -3,17 +3,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2, Package, Upload, Lock } from "lucide-react";
+import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2, Package, Upload, Lock, Monitor } from "lucide-react";
 import ExportHistoryPanel, { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
+import { useFilm } from "@/hooks/useFilm";
 
 const Release = () => {
   const [topaz, setTopaz] = useState(false);
-  const [tagline, setTagline] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
   const [exports, setExports] = useState<ExportRecord[]>([]);
   const { toast } = useToast();
+  const { data: film } = useFilm();
 
   const EXPORT_LABELS: Record<string, { label: string; fileName: string }> = {
     master: { label: "Master Film Export", fileName: "master_export.mov" },
@@ -74,11 +74,37 @@ const Release = () => {
           </TabsList>
 
           <TabsContent value="auto">
-            <div className="text-center py-8">
-              <p className="font-display font-semibold">AI-Optimized Export</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Best codec, bitrate, and resolution will be auto-selected.
+            <div className="py-6 space-y-4">
+              <div className="flex items-center gap-3 justify-center">
+                <Monitor className="h-5 w-5 text-primary" />
+                <p className="font-display font-semibold">AI-Optimized Export</p>
+              </div>
+              <p className="text-sm text-muted-foreground text-center">
+                Best codec and bitrate auto-selected based on your format settings.
               </p>
+              {/* Format spec readout from Development */}
+              <div className="rounded-lg border border-border bg-secondary/50 p-4 cinema-inset max-w-sm mx-auto space-y-2">
+                <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-2">Format Specification</p>
+                <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-[11px] font-mono">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "Not set"}</span>
+                  <span className="text-muted-foreground">Resolution</span>
+                  <span className="text-foreground/90 font-semibold">
+                    {(film as any)?.frame_width && (film as any)?.frame_height
+                      ? `${(film as any).frame_width} × ${(film as any).frame_height}`
+                      : "Not set"}
+                  </span>
+                  <span className="text-muted-foreground">Frame Rate</span>
+                  <span className="text-foreground/90 font-semibold">
+                    {(film as any)?.frame_rate ? `${(film as any).frame_rate} fps` : "Not set"}
+                  </span>
+                </div>
+                {!(film as any)?.format_type && (
+                  <p className="text-[9px] text-muted-foreground/50 mt-2 font-mono">
+                    Set format in the Development tab → Format section.
+                  </p>
+                )}
+              </div>
             </div>
           </TabsContent>
 
@@ -173,15 +199,9 @@ const Release = () => {
               <Image className="h-5 w-5 text-primary" />
             </div>
             <h3 className="font-display text-sm font-bold mb-1">Marketing Assets</h3>
-            <p className="text-[11px] text-muted-foreground mb-3 flex-1">
+            <p className="text-[11px] text-muted-foreground mb-4 flex-1">
               Generate 27×40 theatrical poster and Electronic Press Kit (EPK).
             </p>
-            <Input
-              value={tagline}
-              onChange={(e) => setTagline(e.target.value)}
-              placeholder="Tagline…"
-              className="h-8 text-[10px] font-mono bg-background border-border/60 placeholder:text-muted-foreground/40 mb-3 cinema-inset"
-            />
             <Button
               variant="secondary"
               size="sm"
