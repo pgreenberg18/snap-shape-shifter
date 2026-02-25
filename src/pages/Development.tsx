@@ -2818,13 +2818,35 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, analysisId, approved, onApprovedChange }: { initialValue: string; visualSummary?: string; timePeriod?: string; signatureStyle?: string; analysisId: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
+const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, visualDesign, analysisId, approved, onApprovedChange }: { initialValue: any; visualSummary?: string; timePeriod?: string; signatureStyle?: string; visualDesign?: { color_palette?: string[]; lighting_language?: string[]; atmospheric_motifs?: string[]; symbolic_elements?: string[] } | null; analysisId: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
+  // Convert structured array format to display string
+  const formatNotes = (raw: any): string => {
+    if (!raw) return "";
+    if (Array.isArray(raw)) {
+      return raw.map((item: any) => {
+        if (typeof item === "object" && item.topic && item.body) {
+          return `**${item.topic}:**\n${item.body}`;
+        }
+        return typeof item === "string" ? item : JSON.stringify(item);
+      }).join("\n\n");
+    }
+    if (typeof raw === "string") return raw;
+    return JSON.stringify(raw);
+  };
+
   const [value, setValue] = useState(() => {
-    if (initialValue) return initialValue;
+    const formatted = formatNotes(initialValue);
+    if (formatted) return formatted;
     const parts: string[] = [];
-    if (timePeriod) parts.push(`Time Period: ${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
-    if (signatureStyle) parts.push(`Signature Style: ${signatureStyle}`);
-    if (visualSummary) parts.push(`Visual Direction: ${visualSummary}`);
+    if (timePeriod) parts.push(`**Time Period:**\n${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
+    if (signatureStyle) parts.push(`**Signature Style:**\n${signatureStyle}`);
+    if (visualSummary) parts.push(`**Visual Direction:**\n${visualSummary}`);
+    if (visualDesign) {
+      const refs: string[] = [];
+      if (visualDesign.color_palette?.length) refs.push(`Color palette: ${visualDesign.color_palette.join(", ")}`);
+      if (visualDesign.lighting_language?.length) refs.push(`Lighting: ${visualDesign.lighting_language.join(", ")}`);
+      if (refs.length) parts.push(`**Visual Design References:**\n${refs.join(". ")}.`);
+    }
     if (parts.length === 0) return "";
     return parts.join("\n\n");
   });
