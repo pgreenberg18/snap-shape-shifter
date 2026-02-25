@@ -100,7 +100,9 @@ const Onboarding = () => {
           <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
             This is a highly confidential beta version of our revolutionary software. Please complete your profile and sign the NDA to access the studio. We appreciate your interest in our app. Thank you for your cooperation.
           </p>
-          <img src={paulSignature} alt="Paul" className="mx-auto h-24 w-auto opacity-50 mix-blend-screen" />
+          <div className="mx-auto h-24 w-48 relative" style={{ maskImage: "radial-gradient(ellipse 70% 60% at center, black 20%, transparent 70%)", WebkitMaskImage: "radial-gradient(ellipse 70% 60% at center, black 20%, transparent 70%)" }}>
+            <img src={paulSignature} alt="Paul" className="h-full w-full object-contain opacity-35 mix-blend-screen" />
+          </div>
         </div>
       </div>
 
