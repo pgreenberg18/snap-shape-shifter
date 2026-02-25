@@ -488,14 +488,14 @@ const PostProduction = () => {
                 <TabsTrigger value="sound" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
                   <AudioWaveform className="h-3 w-3" /> Sound
                 </TabsTrigger>
-                <TabsTrigger value="color" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
-                  <Palette className="h-3 w-3" /> Color
-                </TabsTrigger>
                 <TabsTrigger value="score" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
                   <Music2 className="h-3 w-3" /> Score
                 </TabsTrigger>
                 <TabsTrigger value="fx" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
                   <Wand2 className="h-3 w-3" /> FX
+                </TabsTrigger>
+                <TabsTrigger value="color" className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary">
+                  <Palette className="h-3 w-3" /> Color
                 </TabsTrigger>
               </TabsList>
             </div>
