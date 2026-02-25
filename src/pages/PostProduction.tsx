@@ -168,25 +168,57 @@ function DraggableShot({ shot, index }: { shot: Shot; index: number }) {
     data: { type: "media-shot", shot },
   });
 
+  const [selected, setSelected] = useState(false);
+  const [trimLeft, setTrimLeft] = useState(0);
+  const [trimRight, setTrimRight] = useState(0);
+
   const style: React.CSSProperties = {
     transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.4 : 1,
     zIndex: isDragging ? 100 : 1,
   };
 
-  // Generate a deterministic dark frame color based on scene number
   const frameBg = `hsl(${(shot.scene_number * 47) % 360} 15% 18%)`;
+
+  const handleTrim = useCallback((side: "left" | "right", e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const container = (e.target as HTMLElement).closest("[data-trim-area]") as HTMLElement;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const startX = e.clientX;
+    const startVal = side === "left" ? trimLeft : trimRight;
+
+    const onMove = (ev: MouseEvent) => {
+      const dx = ev.clientX - startX;
+      const pct = (dx / rect.width) * 100;
+      if (side === "left") {
+        setTrimLeft(Math.max(0, Math.min(40, startVal + pct)));
+      } else {
+        setTrimRight(Math.max(0, Math.min(40, startVal - pct)));
+      }
+    };
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [trimLeft, trimRight]);
 
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
+      {...(selected ? {} : listeners)}
       {...attributes}
       style={style}
-      className="rounded-lg border border-border overflow-hidden cursor-grab active:cursor-grabbing select-none group/shot cinema-inset"
+      onClick={(e) => { e.stopPropagation(); setSelected((s) => !s); }}
+      className={cn(
+        "rounded-lg border overflow-hidden cursor-grab active:cursor-grabbing select-none group/shot cinema-inset transition-colors",
+        selected ? "border-primary ring-1 ring-primary/40" : "border-border"
+      )}
     >
-      {/* Video frame / thumbnail */}
-      <div className="relative aspect-video w-full" style={{ background: frameBg }}>
+      <div className="relative aspect-video w-full" style={{ background: frameBg }} data-trim-area>
         {shot.video_url ? (
           <video
             src={shot.video_url}
@@ -199,15 +231,34 @@ function DraggableShot({ shot, index }: { shot: Shot; index: number }) {
             <Film className="h-6 w-6 text-white/15" />
           </div>
         )}
-        {/* Scene / Shot / Take overlay */}
-        <div className="absolute top-1.5 left-1.5">
+        <div className="absolute top-1.5 left-1.5 z-10">
           <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
             style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
             SC{shot.scene_number} / SH{index + 1} / T1
           </span>
         </div>
+
+        {selected && (
+          <>
+            <div className="absolute top-0 bottom-0 left-0 bg-black/60 z-10" style={{ width: `${trimLeft}%` }} />
+            <div
+              onMouseDown={(e) => handleTrim("left", e)}
+              className="absolute top-0 bottom-0 z-20 w-2.5 cursor-col-resize flex items-center justify-center hover:bg-primary/30 transition-colors"
+              style={{ left: `${trimLeft}%` }}
+            >
+              <div className="w-0.5 h-5 rounded-full bg-primary" />
+            </div>
+            <div className="absolute top-0 bottom-0 right-0 bg-black/60 z-10" style={{ width: `${trimRight}%` }} />
+            <div
+              onMouseDown={(e) => handleTrim("right", e)}
+              className="absolute top-0 bottom-0 z-20 w-2.5 cursor-col-resize flex items-center justify-center hover:bg-primary/30 transition-colors"
+              style={{ right: `${trimRight}%` }}
+            >
+              <div className="w-0.5 h-5 rounded-full bg-primary" />
+            </div>
+          </>
+        )}
       </div>
-      {/* Info bar */}
       <div className="px-2 py-1.5 bg-secondary/80">
         <p className="text-[10px] font-mono text-foreground/80 truncate">
           {shot.camera_angle || shot.prompt_text?.slice(0, 50) || "Untitled shot"}
