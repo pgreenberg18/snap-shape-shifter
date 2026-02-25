@@ -1,14 +1,22 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Film, Image, FileText, Users, MapPin, Shirt, Package,
-  ChevronRight, ChevronDown, Folder, Eye,
+  ChevronRight, ChevronDown, Folder, Eye, Trash2, Download,
+  CheckSquare, Square,
 } from "lucide-react";
+import { toast } from "sonner";
 
 type MediaItem = {
   id: string;
@@ -18,13 +26,17 @@ type MediaItem = {
   category: string;
   subCategory?: string;
   createdAt: string;
+  sourceTable?: string;
 };
 
 const MediaLibraryPanel = () => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
   const [activeTab, setActiveTab] = useState("shots");
   const [openFolders, setOpenFolders] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const toggleFolder = (key: string) => {
     setOpenFolders((prev) => {
@@ -35,7 +47,30 @@ const MediaLibraryPanel = () => {
     });
   };
 
-  // Fetch shots (video/image)
+  const toggleSelect = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback((items: MediaItem[]) => {
+    setSelected((prev) => {
+      const ids = items.map((i) => i.id);
+      const allSelected = ids.every((id) => prev.has(id));
+      const next = new Set(prev);
+      if (allSelected) {
+        ids.forEach((id) => next.delete(id));
+      } else {
+        ids.forEach((id) => next.add(id));
+      }
+      return next;
+    });
+  }, []);
+
+  // Fetch shots
   const { data: shots } = useQuery({
     queryKey: ["settings-media-shots"],
     queryFn: async () => {
@@ -50,7 +85,7 @@ const MediaLibraryPanel = () => {
     enabled: !!user,
   });
 
-  // Fetch characters (headshots, references)
+  // Fetch characters
   const { data: characters } = useQuery({
     queryKey: ["settings-media-characters"],
     queryFn: async () => {
@@ -64,7 +99,7 @@ const MediaLibraryPanel = () => {
     enabled: !!user,
   });
 
-  // Fetch film assets (locations, props, wardrobe, vehicles)
+  // Fetch film assets
   const { data: filmAssets } = useQuery({
     queryKey: ["settings-media-film-assets"],
     queryFn: async () => {
@@ -104,6 +139,7 @@ const MediaLibraryPanel = () => {
       category: "Shots",
       subCategory: `Scene ${s.scene_number}`,
       createdAt: s.created_at,
+      sourceTable: "shots",
     }));
 
   const characterItems: MediaItem[] = (characters || []).flatMap((c) => {
@@ -111,12 +147,13 @@ const MediaLibraryPanel = () => {
     if (c.image_url) {
       items.push({
         id: `${c.id}-headshot`,
-        name: `${c.name} — Headshot`,
+        name: `${c.name}`,
         url: c.image_url,
         type: "image",
         category: "Characters",
         subCategory: c.name,
         createdAt: c.created_at,
+        sourceTable: "characters",
       });
     }
     if (c.reference_image_url) {
@@ -128,6 +165,7 @@ const MediaLibraryPanel = () => {
         category: "Characters",
         subCategory: c.name,
         createdAt: c.created_at,
+        sourceTable: "characters",
       });
     }
     return items;
@@ -142,6 +180,7 @@ const MediaLibraryPanel = () => {
       type: "image",
       category: a.asset_type.charAt(0).toUpperCase() + a.asset_type.slice(1),
       createdAt: a.created_at,
+      sourceTable: "film_assets",
     }));
 
   const scriptItems: MediaItem[] = (scripts || []).map((s) => ({
@@ -151,6 +190,7 @@ const MediaLibraryPanel = () => {
     type: "script" as const,
     category: "Scripts",
     createdAt: s.created_at,
+    sourceTable: "script_analyses",
   }));
 
   const tabData: Record<string, { icon: React.ReactNode; items: MediaItem[] }> = {
@@ -163,9 +203,66 @@ const MediaLibraryPanel = () => {
   };
 
   const totalCount = Object.values(tabData).reduce((sum, d) => sum + d.items.length, 0);
+  const currentTabItems = tabData[activeTab]?.items || [];
+  const selectedInTab = currentTabItems.filter((i) => selected.has(i.id));
+  const allInTabSelected = currentTabItems.length > 0 && currentTabItems.every((i) => selected.has(i.id));
+
+  // Download selected items
+  const handleDownloadSelected = useCallback(async () => {
+    for (const item of selectedInTab) {
+      try {
+        const response = await fetch(item.url);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const ext = item.type === "video" ? ".mp4" : item.type === "script" ? ".pdf" : ".png";
+        a.download = `${item.name.replace(/[^a-zA-Z0-9-_ ]/g, "")}${ext}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch {
+        toast.error(`Failed to download ${item.name}`);
+      }
+    }
+    toast.success(`Downloaded ${selectedInTab.length} item(s)`);
+  }, [selectedInTab]);
+
+  // Delete selected items
+  const handleDeleteSelected = useCallback(async () => {
+    let deleted = 0;
+    for (const item of selectedInTab) {
+      try {
+        if (item.sourceTable === "shots") {
+          await supabase.from("shots").update({ video_url: null }).eq("id", item.id);
+        } else if (item.sourceTable === "film_assets") {
+          await supabase.from("film_assets").delete().eq("id", item.id);
+        } else if (item.sourceTable === "characters") {
+          const realId = item.id.replace(/-headshot$|-ref$/, "");
+          if (item.id.endsWith("-headshot")) {
+            await supabase.from("characters").update({ image_url: null }).eq("id", realId);
+          } else {
+            await supabase.from("characters").update({ reference_image_url: null }).eq("id", realId);
+          }
+        } else if (item.sourceTable === "script_analyses") {
+          await supabase.from("script_analyses").delete().eq("id", item.id);
+        }
+        deleted++;
+      } catch {
+        toast.error(`Failed to delete ${item.name}`);
+      }
+    }
+    setSelected(new Set());
+    setShowDeleteConfirm(false);
+    queryClient.invalidateQueries({ queryKey: ["settings-media-shots"] });
+    queryClient.invalidateQueries({ queryKey: ["settings-media-characters"] });
+    queryClient.invalidateQueries({ queryKey: ["settings-media-film-assets"] });
+    queryClient.invalidateQueries({ queryKey: ["settings-media-scripts"] });
+    toast.success(`Deleted ${deleted} item(s)`);
+  }, [selectedInTab, queryClient]);
 
   const renderGroupedItems = (items: MediaItem[]) => {
-    // Group by subCategory if exists
     const groups = new Map<string, MediaItem[]>();
     items.forEach((item) => {
       const key = item.subCategory || "Ungrouped";
@@ -184,17 +281,37 @@ const MediaLibraryPanel = () => {
         {sortedKeys.map((key) => {
           const groupItems = groups.get(key)!;
           const isOpen = openFolders.has(key);
+          const allGroupSelected = groupItems.every((i) => selected.has(i.id));
+          const someGroupSelected = groupItems.some((i) => selected.has(i.id));
           return (
             <div key={key}>
-              <button
-                onClick={() => toggleFolder(key)}
-                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent transition-colors"
-              >
-                {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                <Folder className="h-3 w-3 text-primary/60" />
-                <span className="font-mono text-[11px] font-medium text-foreground">{key}</span>
-                <span className="ml-auto text-[9px] text-muted-foreground/60 font-mono">{groupItems.length}</span>
-              </button>
+              <div className="flex items-center gap-1">
+                <Checkbox
+                  checked={allGroupSelected}
+                  className="h-3.5 w-3.5 ml-1"
+                  onCheckedChange={() => {
+                    setSelected((prev) => {
+                      const next = new Set(prev);
+                      const ids = groupItems.map((i) => i.id);
+                      if (allGroupSelected) {
+                        ids.forEach((id) => next.delete(id));
+                      } else {
+                        ids.forEach((id) => next.add(id));
+                      }
+                      return next;
+                    });
+                  }}
+                />
+                <button
+                  onClick={() => toggleFolder(key)}
+                  className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+                >
+                  {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                  <Folder className="h-3 w-3 text-primary/60" />
+                  <span className="font-mono text-[11px] font-medium text-foreground">{key}</span>
+                  <span className="ml-auto text-[9px] text-muted-foreground/60 font-mono">{groupItems.length}</span>
+                </button>
+              </div>
               {isOpen && <div className="ml-5">{renderItemList(groupItems)}</div>}
             </div>
           );
@@ -206,34 +323,43 @@ const MediaLibraryPanel = () => {
   const renderItemList = (items: MediaItem[]) => (
     <div className="space-y-0.5">
       {items.map((item) => (
-        <button
+        <div
           key={item.id}
-          onClick={() => item.type !== "script" && setPreviewItem(item)}
-          className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left hover:bg-accent transition-colors group"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-2 text-left hover:bg-accent transition-colors group"
         >
-          {item.type === "image" && item.url ? (
-            <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0">
-              <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+          <Checkbox
+            checked={selected.has(item.id)}
+            onCheckedChange={() => toggleSelect(item.id)}
+            className="h-3.5 w-3.5 shrink-0"
+          />
+          <button
+            onClick={() => item.type !== "script" && setPreviewItem(item)}
+            className="flex flex-1 items-center gap-2.5 min-w-0"
+          >
+            {item.type === "image" && item.url ? (
+              <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0">
+                <img src={item.url} alt={item.name} className="h-full w-full object-cover" />
+              </div>
+            ) : item.type === "video" ? (
+              <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0 flex items-center justify-center">
+                <Film className="h-3.5 w-3.5 text-muted-foreground/50" />
+              </div>
+            ) : (
+              <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0 flex items-center justify-center">
+                <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-mono font-medium text-foreground truncate">{item.name}</p>
+              <p className="text-[9px] font-mono text-muted-foreground/60">
+                {new Date(item.createdAt).toLocaleDateString()}
+              </p>
             </div>
-          ) : item.type === "video" ? (
-            <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0 flex items-center justify-center">
-              <Film className="h-3.5 w-3.5 text-muted-foreground/50" />
-            </div>
-          ) : (
-            <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0 flex items-center justify-center">
-              <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
-            </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-mono font-medium text-foreground truncate">{item.name}</p>
-            <p className="text-[9px] font-mono text-muted-foreground/60">
-              {new Date(item.createdAt).toLocaleDateString()}
-            </p>
-          </div>
-          {item.type !== "script" && (
-            <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
-          )}
-        </button>
+            {item.type !== "script" && (
+              <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
+            )}
+          </button>
+        </div>
       ))}
     </div>
   );
@@ -250,7 +376,7 @@ const MediaLibraryPanel = () => {
         </div>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelected(new Set()); }}>
         <TabsList className="w-full h-9 bg-secondary/60 border border-border/50 p-0.5">
           {Object.entries(tabData).map(([key, { icon, items }]) => (
             <TabsTrigger
@@ -269,7 +395,46 @@ const MediaLibraryPanel = () => {
 
         {Object.entries(tabData).map(([key, { items }]) => (
           <TabsContent key={key} value={key} className="mt-3">
-            <ScrollArea className="max-h-[60vh]">
+            {/* Bulk action bar */}
+            {items.length > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-[10px] gap-1.5 h-7 px-2"
+                  onClick={() => toggleSelectAll(items)}
+                >
+                  {allInTabSelected ? <CheckSquare className="h-3 w-3" /> : <Square className="h-3 w-3" />}
+                  {allInTabSelected ? "Deselect All" : "Select All"}
+                </Button>
+                {selectedInTab.length > 0 && (
+                  <>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      {selectedInTab.length} selected
+                    </span>
+                    <div className="ml-auto flex gap-1.5">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[10px] gap-1.5 h-7 px-2.5"
+                        onClick={handleDownloadSelected}
+                      >
+                        <Download className="h-3 w-3" /> Download
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="text-[10px] gap-1.5 h-7 px-2.5"
+                        onClick={() => setShowDeleteConfirm(true)}
+                      >
+                        <Trash2 className="h-3 w-3" /> Delete
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <ScrollArea className="max-h-[55vh]">
               {items.length === 0 ? (
                 <div className="text-center py-12">
                   <Image className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
@@ -290,18 +455,9 @@ const MediaLibraryPanel = () => {
             <div className="flex flex-col">
               <div className="bg-black flex items-center justify-center min-h-[300px] max-h-[70vh]">
                 {previewItem.type === "video" ? (
-                  <video
-                    src={previewItem.url}
-                    controls
-                    autoPlay
-                    className="max-w-full max-h-[70vh]"
-                  />
+                  <video src={previewItem.url} controls autoPlay className="max-w-full max-h-[70vh]" />
                 ) : (
-                  <img
-                    src={previewItem.url}
-                    alt={previewItem.name}
-                    className="max-w-full max-h-[70vh] object-contain"
-                  />
+                  <img src={previewItem.url} alt={previewItem.name} className="max-w-full max-h-[70vh] object-contain" />
                 )}
               </div>
               <div className="px-4 py-3 border-t border-border bg-card">
@@ -314,6 +470,27 @@ const MediaLibraryPanel = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedInTab.length} item(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the selected media files. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={handleDeleteSelected}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
