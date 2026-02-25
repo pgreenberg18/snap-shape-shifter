@@ -382,27 +382,17 @@ const Projects = () => {
                       <Pencil className="h-3 w-3" />
                       Rename
                     </Button>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1 text-xs"
-                        onClick={() => navigate(`/projects/${project.id}`)}
-                      >
-                        Open <ChevronRight className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setDeleteTarget({ id: project.id, title: project.title });
-                        }}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteTarget({ id: project.id, title: project.title });
+                      }}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
                   </div>
                 </div>
               ))}
