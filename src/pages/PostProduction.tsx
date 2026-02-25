@@ -754,7 +754,7 @@ const PostProduction = () => {
             <div style={{ minWidth: `${100 * timelineZoom}%` }}>
             {tracks.map((track) => (
               <div key={track.id} className="flex border-b border-border/50 group">
-                <div className="w-24 shrink-0 flex items-center gap-1 px-2 border-r border-border/50 bg-secondary/50">
+                <div className="w-24 shrink-0 flex items-center gap-1 px-2 border-r border-border/50 bg-secondary/50 sticky left-0 z-10">
                   {track.icon}
                   <span className="text-[10px] font-mono text-muted-foreground flex-1 truncate">{track.label}</span>
                   {tracks.length > 1 && (
