@@ -306,7 +306,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                 )}
 
                 {/* Grouped items */}
-                {cat.groups.map((group) => {
+                {[...cat.groups].sort((a, b) => a.parentName.localeCompare(b.parentName)).map((group) => {
                   const isOpen = expandedGroups.has(group.id);
                   return (
                     <div key={group.id} className="rounded-md border border-primary/20 bg-primary/5 overflow-hidden">
@@ -329,7 +329,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                       </div>
                       {isOpen && (
                         <div className="px-3 pb-2 flex flex-wrap gap-1.5 border-t border-primary/10 pt-2">
-                          {group.variants.map((v, i) => {
+                          {[...group.variants].sort((a, b) => a.localeCompare(b)).map((v, i) => {
                             const isSelected = selected.has(v) && activeCategory === key;
                             const isDisabled = activeCategory !== null && activeCategory !== key;
                             return (
@@ -363,7 +363,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                 {/* Ungrouped items – selectable & deletable chips */}
                 {cat.ungrouped.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {cat.ungrouped.map((item, i) => {
+                    {[...cat.ungrouped].sort((a, b) => a.localeCompare(b)).map((item, i) => {
                       const isSelected = selected.has(item) && activeCategory === key;
                       const isDisabled = activeCategory !== null && activeCategory !== key;
                       return (
