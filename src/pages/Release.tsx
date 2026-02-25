@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -6,30 +6,54 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film, Loader2, Package, Upload, Lock } from "lucide-react";
+import ExportHistoryPanel, { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
 
 const Release = () => {
   const [topaz, setTopaz] = useState(false);
   const [tagline, setTagline] = useState("");
   const [processing, setProcessing] = useState<string | null>(null);
+  const [exports, setExports] = useState<ExportRecord[]>([]);
   const { toast } = useToast();
 
-  const handleProcess = (id: string) => {
+  const EXPORT_LABELS: Record<string, { label: string; fileName: string }> = {
+    master: { label: "Master Film Export", fileName: "master_export.mov" },
+    social: { label: "Multi-Ratio Social Masters", fileName: "social_cutdowns.zip" },
+    poster: { label: "Poster & EPK", fileName: "poster_epk.zip" },
+    trailer: { label: "60s Trailer", fileName: "trailer_60s.mp4" },
+    filmfreeway: { label: "Festival Package", fileName: "festival_package.zip" },
+    prores: { label: "ProRes 422 HQ", fileName: "master_prores422hq.mov" },
+    youtube: { label: "YouTube Upload", fileName: "youtube_upload.mp4" },
+    vimeo: { label: "Vimeo Upload", fileName: "vimeo_upload.mp4" },
+    tiktok: { label: "TikTok Upload", fileName: "tiktok_upload.mp4" },
+    c2pa: { label: "C2PA Ledger PDF", fileName: "c2pa_provenance_ledger.pdf" },
+  };
+
+  const handleProcess = useCallback((id: string) => {
     setProcessing(id);
     setTimeout(() => {
       setProcessing(null);
-      toast({ title: "Complete", description: `${id} finished processing.` });
+      const meta = EXPORT_LABELS[id] || { label: id, fileName: `${id}_export.bin` };
+      const record: ExportRecord = {
+        id: crypto.randomUUID(),
+        type: id,
+        label: meta.label,
+        timestamp: new Date(),
+        fileName: meta.fileName,
+      };
+      setExports((prev) => [record, ...prev]);
+      triggerDownload(record);
+      toast({ title: "Export Complete", description: `${meta.label} saved — downloading now.` });
     }, 4000);
-  };
+  }, [toast]);
 
-  const handleC2PA = () => {
-    toast({
-      title: "C2PA Provenance Verified",
-      description: "Cryptographic hash verified.",
-    });
-  };
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
+      {/* Top bar with Export History */}
+      <div className="flex items-center justify-between">
+        <div />
+        <ExportHistoryPanel exports={exports} onClear={() => setExports([])} />
+      </div>
       {/* Export Master Film */}
       <div className="rounded-xl border border-border bg-card p-8 cinema-inset">
         <div className="flex items-center gap-3 mb-6">
@@ -94,9 +118,12 @@ const Release = () => {
         </Tabs>
 
         <div className="mt-6 flex justify-center">
-          <Button size="lg" className="gap-2 px-10">
-            <Download className="h-5 w-5" />
-            Export Master
+          <Button size="lg" className="gap-2 px-10" disabled={processing === "master"} onClick={() => handleProcess("master")}>
+            {processing === "master" ? (
+              <><Loader2 className="h-5 w-5 animate-spin" /> Exporting…</>
+            ) : (
+              <><Download className="h-5 w-5" /> Export Master</>
+            )}
           </Button>
         </div>
       </div>
