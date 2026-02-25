@@ -77,10 +77,24 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { characterName, description, sex, ageMin, ageMax, isChild, filmTitle, timePeriod, genre, cardIndex, referenceImageUrl, modifyInstructions } = await req.json();
+    const { characterName, description, sex, ageMin, ageMax, isChild, filmTitle, timePeriod, genre, cardIndex, referenceImageUrl, modifyInstructions, film_id } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // ── Fetch the Style Contract for genre-aware generation ──
+    let styleContract: any = null;
+    if (film_id) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const sbRead = createClient(supabaseUrl, supabaseKey);
+      const { data: contract } = await sbRead
+        .from("film_style_contracts")
+        .select("*")
+        .eq("film_id", film_id)
+        .maybeSingle();
+      styleContract = contract;
+    }
 
     // Build age string
     let ageStr = "adult";
@@ -117,8 +131,52 @@ serve(async (req) => {
       ? "- Physical appeal: This actor is notably attractive — symmetrical features, clear skin, photogenic bone structure, naturally good-looking"
       : "";
 
+    // ═══ STYLE CONTRACT INJECTION ═══
+    // If a compiled style contract exists, inject genre-specific direction
+    let genreVisualDirection = "";
+    let contractNegative = "";
+    let characterDirective = "";
+    let contractLighting = "";
+    let contractTexture = "";
+
+    if (styleContract) {
+      // Character-specific directive (genre × sex × archetype)
+      const charDirectives = styleContract.character_directives || {};
+      characterDirective = charDirectives[characterName] || "";
+
+      // Genre visual profile
+      const gvp = styleContract.genre_visual_profile || {};
+      const blended = gvp.blended_profile || {};
+
+      // Genre-aware lighting override
+      if (blended.lighting) {
+        contractLighting = `Genre lighting direction: ${blended.lighting.default}. Color temperature: ${blended.lighting.color_temp}. Fill ratio: ${blended.lighting.fill_ratio}.`;
+      }
+
+      // Genre-aware texture/skin
+      if (blended.texture) {
+        contractTexture = `Texture direction: ${blended.texture.grain}. Skin rendering: ${blended.texture.skin}.`;
+      }
+
+      // Genre portrait style as primary visual direction
+      if (characterDirective) {
+        genreVisualDirection = `GENRE-SPECIFIC CHARACTER DIRECTION:\n${characterDirective}`;
+      } else if (blended.framing) {
+        genreVisualDirection = `GENRE PORTRAIT STYLE: ${blended.framing.portrait_style}`;
+      }
+
+      // Contract's compiled negative prompt
+      contractNegative = styleContract.negative_prompt_base || "";
+
+      // Visual DNA context
+      if (styleContract.visual_dna) {
+        genreVisualDirection = `FILM VISUAL IDENTITY: ${styleContract.visual_dna}\n\n${genreVisualDirection}`;
+      }
+    }
+
     const prompt = `Generate a single photorealistic casting headshot photograph. This is Actor ${idx + 1} of 10 for the role of "${characterName}" in the film "${filmTitle}". ${periodStr} ${genreStr}
 
+${genreVisualDirection ? `${genreVisualDirection}\n` : ""}
 CHARACTER BRIEF:
 - Gender: ${sexStr}
 - Age: ${ageStr}
@@ -131,6 +189,8 @@ THIS SPECIFIC ACTOR (Actor ${idx + 1}):
 - Expression: ${expression}
 - Wardrobe: ${wardrobe}, solid color, no logos, no patterns
 - Lighting setup: Large soft ${lighting}
+${contractLighting ? `- ${contractLighting}` : ""}
+${contractTexture ? `- ${contractTexture}` : ""}
 
 PHOTOGRAPHIC REQUIREMENTS — MANDATORY:
 - Vertical 8×10 portrait orientation (4:5 aspect ratio)
@@ -144,7 +204,7 @@ PHOTOGRAPHIC REQUIREMENTS — MANDATORY:
 - Hair and makeup: natural, character-aligned, no distracting flyaways
 - The result must look like a real photograph from a professional casting session
 
-This actor must be a completely unique individual — distinct ethnicity, bone structure, hair color/texture, skin tone, and eye color from any other actor in this casting set. They must believably fit the character description while looking like their own person.`;
+This actor must be a completely unique individual — distinct ethnicity, bone structure, hair color/texture, skin tone, and eye color from any other actor in this casting set. They must believably fit the character description while looking like their own person.${contractNegative ? `\n\nNEGATIVE (avoid): ${contractNegative}` : ""}`;
 
     const models = ["google/gemini-3-pro-image-preview", "google/gemini-2.5-flash-image"];
     let imageBytes: Uint8Array | null = null;

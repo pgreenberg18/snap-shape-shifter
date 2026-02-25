@@ -79,18 +79,16 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const sb = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch script context
-    const { data: scriptData } = await sb
-      .from("script_analyses")
-      .select("visual_summary, scene_breakdown")
-      .eq("film_id", film_id)
-      .eq("status", "complete")
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    // ── Parallel fetches: script context, film, style contract, character ──
+    const [scriptRes, filmRes, contractRes] = await Promise.all([
+      sb.from("script_analyses").select("visual_summary, scene_breakdown").eq("film_id", film_id).eq("status", "complete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("films").select("title, time_period, genres").eq("id", film_id).single(),
+      sb.from("film_style_contracts").select("*").eq("film_id", film_id).maybeSingle(),
+    ]);
 
-    // Fetch film for time_period
-    const { data: film } = await sb.from("films").select("title, time_period").eq("id", film_id).single();
+    const scriptData = scriptRes.data;
+    const film = filmRes.data;
+    const styleContract = contractRes.data;
 
     // Fetch character info if wardrobe
     let characterContext = "";
@@ -107,6 +105,70 @@ serve(async (req) => {
     const variations = VARIATION_PROFILES[asset_type] || VARIATION_PROFILES.prop;
     const aspect = ASPECT_RATIOS[asset_type] || "1:1 square";
     const slug = slugify(asset_name);
+
+    // ═══ STYLE CONTRACT — Genre-aware visual direction ═══
+    let genreColorDirection = "";
+    let genreLightingDirection = "";
+    let genreAssetTone = "";
+    let genreTextureDirection = "";
+    let contractNegative = "";
+    let visualDnaContext = "";
+
+    if (styleContract) {
+      const gvp = styleContract.genre_visual_profile || {};
+      const blended = gvp.blended_profile || {};
+
+      // Asset-type-specific genre tone
+      if (asset_type === "location") genreAssetTone = blended.location_tone || "";
+      else if (asset_type === "prop") genreAssetTone = blended.prop_tone || "";
+      else if (asset_type === "wardrobe") genreAssetTone = blended.wardrobe_tone || "";
+      else if (asset_type === "vehicle") genreAssetTone = blended.vehicle_tone || "";
+
+      // Color mandate
+      const cm = styleContract.color_mandate || {};
+      if (cm.genre_palette) {
+        genreColorDirection = `Color palette: ${cm.genre_palette}. Saturation: ${cm.genre_saturation || "medium"}. Contrast: ${cm.genre_contrast || "medium"}.`;
+        if (cm.script_palette && Array.isArray(cm.script_palette) && cm.script_palette.length > 0) {
+          genreColorDirection += ` Script-specific colors: ${cm.script_palette.join("; ")}.`;
+        }
+      }
+
+      // Lighting doctrine
+      const ld = styleContract.lighting_doctrine || {};
+      if (ld.genre_default) {
+        genreLightingDirection = `Lighting: ${ld.genre_default}. Color temp: ${ld.genre_color_temp || "5600K"}. Fill ratio: ${ld.genre_fill_ratio || "1:3"}.`;
+        if (ld.script_lighting && Array.isArray(ld.script_lighting) && ld.script_lighting.length > 0) {
+          genreLightingDirection += ` Script lighting language: ${ld.script_lighting.slice(0, 3).join("; ")}.`;
+        }
+      }
+
+      // Texture
+      const tm = styleContract.texture_mandate || {};
+      if (tm.genre_grain) {
+        genreTextureDirection = `Texture: ${tm.genre_grain}.`;
+      }
+
+      // Negative prompt
+      contractNegative = styleContract.negative_prompt_base || "";
+
+      // Visual DNA
+      if (styleContract.visual_dna) {
+        visualDnaContext = styleContract.visual_dna;
+      }
+    }
+
+    // Build the style injection block used in every prompt
+    const styleBlock = [
+      visualDnaContext ? `FILM VISUAL IDENTITY: ${visualDnaContext}` : "",
+      genreAssetTone ? `GENRE ${asset_type.toUpperCase()} DIRECTION: ${genreAssetTone}` : "",
+      genreColorDirection ? `COLOR DIRECTION: ${genreColorDirection}` : "",
+      genreLightingDirection ? `LIGHTING DIRECTION: ${genreLightingDirection}` : "",
+      genreTextureDirection ? `TEXTURE DIRECTION: ${genreTextureDirection}` : "",
+    ].filter(Boolean).join("\n");
+
+    const negativeBlock = contractNegative
+      ? `\n\nNEGATIVE (avoid): ${contractNegative}`
+      : "";
 
     const results: Array<{
       id: string;
@@ -125,6 +187,8 @@ serve(async (req) => {
       if (asset_type === "location") {
         prompt = `Generate a single photorealistic cinematic production design photograph of the location "${asset_name}" for the film "${filmTitle}".
 
+${styleBlock}
+
 VISUAL CONTEXT:
 ${visualSummary ? `Film visual summary: ${safeDesc(visualSummary)}` : ""}
 ${timePeriod ? `Time period: ${timePeriod}` : ""}
@@ -138,9 +202,11 @@ REQUIREMENTS:
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Rich environmental detail: lighting, atmosphere, texture
 - No people visible
-- No text. No watermark.`;
+- No text. No watermark.${negativeBlock}`;
       } else if (asset_type === "prop") {
         prompt = `Generate a single photorealistic product photograph of the prop "${asset_name}" for the film "${filmTitle}".
+
+${styleBlock}
 
 VISUAL CONTEXT:
 ${visualSummary ? `Film visual summary: ${safeDesc(visualSummary)}` : ""}
@@ -155,11 +221,12 @@ REQUIREMENTS:
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show material detail, wear patterns, and craftsmanship
 - No hands or people visible
-- No text. No watermark.`;
+- No text. No watermark.${negativeBlock}`;
       } else if (asset_type === "wardrobe") {
         prompt = `Generate a single photorealistic wardrobe photograph showing the costume piece "${asset_name}" for the film "${filmTitle}".
 
 ${characterContext ? `CHARACTER CONTEXT: ${characterContext}` : ""}
+${styleBlock}
 
 VISUAL CONTEXT:
 ${visualSummary ? `Film visual summary: ${safeDesc(visualSummary)}` : ""}
@@ -174,10 +241,12 @@ REQUIREMENTS:
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show fabric texture, construction detail, and color accuracy
 - No people visible (mannequin form only if needed)
-- No text. No watermark.`;
+- No text. No watermark.${negativeBlock}`;
       } else {
         // vehicle
         prompt = `Generate a single photorealistic cinematic photograph of the vehicle "${asset_name}" for the film "${filmTitle}".
+
+${styleBlock}
 
 VISUAL CONTEXT:
 ${visualSummary ? `Film visual summary: ${safeDesc(visualSummary)}` : ""}
@@ -192,7 +261,7 @@ REQUIREMENTS:
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show paint condition, detail work, and character
 - No people visible
-- No text. No watermark.`;
+- No text. No watermark.${negativeBlock}`;
       }
 
       let imageBytes: Uint8Array | null = null;
@@ -210,7 +279,7 @@ REQUIREMENTS:
             messages: [
               {
                 role: "system",
-                content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production.`,
+                content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
               },
               { role: "user", content: prompt },
             ],

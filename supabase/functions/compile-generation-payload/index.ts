@@ -25,51 +25,21 @@ function buildAnachronismBlacklist(period: string | null): string[] {
   if (!period) return [];
   const lower = (period ?? "").toLowerCase();
 
-  // Base modern-tech items to blacklist for any pre-2000s setting
   const modernTech = [
-    "smartphones",
-    "flatscreen tvs",
-    "led lighting",
-    "modern electric cars",
-    "wireless earbuds",
-    "tablets",
-    "drones",
-    "selfie sticks",
+    "smartphones", "flatscreen tvs", "led lighting", "modern electric cars",
+    "wireless earbuds", "tablets", "drones", "selfie sticks",
   ];
 
-  // Decade-based additions
   if (
-    lower.includes("1800") ||
-    lower.includes("18th") ||
-    lower.includes("victorian") ||
-    lower.includes("19th") ||
-    lower.includes("1900") ||
-    lower.includes("medieval") ||
+    lower.includes("1800") || lower.includes("18th") || lower.includes("victorian") ||
+    lower.includes("19th") || lower.includes("1900") || lower.includes("medieval") ||
     lower.includes("ancient")
   ) {
-    return [
-      ...modernTech,
-      "automobiles",
-      "electric lights",
-      "telephones",
-      "radios",
-      "plastic",
-      "nylon",
-    ];
+    return [...modernTech, "automobiles", "electric lights", "telephones", "radios", "plastic", "nylon"];
   }
 
-  if (
-    lower.includes("1920") ||
-    lower.includes("1930") ||
-    lower.includes("1940") ||
-    lower.includes("1950")
-  ) {
-    return [
-      ...modernTech,
-      "color television",
-      "personal computers",
-      "microwave ovens",
-    ];
+  if (lower.includes("1920") || lower.includes("1930") || lower.includes("1940") || lower.includes("1950")) {
+    return [...modernTech, "color television", "personal computers", "microwave ovens"];
   }
 
   if (lower.includes("1960") || lower.includes("1970")) {
@@ -77,17 +47,9 @@ function buildAnachronismBlacklist(period: string | null): string[] {
   }
 
   if (lower.includes("1980") || lower.includes("1990")) {
-    return [
-      "smartphones",
-      "flatscreen tvs",
-      "led lighting",
-      "wireless earbuds",
-      "drones",
-      "selfie sticks",
-    ];
+    return ["smartphones", "flatscreen tvs", "led lighting", "wireless earbuds", "drones", "selfie sticks"];
   }
 
-  // Future / contemporary — no blacklist
   return [];
 }
 
@@ -101,9 +63,15 @@ function extractRefCodes(text: string | null): string[] {
 
 /** Parse camera_language from ai_generation_templates into structured metadata */
 function parseCinematography(
-  template: { camera_language: string | null; image_prompt_base: string | null } | null
+  template: { camera_language: string | null; image_prompt_base: string | null } | null,
+  contract: any | null,
 ) {
-  // Defaults
+  // Start with contract defaults (genre-informed) or hardcoded defaults
+  const contractProfile = contract?.genre_visual_profile?.blended_profile || {};
+  const contractLighting = contract?.lighting_doctrine || {};
+  const contractLens = contract?.lens_philosophy || {};
+  const contractTexture = contract?.texture_mandate || {};
+
   const meta = {
     framing: {
       shot_size: "MS",
@@ -113,7 +81,7 @@ function parseCinematography(
     optics: {
       sensor_profile: "ARRI Alexa 35",
       lens_type: "Spherical prime",
-      focal_length: "35mm",
+      focal_length: contractLens.genre_default_lens || "35mm",
       depth_of_field: "f/2.8",
     },
     dynamics: {
@@ -122,9 +90,9 @@ function parseCinematography(
       motion_blur: "180° standard",
     },
     lighting_and_grade: {
-      setup: "Natural",
-      color_temp: "Daylight 5600K",
-      film_texture: "Clean digital",
+      setup: contractLighting.genre_default || "Natural",
+      color_temp: contractLighting.genre_color_temp || "Daylight 5600K",
+      film_texture: contractTexture.genre_grain || "Clean digital",
     },
   };
 
@@ -161,7 +129,7 @@ function parseCinematography(
   else if (cl.includes("crane") || cl.includes("jib")) meta.dynamics.rigging = "Crane / Jib";
   else if (cl.includes("dolly")) meta.dynamics.rigging = "Dolly";
 
-  // Lighting
+  // Lighting (shot-level overrides genre default)
   if (cl.includes("low-key") || cl.includes("low key")) meta.lighting_and_grade.setup = "Low-key";
   else if (cl.includes("high-key") || cl.includes("high key")) meta.lighting_and_grade.setup = "High-key";
   else if (cl.includes("silhouette")) meta.lighting_and_grade.setup = "Silhouette";
@@ -216,20 +184,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ── 2. Parallel fetches: film, content_safety, ai_generation_template ──
-    const [filmRes, safetyRes, templateRes] = await Promise.all([
+    // ── 2. Parallel fetches: film, content_safety, template, style_contract, scene_override ──
+    const [filmRes, safetyRes, templateRes, contractRes, sceneOverrideRes] = await Promise.all([
       supabase.from("films").select("*").eq("id", shot.film_id).single(),
       supabase.from("content_safety").select("*").eq("film_id", shot.film_id).maybeSingle(),
-      supabase
-        .from("ai_generation_templates")
-        .select("*")
-        .eq("shot_id", shot_id)
-        .maybeSingle(),
+      supabase.from("ai_generation_templates").select("*").eq("shot_id", shot_id).maybeSingle(),
+      supabase.from("film_style_contracts").select("*").eq("film_id", shot.film_id).maybeSingle(),
+      supabase.from("scene_style_overrides").select("*").eq("film_id", shot.film_id).eq("scene_number", shot.scene_number).maybeSingle(),
     ]);
 
     const film = filmRes.data;
     const safety = safetyRes.data;
     const template = templateRes.data;
+    const contract = contractRes.data;
+    const sceneOverride = sceneOverrideRes.data;
 
     // ── 2b. Fetch locked film assets ──
     const { data: lockedAssets } = await supabase
@@ -264,14 +232,33 @@ Deno.serve(async (req) => {
     // ── 4. Build temporal guardrails ──
     const anchorPeriod = film?.time_period ?? null;
     const blacklist = buildAnachronismBlacklist(anchorPeriod);
-    const negativeBase =
-      "morphed faces, low quality, watermark, text, 3d render, plastic";
+
+    // Use contract's negative prompt base if available (genre + rating aware)
+    const contractNegative = contract?.negative_prompt_base || "";
+    const negativeBase = contractNegative || "morphed faces, low quality, watermark, text, 3d render, plastic";
     const negativePrompt = blacklist.length
       ? `${negativeBase}, ${blacklist.join(", ")}`
       : negativeBase;
 
-    // ── 5. Build cinematography metadata ──
-    const cinematography = parseCinematography(template);
+    // Add scene-specific negative if present
+    const finalNegative = sceneOverride?.custom_negative
+      ? `${negativePrompt}, ${sceneOverride.custom_negative}`
+      : negativePrompt;
+
+    // ── 5. Build cinematography metadata (genre-informed defaults from contract) ──
+    const cinematography = parseCinematography(template, contract);
+
+    // ── 5b. Apply scene override to cinematography ──
+    if (sceneOverride) {
+      // Scene mood can shift lighting
+      if (sceneOverride.lighting_override && !template?.camera_language) {
+        cinematography.lighting_and_grade.setup = sceneOverride.lighting_override;
+      }
+      // Time of day grade
+      if (sceneOverride.time_of_day_grade) {
+        cinematography.lighting_and_grade.color_temp = sceneOverride.time_of_day_grade;
+      }
+    }
 
     // ── 6. Derive content safety level ──
     const safetyLevel = deriveSafetyLevel(safety);
@@ -284,6 +271,9 @@ Deno.serve(async (req) => {
       film_id: shot.film_id,
       shot_id: shot.id,
 
+      // Style contract version for provenance tracking
+      style_contract_version: contract?.version || null,
+
       routing_metadata: {
         target_tier: "commercial_heavyweight",
         preferred_engine: "veo_3.1",
@@ -294,13 +284,32 @@ Deno.serve(async (req) => {
       temporal_guardrails: {
         anchor_period: anchorPeriod,
         anachronism_blacklist: blacklist,
-        negative_prompt_injection: negativePrompt,
+        negative_prompt_injection: finalNegative,
       },
+
+      // Genre-informed visual context from the Director's Bible
+      style_context: contract ? {
+        visual_dna: contract.visual_dna || "",
+        genre_profile: contract.genre_visual_profile || {},
+        color_mandate: contract.color_mandate || {},
+        lighting_doctrine: contract.lighting_doctrine || {},
+        texture_mandate: contract.texture_mandate || {},
+      } : null,
+
+      // Scene-specific mood/atmosphere override
+      scene_context: sceneOverride ? {
+        mood: sceneOverride.mood_override,
+        lighting: sceneOverride.lighting_override,
+        color_shift: sceneOverride.color_shift,
+        environment_texture: sceneOverride.environment_texture,
+        time_of_day_grade: sceneOverride.time_of_day_grade,
+        camera_feel: sceneOverride.camera_feel,
+      } : null,
 
       generation_payload: {
         raw_script_action: shot.prompt_text ?? "",
 
-        resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography, lockedAssets || []),
+        resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography, lockedAssets || [], contract, sceneOverride),
 
         identity_tokens: identityTokens,
 
@@ -344,14 +353,36 @@ Deno.serve(async (req) => {
   }
 });
 
-/** Build the resolved text prompt from shot + template + cinematography + locked assets */
+/** Build the resolved text prompt from shot + template + cinematography + locked assets + contract + scene override */
 function buildResolvedPrompt(
   shot: any,
   template: any,
   cine: ReturnType<typeof parseCinematography>,
-  lockedAssets: any[]
+  lockedAssets: any[],
+  contract: any | null,
+  sceneOverride: any | null,
 ): string {
   const parts: string[] = [];
+
+  // Film visual DNA (genre-informed identity)
+  if (contract?.visual_dna) {
+    parts.push(`VISUAL IDENTITY: ${contract.visual_dna}`);
+  }
+
+  // Genre color direction
+  if (contract?.color_mandate?.genre_palette) {
+    parts.push(`COLOR: ${contract.color_mandate.genre_palette}.`);
+  }
+
+  // Scene mood override
+  if (sceneOverride?.mood_override) {
+    parts.push(`MOOD: ${sceneOverride.mood_override}.`);
+  }
+
+  // Scene environment texture
+  if (sceneOverride?.environment_texture) {
+    parts.push(`ENVIRONMENT: ${sceneOverride.environment_texture}.`);
+  }
 
   // Shot size + angle
   parts.push(
@@ -368,10 +399,10 @@ function buildResolvedPrompt(
     parts.push(`${cine.dynamics.movement}.`);
   }
 
-  // Lighting
-  parts.push(`${cine.lighting_and_grade.setup} lighting.`);
+  // Lighting (genre-informed or scene-overridden)
+  parts.push(`${cine.lighting_and_grade.setup} lighting, ${cine.lighting_and_grade.color_temp}.`);
 
-  // Sensor + texture
+  // Sensor + texture (genre-informed)
   parts.push(
     `Cinematic, ${cine.optics.sensor_profile}, ${cine.lighting_and_grade.film_texture}.`
   );

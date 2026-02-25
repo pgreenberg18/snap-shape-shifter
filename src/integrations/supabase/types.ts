@@ -294,6 +294,74 @@ export type Database = {
           },
         ]
       }
+      film_style_contracts: {
+        Row: {
+          character_directives: Json | null
+          color_mandate: Json | null
+          content_guardrails: Json | null
+          created_at: string
+          film_id: string
+          genre_visual_profile: Json | null
+          id: string
+          lens_philosophy: Json | null
+          lighting_doctrine: Json | null
+          negative_prompt_base: string | null
+          source_hash: string | null
+          temporal_rules: Json | null
+          texture_mandate: Json | null
+          updated_at: string
+          version: number
+          visual_dna: string | null
+          world_rules: string | null
+        }
+        Insert: {
+          character_directives?: Json | null
+          color_mandate?: Json | null
+          content_guardrails?: Json | null
+          created_at?: string
+          film_id: string
+          genre_visual_profile?: Json | null
+          id?: string
+          lens_philosophy?: Json | null
+          lighting_doctrine?: Json | null
+          negative_prompt_base?: string | null
+          source_hash?: string | null
+          temporal_rules?: Json | null
+          texture_mandate?: Json | null
+          updated_at?: string
+          version?: number
+          visual_dna?: string | null
+          world_rules?: string | null
+        }
+        Update: {
+          character_directives?: Json | null
+          color_mandate?: Json | null
+          content_guardrails?: Json | null
+          created_at?: string
+          film_id?: string
+          genre_visual_profile?: Json | null
+          id?: string
+          lens_philosophy?: Json | null
+          lighting_doctrine?: Json | null
+          negative_prompt_base?: string | null
+          source_hash?: string | null
+          temporal_rules?: Json | null
+          texture_mandate?: Json | null
+          updated_at?: string
+          version?: number
+          visual_dna?: string | null
+          world_rules?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "film_style_contracts_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: true
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       films: {
         Row: {
           copied_from_version_id: string | null
@@ -653,6 +721,59 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      scene_style_overrides: {
+        Row: {
+          camera_feel: string | null
+          color_shift: Json | null
+          created_at: string
+          custom_negative: string | null
+          environment_texture: string | null
+          film_id: string
+          id: string
+          lighting_override: string | null
+          mood_override: string | null
+          scene_number: number
+          shot_suggestions: Json | null
+          time_of_day_grade: string | null
+        }
+        Insert: {
+          camera_feel?: string | null
+          color_shift?: Json | null
+          created_at?: string
+          custom_negative?: string | null
+          environment_texture?: string | null
+          film_id: string
+          id?: string
+          lighting_override?: string | null
+          mood_override?: string | null
+          scene_number: number
+          shot_suggestions?: Json | null
+          time_of_day_grade?: string | null
+        }
+        Update: {
+          camera_feel?: string | null
+          color_shift?: Json | null
+          created_at?: string
+          custom_negative?: string | null
+          environment_texture?: string | null
+          film_id?: string
+          id?: string
+          lighting_override?: string | null
+          mood_override?: string | null
+          scene_number?: number
+          shot_suggestions?: Json | null
+          time_of_day_grade?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_style_overrides_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       script_analyses: {
         Row: {
