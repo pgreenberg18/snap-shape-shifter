@@ -5,13 +5,14 @@ import {
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
   Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw,
-  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard,
+  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard, Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,28 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 /* ── Constants ── */
 const ACCEPTED_EXTENSIONS = [".fdx", ".fountain", ".rtf", ".pdf", ".docx", ".sexp", ".mmsw", ".fdr", ".txt"];
 const ACCEPTED_LABEL = ".fdx, .fountain, .rtf, .pdf, .docx, .sexp, .mmsw, .fdr";
+
+const FORMAT_PRESETS = [
+  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "feature_film_scope", label: "Feature Film (Scope 2.39:1)", width: 2048, height: 858, fps: 24, aspect: "2.39:1" },
+  { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9" },
+  { value: "tiktok", label: "TikTok", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
+  { value: "instagram_reel", label: "Instagram Reel", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
+  { value: "instagram_post", label: "Instagram Post", width: 1080, height: 1080, fps: 30, aspect: "1:1" },
+  { value: "instagram_story", label: "Instagram Story", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
+  { value: "youtube", label: "YouTube", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "youtube_short", label: "YouTube Short", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
+  { value: "facebook", label: "Facebook Video", width: 1280, height: 720, fps: 30, aspect: "16:9" },
+  { value: "snapchat", label: "Snapchat", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
+  { value: "linkedin", label: "LinkedIn Video", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
+  { value: "imax", label: "IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1" },
+  { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1" },
+];
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -282,6 +305,12 @@ const Development = () => {
   const [reviewStats, setReviewStats] = useState<{ approved: number; rejected: number; pending: number } | null>(null);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
+  const [formatType, setFormatType] = useState<string>("");
+  const [frameWidth, setFrameWidth] = useState<number | null>(null);
+  const [frameHeight, setFrameHeight] = useState<number | null>(null);
+  const [frameRate, setFrameRate] = useState<number | null>(null);
+  const [formatSaving, setFormatSaving] = useState(false);
+  const [formatOverride, setFormatOverride] = useState(false);
   const [genres, setGenres] = useState<string[]>([]);
   const [genreDropdownOpen, setGenreDropdownOpen] = useState(false);
   const [filmTitle, setFilmTitle] = useState("");
@@ -414,7 +443,18 @@ const Development = () => {
     if (film?.version_name != null) setVersionName(film.version_name ?? "");
     if ((film as any)?.writers != null) setWriters((film as any).writers ?? "");
     if ((film as any)?.genres != null) setGenres((film as any).genres ?? []);
-  }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers, (film as any)?.genres]);
+    if ((film as any)?.format_type != null) setFormatType((film as any).format_type ?? "");
+    if ((film as any)?.frame_width != null) setFrameWidth((film as any).frame_width);
+    if ((film as any)?.frame_height != null) setFrameHeight((film as any).frame_height);
+    if ((film as any)?.frame_rate != null) setFrameRate((film as any).frame_rate);
+    // If values exist but no override was set, check if they differ from preset
+    if ((film as any)?.format_type) {
+      const preset = FORMAT_PRESETS.find(p => p.value === (film as any).format_type);
+      if (preset && ((film as any).frame_width !== preset.width || (film as any).frame_height !== preset.height || (film as any).frame_rate !== preset.fps)) {
+        setFormatOverride(true);
+      }
+    }
+  }, [film?.time_period, film?.title, film?.version_name, (film as any)?.writers, (film as any)?.genres, (film as any)?.format_type, (film as any)?.frame_width, (film as any)?.frame_height, (film as any)?.frame_rate]);
 
   /* Auto-scroll to scene from ?scene= query param and open its script */
   useEffect(() => {
@@ -640,6 +680,34 @@ const Development = () => {
     } else {
       queryClient.invalidateQueries({ queryKey: ["film", filmId] });
       toast({ title: "Time period saved", description: timePeriod || "Cleared" });
+    }
+  };
+
+  const handleFormatChange = (value: string) => {
+    setFormatType(value);
+    const preset = FORMAT_PRESETS.find(p => p.value === value);
+    if (preset && !formatOverride) {
+      setFrameWidth(preset.width);
+      setFrameHeight(preset.height);
+      setFrameRate(preset.fps);
+    }
+  };
+
+  const handleSaveFormat = async () => {
+    if (!filmId) return;
+    setFormatSaving(true);
+    const { error } = await supabase.from("films").update({
+      format_type: formatType || null,
+      frame_width: frameWidth,
+      frame_height: frameHeight,
+      frame_rate: frameRate,
+    } as any).eq("id", filmId);
+    setFormatSaving(false);
+    if (error) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } else {
+      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+      toast({ title: "Format saved" });
     }
   };
 
@@ -997,6 +1065,140 @@ const Development = () => {
           {/* Complete results */}
           {analysis?.status === "complete" && (
             <div className="space-y-6">
+              {/* ── Format ── */}
+              <Collapsible>
+                <CollapsibleTrigger className="w-full">
+                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Monitor className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Format</h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {formatType ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                      Select the output format. This determines frame size, aspect ratio, and frame rate for all generated images and clips.
+                    </p>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
+                      <Select value={formatType} onValueChange={handleFormatChange} disabled={scriptLocked}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Select a format…" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-popover border border-border z-50">
+                          {FORMAT_PRESETS.map(p => (
+                            <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {formatType && (
+                      <>
+                        {(() => {
+                          const preset = FORMAT_PRESETS.find(p => p.value === formatType);
+                          return preset ? (
+                            <div className="rounded-lg bg-secondary/50 border border-border p-3 space-y-2">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Industry Standard</span>
+                                <span className="text-xs text-muted-foreground">{preset.aspect}</span>
+                              </div>
+                              <div className="grid grid-cols-3 gap-3 text-sm">
+                                <div>
+                                  <span className="text-[10px] text-muted-foreground uppercase">Width</span>
+                                  <p className="font-display font-bold text-foreground">{preset.width}px</p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-muted-foreground uppercase">Height</span>
+                                  <p className="font-display font-bold text-foreground">{preset.height}px</p>
+                                </div>
+                                <div>
+                                  <span className="text-[10px] text-muted-foreground uppercase">Frame Rate</span>
+                                  <p className="font-display font-bold text-foreground">{preset.fps} fps</p>
+                                </div>
+                              </div>
+                            </div>
+                          ) : null;
+                        })()}
+
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={formatOverride}
+                            onCheckedChange={(val) => {
+                              setFormatOverride(val);
+                              if (!val) {
+                                const preset = FORMAT_PRESETS.find(p => p.value === formatType);
+                                if (preset) {
+                                  setFrameWidth(preset.width);
+                                  setFrameHeight(preset.height);
+                                  setFrameRate(preset.fps);
+                                }
+                              }
+                            }}
+                            disabled={scriptLocked}
+                          />
+                          <Label className="text-xs text-muted-foreground">Override defaults</Label>
+                        </div>
+
+                        {formatOverride && (
+                          <div className="grid grid-cols-3 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Width (px)</Label>
+                              <Input
+                                type="number"
+                                value={frameWidth ?? ""}
+                                onChange={(e) => setFrameWidth(e.target.value ? parseInt(e.target.value) : null)}
+                                disabled={scriptLocked}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Height (px)</Label>
+                              <Input
+                                type="number"
+                                value={frameHeight ?? ""}
+                                onChange={(e) => setFrameHeight(e.target.value ? parseInt(e.target.value) : null)}
+                                disabled={scriptLocked}
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FPS</Label>
+                              <Input
+                                type="number"
+                                value={frameRate ?? ""}
+                                onChange={(e) => setFrameRate(e.target.value ? parseFloat(e.target.value) : null)}
+                                disabled={scriptLocked}
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="flex justify-end">
+                          <Button
+                            onClick={handleSaveFormat}
+                            disabled={formatSaving || scriptLocked}
+                            className="gap-1.5"
+                            size="sm"
+                          >
+                            {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                            Save Format
+                          </Button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+
               {/* ── Time Period ── */}
               <Collapsible>
                 <CollapsibleTrigger className="w-full">
