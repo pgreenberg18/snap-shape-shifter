@@ -759,7 +759,7 @@ const Development = () => {
   }, [temporalAnalysis]);
 
   /* State for script text preview dialog */
-  const [scriptPreview, setScriptPreview] = useState<{ heading: string; text: string } | null>(null);
+  const [scriptPreview, setScriptPreview] = useState<{ heading: string; text: string; highlight?: string } | null>(null);
 
   /* Fallback: keyword-based detection if AI didn't provide temporal_analysis */
   const timeShifts = useMemo(() => {
@@ -875,7 +875,7 @@ const Development = () => {
   }, [analysis?.scene_breakdown, secondaryTimePeriods.length, film?.time_period, timePeriod]);
 
   /* Fetch raw script text for a scene preview popup */
-  const fetchSceneText = useCallback(async (sceneNumber: number) => {
+  const fetchSceneText = useCallback(async (sceneNumber: number, highlight?: string) => {
     if (!filmId) return;
     const { data } = await supabase
       .from("parsed_scenes")
@@ -884,7 +884,7 @@ const Development = () => {
       .eq("scene_number", sceneNumber)
       .limit(1)
       .maybeSingle();
-    if (data) setScriptPreview({ heading: data.heading, text: data.raw_text });
+    if (data) setScriptPreview({ heading: data.heading, text: data.raw_text, highlight });
   }, [filmId]);
 
   return (
@@ -1394,16 +1394,14 @@ const Development = () => {
                               <div className="space-y-1 pl-9">
                                 {matchedScenes.map((ms: any, j: number) => (
                                   <div key={j} className="flex items-center gap-2">
-                                    {ms.page > 0 && (
-                                      <button
-                                        onClick={() => fetchSceneText(ms.sceneNumber)}
-                                        className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
-                                        title="View script page"
-                                      >
-                                        <FileText className="h-3 w-3" />
-                                        p.{ms.page}
-                                      </button>
-                                    )}
+                                    <button
+                                      onClick={() => fetchSceneText(ms.sceneNumber, ms.slug)}
+                                      className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                      title="View scene in script"
+                                    >
+                                      <FileText className="h-3 w-3" />
+                                      Sc.{ms.sceneNumber}
+                                    </button>
                                     <span className="text-[11px] text-muted-foreground truncate flex-1">{ms.slug}</span>
                                   </div>
                                 ))}
@@ -1486,28 +1484,46 @@ const Development = () => {
                               minHeight: "400px",
                             }}
                           >
-                            {scriptPreview?.text.split("\n").map((line, i) => {
-                              const trimmed = line.trim();
-                              const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
-                              const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
-                              const isParenthetical = /^\(.*\)$/.test(trimmed);
-                              const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+                            {(() => {
+                              const highlightTerm = scriptPreview?.highlight?.replace(/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s*/i, "").trim();
+                              const renderHighlighted = (text: string) => {
+                                if (!highlightTerm || highlightTerm.length < 3) return text;
+                                const idx = text.toLowerCase().indexOf(highlightTerm.toLowerCase());
+                                if (idx === -1) return text;
+                                return (
+                                  <>
+                                    {text.slice(0, idx)}
+                                    <span style={{ backgroundColor: "#FACC15", color: "#000", padding: "0 2px", borderRadius: 2 }}>
+                                      {text.slice(idx, idx + highlightTerm.length)}
+                                    </span>
+                                    {text.slice(idx + highlightTerm.length)}
+                                  </>
+                                );
+                              };
 
-                              if (isHeading) {
-                                return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{trimmed}</p>;
-                              }
-                              if (isCharacter) {
-                                return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{trimmed}</p>;
-                              }
-                              if (isParenthetical) {
-                                return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
-                              }
-                              if (isDialogue) {
-                                return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
-                              }
-                              if (!trimmed) return <div key={i} style={{ height: 12 }} />;
-                              return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{trimmed}</p>;
-                            })}
+                              return scriptPreview?.text.split("\n").map((line, i) => {
+                                const trimmed = line.trim();
+                                const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
+                                const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
+                                const isParenthetical = /^\(.*\)$/.test(trimmed);
+                                const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+
+                                if (isHeading) {
+                                  return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{renderHighlighted(trimmed)}</p>;
+                                }
+                                if (isCharacter) {
+                                  return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{renderHighlighted(trimmed)}</p>;
+                                }
+                                if (isParenthetical) {
+                                  return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
+                                }
+                                if (isDialogue) {
+                                  return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
+                                }
+                                if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+                                return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{renderHighlighted(trimmed)}</p>;
+                              });
+                            })()}
                           </div>
                         </div>
                       </DialogContent>
