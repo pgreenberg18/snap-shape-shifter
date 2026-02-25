@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import SceneNavigator from "@/components/production/SceneNavigator";
 import ScriptWorkspace from "@/components/production/ScriptWorkspace";
+import type { ShotHighlight } from "@/components/production/ScriptWorkspace";
 import ShotList from "@/components/production/ShotList";
 import type { Shot } from "@/components/production/ShotList";
 import ShotBuilder from "@/components/production/ShotBuilder";
@@ -133,6 +134,14 @@ const Production = () => {
   });
 
   const activeShot = sceneShots.find((s) => s.id === activeShotId) ?? null;
+  const activeShotIndex = sceneShots.findIndex((s) => s.id === activeShotId);
+
+  // Build shot highlights for the script panel
+  const shotHighlights: ShotHighlight[] = sceneShots.map((s, idx) => ({
+    shotId: s.id,
+    promptText: s.prompt_text || "",
+    colorIndex: idx,
+  }));
 
   // Scene elements from parsed data
   const sceneElements = sceneTextData ? {
@@ -285,6 +294,7 @@ const Production = () => {
                     onCreateShot={(text, characters) => createShot.mutate({ text, characters })}
                     height={scriptPaneHeight}
                     onResizeStart={handleScriptHeightResize}
+                    shotHighlights={shotHighlights}
                   />
                   <ShotBuilder
                     shot={activeShot}
@@ -312,6 +322,7 @@ const Production = () => {
                     onRateTake={handleRateTake}
                     onCircleTake={handleCircleTake}
                     onDeleteTake={handleDeleteTake}
+                    shotColorIndex={activeShotIndex >= 0 ? activeShotIndex : undefined}
                   />
                   <ShotList
                     shots={sceneShots}

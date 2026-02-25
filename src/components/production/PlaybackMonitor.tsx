@@ -9,6 +9,7 @@ import {
   Tooltip, TooltipContent, TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
+import { SHOT_COLORS } from "@/lib/shot-colors";
 
 export interface Take {
   id: number;
@@ -33,6 +34,8 @@ interface PlaybackMonitorProps {
   onRateTake: (idx: number, rating: number) => void;
   onCircleTake: (idx: number) => void;
   onDeleteTake: (idx: number) => void;
+  /** Index of the active shot within the scene (for color frame) */
+  shotColorIndex?: number;
 }
 
 const StarRating = ({ rating, onRate }: { rating: number; onRate: (r: number) => void }) => (
@@ -62,9 +65,18 @@ const PlaybackMonitor = ({
   onRateTake,
   onCircleTake,
   onDeleteTake,
+  shotColorIndex,
 }: PlaybackMonitorProps) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const activeTake = activeTakeIdx !== null ? takes[activeTakeIdx] : null;
+
+  // Color frame style for the viewer
+  const colorFrameStyle: React.CSSProperties | undefined =
+    shotColorIndex != null
+      ? {
+          boxShadow: `inset 0 0 0 3px hsl(${SHOT_COLORS[shotColorIndex % SHOT_COLORS.length].hsl})`,
+        }
+      : undefined;
 
   return (
     <div className="flex flex-col gap-3">
@@ -72,7 +84,10 @@ const PlaybackMonitor = ({
       <div className="flex-1 min-h-0 flex items-center justify-center px-2">
         <div className="w-full max-w-4xl">
           <AspectRatio ratio={aspectRatio}>
-            <div className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40">
+            <div
+              className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40"
+              style={colorFrameStyle}
+            >
               {/* Camera HUD */}
               <div className="absolute inset-0 pointer-events-none z-10">
                 <div className="absolute left-1/2 top-0 bottom-0 w-px bg-white/10" />

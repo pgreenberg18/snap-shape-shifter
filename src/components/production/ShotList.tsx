@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Crosshair, Plus, Film } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SHOT_COLORS } from "@/lib/shot-colors";
 
 export interface Shot {
   id: string;
@@ -52,6 +53,7 @@ const ShotList = ({ shots, activeShotId, onSelectShot, onAddShot }: ShotListProp
             {shots.map((shot, idx) => {
               const isActive = activeShotId === shot.id;
               const hasVideo = !!shot.video_url;
+              const shotColor = SHOT_COLORS[idx % SHOT_COLORS.length];
               return (
                 <button
                   key={shot.id}
@@ -64,6 +66,11 @@ const ShotList = ({ shots, activeShotId, onSelectShot, onAddShot }: ShotListProp
                       : "border-border/50 bg-secondary/40 hover:bg-secondary/70"
                   )}
                 >
+                  {/* Color dot matching script highlight */}
+                  <span
+                    className="h-2.5 w-2.5 rounded-full shrink-0"
+                    style={{ backgroundColor: `hsl(${shotColor.hsl})` }}
+                  />
                   <span className={cn(
                     "text-[10px] font-mono font-bold shrink-0",
                     isActive ? "text-primary" : "text-muted-foreground"
