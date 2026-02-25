@@ -68,49 +68,73 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Build a condensed summary of all scenes for the AI
+    // ── Deterministic aggregation of ALL unique elements from scene data ──
+    const allCharacters = new Set<string>();
+    const allLocations = new Set<string>();
+    const allWardrobe: string[] = [];
+    const wardrobeSeen = new Set<string>();
+    const allProps = new Set<string>();
+
+    for (const s of allScenes as any[]) {
+      // Characters
+      for (const c of (s.characters || [])) {
+        if (typeof c === "string" && c.trim()) {
+          // Strip parentheticals: "HOWARD WELLS (40s)" → "HOWARD WELLS"
+          let name = c.replace(/\s*\(.*?\)\s*/g, "").trim();
+          const dashIdx = name.indexOf(" - ");
+          if (dashIdx > 0) name = name.substring(0, dashIdx).trim();
+          if (name) allCharacters.add(name);
+        }
+      }
+
+      // Locations
+      if (s.location_name) {
+        let loc = (s.location_name as string).trim();
+        // Strip INT./EXT. prefixes and time of day suffixes
+        loc = loc.replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "").trim();
+        loc = loc.replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "").trim();
+        if (loc) allLocations.add(loc);
+      }
+
+      // Wardrobe
+      for (const w of (s.wardrobe || [])) {
+        const key = `${(w.character || "").toUpperCase()}: ${w.clothing_style || w.clothing || ""}`.trim();
+        if (key.length > 2 && !wardrobeSeen.has(key)) {
+          wardrobeSeen.add(key);
+          allWardrobe.push(key);
+        }
+      }
+
+      // Props (key_objects)
+      for (const obj of (s.key_objects || [])) {
+        if (typeof obj === "string" && obj.trim()) allProps.add(obj.trim());
+      }
+    }
+
+    // Build a condensed summary for the AI (only for creative analysis, not element lists)
     const sceneSummaries = allScenes.map((s: any) => ({
       scene_number: s.scene_number,
       heading: s.heading,
       description: s.description || "",
-      characters: s.characters || [],
-      key_objects: s.key_objects || [],
-      wardrobe: s.wardrobe || [],
-      environment_details: s.environment_details || "",
       mood: s.mood || "",
+      environment_details: s.environment_details || "",
       int_ext: s.int_ext || "",
       day_night: s.day_night || "",
-      location_name: s.location_name || "",
-      stunts: s.stunts || [],
-      sfx: s.sfx || [],
-      vfx: s.vfx || [],
-      picture_vehicles: s.picture_vehicles || [],
-      animals: s.animals || [],
-      extras: s.extras || "",
-      special_makeup: s.special_makeup || [],
     }));
 
-    const systemPrompt = `You are a professional script analyst and visual development consultant for film production. Given the complete scene-by-scene breakdown of a screenplay, generate high-level analysis including visual summary, global elements, and production notes.`;
+    const systemPrompt = `You are a professional script analyst and visual development consultant for film production. Given the complete scene-by-scene breakdown of a screenplay, generate high-level creative analysis.`;
 
-    const userPrompt = `Based on this complete scene breakdown of ${allScenes.length} scenes, generate the following high-level analysis:
+    const userPrompt = `Based on this complete scene breakdown of ${allScenes.length} scenes, generate the following creative analysis. Note: Character lists, locations, wardrobe, and props are already aggregated separately — you do NOT need to list those. Focus on the creative/analytical items below:
 
-1. **Visual Summary**: A detailed 3-5 sentence description of the overall visual tone, cinematographic approach, lighting palette, and visual themes of this film.
+1. **Visual Summary**: A detailed 3-5 sentence description of the overall visual tone, cinematographic approach, lighting palette, and visual themes.
 
-2. **Signature Style**: A 2-4 sentence description of the film's distinctive visual language — what makes its look unique. Think about camera work, color grading, texture, transitions, and compositional patterns.
+2. **Signature Style**: A 2-4 sentence description of the film's distinctive visual language — what makes its look unique.
 
-3. **Recurring Characters**: List ALL character names that appear across multiple scenes. Use UPPERCASE. Only include actual named characters, not generic references.
+3. **Visual Motifs**: List recurring visual motifs, design elements, color themes, or symbolic imagery.
 
-4. **Recurring Locations**: List the main recurring locations (cleaned slugline names without INT/EXT or time of day). Only locations that appear in 2+ scenes.
+4. **Temporal Analysis**: Analyze the time structure. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
 
-5. **Recurring Wardrobe**: List distinctive wardrobe elements that recur or define characters throughout the film.
-
-6. **Recurring Props**: List significant props that appear across multiple scenes or are plot-important.
-
-7. **Visual Motifs**: List recurring visual motifs, design elements, color themes, or symbolic imagery.
-
-8. **Temporal Analysis**: Analyze the time structure of the script. Identify the primary time period and any secondary time periods (flashbacks, flash-forwards, etc.).
-
-9. **AI Generation Notes**: A concise paragraph of practical production notes for AI image/video generation — focus on consistency requirements, character appearance anchors, key visual design elements that must remain recognizable, practical vs CGI effects guidance, and lighting continuity rules.
+5. **AI Generation Notes**: Practical production notes for AI image/video generation — consistency, character anchors, design elements, effects guidance, lighting rules.
 
 COMPLETE SCENE BREAKDOWN:
 ${JSON.stringify(sceneSummaries, null, 1)}`;
@@ -132,37 +156,17 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
             type: "function",
             function: {
               name: "script_analysis_summary",
-              description: "Return the high-level script analysis including visual summary, global elements, and AI generation notes.",
+              description: "Return the high-level creative script analysis.",
               parameters: {
                 type: "object",
                 properties: {
                   visual_summary: {
                     type: "string",
-                    description: "3-5 sentence description of the overall visual tone, cinematography, lighting, and visual themes.",
+                    description: "3-5 sentence description of visual tone, cinematography, lighting, and themes.",
                   },
                   signature_style: {
                     type: "string",
-                    description: "2-4 sentence description of the film's distinctive visual language and what makes its look unique.",
-                  },
-                  recurring_characters: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "All character names in UPPERCASE that appear across multiple scenes.",
-                  },
-                  recurring_locations: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Main recurring location names (clean slugline names, no INT/EXT or time of day).",
-                  },
-                  recurring_wardrobe: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Distinctive recurring wardrobe elements that define characters.",
-                  },
-                  recurring_props: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Significant props that appear across multiple scenes or are plot-important.",
+                    description: "2-4 sentence description of the film's distinctive visual language.",
                   },
                   visual_motifs: {
                     type: "array",
@@ -175,9 +179,9 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                       primary_time_period: {
                         type: "object",
                         properties: {
-                          estimated_year_or_era: { type: "string", description: "The primary time period (e.g. '2024', '1970s', 'Near-future')." },
-                          confidence: { type: "string", description: "High, Medium, or Low." },
-                          evidence: { type: "array", items: { type: "string" }, description: "Brief evidence points." },
+                          estimated_year_or_era: { type: "string" },
+                          confidence: { type: "string" },
+                          evidence: { type: "array", items: { type: "string" } },
                         },
                         required: ["estimated_year_or_era", "confidence", "evidence"],
                       },
@@ -186,30 +190,25 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                         items: {
                           type: "object",
                           properties: {
-                            label: { type: "string", description: "Name for this time period segment." },
-                            type: { type: "string", description: "Flashback, Flash Forward, Dream, Prologue, Epilogue, etc." },
-                            estimated_year_or_range: { type: "string", description: "Year or range." },
-                            approximate_scene_count: { type: "number", description: "How many scenes." },
-                            estimated_percentage_of_script: { type: "string", description: "e.g. '15%'." },
-                            evidence: { type: "array", items: { type: "string" }, description: "Brief evidence." },
+                            label: { type: "string" },
+                            type: { type: "string" },
+                            estimated_year_or_range: { type: "string" },
+                            approximate_scene_count: { type: "number" },
+                            estimated_percentage_of_script: { type: "string" },
+                            evidence: { type: "array", items: { type: "string" } },
                           },
                           required: ["label", "type", "estimated_year_or_range"],
                         },
-                        description: "Secondary time periods like flashbacks, flash-forwards, etc. Empty array if none.",
                       },
                     },
                     required: ["primary_time_period", "secondary_time_periods"],
                   },
                   ai_generation_notes: {
                     type: "string",
-                    description: "Practical production notes for AI generation — consistency, character anchors, design elements, effects guidance, lighting rules.",
+                    description: "Practical production notes for AI generation.",
                   },
                 },
-                required: [
-                  "visual_summary", "signature_style", "recurring_characters", "recurring_locations",
-                  "recurring_wardrobe", "recurring_props", "visual_motifs", "temporal_analysis",
-                  "ai_generation_notes",
-                ],
+                required: ["visual_summary", "signature_style", "visual_motifs", "temporal_analysis", "ai_generation_notes"],
                 additionalProperties: false,
               },
             },
@@ -222,7 +221,6 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
-      // Don't fail the whole analysis — just log and mark complete without these fields
       console.error("Finalization AI call failed, completing without summary data");
       return new Response(
         JSON.stringify({ success: true, warning: "AI summary generation failed" }),
@@ -251,17 +249,16 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
       );
     }
 
-    // Build global_elements object
+    // Build global_elements — deterministic lists + AI creative analysis
     const globalElements = {
-      recurring_characters: result.recurring_characters || [],
-      recurring_locations: result.recurring_locations || [],
-      recurring_wardrobe: result.recurring_wardrobe || [],
-      recurring_props: result.recurring_props || [],
+      recurring_characters: Array.from(allCharacters),
+      recurring_locations: Array.from(allLocations),
+      recurring_wardrobe: allWardrobe,
+      recurring_props: Array.from(allProps),
       visual_motifs: result.visual_motifs || [],
       signature_style: result.signature_style || "",
       temporal_analysis: result.temporal_analysis || null,
     };
-
     // Update analysis with all the generated data
     const { error: updateErr } = await supabase
       .from("script_analyses")
