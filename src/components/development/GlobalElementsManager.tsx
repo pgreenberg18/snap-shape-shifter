@@ -329,14 +329,31 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                       </div>
                       {isOpen && (
                         <div className="px-3 pb-2 flex flex-wrap gap-1.5 border-t border-primary/10 pt-2">
-                          {group.variants.map((v, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border"
-                            >
-                              {v}
-                            </span>
-                          ))}
+                          {group.variants.map((v, i) => {
+                            const isSelected = selected.has(v) && activeCategory === key;
+                            const isDisabled = activeCategory !== null && activeCategory !== key;
+                            return (
+                              <span
+                                key={i}
+                                className={cn(
+                                  "text-xs rounded-full px-2.5 py-0.5 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
+                                    : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
+                                  isDisabled && "opacity-40",
+                                )}
+                              >
+                                <button
+                                  disabled={isDisabled}
+                                  onClick={() => toggleSelect(v, key)}
+                                  className="cursor-pointer"
+                                >
+                                  {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+                                  {v}
+                                </button>
+                              </span>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
