@@ -150,11 +150,75 @@ function buildInitialData(raw: any): Record<CategoryKey, CategoryData> {
     }
   }
 
+  // Filter vehicles and locations out of props, then deduplicate similar items
+  const VEHICLE_PATTERNS = /\b(car|truck|van|bus|suv|sedan|pickup|motorcycle|bike|bicycle|helicopter|plane|airplane|aircraft|jet|boat|ship|yacht|ambulance|taxi|cab|limousine|limo|convertible|coupe|wagon|minivan|rv|trailer|tractor|forklift|scooter|moped|hovercraft|submarine)\b/i;
+  const rawProps = extract(["recurring_props"]);
+  const locationNamesUpper = new Set([...uniqueLocations, ...locationUngrouped, ...locationGroups.flatMap(g => g.variants)].map(l => l.toUpperCase()));
+
+  // Step 1: Filter out vehicles and locations
+  const filteredProps = rawProps.filter(p => {
+    const upper = p.toUpperCase().trim();
+    // Remove if it matches a known location
+    if (locationNamesUpper.has(upper)) return false;
+    // Remove if it's clearly a vehicle
+    if (VEHICLE_PATTERNS.test(p)) return false;
+    return true;
+  });
+
+  // Step 2: Deduplicate similar props by normalizing
+  const normalizeProp = (p: string): string => {
+    let n = p.toLowerCase().trim();
+    // Strip possessives and character prefixes: "Rachel's Phone" → "phone", "RACHEL'S PHONE" → "phone"
+    n = n.replace(/^[a-z]+(?:'s|s)?\s+/i, "");
+    // Strip "his/her/their/the/a/an"
+    n = n.replace(/^(?:his|her|their|the|a|an)\s+/i, "");
+    // Normalize common synonyms
+    n = n.replace(/\btelephone\b/g, "phone")
+         .replace(/\bcellphone\b/g, "phone")
+         .replace(/\bcell phone\b/g, "phone")
+         .replace(/\bmobile phone\b/g, "phone")
+         .replace(/\bmobile\b/g, "phone")
+         .replace(/\bsmartphone\b/g, "phone")
+         .replace(/\bhandgun\b/g, "gun")
+         .replace(/\bpistol\b/g, "gun")
+         .replace(/\brevolver\b/g, "gun")
+         .replace(/\brifle\b/g, "gun")
+         .replace(/\bfirearm\b/g, "gun")
+         .replace(/\bshotgun\b/g, "gun")
+         .replace(/\blaptop\b/g, "computer")
+         .replace(/\bnotebook computer\b/g, "computer")
+         .replace(/\bphoto(?:graph)?\b/g, "photograph")
+         .replace(/\bpic(?:ture)?\b/g, "photograph");
+    // Remove non-alphanumeric for comparison
+    return n.replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
+  };
+
+  const propGroups: ElementGroup[] = [];
+  const propUngrouped: string[] = [];
+  const propByNorm = new Map<string, string[]>();
+
+  for (const p of filteredProps) {
+    const norm = normalizeProp(p);
+    if (!norm) { propUngrouped.push(p); continue; }
+    if (!propByNorm.has(norm)) propByNorm.set(norm, []);
+    propByNorm.get(norm)!.push(p);
+  }
+
+  for (const [, items] of propByNorm) {
+    if (items.length >= 2) {
+      // Use the shortest, cleanest item as the parent name
+      const parent = items.sort((a, b) => a.length - b.length)[0];
+      propGroups.push({ id: uid(), parentName: parent, variants: items });
+    } else {
+      propUngrouped.push(...items);
+    }
+  }
+
   return {
     locations: { ungrouped: locationUngrouped, groups: locationGroups },
     characters: { ungrouped: [...new Set(charNames)], groups: [] },
     wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
-    props: { ungrouped: extract(["recurring_props"]), groups: [] },
+    props: { ungrouped: propUngrouped, groups: propGroups },
     visual_design: { ungrouped: extract(["visual_motifs"]), groups: [] },
   };
 }
