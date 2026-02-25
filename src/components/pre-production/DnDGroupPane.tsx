@@ -53,6 +53,8 @@ interface DnDGroupPaneProps {
   onReclassify?: (item: string, targetCategory: string) => void;
   /** Pre-seed groups from Global Elements (used when no localStorage groups exist yet) */
   initialGroups?: { id: string; name: string; children: string[] }[];
+  /** Names to exclude from key_objects matching (e.g. vehicle names excluded from props) */
+  excludeFromKeyObjects?: string[];
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -79,9 +81,10 @@ const CONTEXT_MAP: Record<string, string> = {
 };
 
 /* ── Find scenes containing an item by storagePrefix type ── */
-function findScenesForItem(itemName: string, scenes: any[], storagePrefix: string): { sceneIndex: number; scene: any }[] {
+function findScenesForItem(itemName: string, scenes: any[], storagePrefix: string, excludeFromKeyObjects?: string[]): { sceneIndex: number; scene: any }[] {
   const nameLower = itemName.toLowerCase();
   const results: { sceneIndex: number; scene: any }[] = [];
+  const excludeSet = new Set((excludeFromKeyObjects || []).map((e) => e.toLowerCase()));
 
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
@@ -90,13 +93,18 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
     if (storagePrefix === "locations") {
       const setting = (scene.setting || "").toLowerCase();
       const heading = (scene.scene_heading || "").toLowerCase();
-      // Strip INT./EXT. prefix from heading for matching against cleaned location names
       const cleanHeading = heading.replace(/^(?:int\.?\s*\/?\s*ext\.?|ext\.?\s*\/?\s*int\.?|int\.?|ext\.?|i\/e\.?)\s*[-–—.\s]*/i, "")
         .replace(/\s*[-–—]\s*(?:day|night|morning|evening|dawn|dusk|afternoon|later|continuous|same time|moments?\s+later|sunset|sunrise)$/i, "").trim();
       if (setting.includes(nameLower) || nameLower.includes(setting) || heading.includes(nameLower) || cleanHeading.includes(nameLower) || nameLower.includes(cleanHeading)) found = true;
     } else if (storagePrefix === "props") {
       if (Array.isArray(scene.key_objects)) {
-        found = scene.key_objects.some((o: string) => typeof o === "string" && o.toLowerCase().includes(nameLower));
+        found = scene.key_objects.some((o: string) => {
+          if (typeof o !== "string") return false;
+          const oLower = o.toLowerCase();
+          // Skip items that belong to vehicles
+          if (excludeSet.has(oLower)) return false;
+          return oLower.includes(nameLower) || nameLower.includes(oLower);
+        });
       }
     } else if (storagePrefix === "wardrobe") {
       if (Array.isArray(scene.wardrobe)) {
@@ -107,19 +115,10 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
         });
       }
     } else if (storagePrefix === "vehicles") {
-      if (Array.isArray(scene.key_objects)) {
-        found = scene.key_objects.some((o: string) => typeof o === "string" && o.toLowerCase().includes(nameLower));
+      // Only match against picture_vehicles field
+      if (Array.isArray(scene.picture_vehicles)) {
+        found = scene.picture_vehicles.some((v: string) => typeof v === "string" && v.toLowerCase().includes(nameLower));
       }
-      if (!found && Array.isArray(scene.vehicles)) {
-        found = scene.vehicles.some((v: string) => typeof v === "string" && v.toLowerCase().includes(nameLower));
-      }
-    }
-
-    // Also check environment_details and description
-    if (!found) {
-      const env = (scene.environment_details || "").toLowerCase();
-      const desc = (scene.description || "").toLowerCase();
-      if (env.includes(nameLower) || desc.includes(nameLower)) found = true;
     }
 
     if (found) results.push({ sceneIndex: i, scene });
@@ -128,7 +127,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -344,7 +343,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   }, [filmId, storagePrefix, refImages, refDescriptions, persistRefImages, persistRefDescs]);
 
   /* ── Open script viewer for one or more items ── */
-  const openScriptForItems = useCallback(async (itemNames: string[], dialogTitle: string) => {
+  const openScriptForItems = useCallback(async (itemNames: string[], dialogTitle: string, targetSceneNum?: number) => {
     if (!sceneBreakdown || sceneBreakdown.length === 0) {
       toast.error("No script analysis available");
       return;
@@ -353,8 +352,11 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     // Find all matching scenes across all item names
     const allMatches = new Map<number, any>();
     for (const name of itemNames) {
-      const matches = findScenesForItem(name, sceneBreakdown, storagePrefix);
+      const matches = findScenesForItem(name, sceneBreakdown, storagePrefix, excludeFromKeyObjects);
       for (const m of matches) {
+        // If targeting a specific scene, only include that one
+        const sn = m.scene.scene_number ? parseInt(m.scene.scene_number, 10) : m.sceneIndex + 1;
+        if (targetSceneNum !== undefined && sn !== targetSceneNum) continue;
         if (!allMatches.has(m.sceneIndex)) allMatches.set(m.sceneIndex, m.scene);
       }
     }
@@ -494,7 +496,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   // Compute scene numbers for selected item
   const selectedSceneNumbers = useMemo(() => {
     if (!selectedItem || !sceneBreakdown) return [];
-    const matches = findScenesForItem(selectedItem, sceneBreakdown, storagePrefix);
+    const matches = findScenesForItem(selectedItem, sceneBreakdown, storagePrefix, excludeFromKeyObjects);
     return matches.map((m) => {
       const sn = m.scene.scene_number ? parseInt(m.scene.scene_number, 10) : m.sceneIndex + 1;
       return sn;
@@ -663,7 +665,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             refImageUrl={refImages[selectedItem]}
             refDescription={refDescriptions[selectedItem]}
             sceneNumbers={selectedSceneNumbers}
-            onOpenScene={(sn) => openScriptForItems([selectedItem], `Scene ${sn} — ${displayName(selectedItem)}`)}
+            onOpenScene={(sn) => openScriptForItems([selectedItem], `Scene ${sn} — ${displayName(selectedItem)}`, sn)}
             onUploadReference={(file) => handleUploadReference(selectedItem, file)}
             isAnalyzing={analyzingItem === selectedItem}
             onDescriptionChange={(desc) => persistRefDescs({ ...refDescriptions, [selectedItem]: desc })}

@@ -973,6 +973,7 @@ const PreProduction = () => {
             emptyMessage="No props extracted yet. Lock your script in Development."
             sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
             storagePath={scriptAnalysis?.storage_path as string | undefined}
+            excludeFromKeyObjects={augmentedVehicles}
             reclassifyOptions={[
               { label: "Locations", value: "locations", icon: MapPin },
               { label: "Picture Vehicles", value: "vehicles", icon: Car },
