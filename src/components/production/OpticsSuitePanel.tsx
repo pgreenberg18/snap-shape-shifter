@@ -131,9 +131,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps
   const [actionIntensity, setActionIntensity] = useState("moderate");
 
   // Collapsible states
-  const [lightsOpen, setLightsOpen] = useState(false);
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const [actionOpen, setActionOpen] = useState(false);
+  const [lightsOpen, setLightsOpen] = useState(true);
+  const [cameraOpen, setCameraOpen] = useState(true);
+  const [actionOpen, setActionOpen] = useState(true);
 
   // ── Preset queries ──
   const { data: lightsPresets = [] } = useQuery({
