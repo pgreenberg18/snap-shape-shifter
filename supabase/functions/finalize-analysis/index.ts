@@ -203,6 +203,11 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                             approximate_scene_count: { type: "number" },
                             estimated_percentage_of_script: { type: "string" },
                             evidence: { type: "array", items: { type: "string" } },
+                            scene_sluglines: {
+                              type: "array",
+                              description: "Scene sluglines (headings) that belong to this time period, exactly as they appear in the script.",
+                              items: { type: "string" },
+                            },
                           },
                           required: ["label", "type", "estimated_year_or_range"],
                         },

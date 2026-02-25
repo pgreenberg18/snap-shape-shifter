@@ -1087,34 +1087,79 @@ const Development = () => {
                       Additional time periods detected in the script — flashbacks, flashforwards, dream sequences, and more.
                     </p>
                     <div className="space-y-2">
-                      {secondaryTimePeriods.map((period: any, i: number) => (
-                        <div key={i} className="rounded-lg bg-secondary p-3 space-y-1.5">
-                          <div className="flex items-center gap-3">
-                            <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
-                              {(period.type || "").toLowerCase().includes("forward") || (period.type || "").toLowerCase().includes("epilogue") ? (
-                                <FastForward className="h-3.5 w-3.5 text-primary" />
-                              ) : (
-                                <Rewind className="h-3.5 w-3.5 text-primary" />
-                              )}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-foreground">{period.label}</p>
-                              <p className="text-[10px] text-muted-foreground">
-                                {period.type} · {period.estimated_year_or_range}
-                                {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
-                                {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
-                              </p>
+                      {secondaryTimePeriods.map((period: any, i: number) => {
+                        // Find matching scene numbers + page numbers for sluglines
+                        const matchedScenes = (period.scene_sluglines || []).map((slug: string) => {
+                          const allScenes = (analysis?.scene_breakdown || []) as any[];
+                          const CHARS_PER_PAGE = 3000;
+                          let cumChars = 0;
+                          for (const sc of allScenes) {
+                            const rawLen = (sc.raw_text || sc.description || "").length || 200;
+                            const page = Math.floor(cumChars / CHARS_PER_PAGE) + 1;
+                            cumChars += rawLen;
+                            if ((sc.scene_heading || sc.heading || "").toLowerCase().includes(slug.toLowerCase()) ||
+                                slug.toLowerCase().includes((sc.scene_heading || sc.heading || "").toLowerCase())) {
+                              return { slug, sceneNumber: sc.scene_number || 0, page };
+                            }
+                          }
+                          return { slug, sceneNumber: 0, page: 0 };
+                        });
+
+                        return (
+                          <div key={i} className="rounded-lg bg-secondary p-3 space-y-2">
+                            <div className="flex items-center gap-3">
+                              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                                {(period.type || "").toLowerCase().includes("forward") || (period.type || "").toLowerCase().includes("epilogue") ? (
+                                  <FastForward className="h-3.5 w-3.5 text-primary" />
+                                ) : (
+                                  <Rewind className="h-3.5 w-3.5 text-primary" />
+                                )}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-foreground">{period.label}</p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {period.type}
+                                  {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
+                                  {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
+                                </p>
+                              </div>
+                              <Input
+                                defaultValue={period.estimated_year_or_range}
+                                placeholder="e.g. 1955"
+                                className="w-32 h-7 text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold text-center"
+                                disabled={scriptLocked}
+                              />
                             </div>
+                            {/* Scene sluglines with page badges and yellow year */}
+                            {matchedScenes.length > 0 && (
+                              <div className="space-y-1 pl-9">
+                                {matchedScenes.map((ms: any, j: number) => (
+                                  <div key={j} className="flex items-center gap-2">
+                                    {ms.page > 0 && (
+                                      <button
+                                        onClick={() => fetchSceneText(ms.sceneNumber)}
+                                        className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                        title="View script page"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                        p.{ms.page}
+                                      </button>
+                                    )}
+                                    <span className="text-[11px] text-muted-foreground truncate flex-1">{ms.slug}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {Array.isArray(period.evidence) && period.evidence.length > 0 && (
+                              <ul className="text-[10px] text-muted-foreground space-y-0.5 pl-9 list-disc">
+                                {period.evidence.map((e: string, j: number) => (
+                                  <li key={j}>{e}</li>
+                                ))}
+                              </ul>
+                            )}
                           </div>
-                          {Array.isArray(period.evidence) && period.evidence.length > 0 && (
-                            <ul className="text-[10px] text-muted-foreground space-y-0.5 pl-9 list-disc">
-                              {period.evidence.map((e: string, j: number) => (
-                                <li key={j}>{e}</li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
