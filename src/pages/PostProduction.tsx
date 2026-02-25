@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useShots, useTimelineClips, useFilmId } from "@/hooks/useFilm";
 import { useStyleContract } from "@/hooks/useStyleContract";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +45,7 @@ import { Play, Film, Music, Plus, Trash2, ChevronDown, ChevronRight, Undo2, Redo
 import type { Tables } from "@/integrations/supabase/types";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-
+import { SHOT_COLORS } from "@/lib/shot-colors";
 type Clip = Tables<"post_production_clips">;
 type Shot = Tables<"shots">;
 
@@ -220,7 +220,14 @@ function DraggableShot({ shot, index }: { shot: Shot; index: number }) {
         selected ? "border-primary ring-1 ring-primary/40" : "border-border"
       )}
     >
-      <div className="relative aspect-video w-full" style={{ background: frameBg }} data-trim-area>
+      <div
+        className="relative aspect-video w-full"
+        style={{
+          background: frameBg,
+          boxShadow: `inset 0 0 0 2px hsl(${SHOT_COLORS[index % SHOT_COLORS.length].hsl})`,
+        }}
+        data-trim-area
+      >
         {shot.video_url ? (
           <video
             src={shot.video_url}
