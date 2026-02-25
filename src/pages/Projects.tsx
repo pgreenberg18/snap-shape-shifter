@@ -248,7 +248,7 @@ const Projects = () => {
                 Virtual Film Studio
               </h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Your productions, all in one place
+                Where Imagination Meets Intention
               </p>
             </div>
             <div className="flex items-center gap-3">
