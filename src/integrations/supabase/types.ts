@@ -449,6 +449,7 @@ export type Database = {
           provider_name: string
           section_id: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           api_key_encrypted?: string | null
@@ -458,6 +459,7 @@ export type Database = {
           provider_name: string
           section_id: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           api_key_encrypted?: string | null
@@ -467,6 +469,7 @@ export type Database = {
           provider_name?: string
           section_id?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -703,6 +706,7 @@ export type Database = {
           poster_url: string | null
           title: string
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           created_at?: string
@@ -711,6 +715,7 @@ export type Database = {
           poster_url?: string | null
           title: string
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           created_at?: string
@@ -719,6 +724,7 @@ export type Database = {
           poster_url?: string | null
           title?: string
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -963,6 +969,7 @@ export type Database = {
         Args: { p_analysis_id: string }
         Returns: undefined
       }
+      user_owns_film: { Args: { p_film_id: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never

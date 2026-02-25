@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
+import { requireAuth, isResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,14 +7,6 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/**
- * enrich-scene – processes ONE parsed scene via Gemini and writes
- * enrichment data back to `parsed_scenes`. Also updates progress
- * on `parse_jobs` and, when all scenes are enriched, finalises
- * `script_analyses` with full scene_breakdown + visual_summary.
- *
- * Body: { scene_id: string, analysis_id: string }
- */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -25,6 +18,9 @@ Deno.serve(async (req) => {
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
+    const authResult = await requireAuth(req);
+    if (isResponse(authResult)) return authResult;
+
     const { scene_id, analysis_id } = await req.json();
     if (!scene_id || !analysis_id) {
       return new Response(

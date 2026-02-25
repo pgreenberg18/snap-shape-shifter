@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { requireAuth, isResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -6,17 +7,13 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-/**
- * Analyzes a reference image and returns a structured description
- * focused on the relevant aspect for the given section context.
- *
- * Body: { imageUrl: string, context: "casting" | "location" | "prop" | "wardrobe" | "vehicle", characterName?: string }
- * Returns: { description: string }
- */
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    const authResult = await requireAuth(req);
+    if (isResponse(authResult)) return authResult;
+
     const { imageUrl, context, characterName } = await req.json();
 
     if (!imageUrl) throw new Error("imageUrl is required");
