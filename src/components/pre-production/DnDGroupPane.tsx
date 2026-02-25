@@ -158,12 +158,17 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   useEffect(() => {
     if (!filmId) return;
     const savedGroups = loadJson<ItemGroup[]>(storagePrefix, filmId, "groups", []);
+    let loadedGroups: ItemGroup[];
     if (savedGroups.length > 0) {
-      setGroups(savedGroups);
+      loadedGroups = savedGroups;
     } else if (initialGroups && initialGroups.length > 0) {
-      setGroups(initialGroups);
+      loadedGroups = initialGroups;
       saveJson(storagePrefix, filmId, "groups", initialGroups);
+    } else {
+      loadedGroups = [];
     }
+    setGroups(loadedGroups);
+    setCollapsed(new Set(loadedGroups.map((g) => g.id)));
     setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
     setRenames(loadJson(storagePrefix, filmId, "renames", {}));
     setRefImages(loadJson(storagePrefix, filmId, "refImages", {}));
