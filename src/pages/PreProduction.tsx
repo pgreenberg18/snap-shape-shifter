@@ -113,6 +113,7 @@ const PreProduction = () => {
   const augmentedLocations = useMemo(() => [...(breakdownAssets?.locations ?? []), ...reclassifiedToLocations].sort(), [breakdownAssets?.locations, reclassifiedToLocations]);
   const augmentedVehicles = useMemo(() => [...(breakdownAssets?.vehicles ?? []), ...reclassifiedToVehicles].sort(), [breakdownAssets?.vehicles, reclassifiedToVehicles]);
 
+
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
@@ -133,6 +134,20 @@ const PreProduction = () => {
     },
     enabled: !!filmId,
   });
+
+  // Extract location groups from Global Elements to pre-seed the Locations sidebar
+  const globalElementsLocationGroups = useMemo(() => {
+    const ge = scriptAnalysis?.global_elements as any;
+    const managed = ge?._managed?.categories?.locations;
+    if (!managed?.groups || !Array.isArray(managed.groups)) return undefined;
+    return managed.groups
+      .filter((g: any) => g.variants?.length > 0)
+      .map((g: any) => ({
+        id: g.id || crypto.randomUUID(),
+        name: g.parentName || "Group",
+        children: g.variants as string[],
+      }));
+  }, [scriptAnalysis?.global_elements]);
 
   // Script viewer state
   const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
@@ -947,7 +962,7 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
           <DnDGroupPane

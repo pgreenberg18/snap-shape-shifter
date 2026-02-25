@@ -51,6 +51,8 @@ interface DnDGroupPaneProps {
   storagePath?: string;
   reclassifyOptions?: ReclassifyOption[];
   onReclassify?: (item: string, targetCategory: string) => void;
+  /** Pre-seed groups from Global Elements (used when no localStorage groups exist yet) */
+  initialGroups?: { id: string; name: string; children: string[] }[];
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -126,7 +128,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -152,15 +154,21 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [scriptScenes, setScriptScenes] = useState<{ sceneNum: number; heading: string; paragraphs: { type: string; text: string }[] }[]>([]);
   const [scriptLoading, setScriptLoading] = useState(false);
 
-  // Load persisted state
+  // Load persisted state — seed from initialGroups if no localStorage groups exist
   useEffect(() => {
     if (!filmId) return;
-    setGroups(loadJson(storagePrefix, filmId, "groups", []));
+    const savedGroups = loadJson<ItemGroup[]>(storagePrefix, filmId, "groups", []);
+    if (savedGroups.length > 0) {
+      setGroups(savedGroups);
+    } else if (initialGroups && initialGroups.length > 0) {
+      setGroups(initialGroups);
+      saveJson(storagePrefix, filmId, "groups", initialGroups);
+    }
     setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
     setRenames(loadJson(storagePrefix, filmId, "renames", {}));
     setRefImages(loadJson(storagePrefix, filmId, "refImages", {}));
     setRefDescriptions(loadJson(storagePrefix, filmId, "refDescs", {}));
-  }, [filmId, storagePrefix]);
+  }, [filmId, storagePrefix, initialGroups]);
 
   const persistGroups = useCallback((next: ItemGroup[]) => {
     setGroups(next);
