@@ -162,6 +162,7 @@ export const useBreakdownAssets = () => {
       const propContextMap = new Map<string, { scenes: string[]; locations: string[]; characters: Set<string> }>();
       const wardrobeMap = new Map<string, string>();
       const vehicleSet = new Set<string>();
+      const vehicleContextMap = new Map<string, { scenes: string[]; locations: string[]; characters: Set<string>; years: Set<string>; moods: Set<string> }>();
 
       const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
       const NON_PROP_KEYWORDS = ["rain", "snow", "fog", "wind", "lightning", "thunder", "fire", "smoke", "explosion", "flames", "mist", "haze", "storm", "sunlight", "moonlight", "shadow", "shadows", "darkness", "light", "glow", "flicker", "house", "building", "cabin", "mansion", "apartment", "warehouse", "barn", "church", "school", "hospital", "hotel", "motel", "office", "restaurant", "bar", "club", "store", "shop", "beach house", "cottage", "shack", "tower", "castle", "palace", "temple"];
@@ -195,19 +196,34 @@ export const useBreakdownAssets = () => {
         }
 
         // Props — collect with scene context
-        if (Array.isArray(s.key_objects)) {
-          const sceneLocation = s.scene_heading ? s.scene_heading.trim()
-            .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
-            .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
-            .trim() : "";
-          const sceneChars: string[] = Array.isArray(s.characters) ? s.characters : [];
-          const sceneDesc: string = s.description || "";
+        const sceneLocation = s.scene_heading ? s.scene_heading.trim()
+          .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
+          .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
+          .trim() : "";
+        const sceneChars: string[] = Array.isArray(s.characters) ? s.characters : [];
+        const sceneDesc: string = s.description || "";
+        const sceneMood: string = s.mood || "";
+        const sceneYear = s.scene_heading?.match(/(\d{4})/)?.[1] || "";
 
+        const addVehicleContext = (v: string) => {
+          if (!vehicleContextMap.has(v)) {
+            vehicleContextMap.set(v, { scenes: [], locations: [], characters: new Set(), years: new Set(), moods: new Set() });
+          }
+          const ctx = vehicleContextMap.get(v)!;
+          if (sceneDesc) ctx.scenes.push(sceneDesc);
+          if (sceneLocation) ctx.locations.push(sceneLocation);
+          for (const c of sceneChars) ctx.characters.add(c);
+          if (sceneYear) ctx.years.add(sceneYear);
+          if (sceneMood) ctx.moods.add(sceneMood);
+        };
+
+        if (Array.isArray(s.key_objects)) {
           for (const p of s.key_objects) {
             if (typeof p === "string" && p.length > 1) {
               const lower = p.toLowerCase();
               if (VEHICLE_KEYWORDS.some((v) => lower.includes(v))) {
                 vehicleSet.add(p);
+                addVehicleContext(p);
               } else if (NON_PROP_KEYWORDS.some((np) => lower === np || lower === np + "s")) {
                 // skip
               } else {
@@ -215,22 +231,22 @@ export const useBreakdownAssets = () => {
                 if (!propContextMap.has(p)) {
                   propContextMap.set(p, { scenes: [], locations: [], characters: new Set() });
                 }
-                const ctx = propContextMap.get(p)!;
-                if (sceneDesc) ctx.scenes.push(sceneDesc);
-                if (sceneLocation) ctx.locations.push(sceneLocation);
-                for (const c of sceneChars) ctx.characters.add(c);
+                const pctx = propContextMap.get(p)!;
+                if (sceneDesc) pctx.scenes.push(sceneDesc);
+                if (sceneLocation) pctx.locations.push(sceneLocation);
+                for (const c of sceneChars) pctx.characters.add(c);
               }
             }
           }
         }
         if (Array.isArray(s.picture_vehicles)) {
           for (const v of s.picture_vehicles) {
-            if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
+            if (typeof v === "string" && v.length > 1) { vehicleSet.add(v); addVehicleContext(v); }
           }
         }
         if (Array.isArray(s.vehicles)) {
           for (const v of s.vehicles) {
-            if (typeof v === "string" && v.length > 1) vehicleSet.add(v);
+            if (typeof v === "string" && v.length > 1) { vehicleSet.add(v); addVehicleContext(v); }
           }
         }
         if (Array.isArray(s.wardrobe)) {
@@ -324,6 +340,64 @@ export const useBreakdownAssets = () => {
         propDescMap[prop] = parts.length > 0 ? parts.join(". ") : prop;
       }
 
+      // Build vehicle descriptions with implied period details
+      const vehicleDescMap: Record<string, string> = {};
+      const VEHICLE_STYLE_HINTS: Record<string, string> = {
+        "car": "Likely a practical sedan or coupe typical of the era",
+        "truck": "Rugged work truck, probably well-worn from daily use",
+        "van": "Full-size van, utilitarian with minimal amenities",
+        "suv": "Sport utility vehicle, reflecting the owner's status",
+        "sedan": "Four-door sedan, understated and reliable",
+        "taxi": "Licensed taxi cab with meter and roof light",
+        "cab": "City cab, well-used interior with vinyl seats",
+        "ambulance": "Emergency medical vehicle with full markings and lights",
+        "cruiser": "Law enforcement cruiser with standard police livery",
+        "patrol": "Patrol vehicle with department markings and spotlight",
+        "motorcycle": "Two-wheel motorcycle, chrome and leather detailing",
+        "helicopter": "Rotary-wing aircraft, likely civilian or law enforcement",
+        "pickup": "Pickup truck with open bed, working-class vehicle",
+        "limo": "Stretch limousine, polished exterior with tinted windows",
+        "limousine": "Full-length limousine, chauffeur-driven luxury",
+        "convertible": "Open-top convertible, sporty and attention-grabbing",
+        "bus": "Transit or school bus, institutional and utilitarian",
+        "boat": "Watercraft suited to the scene's waterway setting",
+        "jeep": "Rugged off-road vehicle, military or civilian style",
+      };
+
+      for (const veh of vehicleSet) {
+        const ctx = vehicleContextMap.get(veh);
+        const parts: string[] = [];
+        const lower = veh.toLowerCase();
+
+        // Implied style from vehicle type
+        for (const [keyword, hint] of Object.entries(VEHICLE_STYLE_HINTS)) {
+          if (lower.includes(keyword)) { parts.push(hint); break; }
+        }
+
+        if (ctx) {
+          // Period implication from scene year
+          const years = [...ctx.years].sort();
+          if (years.length > 0) {
+            const earliest = years[0];
+            parts.push(`Period: ${earliest}s — expect era-appropriate make, model, and wear`);
+          }
+
+          // Who drives / is associated
+          const chars = [...ctx.characters];
+          if (chars.length > 0) parts.push("Associated with " + chars.slice(0, 3).join(", "));
+
+          // Where it appears
+          const uniqueLocs = [...new Set(ctx.locations)];
+          if (uniqueLocs.length > 0) parts.push("Seen at " + uniqueLocs.slice(0, 2).join(", "));
+
+          // Mood implication
+          const moods = [...ctx.moods];
+          if (moods.length > 0) parts.push("Scene tone: " + moods.slice(0, 2).join(", "));
+        }
+
+        vehicleDescMap[veh] = parts.length > 0 ? parts.join(". ") : veh;
+      }
+
       return {
         locations: sortedLocations,
         locationDescriptions: Object.fromEntries(locationDescMap),
@@ -334,6 +408,7 @@ export const useBreakdownAssets = () => {
           return { character, clothing };
         }),
         vehicles: deduplicateVehicles([...vehicleSet]),
+        vehicleDescriptions: vehicleDescMap,
       };
     },
     enabled: !!filmId,

@@ -1019,7 +1019,7 @@ const PreProduction = () => {
           })()}
         </TabsContent>
         <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
-          <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." subtitles={breakdownAssets?.vehicleDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
       </Tabs>
 
