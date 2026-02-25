@@ -26,11 +26,11 @@ import {
 import { useHelp } from "@/components/help/HelpPanel";
 
 const phases = [
-  { key: "development", icon: FileText, label: "Development" },
-  { key: "pre-production", icon: Clapperboard, label: "Pre-Production" },
-  { key: "production", icon: Video, label: "Production" },
-  { key: "post-production", icon: Film, label: "Post-Production" },
-  { key: "release", icon: Rocket, label: "Release" },
+  { key: "development", icon: FileText, label: "Development", tint: "hsl(215 20% 10%)" },
+  { key: "pre-production", icon: Clapperboard, label: "Pre-Production", tint: "hsl(230 18% 11%)" },
+  { key: "production", icon: Video, label: "Production", tint: "hsl(200 15% 10%)" },
+  { key: "post-production", icon: Film, label: "Post-Production", tint: "hsl(260 14% 11%)" },
+  { key: "release", icon: Rocket, label: "Release", tint: "hsl(170 12% 10%)" },
 ];
 
 const Layout = ({ children }: { children: ReactNode }) => {
@@ -207,7 +207,10 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </header>
 
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main
+          className="flex-1 overflow-y-auto transition-colors duration-300"
+          style={{ backgroundColor: phases.find((p) => location.pathname.includes(`/${p.key}`))?.tint }}
+        >{children}</main>
       </div>
     </div>
   );
