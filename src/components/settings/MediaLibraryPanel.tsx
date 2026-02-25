@@ -14,8 +14,9 @@ import {
 import {
   Film, Image, FileText, Users, MapPin, Shirt, Package,
   ChevronRight, ChevronDown, Folder, Eye, Trash2, Download,
-  CheckSquare, Square,
+  CheckSquare, Square, FolderDown,
 } from "lucide-react";
+import { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
 import { toast } from "sonner";
 
 type MediaItem = {
@@ -193,6 +194,30 @@ const MediaLibraryPanel = () => {
     sourceTable: "script_analyses",
   }));
 
+  // Load exports from localStorage
+  const exportItems: MediaItem[] = (() => {
+    try {
+      const stored = localStorage.getItem("vfs-exports");
+      if (!stored) return [];
+      const parsed: ExportRecord[] = JSON.parse(stored).map((e: any) => ({
+        ...e,
+        timestamp: new Date(e.timestamp),
+      }));
+      return parsed.map((e) => ({
+        id: e.id,
+        name: e.label,
+        url: e.fileName,
+        type: "other" as const,
+        category: "Exports",
+        subCategory: e.type,
+        createdAt: e.timestamp.toISOString(),
+        sourceTable: "exports-local",
+      }));
+    } catch {
+      return [];
+    }
+  })();
+
   const tabData: Record<string, { icon: React.ReactNode; items: MediaItem[] }> = {
     shots: { icon: <Film className="h-3 w-3" />, items: shotItems },
     characters: { icon: <Users className="h-3 w-3" />, items: characterItems },
@@ -200,6 +225,7 @@ const MediaLibraryPanel = () => {
     wardrobe: { icon: <Shirt className="h-3 w-3" />, items: assetItems.filter((a) => a.category.toLowerCase() === "wardrobe") },
     props: { icon: <Package className="h-3 w-3" />, items: assetItems.filter((a) => !["location", "wardrobe", "characters"].includes(a.category.toLowerCase())) },
     scripts: { icon: <FileText className="h-3 w-3" />, items: scriptItems },
+    exports: { icon: <FolderDown className="h-3 w-3" />, items: exportItems },
   };
 
   const totalCount = Object.values(tabData).reduce((sum, d) => sum + d.items.length, 0);
@@ -247,6 +273,16 @@ const MediaLibraryPanel = () => {
           }
         } else if (item.sourceTable === "script_analyses") {
           await supabase.from("script_analyses").delete().eq("id", item.id);
+        } else if (item.sourceTable === "exports-local") {
+          // Remove from localStorage
+          try {
+            const stored = localStorage.getItem("vfs-exports");
+            if (stored) {
+              const parsed = JSON.parse(stored);
+              const filtered = parsed.filter((e: any) => e.id !== item.id);
+              localStorage.setItem("vfs-exports", JSON.stringify(filtered));
+            }
+          } catch { /* ignore */ }
         }
         deleted++;
       } catch {

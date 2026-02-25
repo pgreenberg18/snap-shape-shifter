@@ -6,7 +6,6 @@ import { useNavigate } from "react-router-dom";
 import { isAdminUser } from "@/components/admin/AdminPanel";
 import NDADocument from "@/components/admin/NDADocument";
 import MediaLibraryPanel from "@/components/settings/MediaLibraryPanel";
-import ExportsPanel from "@/components/settings/ExportsPanel";
 import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -14,7 +13,7 @@ import { toast } from "sonner";
 import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
-  Users, Settings, Image, FolderDown, Gauge,
+  Users, Settings, Image, Gauge,
   Lock, Unlock, ShieldAlert,
 } from "lucide-react";
 import {
@@ -507,7 +506,6 @@ const SettingsAdmin = () => {
     { id: "your-nda", label: "Your Signed NDA", icon: FileSignature, adminOnly: false },
     { id: "credit-usage", label: "Credit Usage", icon: Gauge, adminOnly: false },
     { id: "media-library", label: "Media Library", icon: Image, adminOnly: false },
-    { id: "exports", label: "Exports", icon: FolderDown, adminOnly: false },
     { id: "all-ndas", label: "All Signed NDAs", icon: Users, adminOnly: true },
     { id: "access-control", label: "Access Control", icon: Shield, adminOnly: true },
     { id: "downloads", label: "Downloads", icon: Download, adminOnly: true },
@@ -582,13 +580,6 @@ const SettingsAdmin = () => {
             </div>
           )}
 
-          {activeSection === "exports" && (
-            <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Exports</h2>
-              <p className="text-sm text-muted-foreground mb-6">View and re-download all finished exports from the Release phase.</p>
-              <ExportsPanel />
-            </div>
-          )}
 
           {activeSection === "all-ndas" && isAdmin && (
             <div>
