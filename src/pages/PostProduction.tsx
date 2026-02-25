@@ -200,18 +200,10 @@ function DraggableShot({ shot, index }: { shot: Shot; index: number }) {
           </div>
         )}
         {/* Scene / Shot / Take overlay */}
-        <div className="absolute top-1.5 left-1.5 flex gap-1">
+        <div className="absolute top-1.5 left-1.5">
           <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
             style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
-            SC{shot.scene_number}
-          </span>
-          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
-            style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
-            SH{index + 1}
-          </span>
-          <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-bold leading-none"
-            style={{ color: "#FFD600", background: "hsla(0, 0%, 0%, 0.65)" }}>
-            T1
+            SC{shot.scene_number} / SH{index + 1} / T1
           </span>
         </div>
       </div>
