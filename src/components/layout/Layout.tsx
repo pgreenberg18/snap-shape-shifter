@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { NavLink, useLocation, useParams, useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useFilm, useFilmId } from "@/hooks/useFilm";
@@ -14,6 +14,8 @@ import {
   HelpCircle,
   ArrowLeft,
   Loader2,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import {
   Tooltip,
@@ -38,6 +40,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const { data: film } = useFilm();
   const filmId = useFilmId();
   const { toggle: toggleHelp } = useHelp();
+  const [expanded, setExpanded] = useState(false);
 
   // Check if script is currently being analyzed
   const { data: latestAnalysis } = useQuery({
@@ -77,10 +80,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground/40 cursor-not-allowed"
+                className={cn(
+                  "flex items-center rounded-lg text-muted-foreground/40 cursor-not-allowed transition-all duration-200",
+                  expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+                )}
                 title={label}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 shrink-0" />
+                {expanded && <span className="text-xs font-medium truncate">{label}</span>}
               </span>
             </TooltipTrigger>
             <TooltipContent side="right">
@@ -97,13 +104,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
         to={to}
         title={label}
         className={cn(
-          "flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
+          "flex items-center rounded-lg transition-all duration-200",
+          expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
           isActive
             ? "text-primary cinema-glow"
             : "text-muted-foreground hover:bg-accent hover:text-foreground"
         )}
       >
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5 shrink-0" />
+        {expanded && <span className="text-xs font-medium truncate">{label}</span>}
       </NavLink>
     );
   };
@@ -111,35 +120,62 @@ const Layout = ({ children }: { children: ReactNode }) => {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       {/* Left Sidebar */}
-      <aside className="flex h-full w-16 flex-col items-center border-r border-border bg-card py-4">
+      <aside
+        className={cn(
+          "flex h-full flex-col items-center border-r border-border bg-card py-4 transition-all duration-200 shrink-0",
+          expanded ? "w-44" : "w-16"
+        )}
+      >
         {/* Back to project */}
         <button
           onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
           title="Back to versions"
           className={cn(
-            "mb-4 flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200",
+            "mb-4 flex items-center rounded-lg transition-all duration-200",
+            expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
             isAnalyzing
               ? "text-muted-foreground/40 cursor-not-allowed"
               : "text-muted-foreground hover:bg-accent hover:text-foreground"
           )}
         >
-          <ArrowLeft className="h-5 w-5" />
+          <ArrowLeft className="h-5 w-5 shrink-0" />
+          {expanded && <span className="text-xs font-medium truncate">Versions</span>}
         </button>
 
-        <nav className="flex flex-1 flex-col items-center gap-1">
+        <nav className={cn("flex flex-1 flex-col gap-1", expanded ? "w-full px-2" : "items-center")}>
           {phases.map((phase) => renderNavItem(phase.key, phase.icon, phase.label))}
         </nav>
 
-        {/* Bottom nav — Help + Settings */}
-        <div className="flex flex-col items-center gap-1 mb-2">
+        {/* Bottom nav — Toggle + Help + Settings */}
+        <div className={cn("flex flex-col gap-1 mb-2", expanded ? "w-full px-2" : "items-center")}>
+          {/* Expand/Collapse toggle */}
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            title={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            className={cn(
+              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
+          >
+            {expanded ? <ChevronsLeft className="h-5 w-5 shrink-0" /> : <ChevronsRight className="h-5 w-5 shrink-0" />}
+            {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
+          </button>
+
           <button
             onClick={toggleHelp}
             title="Help"
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+            className={cn(
+              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
           >
-            <HelpCircle className="h-5 w-5" />
+            <HelpCircle className="h-5 w-5 shrink-0" />
+            {expanded && <span className="text-xs font-medium truncate">Help</span>}
           </button>
-          {renderNavItem("settings", Settings, "Settings")}
+
+          <div className={expanded ? "w-full" : ""}>
+            {renderNavItem("settings", Settings, "Settings")}
+          </div>
         </div>
       </aside>
 
