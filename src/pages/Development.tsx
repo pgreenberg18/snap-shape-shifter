@@ -1278,50 +1278,69 @@ const Development = () => {
                   supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
                 };
                 return (
-                  <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Clapperboard className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Genre</h3>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {genres.map((g) => (
-                        <span key={g} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
-                          {g}
-                          <button onClick={() => removeGenre(g)} className="hover:text-destructive transition-colors" disabled={scriptLocked}>
-                            <X className="h-3 w-3" />
-                          </button>
-                        </span>
-                      ))}
-                      {/* Add genre dropdown */}
-                      {availableGenres.length > 0 && !scriptLocked && (
-                        <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGenreDropdownOpen(false); }}>
-                          <button
-                            onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
-                            className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Add
-                          </button>
-                          {genreDropdownOpen && (
-                            <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44 max-h-60 overflow-y-auto">
-                              {availableGenres.map((g) => (
-                                <button
-                                  key={g}
-                                  onClick={() => addGenre(g)}
-                                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground"
-                                >
-                                  {g}
-                                </button>
-                              ))}
+                  <Collapsible>
+                    <CollapsibleTrigger className="w-full">
+                      <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                        <div className="flex items-center gap-2">
+                          <Clapperboard className="h-5 w-5 text-primary" />
+                          <h3 className="font-display text-lg font-bold">Genre</h3>
+                          {genres.length > 0 && (
+                            <span className="text-xs text-muted-foreground">{genres.length} selected</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {genres.length > 0 ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          )}
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          {genres.map((g) => (
+                            <span key={g} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
+                              {g}
+                              <button onClick={() => removeGenre(g)} className="hover:text-destructive transition-colors" disabled={scriptLocked}>
+                                <X className="h-3 w-3" />
+                              </button>
+                            </span>
+                          ))}
+                          {/* Add genre dropdown */}
+                          {availableGenres.length > 0 && !scriptLocked && (
+                            <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGenreDropdownOpen(false); }}>
+                              <button
+                                onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
+                                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Add
+                              </button>
+                              {genreDropdownOpen && (
+                                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44 max-h-60 overflow-y-auto">
+                                  {availableGenres.map((g) => (
+                                    <button
+                                      key={g}
+                                      onClick={() => addGenre(g)}
+                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground"
+                                    >
+                                      {g}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                    {genres.length === 0 && (
-                      <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
-                    )}
-                  </div>
+                        {genres.length === 0 && (
+                          <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
+                        )}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 );
               })()}
 
