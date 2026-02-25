@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +13,12 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const { session, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  if (authLoading) return null;
+  if (session) return <Navigate to="/projects" replace />;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +131,7 @@ const Login = () => {
             className="w-full gap-3 bg-white hover:bg-gray-100 text-gray-800 border-gray-300"
             onClick={async () => {
               await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin + "/development",
+                redirect_uri: window.location.origin + "/projects",
               });
             }}
           >
