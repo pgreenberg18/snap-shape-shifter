@@ -14,6 +14,7 @@ import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
   Users, Settings, Image, FolderDown,
+  Lock, Unlock, ShieldAlert,
 } from "lucide-react";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
@@ -209,33 +210,53 @@ const AccessControl = () => {
     { key: "access_sample_projects", label: "Sample Projects" },
   ];
 
+  const getLockStatus = (access: any) => {
+    const count = phases.filter(({ key }) => !!access[key]).length;
+    if (count === 0) return "locked";
+    if (count === phases.length) return "unlocked";
+    return "partial";
+  };
+
+  const LockIcon = ({ status }: { status: string }) => {
+    if (status === "unlocked") return <Unlock className="h-4 w-4 text-green-500" />;
+    if (status === "partial") return <ShieldAlert className="h-4 w-4 text-yellow-500" />;
+    return <Lock className="h-4 w-4 text-destructive" />;
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-2">
       {!profiles?.length ? (
         <p className="text-sm text-muted-foreground">No users yet.</p>
       ) : (
         profiles.map((p) => {
           const access = accessMap?.[p.user_id] || {};
+          const status = getLockStatus(access);
           return (
-            <div key={p.user_id} className="rounded-lg border border-border bg-secondary/30 p-4 space-y-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">{p.full_name}</p>
-                <p className="text-xs text-muted-foreground">{p.email}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {phases.map(({ key, label }) => (
-                  <div key={key} className="flex items-center justify-between rounded bg-background/50 px-3 py-2">
-                    <span className="text-xs text-foreground">{label}</span>
-                    <Switch
-                      checked={!!access[key]}
-                      onCheckedChange={(v) =>
-                        toggleAccess.mutate({ userId: p.user_id, field: key, value: v })
-                      }
-                    />
+            <Collapsible key={p.user_id}>
+              <div className="rounded-lg border border-border bg-secondary/30">
+                <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3">
+                  <LockIcon status={status} />
+                  <span className="text-sm font-medium text-foreground flex-1 text-left">{p.full_name}</span>
+                  <span className="text-[11px] text-muted-foreground/60 font-mono mr-2">{p.email}</span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="px-4 pb-4">
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    {phases.map(({ key, label }) => (
+                      <div key={key} className="flex items-center justify-between rounded bg-background/50 px-3 py-2">
+                        <span className="text-xs text-foreground">{label}</span>
+                        <Switch
+                          checked={!!access[key]}
+                          onCheckedChange={(v) =>
+                            toggleAccess.mutate({ userId: p.user_id, field: key, value: v })
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </CollapsibleContent>
               </div>
-            </div>
+            </Collapsible>
           );
         })
       )}
