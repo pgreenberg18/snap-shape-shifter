@@ -1143,12 +1143,13 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   let ageMax: number | null = null;
   let isChild = false;
 
-  // ── 1. Find FIRST appearance and gather introduction-level description ──
-  let firstAppearanceDesc = "";
+  // ── 1. Find FIRST TWO appearances and gather introduction-level description ──
+  // Scripts typically give the most explicit character description the first
+  // or second time a character appears, so we collect intro data from both.
   let firstSceneDesc = "";
   const introFragments: string[] = [];
   const allBehavior: string[] = [];
-  let foundFirst = false;
+  let appearanceCount = 0;
 
   for (const scene of scenes) {
     const charDetails = Array.isArray(scene.character_details) ? scene.character_details : [];
@@ -1157,17 +1158,22 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
       const cName = (c.name || "");
       if (!matchesCharName(cName)) continue;
 
-      // First appearance: capture scene description + character details
-      if (!foundFirst) {
-        foundFirst = true;
-        firstSceneDesc = scene.description || "";
+      // First two appearances: capture introduction-level character details
+      if (appearanceCount < 2) {
+        appearanceCount++;
 
-        // Character introduction description from AI (if present)
+        // Capture scene description only for first appearance
+        if (appearanceCount === 1) {
+          firstSceneDesc = scene.description || "";
+        }
+
+        // Character introduction description from AI — the primary source
         if (c.character_introduction) introFragments.push(c.character_introduction);
+        // Physical behavior and key expressions supplement the intro
         if (c.physical_behavior) introFragments.push(c.physical_behavior);
         if (c.key_expressions) introFragments.push(c.key_expressions);
 
-        // Check wardrobe on first appearance for physical description
+        // Check wardrobe for physical/appearance clues
         if (Array.isArray(scene.wardrobe)) {
           for (const w of scene.wardrobe) {
             const wChar = (w.character || "").toUpperCase().trim();
@@ -1183,10 +1189,11 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     }
   }
 
-  // Build first-appearance description
+  // Build introduction description from first two appearances
+  let introDescription = "";
   if (introFragments.length > 0) {
-    firstAppearanceDesc = [...new Set(introFragments)].join(". ").replace(/\.\./g, ".").trim();
-    if (firstAppearanceDesc && !firstAppearanceDesc.endsWith(".")) firstAppearanceDesc += ".";
+    introDescription = [...new Set(introFragments)].join(". ").replace(/\.\./g, ".").trim();
+    if (introDescription && !introDescription.endsWith(".")) introDescription += ".";
   }
 
   // ── 2. Scan ALL scenes for sex via pronouns & role titles ──
@@ -1338,7 +1345,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 
   // ── 5. Build description ──
   // Prefer first-appearance description; fall back to aggregated behavior
-  let description = firstAppearanceDesc;
+  let description = introDescription;
   if (!description && firstSceneDesc && firstSceneDesc.toLowerCase().includes(nameLower)) {
     // Extract the sentence(s) mentioning this character from the scene description
     const sentences = firstSceneDesc.split(/(?<=[.!?])\s+/);
