@@ -212,8 +212,19 @@ ${scene.raw_text}`;
                     required: ["camera_feel", "motion_cues", "shot_suggestions"],
                     description: "Cinematic direction suggestions inferred from the scene's content, tone, and action.",
                   },
+                  visual_design: {
+                    type: "object",
+                    properties: {
+                      color_palette: { type: "string", description: "Dominant color palette for this scene — hues, tones, contrast. E.g. 'Desaturated blues and grays, cold fluorescent whites'. Use 'not specified' if not inferable." },
+                      lighting_style: { type: "string", description: "Lighting approach for this scene — quality, direction, mood. E.g. 'Low-key side lighting with deep shadows', 'Overcast natural light'. Use 'not specified' if not inferable." },
+                      visual_references: { type: "string", description: "Film or photography references this scene evokes. E.g. 'Fincher-esque clinical precision', 'Gordon Willis interiors'. Use 'not specified' if none." },
+                      atmosphere: { type: "string", description: "Overall visual atmosphere — e.g. 'Claustrophobic and suffocating', 'Expansive and desolate'. Use 'not specified' if not inferable." },
+                    },
+                    required: ["color_palette", "lighting_style", "visual_references", "atmosphere"],
+                    description: "Visual design direction inferred from the scene's content, setting, mood, and action.",
+                  },
                 },
-                required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements"],
+                required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements", "visual_design"],
                 additionalProperties: false,
               },
             },
@@ -276,6 +287,7 @@ ${scene.raw_text}`;
       location_name: string;
       estimated_page_count: number;
       cinematic_elements: { camera_feel: string; motion_cues: string; shot_suggestions: string[] };
+      visual_design: { color_palette: string; lighting_style: string; visual_references: string; atmosphere: string };
     };
 
     try {
@@ -320,6 +332,7 @@ ${scene.raw_text}`;
         location_name: breakdown.location_name || "",
         estimated_page_count: breakdown.estimated_page_count || 0,
         cinematic_elements: breakdown.cinematic_elements || {},
+        visual_design: breakdown.visual_design || {},
         enriched: true,
       })
       .eq("id", scene_id);
@@ -385,6 +398,7 @@ ${scene.raw_text}`;
           location_name: s.location_name || "",
           estimated_page_count: s.estimated_page_count || 0,
           cinematic_elements: s.cinematic_elements || {},
+          visual_design: s.visual_design || {},
         }));
 
         // Save scene_breakdown but keep status as "enriching" until finalization completes

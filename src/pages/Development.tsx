@@ -681,7 +681,7 @@ const Development = () => {
             .filter((n) => !existingNames.has(n))
             .map((name) => ({
               film_id: filmId,
-              name: name.charAt(0) + name.slice(1).toLowerCase(), // Title case
+              name: name.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" "),
             }));
 
           if (newChars.length > 0) {
@@ -1699,44 +1699,17 @@ const Development = () => {
                   </CollapsibleContent>
                 </Collapsible>
               )}
-              {analysis.scene_breakdown && Array.isArray(analysis.scene_breakdown) && (
-                <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
-                  <CollapsibleTrigger className="w-full">
-                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Scene Breakdown</h3>
-                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                          {(analysis.scene_breakdown as any[]).length} scenes
-                        </span>
-                        {reviewStats && (reviewStats.approved > 0 || reviewStats.rejected > 0) && (
-                          <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                            {reviewStats.approved} approved · {reviewStats.rejected} rejected · {reviewStats.pending} pending
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {allScenesApproved ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-500" />
-                        )}
-                        <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent>
-                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                      <SceneBreakdownSection
-                        scenes={analysis.scene_breakdown as any[]}
-                        storagePath={analysis.storage_path}
-                        onAllApprovedChange={setAllScenesApproved}
-                        onReviewStatsChange={setReviewStats}
-                        analysisId={analysis.id}
-                      />
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
+              {analysis?.status === "complete" && (
+                <SceneBreakdownFromDB
+                  filmId={filmId!}
+                  storagePath={analysis.storage_path}
+                  breakdownOpen={breakdownOpen}
+                  setBreakdownOpen={setBreakdownOpen}
+                  onAllApprovedChange={setAllScenesApproved}
+                  onReviewStatsChange={setReviewStats}
+                  analysisId={analysis.id}
+                  reviewStats={reviewStats}
+                />
               )}
 
               {/* Global Elements — collapsed by default */}
@@ -1985,6 +1958,89 @@ const Development = () => {
 /* ══════════════════════════════════════════
    Sub-components
    ══════════════════════════════════════════ */
+/* ── Wrapper: loads scenes from parsed_scenes table (single source of truth) ── */
+const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdownOpen, onAllApprovedChange, onReviewStatsChange, analysisId, reviewStats }: {
+  filmId: string; storagePath: string; breakdownOpen: boolean; setBreakdownOpen: (v: boolean) => void;
+  onAllApprovedChange?: (v: boolean) => void; onReviewStatsChange?: (stats: { approved: number; rejected: number; pending: number }) => void;
+  analysisId?: string; reviewStats?: { approved: number; rejected: number; pending: number } | null;
+}) => {
+  const { data: scenes, isLoading } = useQuery({
+    queryKey: ["parsed-scenes-breakdown", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("parsed_scenes")
+        .select("*")
+        .eq("film_id", filmId)
+        .order("scene_number");
+      if (error) throw error;
+      // Map parsed_scenes row format to the shape components expect
+      return (data || []).map((s: any) => ({
+        scene_number: s.scene_number,
+        scene_heading: s.heading,
+        description: s.description || "",
+        characters: s.characters || [],
+        character_details: s.character_details || [],
+        key_objects: s.key_objects || [],
+        wardrobe: s.wardrobe || [],
+        picture_vehicles: s.picture_vehicles || [],
+        environment_details: s.environment_details || "",
+        stunts: s.stunts || [],
+        sfx: s.sfx || [],
+        vfx: s.vfx || [],
+        sound_cues: s.sound_cues || [],
+        animals: s.animals || [],
+        extras: s.extras || "",
+        special_makeup: s.special_makeup || [],
+        mood: s.mood || "",
+        int_ext: s.int_ext || "",
+        day_night: s.day_night || "",
+        location_name: s.location_name || "",
+        estimated_page_count: s.estimated_page_count || 0,
+        cinematic_elements: s.cinematic_elements || {},
+        visual_design: s.visual_design || {},
+      }));
+    },
+    enabled: !!filmId,
+  });
+
+  if (isLoading || !scenes) return null;
+
+  return (
+    <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+      <CollapsibleTrigger className="w-full">
+        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+          <div className="flex items-center gap-2">
+            <Eye className="h-5 w-5 text-primary" />
+            <h3 className="font-display text-lg font-bold">Scene Breakdown</h3>
+            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+              {scenes.length} scenes
+            </span>
+            {reviewStats && (reviewStats.approved > 0 || reviewStats.rejected > 0) && (
+              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                {reviewStats.approved} approved · {reviewStats.rejected} rejected · {reviewStats.pending} pending
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+          <SceneBreakdownSection
+            scenes={scenes}
+            storagePath={storagePath}
+            onAllApprovedChange={onAllApprovedChange}
+            onReviewStatsChange={onReviewStatsChange}
+            analysisId={analysisId}
+          />
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, onReviewStatsChange, analysisId }: { scenes: any[]; storagePath: string; onAllApprovedChange?: (v: boolean) => void; onReviewStatsChange?: (stats: { approved: number; rejected: number; pending: number }) => void; analysisId?: string }) => {
   const [approvedSet, setApprovedSet] = useState<Set<number>>(new Set());
   const [rejectedSet, setRejectedSet] = useState<Set<number>>(new Set());
@@ -2316,11 +2372,12 @@ const EditableSceneContent = ({
 }) => {
   const filmId = useFilmId();
   const [desc, setDesc] = useState<string>(scene.description || "");
-  const [atmosphere, setAtmosphere] = useState<string>(scene.visual_design?.atmosphere || scene.mood || "");
-  const [lighting, setLighting] = useState<string>(scene.visual_design?.lighting_style || scene.day_night || "");
-  const [palette, setPalette] = useState<string>(scene.visual_design?.color_palette || "");
-  const [references, setReferences] = useState<string>(scene.visual_design?.visual_references || "");
-  const [location, setLocation] = useState<string>(scene.setting || scene.location_name || scene.scene_heading || "");
+  const vd = scene.visual_design || {};
+  const [atmosphere, setAtmosphere] = useState<string>(vd.atmosphere || scene.mood || "");
+  const [lighting, setLighting] = useState<string>(vd.lighting_style || scene.day_night || "");
+  const [palette, setPalette] = useState<string>(vd.color_palette || "");
+  const [references, setReferences] = useState<string>(vd.visual_references || "");
+  const [location, setLocation] = useState<string>(scene.location_name || scene.scene_heading || "");
   const [intExt, setIntExt] = useState<string>(scene.int_ext || "");
   const [dayNight, setDayNight] = useState<string>(scene.day_night || "");
   const [characters, setCharacters] = useState<{ name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[]>(() => {
@@ -2393,6 +2450,12 @@ const EditableSceneContent = ({
             camera_feel: cameraFeel,
             motion_cues: motionCues,
             shot_suggestions: shotSuggestions.split(" · ").filter(Boolean),
+          } as any,
+          visual_design: {
+            atmosphere,
+            lighting_style: lighting,
+            color_palette: palette,
+            visual_references: references,
           } as any,
           stunts,
           sfx,
@@ -2628,14 +2691,6 @@ const EditableSceneContent = ({
 
 
 
-        {/* Continuity Flags */}
-        {scene.continuity_flags?.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {scene.continuity_flags.map((flag: string, i: number) => (
-              <span key={i} className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full px-2.5 py-0.5">{flag}</span>
-            ))}
-          </div>
-        )}
 
         {/* Actions row */}
         <div className="pt-2 flex justify-end gap-2">
@@ -2906,8 +2961,8 @@ const ExpandableFlaggedScene = ({ flag, scene, scriptText, onSaveScript }: { fla
               <>
                 <div className="grid grid-cols-2 gap-3">
                   {scene.int_ext && <Tag label="Int/Ext" value={scene.int_ext} />}
-                  {scene.time_of_day && <Tag label="Time" value={scene.time_of_day} />}
-                  {scene.setting && <Tag label="Setting" value={scene.setting} />}
+                  {scene.day_night && <Tag label="Time" value={scene.day_night} />}
+                  {scene.location_name && <Tag label="Location" value={scene.location_name} />}
                 </div>
                 {scene.description && (
                   <Section icon={Eye} label="Description">

@@ -462,8 +462,8 @@ const Production = () => {
                     {activeScene.scene_heading || "Untitled Scene"}
                   </h1>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {activeScene.int_ext} · {activeScene.time_of_day}
-                    {activeScene.setting && ` · ${activeScene.setting}`}
+                    {activeScene.int_ext} · {activeScene.day_night}
+                    {activeScene.location_name && ` · ${activeScene.location_name}`}
                   </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2 shrink-0">
