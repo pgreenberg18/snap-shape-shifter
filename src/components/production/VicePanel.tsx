@@ -5,6 +5,7 @@ import {
   useResolveConflict,
   useDismissDirtyItem,
   useDetectConflicts,
+  useRegenerateAllDirty,
 } from "@/hooks/useVice";
 import { useStyleContract } from "@/hooks/useStyleContract";
 import {
@@ -51,7 +52,9 @@ const VicePanel = ({ open, onOpenChange }: VicePanelProps) => {
   const resolveConflict = useResolveConflict();
   const dismissDirty = useDismissDirtyItem();
   const detectConflicts = useDetectConflicts();
+  const regenerateAll = useRegenerateAllDirty();
   const [scanning, setScanning] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const handleScan = async () => {
     setScanning(true);
@@ -59,6 +62,16 @@ const VicePanel = ({ open, onOpenChange }: VicePanelProps) => {
       await detectConflicts.mutateAsync(undefined);
     } finally {
       setScanning(false);
+    }
+  };
+
+  const handleRegenerateAll = async () => {
+    if (!dirtyQueue.length) return;
+    setRegenerating(true);
+    try {
+      await regenerateAll.mutateAsync(dirtyQueue);
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -217,6 +230,16 @@ const VicePanel = ({ open, onOpenChange }: VicePanelProps) => {
                     </button>
                   </div>
                 ))}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs font-mono mt-2 border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={handleRegenerateAll}
+                  disabled={regenerating}
+                >
+                  <Zap className={cn("h-3 w-3 mr-2", regenerating && "animate-pulse")} />
+                  {regenerating ? `Regenerating ${dirtyQueue.length} shot(s)…` : `Regenerate All Dirty (${dirtyQueue.length})`}
+                </Button>
               </div>
             )}
           </div>
