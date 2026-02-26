@@ -6,6 +6,7 @@ import {
   Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X,
   HelpCircle, Settings, Archive, ArchiveRestore, HardDrive, ChevronDown, ChevronRight,
   SlidersHorizontal, ImagePlus, ArrowUpDown,
+  ScrollText, Image, AudioLines, Camera, Clapperboard, Minus, ExternalLink, Plug,
 } from "lucide-react";
 import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
 import {
@@ -49,6 +50,136 @@ const formatBytes = (bytes: number): string => {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+};
+
+/* ── Inline Services Panel (replaces dialog) ── */
+const SECTION_ORDER = ["script-analysis", "image-generation", "sound-stage", "camera-cart", "post-house"] as const;
+const SECTION_META: Record<string, { title: string; icon: React.ReactNode }> = {
+  "script-analysis": { title: "Script Analysis (LLM)", icon: <ScrollText className="h-4 w-4" /> },
+  "image-generation": { title: "Image Generation", icon: <Image className="h-4 w-4" /> },
+  "sound-stage": { title: "Voice & Audio", icon: <AudioLines className="h-4 w-4" /> },
+  "camera-cart": { title: "Video Generation", icon: <Camera className="h-4 w-4" /> },
+  "post-house": { title: "Post-Production", icon: <Clapperboard className="h-4 w-4" /> },
+};
+const SERVICES_LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
+
+const InlineServicesPanel = ({
+  projectId, versions, onClose, onManageProviders,
+}: {
+  projectId: string;
+  versions: Array<{ id: string; version_name: string | null; version_number: number; is_archived: boolean }>;
+  onClose: () => void;
+  onManageProviders: () => void;
+}) => {
+  const { data: integrations } = useQuery({
+    queryKey: ["integrations"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("integrations").select("*").order("section_id");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const filmIds = versions.map((v) => v.id);
+  const { data: selections } = useQuery({
+    queryKey: ["project-provider-selections", projectId],
+    queryFn: async () => {
+      if (!filmIds.length) return [];
+      const { data, error } = await supabase.from("version_provider_selections").select("*").in("film_id", filmIds);
+      if (error) throw error;
+      return data;
+    },
+    enabled: filmIds.length > 0,
+  });
+
+  const bySection: Record<string, Array<{ id: string; provider_name: string; is_verified: boolean }>> = {};
+  for (const int of integrations || []) {
+    const section = SERVICES_LEGACY_MAP[int.section_id] || int.section_id;
+    (bySection[section] ??= []).push(int);
+  }
+
+  const selectionMap: Record<string, Record<string, string>> = {};
+  for (const s of selections || []) {
+    (selectionMap[s.film_id] ??= {})[s.section_id] = s.provider_service_id;
+  }
+
+  const providerNames: Record<string, string> = {};
+  for (const int of integrations || []) providerNames[int.id] = int.provider_name;
+
+  const activeVersions = versions.filter((v) => !v.is_archived);
+
+  return (
+    <div className="mb-6 rounded-xl border border-border bg-card/50 p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Plug className="h-4 w-4 text-primary" />
+          <h3 className="font-display text-sm font-bold text-foreground">Project Services Overview</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={onManageProviders}>
+            <ExternalLink className="h-3 w-3" /> Manage Providers
+          </Button>
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={onClose}>
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Global API services configured in the app, and which provider each version in this project is using.
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {SECTION_ORDER.map((sectionId) => {
+          const meta = SECTION_META[sectionId];
+          const providers = bySection[sectionId] || [];
+          if (!meta) return null;
+          return (
+            <div key={sectionId} className="rounded-lg border border-border bg-card p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                {meta.icon}
+                <span className="text-xs font-display font-semibold">{meta.title}</span>
+              </div>
+              {providers.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground italic">No providers configured</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {providers.map((p) => (
+                    <span key={p.id} className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border ${p.is_verified ? "border-primary/30 bg-primary/10 text-primary" : "border-border bg-secondary text-muted-foreground"}`}>
+                      {p.is_verified ? <Check className="h-2.5 w-2.5" /> : <Minus className="h-2.5 w-2.5" />}
+                      {p.provider_name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {providers.length > 0 && activeVersions.length > 0 && (
+                <div className="rounded-md bg-secondary/50 p-2 space-y-1">
+                  {activeVersions.map((v) => {
+                    const selectedId = selectionMap[v.id]?.[sectionId];
+                    const selectedName = selectedId ? providerNames[selectedId] : null;
+                    const verifiedProviders = providers.filter((p) => p.is_verified);
+                    const autoSelected = verifiedProviders.length === 1 ? verifiedProviders[0].provider_name : null;
+                    return (
+                      <div key={v.id} className="flex items-center justify-between text-[10px]">
+                        <span className="text-foreground font-medium truncate max-w-[100px]">{v.version_name || `v${v.version_number}`}</span>
+                        {selectedName ? (
+                          <span className="text-primary flex items-center gap-0.5"><Check className="h-2.5 w-2.5" /> {selectedName}</span>
+                        ) : autoSelected ? (
+                          <span className="text-muted-foreground flex items-center gap-0.5"><Check className="h-2.5 w-2.5" /> {autoSelected} (auto)</span>
+                        ) : verifiedProviders.length > 1 ? (
+                          <span className="text-yellow-500 text-[10px]">⚠ Not set</span>
+                        ) : (
+                          <span className="text-muted-foreground/60">—</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 };
 
 const ProjectVersions = () => {
@@ -576,6 +707,16 @@ const ProjectVersions = () => {
         <main className="relative flex-1 overflow-y-auto lens-flare lens-flare-streak">
           <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full z-[14] mix-blend-screen opacity-40" style={{ background: 'radial-gradient(circle, rgba(47,125,255,0.12) 0%, transparent 60%)', filter: 'blur(40px)' }} />
           <div className="mx-auto max-w-7xl px-8 py-6">
+            {/* Inline Services Overview */}
+            {servicesOpen && versions && projectId && (
+              <InlineServicesPanel
+                projectId={projectId}
+                versions={versions}
+                onClose={() => setServicesOpen(false)}
+                onManageProviders={() => navigate("/settings")}
+              />
+            )}
+
             {/* Toolbar */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
@@ -668,14 +809,7 @@ const ProjectVersions = () => {
           </AlertDialogContent>
         </AlertDialog>
 
-        {versions && projectId && (
-          <ProjectServicesDialog
-            projectId={projectId}
-            versions={versions}
-            open={servicesOpen}
-            onOpenChange={setServicesOpen}
-          />
-        )}
+        {/* Services dialog removed – now inline */}
 
         {conflictFilmId && conflicts.length > 0 && (
           <ProviderConflictDialog
