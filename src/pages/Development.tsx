@@ -159,8 +159,8 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
 
   return (
     <div className="rounded-xl border border-border bg-card p-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0" />
+      <div className="flex items-start gap-3">
+        <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="font-display font-semibold text-lg truncate">
             {isEnriching ? "Analyzing your script…" : "Parsing your screenplay…"}
@@ -172,6 +172,17 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
             {!isEnriching && " · This usually takes a few seconds"}
           </p>
         </div>
+        {onCancel && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+            onClick={onCancel}
+          >
+            <X className="h-3.5 w-3.5" />
+            Cancel Script Analysis
+          </Button>
+        )}
       </div>
 
       {/* Progress bar */}
@@ -293,20 +304,6 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
         </div>
       </div>
 
-      {/* Cancel processing button */}
-      {onCancel && (
-        <div className="flex justify-center pt-2">
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={onCancel}
-          >
-            <X className="h-3.5 w-3.5" />
-            Cancel Processing
-          </Button>
-        </div>
-      )}
     </div>
   );
 };
