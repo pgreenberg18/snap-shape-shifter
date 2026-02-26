@@ -27,6 +27,7 @@ import { useContentSafety, useFilm, useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import TypewriterSceneFeed from "@/components/development/TypewriterSceneFeed";
+import DirectorVisionPanel from "@/components/development/DirectorVisionPanel";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -1616,6 +1617,24 @@ const Development = () => {
                   </Collapsible>
                 );
               })()}
+
+              {/* ── Director's Vision ── */}
+              <Collapsible>
+                <CollapsibleTrigger className="w-full">
+                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-2">
+                      <Camera className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Director's Vision</h3>
+                    </div>
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                    <DirectorVisionPanel disabled={scriptLocked} />
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {/* Visual Summary */}
               {analysis.visual_summary && (
