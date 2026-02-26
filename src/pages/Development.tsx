@@ -309,7 +309,8 @@ const Development = () => {
   const [uploadedFile, setUploadedFile] = useState<string | null>(null);
   const [uploadedPath, setUploadedPath] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+   const fileInputRef = useRef<HTMLInputElement>(null);
+   const uploadAbortRef = useRef<AbortController | null>(null);
   const { toast } = useToast();
   const [allScenesApproved, setAllScenesApproved] = useState(false);
   const [contentSafetyRun, setContentSafetyRun] = useState(false);
@@ -528,15 +529,27 @@ const Development = () => {
     }
     if (!filmId) return;
     setUploading(true);
+    const abortController = new AbortController();
+    uploadAbortRef.current = abortController;
 
     // Upload file to storage only — analysis is triggered separately
     const path = `${filmId}/${Date.now()}_${file.name}`;
-    const { error: uploadErr } = await supabase.storage.from("scripts").upload(path, file);
+    const { error: uploadErr } = await supabase.storage.from("scripts").upload(path, file, {
+      // @ts-ignore – signal supported by fetch-based upload
+      signal: abortController.signal,
+    } as any);
+    if (abortController.signal.aborted) {
+      setUploading(false);
+      uploadAbortRef.current = null;
+      return;
+    }
     if (uploadErr) {
       setUploading(false);
+      uploadAbortRef.current = null;
       toast({ title: "Upload failed", description: uploadErr.message, variant: "destructive" });
       return;
     }
+    uploadAbortRef.current = null;
 
     setUploadedFile(file.name);
     setUploadedPath(path);
@@ -1017,7 +1030,7 @@ const Development = () => {
                   <>
                     <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
                     <div
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => !uploading && fileInputRef.current?.click()}
                       onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
                       onDragLeave={() => setDragOver(false)}
                       onDrop={handleDrop}
@@ -1045,10 +1058,27 @@ const Development = () => {
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">{ACCEPTED_LABEL} — or click to browse</p>
                           </div>
-                          <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
-                            <Upload className="h-3 w-3" />
-                            Upload Script
-                          </div>
+                          {uploading ? (
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              className="gap-1.5 text-[10px]"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                uploadAbortRef.current?.abort();
+                                setUploading(false);
+                                toast({ title: "Upload cancelled" });
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                              Quit Uploading
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
+                              <Upload className="h-3 w-3" />
+                              Upload Script
+                            </div>
+                          )}
                         </>
                       )}
                     </div>
