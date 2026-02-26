@@ -20,9 +20,18 @@ import {
 } from "@/lib/director-styles";
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles, Eye, Check, Blend } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Sparkles, Eye, Check, Blend, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 /* ── Cluster color map ── */
 const CLUSTER_COLORS: Record<ClusterId, string> = {
@@ -39,8 +48,6 @@ const CLUSTER_COLORS: Record<ClusterId, string> = {
 
 /* ── Helpers ── */
 function directorToXY(d: DirectorProfile): { x: number; y: number } {
-  // X = Intimacy ↔ Spectacle (scale + spectacle) / 2
-  // Y = Classical ↔ Experimental (structure + genreFluidity) / 2
   const x = (d.vector.scale + d.vector.spectacle) / 2;
   const y = (d.vector.structure + d.vector.genreFluidity) / 2;
   return { x, y };
@@ -48,6 +55,22 @@ function directorToXY(d: DirectorProfile): { x: number; y: number } {
 
 function vectorToXY(v: StyleVector): { x: number; y: number } {
   return { x: (v.scale + v.spectacle) / 2, y: (v.structure + v.genreFluidity) / 2 };
+}
+
+/** Genre-aware scoring: boost directors whose knownFor overlaps with film genres */
+function genreAwareDistance(
+  target: StyleVector,
+  director: DirectorProfile,
+  filmGenres: string[],
+): number {
+  const baseDist = styleDistance(target, director.vector);
+  if (!filmGenres.length) return baseDist;
+  const overlap = director.knownFor.filter((g) =>
+    filmGenres.some((fg) => fg.toLowerCase() === g.toLowerCase())
+  ).length;
+  // Each genre match reduces distance by 15%
+  const genreBonus = overlap * 0.15;
+  return baseDist * Math.max(0.4, 1 - genreBonus);
 }
 
 /* ── Hook: fetch director profile ── */
@@ -66,18 +89,36 @@ const useDirectorProfile = (filmId: string | undefined) =>
     enabled: !!filmId,
   });
 
+/* ── Hook: fetch film genres ── */
+const useFilmGenres = (filmId: string | undefined) =>
+  useQuery({
+    queryKey: ["film-genres", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("films")
+        .select("genres")
+        .eq("id", filmId!)
+        .single();
+      if (error) throw error;
+      return (data?.genres as string[]) || [];
+    },
+    enabled: !!filmId,
+  });
+
 /* ── Component ── */
 const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
   const filmId = useFilmId();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { data: profile, isLoading: profileLoading } = useDirectorProfile(filmId);
+  const { data: filmGenres = [] } = useFilmGenres(filmId);
 
   const [hoveredDirector, setHoveredDirector] = useState<string | null>(null);
   const [selectedPrimary, setSelectedPrimary] = useState<string | null>(null);
   const [selectedSecondary, setSelectedSecondary] = useState<string | null>(null);
-  const [blendWeight, setBlendWeight] = useState(70); // 70% primary
+  const [blendWeight, setBlendWeight] = useState(70);
   const [analyzing, setAnalyzing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Sync from DB profile
   const primaryId = selectedPrimary || profile?.primary_director_id || null;
@@ -87,11 +128,14 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
 
   const scriptVector = profile?.computed_vector as unknown as StyleVector | null;
 
-  // Top 3 matches from script vector
+  // Genre-aware top matches
   const topMatches = useMemo(() => {
     if (!scriptVector) return [];
-    return nearestDirectors(scriptVector, 5);
-  }, [scriptVector]);
+    return DIRECTORS
+      .map((d) => ({ director: d, distance: genreAwareDistance(scriptVector, d, filmGenres) }))
+      .sort((a, b) => a.distance - b.distance)
+      .slice(0, 5);
+  }, [scriptVector, filmGenres]);
 
   const topMatchIds = useMemo(() => new Set(topMatches.slice(0, 3).map((m) => m.director.id)), [topMatches]);
 
@@ -101,6 +145,18 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
     if (!secondaryDirector) return primaryDirector.vector;
     return blendVectors(primaryDirector.vector, secondaryDirector.vector, blendWeight / 100);
   }, [primaryDirector, secondaryDirector, blendWeight]);
+
+  // Filtered directors for manual search
+  const filteredDirectors = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return DIRECTORS.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.knownFor.some((g) => g.toLowerCase().includes(q)) ||
+        CLUSTER_LABELS[d.cluster].toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
 
   // Run analysis
   const handleAnalyze = useCallback(async () => {
@@ -156,10 +212,10 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
     },
   });
 
-  // Constellation dimensions
-  const MAP_W = 720;
-  const MAP_H = 420;
-  const PAD = 50;
+  // Tighter constellation — reduced padding, more usable space
+  const MAP_W = 600;
+  const MAP_H = 380;
+  const PAD = 36;
 
   const toScreen = (x: number, y: number) => ({
     sx: PAD + ((x / 10) * (MAP_W - PAD * 2)),
@@ -176,11 +232,47 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
       setSelectedSecondary(d.id === secondaryId ? null : d.id);
       return;
     }
-    // If both set, replace secondary
     setSelectedSecondary(d.id);
   };
 
+  const handleManualSelect = (directorId: string, role: "primary" | "secondary") => {
+    if (disabled) return;
+    if (role === "primary") {
+      setSelectedPrimary(directorId);
+      if (secondaryId === directorId) setSelectedSecondary(null);
+    } else {
+      setSelectedSecondary(directorId);
+      if (primaryId === directorId) setSelectedPrimary(null);
+    }
+    setSearchQuery("");
+  };
+
   const hovered = hoveredDirector ? DIRECTORS.find((d) => d.id === hoveredDirector) : null;
+
+  /** Genre overlap badges */
+  const GenreTags = ({ genres }: { genres: string[] }) => {
+    if (!genres.length) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1">
+        {genres.map((g) => {
+          const isMatch = filmGenres.some((fg) => fg.toLowerCase() === g.toLowerCase());
+          return (
+            <span
+              key={g}
+              className={cn(
+                "text-[8px] px-1.5 py-0.5 rounded-full border font-medium",
+                isMatch
+                  ? "bg-primary/15 text-primary border-primary/30"
+                  : "bg-secondary/50 text-muted-foreground border-border"
+              )}
+            >
+              {g}
+            </span>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -203,11 +295,80 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
         </div>
       )}
 
+      {/* Manual Director Search — always visible */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <Search className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Manual Director Selection</span>
+        </div>
+
+        <div className="flex gap-2">
+          <div className="flex-1 space-y-1.5">
+            <label className="text-[9px] uppercase tracking-wider text-primary font-bold">Primary</label>
+            <Select
+              value={primaryId || ""}
+              onValueChange={(v) => handleManualSelect(v, "primary")}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-xs bg-background">
+                <SelectValue placeholder="Select primary director…" />
+              </SelectTrigger>
+              <SelectContent>
+                <ScrollArea className="max-h-60">
+                  {DIRECTORS.map((d) => (
+                    <SelectItem key={d.id} value={d.id} className="text-xs">
+                      <span className="font-medium">{d.name}</span>
+                      <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex-1 space-y-1.5">
+            <label className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">Secondary</label>
+            <Select
+              value={secondaryId || ""}
+              onValueChange={(v) => handleManualSelect(v, "secondary")}
+              disabled={disabled}
+            >
+              <SelectTrigger className="h-8 text-xs bg-background">
+                <SelectValue placeholder="Select secondary…" />
+              </SelectTrigger>
+              <SelectContent>
+                <ScrollArea className="max-h-60">
+                  {DIRECTORS.filter((d) => d.id !== primaryId).map((d) => (
+                    <SelectItem key={d.id} value={d.id} className="text-xs">
+                      <span className="font-medium">{d.name}</span>
+                      <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
+                    </SelectItem>
+                  ))}
+                </ScrollArea>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Film genre context */}
+        {filmGenres.length > 0 && (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wider shrink-0">Your genres:</span>
+            <div className="flex flex-wrap gap-1">
+              {filmGenres.map((g) => (
+                <span key={g} className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">
+                  {g}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Constellation Map */}
       {(profile || scriptVector) && (
         <>
           <div className="rounded-lg border border-border bg-background/50 overflow-hidden relative">
-            <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="w-full h-auto" style={{ maxHeight: 420 }}>
+            <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="w-full h-auto" style={{ maxHeight: 380 }}>
               {/* Grid lines */}
               {[2.5, 5, 7.5].map((v) => {
                 const { sx } = toScreen(v, 0);
@@ -221,14 +382,14 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               })}
 
               {/* Quadrant labels */}
-              <text x={PAD + 8} y={PAD + 16} fill="hsl(var(--muted-foreground))" fontSize="9" opacity="0.5" fontFamily="var(--font-display)">INTIMATE + EXPERIMENTAL</text>
-              <text x={MAP_W - PAD - 8} y={PAD + 16} fill="hsl(var(--muted-foreground))" fontSize="9" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + EXPERIMENTAL</text>
-              <text x={PAD + 8} y={MAP_H - PAD - 8} fill="hsl(var(--muted-foreground))" fontSize="9" opacity="0.5" fontFamily="var(--font-display)">INTIMATE + CLASSICAL</text>
-              <text x={MAP_W - PAD - 8} y={MAP_H - PAD - 8} fill="hsl(var(--muted-foreground))" fontSize="9" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + CLASSICAL</text>
+              <text x={PAD + 6} y={PAD + 12} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" fontFamily="var(--font-display)">INTIMATE + EXPERIMENTAL</text>
+              <text x={MAP_W - PAD - 6} y={PAD + 12} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + EXPERIMENTAL</text>
+              <text x={PAD + 6} y={MAP_H - PAD - 6} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" fontFamily="var(--font-display)">INTIMATE + CLASSICAL</text>
+              <text x={MAP_W - PAD - 6} y={MAP_H - PAD - 6} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + CLASSICAL</text>
 
               {/* Axis labels */}
-              <text x={MAP_W / 2} y={MAP_H - 10} fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" opacity="0.6">Intimacy ← → Spectacle</text>
-              <text x={14} y={MAP_H / 2} fill="hsl(var(--muted-foreground))" fontSize="10" textAnchor="middle" opacity="0.6" transform={`rotate(-90, 14, ${MAP_H / 2})`}>Classical ← → Experimental</text>
+              <text x={MAP_W / 2} y={MAP_H - 6} fill="hsl(var(--muted-foreground))" fontSize="9" textAnchor="middle" opacity="0.6">Intimacy ← → Spectacle</text>
+              <text x={10} y={MAP_H / 2} fill="hsl(var(--muted-foreground))" fontSize="9" textAnchor="middle" opacity="0.6" transform={`rotate(-90, 10, ${MAP_H / 2})`}>Classical ← → Experimental</text>
 
               {/* Blend line between primary and secondary */}
               {primaryDirector && secondaryDirector && (() => {
@@ -251,21 +412,24 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 const isHovered = d.id === hoveredDirector;
                 const rank = topMatches.findIndex((m) => m.director.id === d.id);
                 const clusterColor = CLUSTER_COLORS[d.cluster];
-                const r = isPrimary ? 10 : isSecondary ? 8 : isTop3 ? 7 : 4.5;
+                const hasGenreOverlap = filmGenres.length > 0 && d.knownFor.some((g) =>
+                  filmGenres.some((fg) => fg.toLowerCase() === g.toLowerCase())
+                );
+                const r = isPrimary ? 9 : isSecondary ? 7 : isTop3 ? 6 : hasGenreOverlap ? 5 : 4;
 
                 return (
                   <g
                     key={d.id}
                     className="cursor-pointer transition-opacity"
-                    opacity={isHovered || isPrimary || isSecondary || isTop3 ? 1 : 0.45}
+                    opacity={isHovered || isPrimary || isSecondary || isTop3 ? 1 : hasGenreOverlap ? 0.7 : 0.35}
                     onMouseEnter={() => setHoveredDirector(d.id)}
                     onMouseLeave={() => setHoveredDirector(null)}
                     onClick={() => handleNodeClick(d)}
                   >
                     {/* Glow ring for selected */}
                     {(isPrimary || isSecondary) && (
-                      <circle cx={sx} cy={sy} r={r + 5} fill="none" stroke={isPrimary ? "hsl(var(--primary))" : "hsl(var(--ring))"} strokeWidth="1.5" opacity="0.5">
-                        <animate attributeName="r" values={`${r + 4};${r + 7};${r + 4}`} dur="2s" repeatCount="indefinite" />
+                      <circle cx={sx} cy={sy} r={r + 4} fill="none" stroke={isPrimary ? "hsl(var(--primary))" : "hsl(var(--ring))"} strokeWidth="1.5" opacity="0.5">
+                        <animate attributeName="r" values={`${r + 3};${r + 6};${r + 3}`} dur="2s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2s" repeatCount="indefinite" />
                       </circle>
                     )}
@@ -283,13 +447,13 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                       strokeWidth={isHovered ? 1.5 : 0}
                     />
 
-                    {/* Name label */}
+                    {/* Name label — show for hovered, selected, and top matches */}
                     {(isHovered || isPrimary || isSecondary || isTop3) && (
                       <text
                         x={sx}
-                        y={sy - r - 5}
+                        y={sy - r - 4}
                         fill={isPrimary || isSecondary ? "hsl(var(--primary))" : "hsl(var(--foreground))"}
-                        fontSize={isPrimary || isSecondary ? "10" : "8.5"}
+                        fontSize={isPrimary || isSecondary ? "9" : "8"}
                         textAnchor="middle"
                         fontWeight={isPrimary || isSecondary ? "700" : "500"}
                         fontFamily="var(--font-display)"
@@ -300,7 +464,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
 
                     {/* Rank badge */}
                     {rank >= 0 && rank < 3 && !isPrimary && !isSecondary && (
-                      <text x={sx + r + 3} y={sy + 3} fill="hsl(var(--primary))" fontSize="8" fontWeight="bold">#{rank + 1}</text>
+                      <text x={sx + r + 2} y={sy + 3} fill="hsl(var(--primary))" fontSize="7" fontWeight="bold">#{rank + 1}</text>
                     )}
                   </g>
                 );
@@ -312,9 +476,9 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 const { sx, sy } = toScreen(x, y);
                 return (
                   <g>
-                    <line x1={sx - 8} y1={sy} x2={sx + 8} y2={sy} stroke="hsl(var(--destructive))" strokeWidth="2" />
-                    <line x1={sx} y1={sy - 8} x2={sx} y2={sy + 8} stroke="hsl(var(--destructive))" strokeWidth="2" />
-                    <text x={sx + 12} y={sy + 4} fill="hsl(var(--destructive))" fontSize="9" fontWeight="bold" fontFamily="var(--font-display)">YOUR SCRIPT</text>
+                    <line x1={sx - 7} y1={sy} x2={sx + 7} y2={sy} stroke="hsl(var(--destructive))" strokeWidth="2" />
+                    <line x1={sx} y1={sy - 7} x2={sx} y2={sy + 7} stroke="hsl(var(--destructive))" strokeWidth="2" />
+                    <text x={sx + 10} y={sy + 3} fill="hsl(var(--destructive))" fontSize="8" fontWeight="bold" fontFamily="var(--font-display)">YOUR SCRIPT</text>
                   </g>
                 );
               })()}
@@ -325,9 +489,9 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 const { sx, sy } = toScreen(x, y);
                 return (
                   <g>
-                    <circle cx={sx} cy={sy} r={6} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
-                    <circle cx={sx} cy={sy} r={2.5} fill="hsl(var(--primary))" />
-                    <text x={sx + 10} y={sy + 4} fill="hsl(var(--primary))" fontSize="8" fontWeight="600" fontFamily="var(--font-display)">BLEND</text>
+                    <circle cx={sx} cy={sy} r={5} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" />
+                    <circle cx={sx} cy={sy} r={2} fill="hsl(var(--primary))" />
+                    <text x={sx + 8} y={sy + 3} fill="hsl(var(--primary))" fontSize="7" fontWeight="600" fontFamily="var(--font-display)">BLEND</text>
                   </g>
                 );
               })()}
@@ -335,11 +499,11 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
           </div>
 
           {/* Cluster legend */}
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 px-1">
+          <div className="flex flex-wrap gap-x-3 gap-y-1 px-1">
             {(Object.entries(CLUSTER_LABELS) as [ClusterId, string][]).map(([id, label]) => (
-              <div key={id} className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: CLUSTER_COLORS[id] }} />
-                <span className="text-[10px] text-muted-foreground">{label}</span>
+              <div key={id} className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: CLUSTER_COLORS[id] }} />
+                <span className="text-[9px] text-muted-foreground">{label}</span>
               </div>
             ))}
           </div>
@@ -353,6 +517,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                   {CLUSTER_LABELS[hovered.cluster]}
                 </span>
               </div>
+              <GenreTags genres={hovered.knownFor} />
               <div className="grid grid-cols-4 gap-2">
                 {STYLE_AXES.map((axis) => (
                   <div key={axis} className="space-y-0.5">
@@ -374,10 +539,12 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Director Selection</span>
             </div>
 
-            {/* Top matches */}
+            {/* Top matches with genre info */}
             {topMatches.length > 0 && (
               <div className="space-y-2">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">AI Recommendations</span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                  AI Recommendations {filmGenres.length > 0 && <span className="text-primary/70 normal-case">· genre-weighted</span>}
+                </span>
                 <div className="grid grid-cols-3 gap-2">
                   {topMatches.slice(0, 3).map((m, i) => (
                     <button
@@ -386,10 +553,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                         if (disabled) return;
                         if (i === 0) {
                           setSelectedPrimary(m.director.id);
-                        } else if (i === 1) {
-                          setSelectedSecondary(m.director.id);
                         } else {
-                          // Replace secondary with 3rd
                           setSelectedSecondary(m.director.id);
                         }
                       }}
@@ -407,8 +571,8 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                         </span>
                         <span className="text-xs font-display font-bold text-foreground truncate">{m.director.name}</span>
                       </div>
-                      <p className="text-[9px] text-muted-foreground mt-1 truncate">{CLUSTER_LABELS[m.director.cluster]}</p>
-                      <p className="text-[9px] text-muted-foreground/60 mt-0.5">Distance: {m.distance.toFixed(2)}</p>
+                      <GenreTags genres={m.director.knownFor} />
+                      <p className="text-[9px] text-muted-foreground/60 mt-1">Distance: {m.distance.toFixed(2)}</p>
                     </button>
                   ))}
                 </div>
@@ -422,10 +586,11 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 {primaryDirector ? (
                   <>
                     <p className="text-sm font-display font-bold text-foreground">{primaryDirector.name}</p>
+                    <GenreTags genres={primaryDirector.knownFor} />
                     <p className="text-[10px] text-muted-foreground">{primaryDirector.visualMandate.lighting.split(";")[0]}</p>
                   </>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Click a director on the map</p>
+                  <p className="text-xs text-muted-foreground">Click a director or use dropdown above</p>
                 )}
               </div>
               <div className={cn("rounded-lg border p-3 space-y-1.5", secondaryDirector ? "border-border bg-secondary/30" : "border-border border-dashed")}>
@@ -433,6 +598,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 {secondaryDirector ? (
                   <>
                     <p className="text-sm font-display font-bold text-foreground">{secondaryDirector.name}</p>
+                    <GenreTags genres={secondaryDirector.knownFor} />
                     <p className="text-[10px] text-muted-foreground">{secondaryDirector.visualMandate.lighting.split(";")[0]}</p>
                   </>
                 ) : (
