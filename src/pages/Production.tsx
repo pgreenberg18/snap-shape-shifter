@@ -371,6 +371,13 @@ const Production = () => {
               <div className="flex-1 flex min-h-0">
                 {/* Left column: Script → Master Control Deck → Generation Buttons */}
                 <div style={{ width: scriptColWidth }} className="min-w-[280px] max-w-[600px] flex border-r-0 flex-col overflow-hidden shrink-0 relative">
+                  {sceneShots.length === 0 && (
+                    <div className="px-4 py-1.5 bg-primary/5 border-b border-primary/20">
+                      <p className="text-[11px] text-primary/70 font-mono text-center">
+                        Highlight script text below and click "Create Shot from Selection" to begin.
+                      </p>
+                    </div>
+                  )}
                   <ScriptWorkspace
                     scene={activeScene}
                     sceneText={sceneTextData?.raw_text ?? undefined}
