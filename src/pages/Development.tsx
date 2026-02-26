@@ -190,41 +190,54 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
         {PARSING_STEPS.map((step, i) => {
           const isDone = parsingDone || (elapsed / 1000 > (i + 1) * 3);
           const isActive = !isDone && (elapsed / 1000 > i * 3);
+          const stepPct = isDone ? 100 : isActive ? Math.min(Math.round(((elapsed / 1000 - i * 3) / 3) * 100), 99) : 0;
           return (
-            <div key={step.key} className="flex items-center gap-3">
-              <div className={cn(
-                "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
-                isDone && "bg-primary text-primary-foreground",
-                isActive && "bg-primary/20 text-primary",
-                !isDone && !isActive && "bg-secondary text-muted-foreground/40"
-              )}>
-                {isDone ? (
-                  <CheckCircle className="h-3.5 w-3.5" />
-                ) : isActive ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <span className="text-[10px] font-bold">{i + 1}</span>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <span className={cn(
-                  "text-sm transition-colors",
-                  isDone && "text-foreground",
-                  isActive && "text-foreground font-semibold",
-                  !isDone && !isActive && "text-muted-foreground/50"
+            <div key={step.key} className="space-y-1">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
+                  isDone && "bg-primary text-primary-foreground",
+                  isActive && "bg-primary/20 text-primary",
+                  !isDone && !isActive && "bg-secondary text-muted-foreground/40"
                 )}>
-                  {step.label}
-                </span>
-                {isActive && (
-                  <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
-                    {step.detail}
-                  </p>
+                  {isDone ? (
+                    <CheckCircle className="h-3.5 w-3.5" />
+                  ) : isActive ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <span className="text-[10px] font-bold">{i + 1}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className={cn(
+                    "text-sm transition-colors",
+                    isDone && "text-foreground",
+                    isActive && "text-foreground font-semibold",
+                    !isDone && !isActive && "text-muted-foreground/50"
+                  )}>
+                    {step.label}
+                  </span>
+                  {isActive && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
+                      {step.detail}
+                    </p>
+                  )}
+                </div>
+                {(isActive || isDone) && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{stepPct}%</span>
                 )}
               </div>
+              {isActive && (
+                <div className="ml-9 h-1 rounded-full bg-secondary overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary/50 transition-all duration-700 ease-out"
+                    style={{ width: `${stepPct}%` }}
+                  />
+                </div>
+              )}
             </div>
           );
         })}
-
         {/* Enrichment step — shows real progress */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
@@ -258,9 +271,12 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
               )}
             </div>
             {isEnriching && enrichTotal > 0 && (
-              <span className="text-[10px] text-muted-foreground tabular-nums">
-                {enrichDone}/{enrichTotal}
+              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
+                {enrichDone}/{enrichTotal} · {enrichPct}%
               </span>
+            )}
+            {parsingDone && !isEnriching && (
+              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">100%</span>
             )}
           </div>
           {isEnriching && (
