@@ -304,6 +304,18 @@ const Development = () => {
   const { data: film } = useFilm();
   const { data: safety } = useContentSafety();
   const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis(filmId);
+  const { data: directorProfile } = useQuery({
+    queryKey: ["director-profile", filmId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("film_director_profiles")
+        .select("id")
+        .eq("film_id", filmId!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!filmId,
+  });
   const { data: sceneLocations } = useQuery({
     queryKey: ["scene-locations", filmId],
     queryFn: async () => {
@@ -1805,7 +1817,7 @@ const Development = () => {
       )}
 
       {/* ── Step 3: Content Safety Matrix ── */}
-      {analysis?.scene_breakdown && (
+      {analysis?.scene_breakdown && directorProfile && (
         <section>
           {scriptLocked ? (
             /* ── LOCKED STATE — collapsible like Global Elements ── */
