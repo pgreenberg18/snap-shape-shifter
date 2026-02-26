@@ -12,6 +12,8 @@ import { Button } from "@/components/ui/button";
 import { SHOT_COLORS } from "@/lib/shot-colors";
 import AnchorPicker from "./AnchorPicker";
 import type { AnchorScore } from "./AnchorPicker";
+import DiffOverlay from "./DiffOverlay";
+import type { DiffPair } from "./DiffOverlay";
 
 export interface Take {
   id: number;
@@ -43,6 +45,9 @@ interface PlaybackMonitorProps {
   anchorScores?: AnchorScore[];
   selectedAnchorIdx?: number | null;
   onSelectAnchor?: (idx: number) => void;
+  /** Diff overlay — shown after targeted repair */
+  diffPair?: DiffPair | null;
+  onCloseDiff?: () => void;
 }
 
 const StarRating = ({ rating, onRate }: { rating: number; onRate: (r: number) => void }) => (
@@ -77,6 +82,8 @@ const PlaybackMonitor = ({
   anchorScores,
   selectedAnchorIdx,
   onSelectAnchor,
+  diffPair,
+  onCloseDiff,
 }: PlaybackMonitorProps) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const activeTake = activeTakeIdx !== null ? takes[activeTakeIdx] : null;
@@ -176,6 +183,11 @@ const PlaybackMonitor = ({
                     </Button>
                   </div>
                 </div>
+              )}
+
+              {/* Diff overlay after targeted repair */}
+              {diffPair && onCloseDiff && (
+                <DiffOverlay diff={diffPair} onClose={onCloseDiff} />
               )}
             </div>
           </AspectRatio>
