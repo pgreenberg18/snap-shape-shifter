@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
-import { Gauge } from "lucide-react";
+// Custom credit meter icon with blue accent
 import { toast } from "sonner";
 
 interface CreditMeterProps {
@@ -71,7 +71,12 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
       title="Credit Usage"
     >
       <div className="relative shrink-0">
-        <Gauge className="h-5 w-5 shrink-0" />
+        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0">
+          <path d="M12 21a9 9 0 110-18 9 9 0 010 18z" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
+          <path d="M6 17a8 8 0 0112 0" stroke="currentColor" strokeWidth="1" opacity="0.2" />
+          <path d="M12 12l3-4" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
+          <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity="0.5" />
+        </svg>
         <div
           className={cn(
             "absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full shadow-sm",

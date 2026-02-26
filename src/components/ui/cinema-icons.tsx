@@ -132,121 +132,87 @@ export const DeliveryIcon = ({ className }: IconProps) => (
 /* ── Settings: Gear with precision teeth ── */
 export const PrecisionGearIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <defs>
-      <radialGradient id="g-gear" cx="0.5" cy="0.5" r="0.5">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.5" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="0.1" />
-      </radialGradient>
-    </defs>
-    {/* Outer gear teeth */}
-    <path d="M12 2l1.2 2.4a1 1 0 001 .5l2.6-.3.8 2.5-2.2 1.4a1 1 0 00-.5 1l.3 2.6-2.5.8-1.4-2.2a1 1 0 00-1 0L9 12l-.8-2.5 2.2-1.4a1 1 0 00.5-1L10.6 4.5l2.5-.8z" stroke="currentColor" strokeWidth="1.3" opacity="0.6" fill="url(#g-gear)" />
-    <circle cx="12" cy="12" r="6.5" stroke="currentColor" strokeWidth="1.3" opacity="0.5" strokeDasharray="2 2.5" />
-    <circle cx="12" cy="12" r="3.5" stroke="currentColor" strokeWidth="1.2" opacity="0.6" fill="url(#g-gear)" />
-    <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity="0.5" />
-    {/* Precision marks */}
-    <line x1="12" y1="2" x2="12" y2="4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
-    <line x1="12" y1="20" x2="12" y2="22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
-    <line x1="2" y1="12" x2="4" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
-    <line x1="20" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
-    <line x1="4.9" y1="4.9" x2="6.3" y2="6.3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
-    <line x1="17.7" y1="17.7" x2="19.1" y2="19.1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
-    <line x1="4.9" y1="19.1" x2="6.3" y2="17.7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
-    <line x1="17.7" y1="6.3" x2="19.1" y2="4.9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" opacity="0.5" />
+    <path d="M12 2l1.4 2.5a1 1 0 00.9.5h2.8l.7 2.7-2.3 1.3a1 1 0 00-.5.9l.3 2.8-2.7.7-1.3-2.3a1 1 0 00-.9 0L9.1 12.4l-.7-2.7 2.3-1.3a1 1 0 00.5-.9L10.9 4.7l2.7-.7z" stroke="currentColor" strokeWidth="1.3" opacity="0.5" />
+    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1" opacity="0.25" strokeDasharray="2 2.5" />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.3" opacity="0.6" />
+    <circle cx="12" cy="12" r="1.2" fill="hsl(217 100% 59%)" opacity="0.9" />
+    <line x1="12" y1="2.5" x2="12" y2="4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
+    <line x1="12" y1="19.5" x2="12" y2="21.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
+    <line x1="2.5" y1="12" x2="4.5" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
+    <line x1="19.5" y1="12" x2="21.5" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
   </svg>
 );
 
 /* ── Help: Info beacon ── */
 export const InfoBeaconIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <defs>
-      <radialGradient id="g-beacon" cx="0.5" cy="0.4" r="0.6">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.4" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
-      </radialGradient>
-    </defs>
-    <circle cx="12" cy="12" r="9.5" fill="url(#g-beacon)" stroke="currentColor" strokeWidth="1.5" />
-    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="0.6" opacity="0.2" />
-    {/* i */}
-    <circle cx="12" cy="8.5" r="1.2" fill="currentColor" opacity="0.7" />
-    <rect x="10.8" y="11" width="2.4" height="5.5" rx="1" fill="currentColor" opacity="0.6" />
+    <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
+    <circle cx="12" cy="8.5" r="1.1" fill="hsl(217 100% 59%)" opacity="0.9" />
+    <rect x="11" y="11" width="2" height="5.5" rx="1" fill="currentColor" opacity="0.6" />
   </svg>
 );
 
 /* ── Back Arrow: Cinematic return ── */
 export const CineBackIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <path d="M10 6L4 12l6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M4 12h12a4 4 0 010 8h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-    <circle cx="4" cy="12" r="1" fill="currentColor" opacity="0.4" />
+    <path d="M10 6L4 12l6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M4 12h12a4 4 0 010 8h-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
+    <circle cx="4" cy="12" r="1.2" fill="hsl(217 100% 59%)" opacity="0.7" />
   </svg>
 );
 
 /* ── Film/Studio: Film strip ── */
 export const FilmStripIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <defs>
-      <linearGradient id="g-strip" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="currentColor" stopOpacity="0.7" />
-        <stop offset="100%" stopColor="currentColor" stopOpacity="0.25" />
-      </linearGradient>
-    </defs>
-    <rect x="4" y="2" width="16" height="20" rx="2" fill="url(#g-strip)" opacity="0.12" stroke="currentColor" strokeWidth="1.5" />
-    {/* Perforations */}
-    <rect x="5.5" y="4" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="5.5" y="8" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="5.5" y="12" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="5.5" y="16" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="16.5" y="4" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="16.5" y="8" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="16.5" y="12" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    <rect x="16.5" y="16" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.3" />
-    {/* Frames */}
-    <rect x="9" y="4" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.4" />
-    <rect x="9" y="10" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.5" fill="currentColor" fillOpacity="0.05" />
-    <rect x="9" y="16" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.35" />
+    <rect x="4" y="2" width="16" height="20" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
+    <rect x="5.5" y="4" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="5.5" y="8" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="5.5" y="12" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="5.5" y="16" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="16.5" y="4" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="16.5" y="8" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="16.5" y="12" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="16.5" y="16" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
+    <rect x="9" y="4" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.35" />
+    <rect x="9" y="10" width="6" height="4" rx="0.5" stroke="hsl(217 100% 59%)" strokeWidth="0.8" opacity="0.7" fill="hsl(217 100% 59%)" fillOpacity="0.1" />
+    <rect x="9" y="16" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
   </svg>
 );
 
 /* ── Global Sliders: Mixing console ── */
 export const MixingConsoleIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <line x1="6" y1="3" x2="6" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.3" />
-    <line x1="12" y1="3" x2="12" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.3" />
-    <line x1="18" y1="3" x2="18" y2="21" stroke="currentColor" strokeWidth="1.2" opacity="0.3" />
-    {/* Fader knobs */}
-    <rect x="4" y="7" width="4" height="3" rx="1" fill="currentColor" opacity="0.5" stroke="currentColor" strokeWidth="0.8" />
-    <rect x="10" y="13" width="4" height="3" rx="1" fill="currentColor" opacity="0.4" stroke="currentColor" strokeWidth="0.8" />
-    <rect x="16" y="9" width="4" height="3" rx="1" fill="currentColor" opacity="0.45" stroke="currentColor" strokeWidth="0.8" />
-    {/* Knob lines */}
-    <line x1="6" y1="8" x2="6" y2="9" stroke="currentColor" strokeWidth="0.6" opacity="0.8" />
-    <line x1="12" y1="14" x2="12" y2="15" stroke="currentColor" strokeWidth="0.6" opacity="0.8" />
-    <line x1="18" y1="10" x2="18" y2="11" stroke="currentColor" strokeWidth="0.6" opacity="0.8" />
+    <line x1="6" y1="4" x2="6" y2="20" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
+    <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
+    <line x1="18" y1="4" x2="18" y2="20" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
+    <rect x="4.2" y="7" width="3.6" height="2.8" rx="0.8" fill="currentColor" opacity="0.4" stroke="currentColor" strokeWidth="0.7" />
+    <rect x="10.2" y="13" width="3.6" height="2.8" rx="0.8" fill="hsl(217 100% 59%)" opacity="0.5" stroke="hsl(217 100% 59%)" strokeWidth="0.7" />
+    <rect x="16.2" y="9" width="3.6" height="2.8" rx="0.8" fill="currentColor" opacity="0.35" stroke="currentColor" strokeWidth="0.7" />
   </svg>
 );
 
 /* ── Sign Out: Power button ── */
 export const PowerIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <path d="M12 3v7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-    <path d="M17.5 6.5a8 8 0 11-11 0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.6" />
-    <circle cx="12" cy="12" r="8" stroke="currentColor" strokeWidth="0.5" opacity="0.15" />
+    <path d="M12 3v7" stroke="hsl(217 100% 59%)" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+    <path d="M17.5 6.5a8 8 0 11-11 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
   </svg>
 );
 
 /* ── Collapse / Expand: Panel toggle ── */
 export const PanelCollapseIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
-    <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="1" opacity="0.3" />
-    <path d="M15 9l-3 3 3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.35" />
+    <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
+    <path d="M15 9l-3 3 3 3" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
   </svg>
 );
 
 export const PanelExpandIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
-    <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="1" opacity="0.3" />
-    <path d="M13 9l3 3-3 3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.7" />
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.35" />
+    <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
+    <path d="M13 9l3 3-3 3" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
   </svg>
 );
 
