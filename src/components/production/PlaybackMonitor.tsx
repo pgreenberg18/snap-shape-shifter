@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
@@ -89,6 +89,35 @@ const PlaybackMonitor = ({
   const activeTake = activeTakeIdx !== null ? takes[activeTakeIdx] : null;
   const isAnchorMode = anchorUrls.length > 0;
 
+  // Resizable divider
+  const [takeBinWidth, setTakeBinWidth] = useState(160);
+  const dragging = useRef(false);
+  const startX = useRef(0);
+  const startW = useRef(0);
+
+  const onDividerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    dragging.current = true;
+    startX.current = e.clientX;
+    startW.current = takeBinWidth;
+    const onMove = (ev: MouseEvent) => {
+      if (!dragging.current) return;
+      const delta = startW.current - (ev.clientX - startX.current);
+      setTakeBinWidth(Math.max(120, Math.min(300, startW.current + (startX.current - ev.clientX))));
+    };
+    const onUp = () => {
+      dragging.current = false;
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }, [takeBinWidth]);
+
   // Color frame style for the viewer
   const colorFrameStyle: React.CSSProperties | undefined =
     shotColorIndex != null
@@ -98,9 +127,9 @@ const PlaybackMonitor = ({
       : undefined;
 
   return (
-    <div className="flex gap-3 px-2">
-      {/* ── Viewer Frame (half width) ── */}
-      <div className="w-1/2 min-w-0 flex items-start justify-center">
+    <div className="flex px-2" style={{ gap: 0 }}>
+      {/* ── Viewer Frame (fills remaining space) ── */}
+      <div className="flex-1 min-w-0 flex items-start justify-center">
         <div className="w-full">
           <AspectRatio ratio={aspectRatio}>
             <div
@@ -194,8 +223,16 @@ const PlaybackMonitor = ({
         </div>
       </div>
 
-      {/* ── Anchor Picker OR Take Bin (right side) ── */}
-      <div className="w-1/2 min-w-0">
+      {/* ── Resizable Divider ── */}
+      <div
+        onMouseDown={onDividerMouseDown}
+        className="w-1.5 shrink-0 cursor-col-resize z-10 group hover:bg-primary/20 transition-colors flex items-center justify-center"
+      >
+        <div className="w-0.5 h-8 rounded-full bg-muted-foreground/20 group-hover:bg-primary/50 transition-colors" />
+      </div>
+
+      {/* ── Anchor Picker OR Take Bin (right side, stacked) ── */}
+      <div className="shrink-0 flex flex-col" style={{ width: takeBinWidth }}>
         {isAnchorMode && onSelectAnchor ? (
           <AnchorPicker
             anchorUrls={anchorUrls}
@@ -204,22 +241,15 @@ const PlaybackMonitor = ({
             scores={anchorScores}
           />
         ) : (
-          <div>
-            <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex flex-col gap-1.5 h-full">
+            <div className="flex items-center gap-2 px-1">
               <Film className="h-3.5 w-3.5 text-primary" />
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
                 Take Bin
               </span>
             </div>
 
-            {/* Filmstrip perforations */}
-            <div className="flex gap-[2px] mb-1 px-1">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
-              ))}
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col gap-1.5 flex-1">
               {takes.map((take, idx) => (
                 <div
                   key={take.id}
@@ -239,19 +269,19 @@ const PlaybackMonitor = ({
                   <div className="absolute inset-0 bg-black shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
                     {take.thumbnailUrl ? (
                       <div className="w-full h-full flex items-center justify-center">
-                        <Film className="h-5 w-5 text-primary/40" />
+                        <Film className="h-4 w-4 text-primary/40" />
                       </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="text-[9px] font-mono text-muted-foreground/30">EMPTY</span>
+                        <span className="text-[8px] font-mono text-muted-foreground/30">EMPTY</span>
                       </div>
                     )}
                   </div>
 
                   {/* Take number */}
-                  <div className="absolute top-1 left-1.5 z-10">
+                  <div className="absolute top-0.5 left-1 z-10">
                     <span className={cn(
-                      "text-[9px] font-mono font-bold px-1 py-0.5 rounded",
+                      "text-[8px] font-mono font-bold px-1 py-0.5 rounded",
                       take.circled ? "bg-primary text-primary-foreground" : "bg-black/60 text-muted-foreground"
                     )}>
                       T{idx + 1}
@@ -260,7 +290,7 @@ const PlaybackMonitor = ({
 
                   {/* Star rating (mini) */}
                   {take.thumbnailUrl && take.rating > 0 && (
-                    <div className="absolute bottom-1 left-1.5 z-10 flex gap-px">
+                    <div className="absolute bottom-0.5 left-1 z-10 flex gap-px">
                       {[1, 2, 3].map((s) => (
                         <Star key={s} className={cn("h-2 w-2", s <= take.rating ? "fill-primary text-primary" : "text-transparent")} />
                       ))}
@@ -269,27 +299,27 @@ const PlaybackMonitor = ({
 
                   {/* Circled indicator */}
                   {take.circled && (
-                    <div className="absolute top-1 right-1.5 z-10">
-                      <CheckCircle className="h-3.5 w-3.5 text-primary drop-shadow-sm" />
+                    <div className="absolute top-0.5 right-1 z-10">
+                      <CheckCircle className="h-3 w-3 text-primary drop-shadow-sm" />
                     </div>
                   )}
 
                   {/* Hover actions */}
                   {hoveredIdx === idx && take.thumbnailUrl && (
-                    <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center gap-2 animate-fade-in">
+                    <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center gap-1.5 animate-fade-in">
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); onCircleTake(idx); }}
                             className={cn(
-                              "h-7 w-7 rounded-full flex items-center justify-center transition-colors",
+                              "h-6 w-6 rounded-full flex items-center justify-center transition-colors",
                               take.circled ? "bg-primary text-primary-foreground" : "bg-secondary hover:bg-primary/20 text-muted-foreground hover:text-primary"
                             )}
                           >
-                            <CheckCircle className="h-3.5 w-3.5" />
+                            <CheckCircle className="h-3 w-3" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">
+                        <TooltipContent side="left" className="text-xs">
                           {take.circled ? "Deselect" : "Select Take"}
                         </TooltipContent>
                       </Tooltip>
@@ -297,23 +327,16 @@ const PlaybackMonitor = ({
                         <TooltipTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); onDeleteTake(idx); }}
-                            className="h-7 w-7 rounded-full flex items-center justify-center bg-secondary hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
+                            className="h-6 w-6 rounded-full flex items-center justify-center bg-secondary hover:bg-destructive/20 text-muted-foreground hover:text-destructive transition-colors"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent side="top" className="text-xs">Delete Take</TooltipContent>
+                        <TooltipContent side="left" className="text-xs">Delete Take</TooltipContent>
                       </Tooltip>
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
-
-            {/* Filmstrip perforations bottom */}
-            <div className="flex gap-[2px] mt-1 px-1">
-              {Array.from({ length: 20 }).map((_, i) => (
-                <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
               ))}
             </div>
           </div>
