@@ -1064,7 +1064,31 @@ const Development = () => {
                         dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                       }`}
                     >
-                      {uploadedFile ? (
+                      {uploading ? (
+                        <>
+                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-xs font-display font-semibold text-foreground">Uploading…</p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">Please wait while your file uploads</p>
+                          </div>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="gap-1.5 text-[10px]"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              uploadAbortRef.current?.abort();
+                              setUploading(false);
+                              toast({ title: "Upload cancelled" });
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                            Quit Uploading
+                          </Button>
+                        </>
+                      ) : uploadedFile ? (
                         <>
                           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
                             <CheckCircle className="h-6 w-6 text-primary" />
@@ -1080,31 +1104,14 @@ const Development = () => {
                         <>
                           <div className="text-center">
                             <p className="text-xs font-display font-semibold text-foreground">
-                              {uploading ? "Uploading…" : "Drop your screenplay here"}
+                              Drop your screenplay here
                             </p>
                             <p className="text-[10px] text-muted-foreground mt-0.5">{ACCEPTED_LABEL} — or click to browse</p>
                           </div>
-                          {uploading ? (
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              className="gap-1.5 text-[10px]"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                uploadAbortRef.current?.abort();
-                                setUploading(false);
-                                toast({ title: "Upload cancelled" });
-                              }}
-                            >
-                              <X className="h-3 w-3" />
-                              Quit Uploading
-                            </Button>
-                          ) : (
-                            <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
-                              <Upload className="h-3 w-3" />
-                              Upload Script
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
+                            <Upload className="h-3 w-3" />
+                            Upload Script
+                          </div>
                         </>
                       )}
                     </div>
