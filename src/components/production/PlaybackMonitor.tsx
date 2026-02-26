@@ -128,8 +128,8 @@ const PlaybackMonitor = ({
 
   return (
     <div className="flex px-2" style={{ gap: 0 }}>
-      {/* ── Viewer Frame (fills remaining space) ── */}
-      <div className="flex-1 min-w-0 flex items-start justify-center">
+      {/* ── Left column: Viewer + Anchor Picker below ── */}
+      <div className="flex-1 min-w-0 flex flex-col">
         <div className="w-full">
           <AspectRatio ratio={aspectRatio}>
             <div
@@ -221,6 +221,18 @@ const PlaybackMonitor = ({
             </div>
           </AspectRatio>
         </div>
+
+        {/* Anchor Picker below preview */}
+        {isAnchorMode && onSelectAnchor && (
+          <div className="mt-2 w-full">
+            <AnchorPicker
+              anchorUrls={anchorUrls}
+              selectedIdx={selectedAnchorIdx ?? null}
+              onSelect={onSelectAnchor}
+              scores={anchorScores}
+            />
+          </div>
+        )}
       </div>
 
       {/* ── Resizable Divider ── */}
@@ -231,23 +243,15 @@ const PlaybackMonitor = ({
         <div className="w-0.5 h-8 rounded-full bg-muted-foreground/20 group-hover:bg-primary/50 transition-colors" />
       </div>
 
-      {/* ── Anchor Picker OR Take Bin (right side, stacked) ── */}
+      {/* ── Take Bin (always right side, stacked) ── */}
       <div className="shrink-0 flex flex-col" style={{ width: takeBinWidth }}>
-        {isAnchorMode && onSelectAnchor ? (
-          <AnchorPicker
-            anchorUrls={anchorUrls}
-            selectedIdx={selectedAnchorIdx ?? null}
-            onSelect={onSelectAnchor}
-            scores={anchorScores}
-          />
-        ) : (
-          <div className="flex flex-col gap-1.5 h-full">
-            <div className="flex items-center gap-2 px-1">
-              <Film className="h-3.5 w-3.5 text-primary" />
-              <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
-                Take Bin
-              </span>
-            </div>
+        <div className="flex flex-col gap-1.5 h-full">
+          <div className="flex items-center gap-2 px-1">
+            <Film className="h-3.5 w-3.5 text-primary" />
+            <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
+              Take Bin
+            </span>
+          </div>
 
             <div className="flex flex-col gap-1.5 flex-1">
               {takes.map((take, idx) => (
@@ -338,9 +342,8 @@ const PlaybackMonitor = ({
                   )}
                 </div>
               ))}
-            </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
