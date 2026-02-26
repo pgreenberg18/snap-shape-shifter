@@ -188,6 +188,48 @@ const Production = () => {
     document.addEventListener("mouseup", onMouseUp);
   }, [sidebarWidth]);
 
+  // Helper: sync vice_dependencies from prompt ref codes
+  const syncDependencies = useCallback(async (shotId: string, promptText: string | null) => {
+    if (!filmId || !promptText) return;
+    const matches = promptText.match(/\{\{([A-Z0-9_]+)\}\}/g);
+    const codes = matches ? matches.map((m) => m.replace(/[{}]/g, "")) : [];
+
+    // Fetch identity registry to get asset_type for each code
+    if (codes.length > 0) {
+      const { data: assets } = await supabase
+        .from("asset_identity_registry")
+        .select("internal_ref_code, asset_type")
+        .eq("film_id", filmId)
+        .in("internal_ref_code", codes);
+
+      const rows = (assets || []).map((a) => ({
+        film_id: filmId,
+        source_token: a.internal_ref_code,
+        source_type: a.asset_type,
+        shot_id: shotId,
+        dependency_type: "visual" as const,
+      }));
+
+      if (rows.length > 0) {
+        await supabase.from("vice_dependencies").upsert(rows, { onConflict: "film_id,source_token,shot_id,dependency_type" });
+      }
+    }
+
+    // Clean up stale dependencies (tokens no longer in prompt)
+    const { data: existing } = await supabase
+      .from("vice_dependencies")
+      .select("id, source_token")
+      .eq("shot_id", shotId)
+      .eq("film_id", filmId);
+
+    if (existing) {
+      const stale = existing.filter((d) => !codes.includes(d.source_token));
+      if (stale.length > 0) {
+        await supabase.from("vice_dependencies").delete().in("id", stale.map((s) => s.id));
+      }
+    }
+  }, [filmId]);
+
   // Create shot mutation
   const createShot = useMutation({
     mutationFn: async ({ text, characters }: { text: string; characters: string[] }) => {
@@ -205,9 +247,12 @@ const Production = () => {
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       queryClient.invalidateQueries({ queryKey: ["shots", filmId] });
-      if (data) setActiveShotId(data.id);
+      if (data) {
+        setActiveShotId(data.id);
+        await syncDependencies(data.id, data.prompt_text);
+      }
     },
   });
 
@@ -215,8 +260,14 @@ const Production = () => {
     mutationFn: async ({ id, updates }: { id: string; updates: { prompt_text?: string; camera_angle?: string } }) => {
       const { error } = await supabase.from("shots").update(updates).eq("id", id);
       if (error) throw error;
+      return { id, updates };
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shots", filmId] }),
+    onSuccess: async (result) => {
+      queryClient.invalidateQueries({ queryKey: ["shots", filmId] });
+      if (result?.updates.prompt_text !== undefined) {
+        await syncDependencies(result.id, result.updates.prompt_text ?? null);
+      }
+    },
   });
 
   // Take actions
