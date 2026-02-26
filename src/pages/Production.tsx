@@ -14,6 +14,7 @@ import ShotDescriptionPane from "@/components/production/ShotDescriptionPane";
 import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMonitor";
 import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
+import AnchorPicker from "@/components/production/AnchorPicker";
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -360,6 +361,11 @@ const Production = () => {
                     onCircleTake={handleCircleTake}
                     onDeleteTake={handleDeleteTake}
                     shotColorIndex={activeShotIndex >= 0 ? activeShotIndex : undefined}
+                  />
+                  <AnchorPicker
+                    anchorUrls={anchorUrls}
+                    selectedIdx={selectedAnchorIdx}
+                    onSelect={setSelectedAnchorIdx}
                   />
                   <ShotList
                     shots={sceneShots}
