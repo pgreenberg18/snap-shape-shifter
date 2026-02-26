@@ -116,7 +116,7 @@ export const useContentSafety = () => {
         .from("content_safety")
         .select("*")
         .eq("film_id", filmId!)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
