@@ -304,6 +304,12 @@ const SettingsIntegrations = () => {
                   {providers?.filter((p) => p.is_verified).map((provider) => {
                     const isEditing = editingId === provider.id;
 
+                    // Find matching catalog entry & current variant
+                    const matchedSvc = catalog.find((s) => provider.provider_name.startsWith(s.name));
+                    const currentVariantMatch = matchedSvc?.variants?.find((v) =>
+                      provider.provider_name.includes(v.label)
+                    );
+
                     return (
                       <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
                         <div className="flex items-center justify-between">
@@ -318,9 +324,33 @@ const SettingsIntegrations = () => {
                         {!isEditing ? (
                           <div className="flex items-center justify-between">
                             <span className="font-mono text-xs text-muted-foreground tracking-wider">{provider.api_key_encrypted || "—"}</span>
-                            <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
-                              <Pencil className="h-3 w-3" /> Change
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              {matchedSvc?.variants && matchedSvc.variants.length > 0 && (
+                                <Select
+                                  value={currentVariantMatch?.id || ""}
+                                  onValueChange={async (variantId) => {
+                                    const variant = matchedSvc.variants!.find((v) => v.id === variantId);
+                                    if (!variant || !matchedSvc) return;
+                                    const newName = `${matchedSvc.name} (${variant.label})`;
+                                    await supabase.from("integrations").update({ provider_name: newName }).eq("id", provider.id);
+                                    queryClient.invalidateQueries({ queryKey: ["integrations"] });
+                                    toast({ title: "Model updated", description: `Switched to ${variant.label}.` });
+                                  }}
+                                >
+                                  <SelectTrigger className="h-7 w-auto min-w-[140px] bg-background text-[11px] gap-1 px-2">
+                                    <SelectValue placeholder="Select version…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {matchedSvc.variants.map((v) => (
+                                      <SelectItem key={v.id} value={v.id} className="text-xs">{v.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                              <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
+                                <Pencil className="h-3 w-3" /> Change
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <>
