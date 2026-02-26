@@ -734,6 +734,21 @@ Deno.serve(async (req) => {
       credits: creditCost,
     });
 
+    // ── 9. Fire-and-forget: detect continuity conflicts for this scene ──
+    try {
+      fetch(`${supabaseUrl}/functions/v1/detect-continuity-conflicts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: req.headers.get("Authorization") ?? "",
+          apikey: supabaseKey,
+        },
+        body: JSON.stringify({ film_id: shot.film_id, scene_number: shot.scene_number }),
+      }).catch((e) => console.warn("[VICE] Conflict detection fire-and-forget failed:", e));
+    } catch {
+      // Never block the response for conflict detection
+    }
+
     return new Response(
       JSON.stringify({
         generation_id: generation.id,
