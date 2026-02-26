@@ -266,7 +266,7 @@ const SettingsIntegrations = () => {
           <Plug className="h-5 w-5 text-primary" />
           <h2 className="font-display text-lg font-bold">Global Settings — API Keys</h2>
         </div>
-        <p className="text-xs text-muted-foreground">Bring Your Own Keys — connect your AI service providers. These are shared across all projects. Each version can choose which provider to use.</p>
+        <p className="text-xs text-muted-foreground">Bring Your Own Keys — connect your AI service providers. All projects have access to these but you can manually change the service or model for each version.</p>
       </div>
 
       <Accordion type="multiple" className="space-y-3">
