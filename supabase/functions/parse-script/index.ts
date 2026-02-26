@@ -60,7 +60,10 @@ function parseFdxToPlainText(xml: string): string {
 async function parsePdfToPlainText(data: ArrayBuffer): Promise<string> {
   const pdf = await getDocumentProxy(new Uint8Array(data));
   const { text } = await extractText(pdf, { mergePages: true });
-  return typeof text === "string" ? text : (text as string[]).join("\n");
+  const raw = typeof text === "string" ? text : (text as string[]).join("\n");
+  console.log("[PDF] Extracted text length:", raw.length);
+  console.log("[PDF] First 2000 chars:", raw.slice(0, 2000));
+  return raw;
 }
 
 /** Strip RTF control codes to extract plain text */
@@ -249,12 +252,27 @@ function parseSexpToPlainText(text: string): string {
 
 /** Deterministic scene extraction */
 function extractScenes(scriptText: string) {
-  const normalized = scriptText
+  let normalized = scriptText
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
 
+  // PDF extraction often merges lines. Try to re-split scene headings
+  // that are glued to preceding text by inserting newlines before INT./EXT.
+  normalized = normalized.replace(/([^\n])((?:INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s)/g, "$1\n$2");
+
   const sceneRegex = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s.+$/gm;
-  const matches = [...normalized.matchAll(sceneRegex)];
+  let matches = [...normalized.matchAll(sceneRegex)];
+
+  // If still no matches, try case-insensitive
+  if (matches.length === 0) {
+    const ciRegex = /^(int\.|ext\.|int\/ext\.|i\/e\.)\s.+$/gim;
+    matches = [...normalized.matchAll(ciRegex)];
+  }
+
+  console.log(`[extractScenes] Found ${matches.length} scene headings`);
+  if (matches.length > 0) {
+    console.log("[extractScenes] First heading:", matches[0][0]);
+  }
 
   const scenes: {
     scene_number: number;
