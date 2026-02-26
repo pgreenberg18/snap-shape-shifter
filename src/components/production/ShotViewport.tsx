@@ -75,7 +75,7 @@ const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
       <div className="flex-1 min-h-0 flex items-center justify-center px-2">
         <div className="w-full max-w-4xl">
           <AspectRatio ratio={aspectRatio}>
-            <div className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40">
+            <div className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40 lens-flare">
               {/* Camera HUD Overlay */}
               <div className="absolute inset-0 pointer-events-none z-10">
                 {/* Crosshairs */}
@@ -132,7 +132,7 @@ const ShotViewport = ({ aspectRatio = 16 / 9 }: { aspectRatio?: number }) => {
 
       {/* ── Control Bar ── */}
       <div className="px-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-6 rounded-xl border border-border bg-card p-4 cinema-inset">
+        <div className="max-w-4xl mx-auto flex items-center gap-6 rounded-xl p-4 pro-panel specular-edge">
           {/* Generate Button */}
           <Button
             onClick={handleGenerate}
