@@ -249,7 +249,7 @@ const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps
   };
 
   return (
-    <div className="w-[300px] min-w-[280px] border-l border-border/50 bg-card flex flex-col">
+    <div className="flex-1 min-h-0 border-t border-border/50 bg-card flex flex-col overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b border-border/50">
         <div className="flex items-center gap-2">
