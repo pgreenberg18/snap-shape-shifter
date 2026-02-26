@@ -79,7 +79,7 @@ const Production = () => {
   const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
   const [activeShotId, setActiveShotId] = useState<string | null>(null);
   const [viewportAspect, setViewportAspect] = useState(16 / 9);
-  const [sidebarWidth, setSidebarWidth] = useState(260);
+  const [sidebarWidth, setSidebarWidth] = useState(380);
   const [takes, setTakes] = useState<Take[]>(EMPTY_TAKES);
   const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
