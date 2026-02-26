@@ -140,7 +140,7 @@ const PlaybackMonitor = ({
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center space-y-2">
                     <Camera className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                    <p className="text-xs font-mono text-muted-foreground/50 tracking-wide">NO SIGNAL</p>
+                    <p className="text-xs font-mono text-muted-foreground/50 tracking-wide">STAND BY</p>
                   </div>
                 </div>
               )}
