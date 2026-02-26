@@ -92,6 +92,7 @@ export interface VisualMandate {
 export interface DirectorProfile {
   id: string;
   name: string;
+  knownFor: string[];
   vector: StyleVector;
   cluster: ClusterId;
   quadrant: QuadrantId;
@@ -161,6 +162,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "spielberg",
     name: "Steven Spielberg",
+    knownFor: ["Adventure", "Drama", "Sci-Fi", "Historical"],
     vector: { scale: 9, structure: 2, visual: 7, darkness: 4, dialogue: 6, spectacle: 9, genreFluidity: 4, emotion: 9 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
@@ -176,6 +178,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "cameron",
     name: "James Cameron",
+    knownFor: ["Sci-Fi", "Action", "Adventure"],
     vector: { scale: 10, structure: 2, visual: 8, darkness: 4, dialogue: 4, spectacle: 10, genreFluidity: 3, emotion: 8 },
     cluster: "world-architects",
     quadrant: "epic-classical",
@@ -191,6 +194,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "jackson",
     name: "Peter Jackson",
+    knownFor: ["Fantasy", "Adventure", "Horror"],
     vector: { scale: 10, structure: 2, visual: 8, darkness: 4, dialogue: 6, spectacle: 10, genreFluidity: 3, emotion: 9 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
@@ -206,6 +210,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "lucas",
     name: "George Lucas",
+    knownFor: ["Sci-Fi", "Fantasy", "Adventure"],
     vector: { scale: 10, structure: 3, visual: 7, darkness: 3, dialogue: 4, spectacle: 10, genreFluidity: 5, emotion: 8 },
     cluster: "world-architects",
     quadrant: "epic-classical",
@@ -221,6 +226,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "scott",
     name: "Ridley Scott",
+    knownFor: ["Sci-Fi", "Historical", "Action", "Noir"],
     vector: { scale: 8, structure: 2, visual: 9, darkness: 7, dialogue: 4, spectacle: 8, genreFluidity: 5, emotion: 5 },
     cluster: "epic-formalists",
     quadrant: "epic-classical",
@@ -236,6 +242,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "coogler",
     name: "Ryan Coogler",
+    knownFor: ["Action", "Drama", "Sci-Fi"],
     vector: { scale: 8, structure: 3, visual: 8, darkness: 5, dialogue: 6, spectacle: 8, genreFluidity: 5, emotion: 8 },
     cluster: "new-wave-architects",
     quadrant: "epic-classical",
@@ -253,6 +260,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "nolan",
     name: "Christopher Nolan",
+    knownFor: ["Sci-Fi", "Thriller", "Action", "Drama"],
     vector: { scale: 9, structure: 9, visual: 9, darkness: 7, dialogue: 5, spectacle: 9, genreFluidity: 6, emotion: 4 },
     cluster: "epic-formalists",
     quadrant: "epic-experimental",
@@ -268,6 +276,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "inarritu",
     name: "Alejandro González Iñárritu",
+    knownFor: ["Drama", "Adventure", "Thriller"],
     vector: { scale: 8, structure: 7, visual: 9, darkness: 8, dialogue: 6, spectacle: 7, genreFluidity: 6, emotion: 9 },
     cluster: "new-wave-architects",
     quadrant: "epic-experimental",
@@ -283,6 +292,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "fellini",
     name: "Federico Fellini",
+    knownFor: ["Drama", "Fantasy", "Comedy"],
     vector: { scale: 6, structure: 7, visual: 9, darkness: 5, dialogue: 6, spectacle: 6, genreFluidity: 9, emotion: 8 },
     cluster: "stylized-auteurs",
     quadrant: "epic-experimental",
@@ -298,6 +308,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "bong",
     name: "Bong Joon-ho",
+    knownFor: ["Thriller", "Drama", "Satire", "Horror"],
     vector: { scale: 7, structure: 6, visual: 8, darkness: 7, dialogue: 6, spectacle: 6, genreFluidity: 10, emotion: 8 },
     cluster: "tonal-alchemists",
     quadrant: "epic-experimental",
@@ -315,6 +326,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "tarantino",
     name: "Quentin Tarantino",
+    knownFor: ["Crime", "Action", "Western", "Thriller"],
     vector: { scale: 6, structure: 8, visual: 9, darkness: 6, dialogue: 10, spectacle: 6, genreFluidity: 8, emotion: 8 },
     cluster: "tonal-alchemists",
     quadrant: "intimate-experimental",
@@ -330,6 +342,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "coens",
     name: "Coen Brothers",
+    knownFor: ["Crime", "Comedy", "Noir", "Thriller"],
     vector: { scale: 6, structure: 4, visual: 8, darkness: 7, dialogue: 8, spectacle: 4, genreFluidity: 9, emotion: 6 },
     cluster: "tonal-alchemists",
     quadrant: "intimate-experimental",
@@ -345,6 +358,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "pta",
     name: "Paul Thomas Anderson",
+    knownFor: ["Drama", "Romance", "Comedy"],
     vector: { scale: 6, structure: 4, visual: 8, darkness: 7, dialogue: 8, spectacle: 4, genreFluidity: 6, emotion: 9 },
     cluster: "intimate-humanists",
     quadrant: "intimate-experimental",
@@ -360,6 +374,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "wes-anderson",
     name: "Wes Anderson",
+    knownFor: ["Comedy", "Drama", "Adventure"],
     vector: { scale: 5, structure: 3, visual: 10, darkness: 3, dialogue: 7, spectacle: 4, genreFluidity: 7, emotion: 6 },
     cluster: "stylized-auteurs",
     quadrant: "intimate-experimental",
@@ -375,6 +390,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "peele",
     name: "Jordan Peele",
+    knownFor: ["Horror", "Thriller", "Satire"],
     vector: { scale: 6, structure: 3, visual: 8, darkness: 8, dialogue: 6, spectacle: 6, genreFluidity: 8, emotion: 7 },
     cluster: "genre-provocateurs",
     quadrant: "intimate-experimental",
@@ -390,6 +406,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "waititi",
     name: "Taika Waititi",
+    knownFor: ["Comedy", "Action", "Adventure"],
     vector: { scale: 6, structure: 3, visual: 7, darkness: 4, dialogue: 8, spectacle: 6, genreFluidity: 9, emotion: 8 },
     cluster: "tonal-alchemists",
     quadrant: "intimate-experimental",
@@ -407,6 +424,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "kubrick",
     name: "Stanley Kubrick",
+    knownFor: ["Sci-Fi", "Horror", "Drama", "War"],
     vector: { scale: 7, structure: 4, visual: 10, darkness: 8, dialogue: 4, spectacle: 6, genreFluidity: 6, emotion: 3 },
     cluster: "epic-formalists",
     quadrant: "intimate-classical",
@@ -422,6 +440,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "scorsese",
     name: "Martin Scorsese",
+    knownFor: ["Crime", "Drama", "Biographical", "Thriller"],
     vector: { scale: 6, structure: 3, visual: 8, darkness: 7, dialogue: 8, spectacle: 5, genreFluidity: 5, emotion: 8 },
     cluster: "gritty-realists",
     quadrant: "intimate-classical",
@@ -437,6 +456,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "hitchcock",
     name: "Alfred Hitchcock",
+    knownFor: ["Thriller", "Horror", "Mystery", "Noir"],
     vector: { scale: 6, structure: 2, visual: 9, darkness: 7, dialogue: 5, spectacle: 5, genreFluidity: 4, emotion: 6 },
     cluster: "stylized-auteurs",
     quadrant: "intimate-classical",
@@ -452,6 +472,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "coppola",
     name: "Francis Ford Coppola",
+    knownFor: ["Crime", "Drama", "War"],
     vector: { scale: 9, structure: 3, visual: 8, darkness: 8, dialogue: 6, spectacle: 8, genreFluidity: 4, emotion: 9 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
@@ -467,6 +488,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "fincher",
     name: "David Fincher",
+    knownFor: ["Thriller", "Crime", "Drama", "Mystery"],
     vector: { scale: 6, structure: 3, visual: 10, darkness: 9, dialogue: 6, spectacle: 4, genreFluidity: 4, emotion: 2 },
     cluster: "gritty-realists",
     quadrant: "intimate-classical",
@@ -482,6 +504,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "kurosawa",
     name: "Akira Kurosawa",
+    knownFor: ["Drama", "Action", "Historical", "Adventure"],
     vector: { scale: 8, structure: 3, visual: 8, darkness: 6, dialogue: 5, spectacle: 7, genreFluidity: 4, emotion: 8 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
@@ -497,6 +520,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "bergman",
     name: "Ingmar Bergman",
+    knownFor: ["Drama", "Fantasy", "Romance"],
     vector: { scale: 3, structure: 4, visual: 8, darkness: 9, dialogue: 9, spectacle: 1, genreFluidity: 3, emotion: 7 },
     cluster: "intimate-humanists",
     quadrant: "intimate-classical",
@@ -512,6 +536,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "wilder",
     name: "Billy Wilder",
+    knownFor: ["Comedy", "Drama", "Noir", "Romance"],
     vector: { scale: 5, structure: 2, visual: 7, darkness: 6, dialogue: 9, spectacle: 2, genreFluidity: 6, emotion: 6 },
     cluster: "tonal-alchemists",
     quadrant: "intimate-classical",
@@ -527,6 +552,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "welles",
     name: "Orson Welles",
+    knownFor: ["Drama", "Noir", "Mystery", "Thriller"],
     vector: { scale: 6, structure: 8, visual: 10, darkness: 7, dialogue: 7, spectacle: 5, genreFluidity: 7, emotion: 8 },
     cluster: "stylized-auteurs",
     quadrant: "intimate-experimental",
@@ -542,6 +568,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "leone",
     name: "Sergio Leone",
+    knownFor: ["Western", "Crime", "Drama"],
     vector: { scale: 9, structure: 2, visual: 9, darkness: 6, dialogue: 3, spectacle: 8, genreFluidity: 4, emotion: 9 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
@@ -557,6 +584,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "miyazaki",
     name: "Hayao Miyazaki",
+    knownFor: ["Animation", "Fantasy", "Adventure"],
     vector: { scale: 7, structure: 3, visual: 9, darkness: 4, dialogue: 5, spectacle: 6, genreFluidity: 7, emotion: 9 },
     cluster: "world-architects",
     quadrant: "epic-classical",
@@ -572,6 +600,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "villeneuve",
     name: "Denis Villeneuve",
+    knownFor: ["Sci-Fi", "Thriller", "Drama"],
     vector: { scale: 9, structure: 4, visual: 9, darkness: 8, dialogue: 4, spectacle: 9, genreFluidity: 4, emotion: 3 },
     cluster: "epic-formalists",
     quadrant: "epic-classical",
@@ -587,6 +616,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "burton",
     name: "Tim Burton",
+    knownFor: ["Fantasy", "Horror", "Comedy"],
     vector: { scale: 6, structure: 2, visual: 9, darkness: 6, dialogue: 5, spectacle: 6, genreFluidity: 6, emotion: 6 },
     cluster: "stylized-auteurs",
     quadrant: "intimate-classical",
@@ -602,6 +632,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "del-toro",
     name: "Guillermo del Toro",
+    knownFor: ["Fantasy", "Horror", "Drama", "Supernatural"],
     vector: { scale: 7, structure: 3, visual: 9, darkness: 7, dialogue: 5, spectacle: 7, genreFluidity: 6, emotion: 8 },
     cluster: "world-architects",
     quadrant: "epic-classical",
@@ -617,6 +648,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "eastwood",
     name: "Clint Eastwood",
+    knownFor: ["Western", "Drama", "War", "Crime"],
     vector: { scale: 6, structure: 2, visual: 6, darkness: 6, dialogue: 5, spectacle: 4, genreFluidity: 3, emotion: 6 },
     cluster: "gritty-realists",
     quadrant: "intimate-classical",
@@ -632,6 +664,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "polanski",
     name: "Roman Polanski",
+    knownFor: ["Thriller", "Horror", "Drama", "Noir"],
     vector: { scale: 4, structure: 2, visual: 8, darkness: 8, dialogue: 6, spectacle: 3, genreFluidity: 4, emotion: 3 },
     cluster: "gritty-realists",
     quadrant: "intimate-classical",
@@ -647,6 +680,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "spike-lee",
     name: "Spike Lee",
+    knownFor: ["Drama", "Crime", "Biographical"],
     vector: { scale: 6, structure: 3, visual: 8, darkness: 6, dialogue: 9, spectacle: 4, genreFluidity: 7, emotion: 8 },
     cluster: "genre-provocateurs",
     quadrant: "intimate-classical",
@@ -662,6 +696,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "gerwig",
     name: "Greta Gerwig",
+    knownFor: ["Comedy", "Drama", "Romance"],
     vector: { scale: 5, structure: 3, visual: 7, darkness: 3, dialogue: 8, spectacle: 3, genreFluidity: 6, emotion: 8 },
     cluster: "intimate-humanists",
     quadrant: "intimate-classical",
@@ -677,6 +712,7 @@ export const DIRECTORS: DirectorProfile[] = [
   {
     id: "chazelle",
     name: "Damien Chazelle",
+    knownFor: ["Drama", "Musical", "Biographical"],
     vector: { scale: 7, structure: 3, visual: 9, darkness: 5, dialogue: 6, spectacle: 8, genreFluidity: 5, emotion: 9 },
     cluster: "operatic-mythmakers",
     quadrant: "epic-classical",
