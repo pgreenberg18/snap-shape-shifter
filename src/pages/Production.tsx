@@ -10,6 +10,7 @@ import type { ShotHighlight } from "@/components/production/ScriptWorkspace";
 import ShotList from "@/components/production/ShotList";
 import type { Shot } from "@/components/production/ShotList";
 import ShotBuilder from "@/components/production/ShotBuilder";
+import ShotDescriptionPane from "@/components/production/ShotDescriptionPane";
 import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMonitor";
 import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
@@ -286,7 +287,7 @@ const Production = () => {
 
               {/* Two-column: Left = Script+Builder, Right = Viewer+TakeBin+ShotStack */}
               <div className="flex-1 flex min-h-0">
-                {/* Left column: Script → Shot Builder */}
+                {/* Left column: Script → Master Control Deck → Generation Buttons */}
                 <div style={{ width: scriptColWidth }} className="min-w-[280px] max-w-[600px] flex border-r-0 flex-col overflow-hidden shrink-0 relative">
                   <ScriptWorkspace
                     scene={activeScene}
@@ -296,11 +297,9 @@ const Production = () => {
                     onResizeStart={handleScriptHeightResize}
                     shotHighlights={shotHighlights}
                   />
+                  <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />
                   <ShotBuilder
                     shot={activeShot}
-                    scene={activeScene}
-                    sceneElements={sceneElements}
-                    onUpdateShot={(id, updates) => updateShot.mutate({ id, updates })}
                     onRehearsal={() => handleGenerate(true)}
                     onRollCamera={() => handleGenerate(false)}
                     isGenerating={isGenerating}
@@ -312,7 +311,7 @@ const Production = () => {
                   />
                 </div>
 
-                {/* Right column: Playback Monitor + Take Bin + Shot Stack */}
+                {/* Right column: Playback Monitor → Shot Stack → Shot Description */}
                 <div className="flex-1 flex flex-col overflow-y-auto py-3 min-w-0">
                   <PlaybackMonitor
                     aspectRatio={viewportAspect}
@@ -329,6 +328,12 @@ const Production = () => {
                     activeShotId={activeShotId}
                     onSelectShot={handleSelectShot}
                     onAddShot={() => createShot.mutate({ text: "", characters: [] })}
+                  />
+                  <ShotDescriptionPane
+                    shot={activeShot}
+                    scene={activeScene}
+                    onUpdateShot={(id, updates) => updateShot.mutate({ id, updates })}
+                    sceneElements={sceneElements}
                   />
                 </div>
               </div>
@@ -349,9 +354,6 @@ const Production = () => {
             </div>
           )}
         </main>
-
-        {/* ── RIGHT: Master Control Deck ── */}
-        {activeScene && <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />}
       </div>
     </TooltipProvider>
   );
