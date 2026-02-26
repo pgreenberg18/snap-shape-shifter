@@ -221,7 +221,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
       {/* Right content column */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6 pro-panel specular-edge" style={{ borderRadius: 0 }}>
+        <header className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-6 pro-panel specular-edge overflow-hidden" style={{ borderRadius: 0 }}>
+          {/* Anamorphic streak */}
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[1.5px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(124,203,255,0.1) 15%, rgba(124,203,255,0.35) 45%, rgba(124,203,255,0.5) 50%, rgba(124,203,255,0.35) 55%, rgba(124,203,255,0.1) 85%, transparent 95%)', filter: 'blur(1px)', animation: 'streak-pulse 6s ease-in-out infinite' }} />
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[6px] opacity-20" style={{ background: 'linear-gradient(90deg, transparent 10%, rgba(124,203,255,0.15) 30%, rgba(124,203,255,0.3) 50%, rgba(124,203,255,0.15) 70%, transparent 90%)', filter: 'blur(4px)', animation: 'streak-pulse 6s ease-in-out infinite' }} />
+          </div>
           <div className="flex items-center gap-2">
             <Film className="h-4 w-4 text-primary icon-glow" strokeWidth={1.5} />
             <span className="font-display text-sm font-bold tracking-tight text-foreground">

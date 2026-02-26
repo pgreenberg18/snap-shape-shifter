@@ -347,6 +347,8 @@ const Projects = () => {
                   key={project.id}
                   className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-300 hover:border-primary/40 hover:cinema-glow"
                 >
+                  {/* Hover lens flare bloom */}
+                  <div className="pointer-events-none absolute -top-10 -right-10 w-[140px] h-[140px] rounded-full z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-screen" style={{ background: 'radial-gradient(circle, rgba(124,203,255,0.25) 0%, rgba(47,125,255,0.1) 35%, transparent 65%)', filter: 'blur(16px)' }} />
                   <button
                     onClick={() => renamingId !== project.id && navigate(`/projects/${project.id}`)}
                     className="flex flex-1 flex-col text-left"
