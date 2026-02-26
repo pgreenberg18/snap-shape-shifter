@@ -42,9 +42,9 @@ const ShotList = ({ shots, activeShotId, onSelectShot, onAddShot }: ShotListProp
       </div>
 
       {shots.length === 0 ? (
-        <div className="px-4 py-6 text-center">
-          <p className="text-[11px] text-muted-foreground/60 font-mono">
-            Highlight script text in the Script pane above and click "Create Shot from Selection" to begin.
+        <div className="px-4 py-4 text-center">
+          <p className="text-[11px] text-muted-foreground/40 font-mono">
+            No shots yet
           </p>
         </div>
       ) : (
