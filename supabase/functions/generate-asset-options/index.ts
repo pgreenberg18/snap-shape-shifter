@@ -273,24 +273,35 @@ REQUIREMENTS:
 
       for (const model of models) {
         console.log(`Asset option ${index + 1}/5 (${asset_type}): trying ${model}`);
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
-              },
-              { role: "user", content: prompt },
-            ],
-            modalities: ["image", "text"],
-          }),
-        });
+        
+        let response: Response;
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 120_000);
+          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model,
+              messages: [
+                {
+                  role: "system",
+                  content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
+                },
+                { role: "user", content: prompt },
+              ],
+              modalities: ["image", "text"],
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+        } catch (fetchErr) {
+          console.error(`Fetch error for ${model} option ${index + 1}:`, fetchErr);
+          continue;
+        }
 
         if (!response.ok) {
           if (response.status === 429) {
@@ -303,12 +314,33 @@ REQUIREMENTS:
               status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
-          const t = await response.text();
+          const t = await response.text().catch(() => "unreadable");
           console.error(`AI gateway error (${model}):`, response.status, t);
           continue;
         }
 
-        const data = await response.json();
+        // Stream the response body to avoid "error reading a body from connection"
+        let data: any;
+        try {
+          const reader = response.body!.getReader();
+          const chunks: Uint8Array[] = [];
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+          const combined = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+          let offset = 0;
+          for (const chunk of chunks) {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+          }
+          data = JSON.parse(new TextDecoder().decode(combined));
+        } catch (parseErr) {
+          console.error(`Body read/parse error for ${model} option ${index + 1}:`, parseErr);
+          continue;
+        }
+
         const message = data.choices?.[0]?.message;
         const images = message?.images;
 
