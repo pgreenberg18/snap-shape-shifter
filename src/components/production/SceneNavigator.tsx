@@ -98,13 +98,13 @@ const SceneNavigator = ({
                   key={i}
                   onClick={() => onSelectScene(i)}
                   className={cn(
-                    "w-full text-left px-3 py-2.5 transition-colors border-l-2 group/scene relative",
+                    "w-full text-left px-3 py-1.5 transition-all border-l-2 group/scene relative",
                     isActive
-                      ? "border-l-primary bg-primary/5"
-                      : colors.border + " hover:bg-secondary/60"
+                      ? "border-l-primary bg-primary/5 opacity-100"
+                      : colors.border + " hover:bg-secondary/60 opacity-50 hover:opacity-75"
                   )}
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     {/* Status dot */}
                     <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", isActive ? "bg-primary" : colors.dot)} />
                     {/* Scene number */}
@@ -118,22 +118,25 @@ const SceneNavigator = ({
                     <IntExtBadge value={scene.int_ext} />
                     {/* Time of day */}
                     <TimeIcon time={scene.time_of_day} />
+                    {/* Slugline — inline on same row */}
+                    <p className={cn(
+                      "text-[11px] font-display font-semibold truncate flex-1 min-w-0",
+                      isActive ? "text-primary" : "text-foreground"
+                    )}>
+                      {scene.scene_heading || scene.location_name || "Untitled Scene"}
+                    </p>
                     {/* Shot count */}
                     {count > 0 && (
-                      <span className="ml-auto text-[9px] font-mono text-muted-foreground/50 shrink-0">
-                        {count} shot{count !== 1 ? "s" : ""}
+                      <span className="text-[9px] font-mono text-muted-foreground/50 shrink-0">
+                        {count}s
                       </span>
                     )}
                   </div>
-                  <p className={cn(
-                    "text-xs font-display font-semibold mt-1 break-words leading-snug",
-                    isActive ? "text-primary" : "text-foreground"
-                  )}>
-                    {scene.scene_heading || scene.location_name || "Untitled Scene"}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-3">
-                    {scene.description || ""}
-                  </p>
+                  {scene.description && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-1 leading-snug pl-4">
+                      {scene.description}
+                    </p>
+                  )}
                 </button>
               );
             })}
