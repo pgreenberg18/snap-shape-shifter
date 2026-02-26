@@ -307,6 +307,9 @@ const ProjectVersions = () => {
         .insert({ title: project?.title || "Untitled", project_id: projectId!, version_number: nextNum, version_name: name })
         .select().single();
       if (error) throw error;
+      // Seed default provider selections from global integrations
+      const { seedVersionProviders } = await import("@/lib/seed-version-providers");
+      await seedVersionProviders(data.id);
       return data;
     },
     onSuccess: (film) => {
@@ -350,6 +353,9 @@ const ProjectVersions = () => {
       if (assets?.length) await supabase.from("asset_identity_registry").insert(assets.map(({ id, created_at, updated_at, ...a }) => ({ ...a, film_id: newFilm.id })));
       const { data: clips } = await supabase.from("post_production_clips").select("*").eq("film_id", sourceFilmId);
       if (clips?.length) await supabase.from("post_production_clips").insert(clips.map(({ id, created_at, ...c }) => ({ ...c, film_id: newFilm.id })));
+      // Copy provider selections from source version (or fall back to global defaults)
+      const { copyVersionProviders } = await import("@/lib/seed-version-providers");
+      await copyVersionProviders(sourceFilmId, newFilm.id);
       return newFilm;
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["versions", projectId] }); toast.success("Version copied"); },

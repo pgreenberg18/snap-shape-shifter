@@ -84,13 +84,16 @@ const Projects = () => {
         .select()
         .single();
       if (projErr) throw projErr;
-      const { error: filmErr } = await supabase.from("films").insert({
+      const { data: film, error: filmErr } = await supabase.from("films").insert({
         title,
         project_id: project.id,
         version_number: 1,
         version_name: "Version 1",
-      });
+      }).select().single();
       if (filmErr) throw filmErr;
+      // Seed default provider selections from global integrations
+      const { seedVersionProviders } = await import("@/lib/seed-version-providers");
+      await seedVersionProviders(film.id);
       return project;
     },
     onSuccess: (project) => {
