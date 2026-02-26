@@ -94,7 +94,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 title={label}
               >
                 <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-                  <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+                  <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
                 </span>
                 {expanded && <span className="text-xs font-medium truncate">{label}</span>}
               </span>
@@ -125,7 +125,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           "flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200",
           isActive ? "bg-primary/15 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]" : "bg-muted/30 group-hover:bg-accent"
         )}>
-          <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+          <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
         </span>
         {expanded && <span className="text-xs font-medium truncate">{label}</span>}
       </NavLink>
@@ -155,7 +155,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           )}
         >
           <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-            <ArrowLeft className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+            <ArrowLeft className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
           </span>
           {expanded && <span className="text-xs font-medium truncate">Versions</span>}
         </button>
@@ -179,7 +179,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              {expanded ? <ChevronsLeft className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} /> : <ChevronsRight className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />}
+              {expanded ? <ChevronsLeft className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} /> : <ChevronsRight className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />}
             </span>
             {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
           </button>
@@ -193,7 +193,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <HelpCircle className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+              <HelpCircle className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
             </span>
             {expanded && <span className="text-xs font-medium truncate">Help</span>}
           </button>
@@ -211,7 +211,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <SlidersHorizontal className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+              <SlidersHorizontal className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
             </span>
             {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
           </button>
@@ -223,7 +223,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         {/* Top Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6 pro-panel specular-edge" style={{ borderRadius: 0 }}>
           <div className="flex items-center gap-2">
-            <Film className="h-4 w-4 text-primary" strokeWidth={1.5} />
+            <Film className="h-4 w-4 text-primary icon-glow" strokeWidth={1.5} />
             <span className="font-display text-sm font-bold tracking-tight text-foreground">
               Virtual Film Studio
             </span>
@@ -243,7 +243,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
               title="View versions"
             >
-              <Clapperboard className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
+              <Clapperboard className="h-3.5 w-3.5 text-primary icon-glow" strokeWidth={1.5} />
               <span className="font-display truncate max-w-[200px]">
                 {film?.title ?? "Loading…"}
               </span>
@@ -256,7 +256,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
               title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
+              <LogOut className="h-3.5 w-3.5 icon-glow" strokeWidth={1.5} />
               Sign Out
             </button>
           </div>
@@ -264,11 +264,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Main Content */}
         <main
-          className="relative flex-1 overflow-y-auto transition-colors duration-300 lens-flare"
+          className="relative flex-1 overflow-y-auto transition-colors duration-300 lens-flare lens-flare-streak"
           style={{ backgroundColor: phases.find((p) => location.pathname.includes(`/${p.key}`))?.tint }}
         >
-          {/* Secondary lens flare — bottom-left */}
-          <div className="pointer-events-none absolute bottom-[15%] left-[10%] w-[80px] h-[80px] rounded-full z-[15] mix-blend-screen" style={{ background: 'radial-gradient(circle, rgba(124,203,255,0.15) 0%, rgba(47,125,255,0.06) 40%, transparent 70%)', filter: 'blur(14px)' }} />
+          {/* Tertiary flare — center bloom */}
+          <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full z-[14] mix-blend-screen opacity-40" style={{ background: 'radial-gradient(circle, rgba(47,125,255,0.12) 0%, transparent 60%)', filter: 'blur(40px)' }} />
           {children}
         </main>
       </div>

@@ -184,14 +184,14 @@ const Projects = () => {
   });
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="relative flex h-screen overflow-hidden bg-background lens-flare lens-flare-streak">
       {/* ── Left sidebar: User section + bottom icons ── */}
       <aside className="flex h-full w-72 flex-col border-r border-border bg-card">
         {/* User profile area */}
         <div className="border-b border-border p-6 space-y-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 border border-primary/20">
-              <User className="h-5 w-5 text-primary" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 border border-primary/20 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]">
+              <User className="h-5 w-5 text-primary icon-glow" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-display font-semibold text-foreground truncate">
@@ -242,7 +242,7 @@ const Projects = () => {
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                   <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">
-                    <Plus className="h-4 w-4 text-primary" />
+                    <Plus className="h-4 w-4 text-primary icon-glow" />
                     New Film Project
                   </button>
                 </DialogTrigger>
@@ -277,14 +277,14 @@ const Projects = () => {
             title="Help"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
           >
-            <HelpCircle className="h-5 w-5" />
+            <HelpCircle className="h-5 w-5 icon-glow" />
           </button>
           <button
             onClick={() => navigate("/settings/admin")}
             title="Settings & Admin"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-5 w-5 icon-glow" />
           </button>
         </div>
       </aside>

@@ -161,20 +161,81 @@
     pointer-events: none;
   }
 
-  /* Lens flare — place on ::before of hero/viewport containers */
+  /* Lens flare — large primary flare top-right */
   .lens-flare::before {
     content: "";
     position: absolute;
-    top: 12%;
-    right: 18%;
-    width: 120px;
-    height: 120px;
-    background: radial-gradient(circle, rgba(124,203,255,0.25) 0%, rgba(47,125,255,0.08) 40%, transparent 70%);
+    top: 8%;
+    right: 12%;
+    width: 220px;
+    height: 220px;
+    background: radial-gradient(circle,
+      rgba(124,203,255,0.35) 0%,
+      rgba(47,125,255,0.18) 30%,
+      rgba(47,125,255,0.06) 55%,
+      transparent 75%
+    );
     border-radius: 50%;
     pointer-events: none;
     z-index: 15;
-    filter: blur(18px);
+    filter: blur(30px);
     mix-blend-mode: screen;
+    animation: flare-drift 8s ease-in-out infinite alternate;
+  }
+
+  /* Secondary flare — warm accent bottom-left */
+  .lens-flare::after {
+    content: "";
+    position: absolute;
+    bottom: 12%;
+    left: 8%;
+    width: 160px;
+    height: 160px;
+    background: radial-gradient(circle,
+      rgba(255,180,100,0.2) 0%,
+      rgba(255,140,60,0.08) 40%,
+      transparent 70%
+    );
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 15;
+    filter: blur(24px);
+    mix-blend-mode: screen;
+    animation: flare-drift 10s ease-in-out infinite alternate-reverse;
+  }
+
+  /* Anamorphic streak — horizontal light leak */
+  .lens-flare-streak {
+    position: relative;
+  }
+  .lens-flare-streak::before {
+    content: "";
+    position: absolute;
+    top: 20%;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+      transparent 5%,
+      rgba(124,203,255,0.15) 20%,
+      rgba(124,203,255,0.4) 50%,
+      rgba(124,203,255,0.15) 80%,
+      transparent 95%
+    );
+    pointer-events: none;
+    z-index: 15;
+    filter: blur(4px);
+    mix-blend-mode: screen;
+    animation: streak-pulse 6s ease-in-out infinite;
+  }
+
+  /* Icon glow — sophisticated icon treatment */
+  .icon-glow {
+    filter: drop-shadow(0 0 3px currentColor);
+    transition: filter 0.3s ease;
+  }
+  .icon-glow:hover {
+    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
   }
 
   /* Specular edge reflection for panels */
@@ -343,4 +404,15 @@ body::after {
 @keyframes wipeIn {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(0); }
+}
+
+@keyframes flare-drift {
+  0% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  50% { transform: translate(-15px, 10px) scale(1.15); opacity: 1; }
+  100% { transform: translate(10px, -8px) scale(0.95); opacity: 0.8; }
+}
+
+@keyframes streak-pulse {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.8); }
+  50% { opacity: 1; transform: scaleX(1); }
 }
