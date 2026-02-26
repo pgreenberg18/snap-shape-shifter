@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X,
   HelpCircle, Settings, Archive, ArchiveRestore, HardDrive, ChevronDown, ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useHelp } from "@/components/help/HelpPanel";
 import { Button } from "@/components/ui/button";
@@ -325,6 +326,9 @@ const ProjectVersions = () => {
           </button>
           <button onClick={() => setServicesOpen(true)} title="Project Services" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
             <Settings className="h-5 w-5" />
+          </button>
+          <button onClick={() => navigate("/settings/admin")} title="Global Settings" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
+            <SlidersHorizontal className="h-5 w-5" />
           </button>
         </div>
       </aside>

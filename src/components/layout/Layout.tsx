@@ -19,6 +19,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LogOut,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   Tooltip,
@@ -186,6 +187,18 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <div className={expanded ? "w-full" : ""}>
             {renderNavItem("settings", Settings, "Settings")}
           </div>
+
+          <button
+            onClick={() => navigate("/settings/admin")}
+            title="Global Settings"
+            className={cn(
+              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
+          >
+            <SlidersHorizontal className="h-5 w-5 shrink-0" />
+            {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
+          </button>
         </div>
       </aside>
 
