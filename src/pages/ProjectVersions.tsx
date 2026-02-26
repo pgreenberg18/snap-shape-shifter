@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X,
   HelpCircle, Settings, Archive, ArchiveRestore, HardDrive, ChevronDown, ChevronRight,
-  SlidersHorizontal, ImagePlus,
+  SlidersHorizontal, ImagePlus, ArrowUpDown,
 } from "lucide-react";
 import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
 import { useHelp } from "@/components/help/HelpPanel";
@@ -47,6 +47,7 @@ const ProjectVersions = () => {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "alpha">("newest");
   const [servicesOpen, setServicesOpen] = useState(false);
   const [conflictFilmId, setConflictFilmId] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Array<{ section: string; providers: Array<{ id: string; provider_name: string }> }>>([]);
@@ -127,7 +128,14 @@ const ProjectVersions = () => {
     enabled: !!versions?.length,
   });
 
-  const activeVersions = useMemo(() => versions?.filter((v) => !v.is_archived) || [], [versions]);
+  const activeVersions = useMemo(() => {
+    const filtered = versions?.filter((v) => !v.is_archived) || [];
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === "alpha") return (a.version_name || "").localeCompare(b.version_name || "");
+      if (sortOrder === "oldest") return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  }, [versions, sortOrder]);
   const archivedVersions = useMemo(() => versions?.filter((v) => v.is_archived) || [], [versions]);
 
   const totalProjectSize = useMemo(() => {
@@ -478,7 +486,16 @@ const ProjectVersions = () => {
           </p>
         </header>
         <div className="flex-1 overflow-auto px-8 py-6">
-          <div className="flex items-center justify-end mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-muted-foreground"
+              onClick={() => setSortOrder((prev) => prev === "newest" ? "oldest" : prev === "oldest" ? "alpha" : "newest")}
+            >
+              <ArrowUpDown className="h-3.5 w-3.5" />
+              {sortOrder === "newest" ? "Newest" : sortOrder === "oldest" ? "Oldest" : "A–Z"}
+            </Button>
             <Dialog open={newVersionOpen} onOpenChange={(o) => { setNewVersionOpen(o); if (!o) { setVersionNameError(""); setVersionName(""); } }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="h-4 w-4" />New Version</Button>
