@@ -3,6 +3,7 @@ import { Camera, Film, ChevronRight } from "lucide-react";
 import { useFilmId } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useGenerationManager } from "@/hooks/useGenerationManager";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import SceneNavigator from "@/components/production/SceneNavigator";
 import ScriptWorkspace from "@/components/production/ScriptWorkspace";
@@ -73,6 +74,7 @@ const useShotsForFilm = (filmId: string | undefined) =>
 const Production = () => {
   const filmId = useFilmId();
   const queryClient = useQueryClient();
+  const { startGeneration, getGenerationsForShot } = useGenerationManager();
   const { data: analysis } = useLatestAnalysis(filmId);
   const { data: allShots = [] } = useShotsForFilm(filmId);
 
@@ -285,79 +287,75 @@ const Production = () => {
     setActiveTakeIdx((prev) => (prev === idx ? null : prev));
   };
 
-  // Generation via orchestrate-generation edge function
+  // Generation via global GenerationManager (persists across navigation)
   const handleGenerate = useCallback(async (mode: "anchor" | "animate" | "targeted_edit", overrideRepairTarget?: RepairTarget) => {
     if (!activeShot) return;
     setIsGenerating(true);
     setGenerationMode(mode);
     const effectiveRepairTarget = overrideRepairTarget ?? repairTarget;
-    try {
-      const body: Record<string, unknown> = {
-        shot_id: activeShot.id,
-        mode,
-        anchor_url: mode === "animate"
+
+    const body: Record<string, unknown> = {
+      shot_id: activeShot.id,
+      mode,
+      anchor_url: mode === "animate"
+        ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined)
+        : mode === "targeted_edit"
           ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined)
-          : mode === "targeted_edit"
-            ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined)
-            : undefined,
-        anchor_count: 4,
-      };
-      if (mode === "targeted_edit" && effectiveRepairTarget) {
-        body.repair_target = effectiveRepairTarget;
-      }
-      const { data, error } = await supabase.functions.invoke("orchestrate-generation", {
-        body,
-      });
+          : undefined,
+      anchor_count: 4,
+    };
+    if (mode === "targeted_edit" && effectiveRepairTarget) {
+      body.repair_target = effectiveRepairTarget;
+    }
 
-      if (error) throw error;
+    const shotId = activeShot.id;
 
-      if (mode === "anchor" && data?.output_urls) {
+    startGeneration(shotId, mode, body, (completed) => {
+      const data = completed.result;
+      if (!data?.output_urls) return;
+
+      // Only update local UI state if user is still viewing this shot
+      if (mode === "anchor") {
         setAnchorUrls(data.output_urls);
         setSelectedAnchorIdx(0);
-        // Use real scores from generation response
         const scores: AnchorScore[] = Array.isArray(data.scores)
           ? data.scores
           : data.output_urls.map(() => ({}));
         setAnchorScores(scores);
-        // Also populate take bin with first anchor
         setTakes((prev) => {
           const emptyIdx = prev.findIndex((t) => !t.thumbnailUrl);
           const targetIdx = emptyIdx !== -1 ? emptyIdx : prev.length - 1;
-          return prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls[0] } : t);
+          return prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls![0] } : t);
         });
-        setActiveTakeIdx(takes.findIndex((t) => !t.thumbnailUrl));
-      } else if (mode === "animate" && data?.output_urls?.[0]) {
-        const emptyIdx = takes.findIndex((t) => !t.thumbnailUrl);
-        const targetIdx = emptyIdx !== -1 ? emptyIdx : takes.length - 1;
-        setTakes((prev) =>
-          prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls[0] } : t)
-        );
-        setActiveTakeIdx(targetIdx);
-      } else if (mode === "targeted_edit" && data?.output_urls?.[0]) {
-        // Show diff overlay: original anchor vs repaired
-        const originalUrl = selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : null;
-        if (originalUrl && effectiveRepairTarget) {
-          setDiffPair({
-            originalUrl,
-            repairedUrl: data.output_urls[0],
-            repairTarget: effectiveRepairTarget,
-          });
-        }
-        // Replace the selected anchor with the repaired version
+      } else if (mode === "animate" && data.output_urls[0]) {
+        setTakes((prev) => {
+          const emptyIdx = prev.findIndex((t) => !t.thumbnailUrl);
+          const targetIdx = emptyIdx !== -1 ? emptyIdx : prev.length - 1;
+          return prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls![0] } : t);
+        });
+      } else if (mode === "targeted_edit" && data.output_urls[0]) {
         if (selectedAnchorIdx !== null) {
+          const originalUrl = anchorUrls[selectedAnchorIdx];
+          if (originalUrl && effectiveRepairTarget) {
+            setDiffPair({
+              originalUrl,
+              repairedUrl: data.output_urls[0],
+              repairTarget: effectiveRepairTarget,
+            });
+          }
           setAnchorUrls((prev) =>
-            prev.map((url, i) => i === selectedAnchorIdx ? data.output_urls[0] : url)
+            prev.map((url, i) => i === selectedAnchorIdx ? data.output_urls![0] : url)
           );
         }
       }
-    } catch (err) {
-      console.error("Generation failed:", err);
-    } finally {
+
       setIsGenerating(false);
       setGenerationMode(null);
       setRepairTarget(null);
-    }
-  }, [activeShot, anchorUrls, selectedAnchorIdx, takes, repairTarget]);
+    });
+
+    // Note: isGenerating stays true until onComplete fires (even across navigation)
+  }, [activeShot, anchorUrls, selectedAnchorIdx, repairTarget, startGeneration]);
 
   const handleRepair = useCallback((target: RepairTarget, _hint: string) => {
     setRepairTarget(target);

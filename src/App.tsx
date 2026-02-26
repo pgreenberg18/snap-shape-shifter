@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/layout/Layout";
 import { HelpProvider } from "@/components/help/HelpPanel";
 import HelpPanel from "@/components/help/HelpPanel";
+import { GenerationManagerProvider } from "@/hooks/useGenerationManager";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AccessGuard from "@/components/AccessGuard";
@@ -38,6 +39,7 @@ const VersionLayout = ({ children }: { children: React.ReactNode }) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
+      <GenerationManagerProvider>
       <AuthProvider>
         <HelpProvider>
           <Toaster />
@@ -80,6 +82,7 @@ const App = () => (
           </BrowserRouter>
         </HelpProvider>
       </AuthProvider>
+      </GenerationManagerProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
