@@ -78,6 +78,9 @@ const Production = () => {
   const [takes, setTakes] = useState<Take[]>(EMPTY_TAKES);
   const [activeTakeIdx, setActiveTakeIdx] = useState<number | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMode, setGenerationMode] = useState<"anchor" | "animate" | "targeted_edit" | null>(null);
+  const [anchorUrls, setAnchorUrls] = useState<string[]>([]);
+  const [selectedAnchorIdx, setSelectedAnchorIdx] = useState<number | null>(null);
   const isDragging = useRef(false);
 
   // Persisted script pane dimensions
@@ -219,25 +222,56 @@ const Production = () => {
     setActiveTakeIdx((prev) => (prev === idx ? null : prev));
   };
 
-  // Generation (mock)
-  const handleGenerate = useCallback((isRehearsal: boolean) => {
+  // Generation via orchestrate-generation edge function
+  const handleGenerate = useCallback(async (mode: "anchor" | "animate" | "targeted_edit") => {
+    if (!activeShot) return;
     setIsGenerating(true);
-    const emptyIdx = takes.findIndex((t) => !t.thumbnailUrl);
-    const targetIdx = emptyIdx !== -1 ? emptyIdx : takes.length - 1;
-    setTimeout(() => {
-      setTakes((prev) =>
-        prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: `generated-${Date.now()}` } : t)
-      );
-      setActiveTakeIdx(targetIdx);
+    setGenerationMode(mode);
+    try {
+      const { data, error } = await supabase.functions.invoke("orchestrate-generation", {
+        body: {
+          shot_id: activeShot.id,
+          mode,
+          anchor_url: mode === "animate" ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined) : undefined,
+          anchor_count: 4,
+        },
+      });
+
+      if (error) throw error;
+
+      if (mode === "anchor" && data?.output_urls) {
+        setAnchorUrls(data.output_urls);
+        setSelectedAnchorIdx(0);
+        // Also populate take bin with first anchor
+        setTakes((prev) => {
+          const emptyIdx = prev.findIndex((t) => !t.thumbnailUrl);
+          const targetIdx = emptyIdx !== -1 ? emptyIdx : prev.length - 1;
+          return prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls[0] } : t);
+        });
+        setActiveTakeIdx(takes.findIndex((t) => !t.thumbnailUrl));
+      } else if (mode === "animate" && data?.output_urls?.[0]) {
+        const emptyIdx = takes.findIndex((t) => !t.thumbnailUrl);
+        const targetIdx = emptyIdx !== -1 ? emptyIdx : takes.length - 1;
+        setTakes((prev) =>
+          prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls[0] } : t)
+        );
+        setActiveTakeIdx(targetIdx);
+      }
+    } catch (err) {
+      console.error("Generation failed:", err);
+    } finally {
       setIsGenerating(false);
-    }, isRehearsal ? 2000 : 3500);
-  }, [takes]);
+      setGenerationMode(null);
+    }
+  }, [activeShot, anchorUrls, selectedAnchorIdx, takes]);
 
   // Reset takes when switching shots
   const handleSelectShot = (id: string) => {
     setActiveShotId(id);
     setTakes(EMPTY_TAKES);
     setActiveTakeIdx(null);
+    setAnchorUrls([]);
+    setSelectedAnchorIdx(null);
   };
 
   const handleSelectScene = (idx: number) => {
@@ -245,6 +279,8 @@ const Production = () => {
     setActiveShotId(null);
     setTakes(EMPTY_TAKES);
     setActiveTakeIdx(null);
+    setAnchorUrls([]);
+    setSelectedAnchorIdx(null);
   };
 
   return (
@@ -300,9 +336,11 @@ const Production = () => {
                   <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />
                   <ShotBuilder
                     shot={activeShot}
-                    onRehearsal={() => handleGenerate(true)}
-                    onRollCamera={() => handleGenerate(false)}
+                    onGenerate={handleGenerate}
                     isGenerating={isGenerating}
+                    generationMode={generationMode}
+                    hasAnchors={anchorUrls.length > 0}
+                    selectedAnchorUrl={selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined}
                   />
                   {/* Right edge resize handle */}
                   <div
