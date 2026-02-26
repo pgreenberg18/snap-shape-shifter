@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   useViceConflicts,
   useViceDirtyQueue,
+  useViceRealtime,
   useResolveConflict,
   useDismissDirtyItem,
   useDetectConflicts,
@@ -49,6 +50,7 @@ const conflictTypeConfig: Record<string, { icon: typeof AlertTriangle; label: st
 };
 
 const VicePanel = ({ open, onOpenChange }: VicePanelProps) => {
+  useViceRealtime();
   const { data: conflicts = [], isLoading: conflictsLoading } = useViceConflicts();
   const { data: dirtyQueue = [], isLoading: dirtyLoading } = useViceDirtyQueue();
   const { data: styleContract } = useStyleContract();

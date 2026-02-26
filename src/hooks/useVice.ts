@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useFilmId } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
@@ -35,6 +36,48 @@ export interface ViceDirtyItem {
   created_at: string;
 }
 
+/* ── Realtime subscription for VICE tables ── */
+export const useViceRealtime = () => {
+  const filmId = useFilmId();
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!filmId) return;
+
+    const channel = supabase
+      .channel(`vice-realtime-${filmId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "vice_conflicts",
+          filter: `film_id=eq.${filmId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["vice-conflicts", filmId] });
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "vice_dirty_queue",
+          filter: `film_id=eq.${filmId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["vice-dirty-queue", filmId] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [filmId, queryClient]);
+};
+
 /* ── Fetch unresolved conflicts ── */
 export const useViceConflicts = () => {
   const filmId = useFilmId();
@@ -51,7 +94,6 @@ export const useViceConflicts = () => {
       return (data ?? []) as ViceConflict[];
     },
     enabled: !!filmId,
-    refetchInterval: 15000,
   });
 };
 
@@ -71,11 +113,8 @@ export const useViceDirtyQueue = () => {
       return (data ?? []) as ViceDirtyItem[];
     },
     enabled: !!filmId,
-    refetchInterval: 15000,
   });
 };
-
-/* ── Fetch all dependencies for graph ── */
 export const useViceDependencies = () => {
   const filmId = useFilmId();
   return useQuery({
