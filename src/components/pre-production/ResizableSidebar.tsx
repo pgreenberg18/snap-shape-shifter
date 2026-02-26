@@ -51,7 +51,7 @@ const ResizableSidebar = ({
 
   return (
     <aside
-      className={cn("relative border-r border-border bg-card flex flex-col shrink-0", className)}
+      className={cn("relative border-r border-border/50 flex flex-col shrink-0 pro-panel specular-edge", className)}
       style={{ width }}
     >
       {children}

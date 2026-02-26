@@ -134,12 +134,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Left Sidebar */}
+      {/* Left Sidebar — rack-mount equipment panel */}
       <aside
         className={cn(
-          "flex h-full flex-col items-center border-r border-border bg-card py-4 transition-all duration-200 shrink-0",
+          "flex h-full flex-col items-center py-4 transition-all duration-200 shrink-0 pro-panel border-r-0",
           expanded ? "w-44" : "w-16"
         )}
+        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         {/* Back to project */}
         <button
@@ -220,7 +221,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       {/* Right content column */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Header */}
-        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-6">
+        <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6 pro-panel specular-edge" style={{ borderRadius: 0 }}>
           <div className="flex items-center gap-2">
             <Film className="h-4 w-4 text-primary" strokeWidth={1.5} />
             <span className="font-display text-sm font-bold tracking-tight text-foreground">
