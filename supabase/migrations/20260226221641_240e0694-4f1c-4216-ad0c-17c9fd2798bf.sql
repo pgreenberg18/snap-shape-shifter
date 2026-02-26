@@ -1,0 +1,1 @@
+ALTER TABLE public.films ADD COLUMN poster_url text;
