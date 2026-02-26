@@ -216,6 +216,9 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                     !isDone && !isActive && "text-muted-foreground/50"
                   )}>
                     {step.label}
+                    {(isActive || isDone) && (
+                      <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums font-normal">{stepPct}%</span>
+                    )}
                   </span>
                   {isActive && (
                     <p className="text-[10px] text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
@@ -223,9 +226,6 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                     </p>
                   )}
                 </div>
-                {(isActive || isDone) && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">{stepPct}%</span>
-                )}
               </div>
               {isActive && (
                 <div className="ml-9 h-1 rounded-full bg-secondary overflow-hidden">
@@ -263,6 +263,12 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                 parsingDone && !isEnriching && "text-foreground",
               )}>
                 Extracting details from each scene
+                {isEnriching && enrichTotal > 0 && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums font-normal">{enrichDone}/{enrichTotal} · {enrichPct}%</span>
+                )}
+                {parsingDone && !isEnriching && (
+                  <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums font-normal">100%</span>
+                )}
               </span>
               {isEnriching && (
                 <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
@@ -270,14 +276,6 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
                 </p>
               )}
             </div>
-            {isEnriching && enrichTotal > 0 && (
-              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
-                {enrichDone}/{enrichTotal} · {enrichPct}%
-              </span>
-            )}
-            {parsingDone && !isEnriching && (
-              <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">100%</span>
-            )}
           </div>
           {isEnriching && (
             <div className="ml-9 h-1.5 rounded-full bg-secondary overflow-hidden">
