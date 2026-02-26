@@ -97,11 +97,11 @@ const AllNDAs = () => {
         profiles.map((p) => (
           <Collapsible key={p.id}>
             <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
-              <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors">
+               <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors">
                 <div className="text-left">
-                  <p className="text-[11px] font-medium text-foreground">{p.full_name}</p>
-                  <p className="text-xs text-muted-foreground">{p.email}</p>
-                  <p className="text-[11px] text-muted-foreground/60">
+                  <p className="text-sm font-medium text-foreground">{p.full_name}</p>
+                  <p className="text-sm text-muted-foreground">{p.email}</p>
+                  <p className="text-xs text-muted-foreground/60">
                     Signed: {p.nda_signed_at ? new Date(p.nda_signed_at).toLocaleDateString() : "—"}
                   </p>
                 </div>
@@ -222,17 +222,17 @@ const CreditUsageSection = () => {
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-4">
-        <div className="rounded-lg border border-border bg-secondary/30 p-4">
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Total Used</p>
-          <p className="font-display text-lg font-bold text-foreground">{total.toFixed(0)}</p>
+         <div className="rounded-lg border border-border bg-secondary/30 p-4">
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Total Used</p>
+          <p className="font-display text-2xl font-bold text-foreground">{total.toFixed(0)}</p>
         </div>
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Warning At</p>
-          <p className="font-display text-lg font-bold text-foreground">{warningThreshold ?? "—"}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Warning At</p>
+          <p className="font-display text-2xl font-bold text-foreground">{warningThreshold ?? "—"}</p>
         </div>
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
-          <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Cutoff At</p>
-          <p className="font-display text-lg font-bold text-foreground">{cutoffThreshold ?? "—"}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Cutoff At</p>
+          <p className="font-display text-2xl font-bold text-foreground">{cutoffThreshold ?? "—"}</p>
         </div>
       </div>
 
@@ -246,10 +246,10 @@ const CreditUsageSection = () => {
               return (
                 <div key={cat} className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                       {CATEGORY_LABELS[cat] || cat}
                     </h3>
-                    <span className="font-mono text-xs font-medium tabular-nums text-foreground">
+                    <span className="font-mono text-sm font-medium tabular-nums text-foreground">
                       {categoryTotal.toFixed(0)}
                     </span>
                   </div>
@@ -259,14 +259,14 @@ const CreditUsageSection = () => {
                       .map((svc) => (
                         <div key={svc.name} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-foreground">{svc.name}</span>
+                            <span className="text-sm text-foreground">{svc.name}</span>
                             {svc.verified && (
-                              <span className="text-[9px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
+                              <span className="text-[10px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
                                 Active
                               </span>
                             )}
                           </div>
-                          <span className={`font-mono text-[11px] font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
+                          <span className={`font-mono text-sm font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
                             {svc.credits.toFixed(0)}
                           </span>
                         </div>
@@ -280,7 +280,7 @@ const CreditUsageSection = () => {
         <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-12 text-center">
           <Gauge className="h-10 w-10 text-muted-foreground/20 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground/60 font-mono">No services configured yet.</p>
-          <p className="text-xs text-muted-foreground/40 mt-1">Add API integrations from the Integrations page to see them here.</p>
+          <p className="text-sm text-muted-foreground/40 mt-1">Add API integrations from the Integrations page to see them here.</p>
         </div>
       )}
     </div>
@@ -366,15 +366,15 @@ const AccessControl = () => {
               <div className="rounded-lg border border-border bg-secondary/30">
                 <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3">
                   <LockIcon status={status} />
-                  <span className="text-[11px] font-medium text-foreground flex-1 text-left">{p.full_name}</span>
-                  <span className="text-[11px] text-muted-foreground/60 font-mono mr-2">{p.email}</span>
+                  <span className="text-sm font-medium text-foreground flex-1 text-left">{p.full_name}</span>
+                  <span className="text-xs text-muted-foreground/60 font-mono mr-2">{p.email}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="px-4 pb-4">
                   <div className="grid grid-cols-2 gap-2 pt-1">
                     {phases.map(({ key, label }) => (
                       <div key={key} className="flex items-center justify-between rounded bg-background/50 px-3 py-2">
-                        <span className="text-xs text-foreground">{label}</span>
+                        <span className="text-sm text-foreground">{label}</span>
                         <Switch
                           checked={!!access[key]}
                           onCheckedChange={(v) =>
@@ -441,16 +441,16 @@ const LoginRecords = () => {
               <div className="rounded-lg border border-border bg-secondary/30 p-4">
                 <CollapsibleTrigger className="flex w-full items-center justify-between">
                   <div className="text-left">
-                    <p className="text-[11px] font-medium text-foreground">
+                    <p className="text-sm font-medium text-foreground">
                       {latest.user_name || email}
                     </p>
-                    <p className="text-xs text-muted-foreground">{email}</p>
-                    <p className="text-[11px] text-muted-foreground/60">
+                    <p className="text-sm text-muted-foreground">{email}</p>
+                    <p className="text-xs text-muted-foreground/60">
                       Last: {new Date(latest.created_at).toLocaleString()}
                       {latest.city && ` · ${latest.city}, ${latest.region || ""} ${latest.country || ""}`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <span>{loginEvents.length} logins</span>
                     <span>·</span>
                     <span>{pageViews.length} pages</span>
@@ -462,7 +462,7 @@ const LoginRecords = () => {
                     <div className="mb-2">
                       <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sessions</p>
                       {loginEvents.slice(0, 10).map((e) => (
-                        <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
+                        <div key={e.id} className="flex items-center gap-2 text-sm text-muted-foreground py-0.5">
                           <Activity className="h-3 w-3 text-primary/60" />
                           <span>{e.event_type}</span>
                           <span className="ml-auto">{new Date(e.created_at).toLocaleString()}</span>
@@ -475,7 +475,7 @@ const LoginRecords = () => {
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pages Visited</p>
                       {pageViews.slice(0, 20).map((e) => (
-                        <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
+                        <div key={e.id} className="flex items-center gap-2 text-sm text-muted-foreground py-0.5">
                           <Eye className="h-3 w-3 text-muted-foreground/40" />
                           <span className="font-mono">{e.page_path}</span>
                           <span className="ml-auto">{new Date(e.created_at).toLocaleString()}</span>
@@ -600,7 +600,7 @@ const SettingsAdmin = () => {
           {activeSection === "your-nda" && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Your Signed NDA</h2>
-              <p className="text-xs text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
+              <p className="text-sm text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
               {user && <YourNDA userId={user.id} />}
             </div>
           )}
@@ -608,7 +608,7 @@ const SettingsAdmin = () => {
           {activeSection === "credit-usage" && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Credit Usage</h2>
-              <p className="text-xs text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
+              <p className="text-sm text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
               <CreditUsageSection />
             </div>
           )}
@@ -616,7 +616,7 @@ const SettingsAdmin = () => {
           {activeSection === "media-library" && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Media Library</h2>
-              <p className="text-xs text-muted-foreground mb-6">Browse all uploaded and generated media across your projects, organized by category.</p>
+              <p className="text-sm text-muted-foreground mb-6">Browse all uploaded and generated media across your projects, organized by category.</p>
               <MediaLibraryPanel />
             </div>
           )}
@@ -629,7 +629,7 @@ const SettingsAdmin = () => {
           {activeSection === "admin-dashboard" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Admin Dashboard</h2>
-              <p className="text-xs text-muted-foreground mb-6">System-wide overview of users, projects, versions, and credit allocation.</p>
+              <p className="text-sm text-muted-foreground mb-6">System-wide overview of users, projects, versions, and credit allocation.</p>
               <AdminPanel />
             </div>
           )}
@@ -637,7 +637,7 @@ const SettingsAdmin = () => {
           {activeSection === "all-ndas" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">All Signed NDAs</h2>
-              <p className="text-xs text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
+              <p className="text-sm text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
               <AllNDAs />
             </div>
           )}
@@ -645,7 +645,7 @@ const SettingsAdmin = () => {
           {activeSection === "access-control" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Access Control</h2>
-              <p className="text-xs text-muted-foreground mb-6">Grant or revoke access to phases and content for each user.</p>
+              <p className="text-sm text-muted-foreground mb-6">Grant or revoke access to phases and content for each user.</p>
               <AccessControl />
             </div>
           )}
@@ -653,11 +653,11 @@ const SettingsAdmin = () => {
           {activeSection === "downloads" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Downloads</h2>
-              <p className="text-xs text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
+              <p className="text-sm text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
               <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-8 text-center">
                 <Download className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Download center coming soon.</p>
-                <p className="text-xs text-muted-foreground/60 mt-1">Frame grabs, instruction manuals, and script breakdowns will be exportable here.</p>
+                <p className="text-sm text-muted-foreground/60 mt-1">Frame grabs, instruction manuals, and script breakdowns will be exportable here.</p>
               </div>
             </div>
           )}
@@ -665,7 +665,7 @@ const SettingsAdmin = () => {
           {activeSection === "login-records" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Login Records</h2>
-              <p className="text-xs text-muted-foreground mb-6">Audit trail of login events and page navigation across all users.</p>
+              <p className="text-sm text-muted-foreground mb-6">Audit trail of login events and page navigation across all users.</p>
               <LoginRecords />
             </div>
           )}
@@ -673,7 +673,7 @@ const SettingsAdmin = () => {
           {activeSection === "reset-app" && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Reset App</h2>
-              <p className="text-xs text-muted-foreground mb-6">Clear all local cached data and sign out. This does not delete your account or server-side data.</p>
+              <p className="text-sm text-muted-foreground mb-6">Clear all local cached data and sign out. This does not delete your account or server-side data.</p>
               <Button variant="destructive" onClick={handleReset} className="gap-2">
                 <RotateCcw className="h-4 w-4" /> Reset &amp; Sign Out
               </Button>
