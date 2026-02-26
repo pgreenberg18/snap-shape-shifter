@@ -28,13 +28,26 @@ import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
 import { useAuth } from "@/hooks/useAuth";
 
 /* ── Service catalogs per section ── */
-type ServiceDef = { id: string; name: string; placeholder: string };
+type ServiceDef = { id: string; name: string; placeholder: string; variants?: { id: string; label: string }[] };
 
 const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
   "script-analysis": [
-    { id: "openai-chat", name: "ChatGPT (OpenAI)", placeholder: "Enter OpenAI API key…" },
-    { id: "gemini", name: "Gemini (Google)", placeholder: "Enter Gemini API key…" },
-    { id: "claude", name: "Claude (Anthropic)", placeholder: "Enter Anthropic API key…" },
+    { id: "openai-chat", name: "ChatGPT (OpenAI)", placeholder: "Enter OpenAI API key…", variants: [
+      { id: "gpt-4o", label: "GPT-4o" },
+      { id: "gpt-4o-mini", label: "GPT-4o Mini" },
+      { id: "gpt-4-turbo", label: "GPT-4 Turbo" },
+    ]},
+    { id: "gemini", name: "Gemini (Google)", placeholder: "Enter Gemini API key…", variants: [
+      { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+      { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+      { id: "gemini-3-pro-preview", label: "Gemini 3 Pro (Preview)" },
+      { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (Preview)" },
+    ]},
+    { id: "claude", name: "Claude (Anthropic)", placeholder: "Enter Anthropic API key…", variants: [
+      { id: "claude-4-opus", label: "Claude 4 Opus" },
+      { id: "claude-4-sonnet", label: "Claude 4 Sonnet" },
+      { id: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
+    ]},
     { id: "mistral", name: "Mistral AI", placeholder: "Enter Mistral API key…" },
     { id: "llama", name: "Llama (Meta)", placeholder: "Enter API key…" },
   ],
@@ -47,9 +60,13 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     { id: "leonardo", name: "Leonardo AI", placeholder: "Enter Leonardo API key…" },
     { id: "recraft", name: "Recraft V3", placeholder: "Enter Recraft API key…" },
     { id: "nana-banana", name: "Nana Banana Pro", placeholder: "Enter API key…" },
+    { id: "imagen-4", name: "Imagen 4 (Google)", placeholder: "Enter Google API key…" },
   ],
   "sound-stage": [
-    { id: "elevenlabs", name: "ElevenLabs", placeholder: "Enter ElevenLabs API key…" },
+    { id: "elevenlabs", name: "ElevenLabs", placeholder: "Enter ElevenLabs API key…", variants: [
+      { id: "eleven-multilingual-v2", label: "Multilingual V2" },
+      { id: "eleven-turbo-v2.5", label: "Turbo V2.5" },
+    ]},
     { id: "playht", name: "Play.ht", placeholder: "Enter Play.ht API key…" },
     { id: "murf", name: "Murf AI", placeholder: "Enter Murf API key…" },
     { id: "wellsaid", name: "WellSaid Labs", placeholder: "Enter WellSaid API key…" },
@@ -57,8 +74,14 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
   ],
   "camera-cart": [
     { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…" },
-    { id: "kling", name: "Kling AI", placeholder: "Enter Kling API key…" },
-    { id: "veo", name: "Veo (Google)", placeholder: "Enter Google API key…" },
+    { id: "kling", name: "Kling AI", placeholder: "Enter Kling API key…", variants: [
+      { id: "kling-1.5", label: "Kling 1.5" },
+      { id: "kling-2.0", label: "Kling 2.0" },
+    ]},
+    { id: "veo", name: "Veo (Google)", placeholder: "Enter Google API key…", variants: [
+      { id: "veo-2", label: "Veo 2" },
+      { id: "veo-3", label: "Veo 3" },
+    ]},
     { id: "sora", name: "Sora (OpenAI)", placeholder: "Enter Sora API key…" },
     { id: "runway", name: "Runway Gen-3", placeholder: "Enter Runway API key…" },
     { id: "pika", name: "Pika Labs", placeholder: "Enter Pika API key…" },
@@ -127,6 +150,7 @@ const SettingsIntegrations = () => {
   // Per-section add state
   const [addingSection, setAddingSection] = useState<string | null>(null);
   const [selectedService, setSelectedService] = useState("");
+  const [selectedVariant, setSelectedVariant] = useState("");
   const [serviceKey, setServiceKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [addedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
@@ -167,10 +191,13 @@ const SettingsIntegrations = () => {
     setSaving(true);
     const catalog = SERVICE_CATALOGS[sectionId] || [];
     const svc = catalog.find((s) => s.id === selectedService);
-    try {
+      const providerName = selectedVariant
+        ? `${svc?.name} (${svc?.variants?.find(v => v.id === selectedVariant)?.label || selectedVariant})`
+        : svc?.name || selectedService;
+      try {
       const { error } = await supabase.from("integrations").insert({
         section_id: sectionId,
-        provider_name: svc?.name || selectedService,
+        provider_name: providerName,
         api_key_encrypted: serviceKey,
         is_verified: true,
         user_id: user?.id,
@@ -178,6 +205,7 @@ const SettingsIntegrations = () => {
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
       setSelectedService("");
+      setSelectedVariant("");
       setServiceKey("");
       setAddingSection(null);
       toast({ title: "Service added", description: `${svc?.name} connected and saved.` });
@@ -191,6 +219,7 @@ const SettingsIntegrations = () => {
   const openAdd = (sectionId: string) => {
     setAddingSection(sectionId);
     setSelectedService("");
+    setSelectedVariant("");
     setServiceKey("");
   };
 
@@ -326,7 +355,7 @@ const SettingsIntegrations = () => {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Service</Label>
-                        <Select value={selectedService} onValueChange={setSelectedService}>
+                        <Select value={selectedService} onValueChange={(val) => { setSelectedService(val); setSelectedVariant(""); }}>
                           <SelectTrigger className="bg-background">
                             <SelectValue placeholder="Select a service…" />
                           </SelectTrigger>
@@ -337,22 +366,42 @@ const SettingsIntegrations = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      {selectedService && (
-                        <div className="space-y-1.5">
-                          <Label className="text-xs uppercase tracking-wider text-muted-foreground">API Key</Label>
-                          <Input
-                            type="password"
-                            placeholder={catalog.find((s) => s.id === selectedService)?.placeholder || "Enter API key…"}
-                            value={serviceKey}
-                            onChange={(e) => setServiceKey(e.target.value)}
-                            className="font-mono text-xs bg-background border-border"
-                          />
-                        </div>
-                      )}
+                      {selectedService && (() => {
+                        const svcDef = catalog.find((s) => s.id === selectedService);
+                        return (
+                          <>
+                            {svcDef?.variants && svcDef.variants.length > 0 && (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Model Version</Label>
+                                <Select value={selectedVariant} onValueChange={setSelectedVariant}>
+                                  <SelectTrigger className="bg-background">
+                                    <SelectValue placeholder="Select version…" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {svcDef.variants.map((v) => (
+                                      <SelectItem key={v.id} value={v.id}>{v.label}</SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                            <div className="space-y-1.5">
+                              <Label className="text-xs uppercase tracking-wider text-muted-foreground">API Key</Label>
+                              <Input
+                                type="password"
+                                placeholder={svcDef?.placeholder || "Enter API key…"}
+                                value={serviceKey}
+                                onChange={(e) => setServiceKey(e.target.value)}
+                                className="font-mono text-xs bg-background border-border"
+                              />
+                            </div>
+                          </>
+                        );
+                      })()}
                       <Button
                         size="sm"
                         className="gap-1.5 w-full"
-                        disabled={!selectedService || !serviceKey || saving}
+                        disabled={!selectedService || !serviceKey || saving || !!(catalog.find(s => s.id === selectedService)?.variants?.length && !selectedVariant)}
                         onClick={() => handleAddService(sectionId)}
                       >
                         <Plug className="h-3.5 w-3.5" />
