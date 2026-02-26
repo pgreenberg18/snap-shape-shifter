@@ -5,6 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 /* ── VICE Status Types ── */
 export type ViceStatus = "active" | "updating" | "conflict";
 
+export interface ViceDependency {
+  id: string;
+  film_id: string;
+  shot_id: string;
+  source_token: string;
+  source_type: string;
+  dependency_type: string;
+  created_at: string;
+}
+
 export interface ViceConflict {
   id: string;
   scene_number: number;
@@ -62,6 +72,24 @@ export const useViceDirtyQueue = () => {
     },
     enabled: !!filmId,
     refetchInterval: 15000,
+  });
+};
+
+/* ── Fetch all dependencies for graph ── */
+export const useViceDependencies = () => {
+  const filmId = useFilmId();
+  return useQuery({
+    queryKey: ["vice-dependencies", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vice_dependencies")
+        .select("*")
+        .eq("film_id", filmId!)
+        .order("source_token", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ViceDependency[];
+    },
+    enabled: !!filmId,
   });
 };
 
