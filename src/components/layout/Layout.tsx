@@ -298,7 +298,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px]" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(124,203,255,0.15) 30%, rgba(200,230,255,0.4) 50%, rgba(124,203,255,0.15) 70%, transparent 100%)', filter: 'blur(2px)', animation: 'streak-pulse 4.5s ease-in-out infinite 1s' }} />
             </div>
             <FilmStripIcon className="relative z-10 h-5 w-5 text-primary icon-glow" />
-            <span className="relative z-10 font-display text-lg font-extrabold tracking-wide text-foreground drop-shadow-[0_0_12px_rgba(124,203,255,0.4)]">
+            <span className="relative z-10 font-display text-[1.9rem] leading-tight font-extrabold tracking-wide text-foreground drop-shadow-[0_0_12px_rgba(124,203,255,0.4)]">
               Virtual Film Studio
             </span>
           </div>
