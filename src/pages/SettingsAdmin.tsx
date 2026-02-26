@@ -551,7 +551,7 @@ const SettingsAdmin = () => {
                     setActiveSection(s.id);
                   }
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[11px] transition-colors ${
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   activeSection === s.id
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -575,7 +575,7 @@ const SettingsAdmin = () => {
                   <button
                     key={s.id}
                     onClick={() => setActiveSection(s.id)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[11px] transition-colors ${
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                       activeSection === s.id
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
