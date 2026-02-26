@@ -405,26 +405,20 @@ const ProjectVersions = () => {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="border-b border-border bg-card px-8 py-6">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-1">
-                <Film className="h-4 w-4 text-primary" />
-                <span className="text-[10px] font-display font-semibold text-muted-foreground tracking-widest uppercase">Virtual Film Studio</span>
-              </div>
-              <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
-                {project?.title || "Loading…"}
-              </h1>
-              <div className="flex items-center gap-4 mt-1">
-                {project?.description && (
-                  <p className="text-xs text-muted-foreground">{project.description}</p>
-                )}
-                <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground" title="Total estimated project size">
-                  <HardDrive className="h-3.5 w-3.5" />
-                  {formatBytes(totalProjectSize)}
-                </span>
-              </div>
-            </div>
+        <header className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
+          <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
+            {project?.title || "Loading…"}
+          </h1>
+          <p className="text-[10px] text-muted-foreground truncate flex items-center gap-2">
+            {project?.description && <span>{project.description}</span>}
+            <span className="inline-flex items-center gap-1" title="Total estimated project size">
+              <HardDrive className="h-3 w-3" />
+              {formatBytes(totalProjectSize)}
+            </span>
+          </p>
+        </header>
+        <div className="flex-1 overflow-auto px-8 py-6">
+          <div className="flex items-center justify-end mb-4">
             <Dialog open={newVersionOpen} onOpenChange={(o) => { setNewVersionOpen(o); if (!o) { setVersionNameError(""); setVersionName(""); } }}>
               <DialogTrigger asChild>
                 <Button className="gap-2"><Plus className="h-4 w-4" />New Version</Button>
@@ -445,7 +439,7 @@ const ProjectVersions = () => {
               </DialogContent>
             </Dialog>
           </div>
-        </header>
+          </div>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-8">
           {isLoading ? (
