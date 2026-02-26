@@ -621,7 +621,7 @@ const PreProduction = () => {
                 <Collapsible>
                   <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
                     <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
-                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
                       <User className="h-4 w-4 text-primary" />
                       <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Character Details</h3>
                       <div className="flex-1" />
@@ -707,7 +707,7 @@ const PreProduction = () => {
                     <Collapsible>
                       <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
                         <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
-                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
                           <Film className="h-4 w-4 text-primary" />
                           <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Scenes</h3>
                           <span className="text-xs text-muted-foreground/50">{ranking.sceneNumbers.length} appearances</span>
@@ -738,7 +738,7 @@ const PreProduction = () => {
                   <Collapsible>
                     <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
                       <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
-                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
                         <Sparkles className="h-4 w-4 text-primary" />
                         <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Casting</h3>
                         <span className="text-xs text-muted-foreground/50">{cards.length} candidates</span>

@@ -116,7 +116,7 @@ const AllNDAs = () => {
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-data-[state=open]:rotate-90" />
                 </div>
               </CollapsibleTrigger>
               <CollapsibleContent className="px-4 pb-4">
