@@ -185,19 +185,24 @@ const CONTEXTUAL_HELP: Record<string, ContextualEntry> = {
   },
 
   /* ── Post-Production ── */
+  "postprod-media-bin": {
+    label: "Media Bin",
+    description: "Organized library of all shots, sound, score, effects, and color assets for your edit.",
+    articleId: "postprod-overview",
+  },
   "postprod-timeline": {
     label: "Timeline",
-    description: "Multi-track timeline for arranging clips, audio, and effects.",
+    description: "Multi-track timeline for arranging clips, audio, and effects with drag-and-drop editing.",
     articleId: "postprod-overview",
   },
   "postprod-vfx": {
     label: "VFX Fix-It Bay",
-    description: "AI-powered visual effects repair and enhancement tools.",
+    description: "AI-powered inpainting and visual effects repair on individual clips.",
     articleId: "postprod-overview",
   },
   "postprod-style-drift": {
     label: "Style Drift Detector",
-    description: "Monitors visual consistency across your edit and flags style deviations.",
+    description: "Monitors visual consistency across your edit and flags shots that deviate from the style contract.",
     articleId: "postprod-overview",
   },
   "postprod-localization": {
@@ -220,6 +225,22 @@ const CONTEXTUAL_HELP: Record<string, ContextualEntry> = {
   "release-artifact-scanner": {
     label: "Artifact Scanner",
     description: "Scans rendered output for compression artifacts and quality issues.",
+    articleId: "release-overview",
+  },
+  "release-c2pa": {
+    label: "C2PA Provenance",
+    description: "Cryptographic chain-of-title and provenance ledger documenting AI generation lineage.",
+    articleId: "release-overview",
+  },
+  "release-distribution": {
+    label: "Distribution Packaging",
+    description: "Package your film for festivals, direct upload to YouTube/Vimeo/TikTok, or ProRes export.",
+    articleId: "release-overview",
+  },
+
+  "release-export-history": {
+    label: "Finished Exports",
+    description: "History of all exported files with download links and metadata.",
     articleId: "release-overview",
   },
 

@@ -123,7 +123,7 @@ const Release = () => {
           {/* Row 1: Export Master + Deliverables side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Export Master Film */}
-            <div className="rounded-lg border border-border bg-card p-4 cinema-inset">
+            <div data-help-id="release-export" className="rounded-lg border border-border bg-card p-4 cinema-inset">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
@@ -367,10 +367,10 @@ const Release = () => {
           {/* Row 2: QC + Distribution side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Artifact Scanner & QC */}
-            <ArtifactScannerPanel />
+            <div data-help-id="release-artifact-scanner"><ArtifactScannerPanel /></div>
 
             {/* Distribution Packaging */}
-            <div className="rounded-lg border border-border bg-card p-4 cinema-inset space-y-2.5">
+            <div data-help-id="release-distribution" className="rounded-lg border border-border bg-card p-4 cinema-inset space-y-2.5">
               <SH icon={Package} label="Distribution Packaging" />
               <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
                 <p className="text-[9px] font-mono text-muted-foreground mb-1.5">Festival Package</p>
@@ -408,10 +408,10 @@ const Release = () => {
           {/* Row 3: Topaz DI + C2PA side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Topaz DI Engine */}
-            <TopazDIPanel />
+            <div data-help-id="release-topaz"><TopazDIPanel /></div>
 
             {/* C2PA Legal Provenance */}
-            <div className="rounded-lg border bg-card p-4 cinema-inset space-y-2.5" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
+            <div data-help-id="release-c2pa" className="rounded-lg border bg-card p-4 cinema-inset space-y-2.5" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
               <div className="flex items-center gap-2 mb-1">
                 <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: "hsl(145 40% 20% / 0.3)" }}>
                   <ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(145 50% 50%)" }} />
@@ -453,7 +453,7 @@ const Release = () => {
       </ScrollArea>
 
       {/* ═══ RIGHT — Finished Exports ═══ */}
-      <div className="w-64 shrink-0 border-l border-border bg-card flex flex-col">
+      <div data-help-id="release-export-history" className="w-64 shrink-0 border-l border-border bg-card flex flex-col">
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
           <div className="flex items-center gap-1.5">
             <FolderDown className="h-3.5 w-3.5 text-primary" />
