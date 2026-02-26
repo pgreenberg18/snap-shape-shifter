@@ -1,12 +1,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
 import { logCreditUsage } from "../_shared/credit-logger.ts";
+import { fetchWithRetry } from "../_shared/fetch-retry.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 /* ═══════════════════════════════════════════════════════════════
    VideoEngineAdapter — abstraction for swappable generation backends
@@ -16,6 +19,7 @@ interface EngineResult {
   output_urls: string[];
   seed: number;
   engine: string;
+  scores?: { identity?: number; style?: number; overall?: number }[];
 }
 
 interface VideoEngineAdapter {
@@ -49,41 +53,374 @@ interface EditPayload {
   seed?: number;
 }
 
-/* ── Stub adapters (replaced with real vendor calls later) ── */
+/* ── Google Imagen + Veo adapter ── */
 
+function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
+  const seed = () => Math.floor(Math.random() * 9_000_000) + 1_000_000;
+
+  return {
+    name: "google_veo",
+
+    async generateAnchor(p: AnchorPayload): Promise<EngineResult> {
+      const resolvedPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const negativePrompt = p.continuity_profile?.negative_prompt_injection ?? "low quality, watermark, text";
+      const aspectRatio = p.prompt_pack?.cinematography_metadata?.framing?.aspect_ratio === "2.39:1" ? "16:9" : "16:9";
+
+      const requestBody = {
+        instances: [{ prompt: resolvedPrompt }],
+        parameters: {
+          sampleCount: Math.min(p.count, 4),
+          aspectRatio,
+          negativePrompt,
+          personGeneration: "allow_all",
+          safetyFilterLevel: "block_only_high",
+        },
+      };
+
+      console.log(`[Imagen] Generating ${p.count} anchor frames...`);
+      const res = await fetchWithRetry(
+        `${GEMINI_BASE}/models/imagen-4.0-generate-001:predict?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+        { maxRetries: 3, baseDelayMs: 2_000 },
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[Imagen] Error ${res.status}:`, errText);
+        throw new Error(`Imagen API error ${res.status}: ${errText.slice(0, 500)}`);
+      }
+
+      const data = await res.json();
+      const predictions = data.predictions ?? [];
+
+      if (predictions.length === 0) {
+        // Check for filtered content
+        const filterReasons = (data.predictions ?? [])
+          .map((p: any) => p.raiFilteredReason)
+          .filter(Boolean);
+        if (filterReasons.length > 0) {
+          throw new Error(`Content filtered by safety: ${filterReasons.join(", ")}`);
+        }
+        throw new Error("Imagen returned no images. The prompt may have been filtered.");
+      }
+
+      // Upload base64 images to Supabase storage and return URLs
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const generationSeed = p.seed ?? seed();
+      const urls: string[] = [];
+
+      for (let i = 0; i < predictions.length; i++) {
+        const pred = predictions[i];
+        if (!pred.bytesBase64Encoded) continue;
+
+        const bytes = Uint8Array.from(atob(pred.bytesBase64Encoded), (c) => c.charCodeAt(0));
+        const path = `generations/anchors/${generationSeed}-${i}.png`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from("generation-outputs")
+          .upload(path, bytes, {
+            contentType: pred.mimeType || "image/png",
+            upsert: true,
+          });
+
+        if (uploadErr) {
+          console.error(`[Imagen] Upload error for frame ${i}:`, uploadErr);
+          // Fall back to data URI
+          urls.push(`data:${pred.mimeType || "image/png"};base64,${pred.bytesBase64Encoded.slice(0, 100)}...`);
+          continue;
+        }
+
+        const { data: publicUrl } = supabase.storage
+          .from("generation-outputs")
+          .getPublicUrl(path);
+        urls.push(publicUrl.publicUrl);
+      }
+
+      return {
+        output_urls: urls,
+        seed: generationSeed,
+        engine: "imagen_3",
+      };
+    },
+
+    async animateFromAnchor(p: AnimatePayload): Promise<EngineResult> {
+      const resolvedPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const generationSeed = p.seed ?? seed();
+
+      // Fetch anchor image as base64 if it's a URL
+      let imageBase64: string | undefined;
+      if (p.anchor_url && p.anchor_url.startsWith("http")) {
+        try {
+          const imgRes = await fetch(p.anchor_url);
+          if (imgRes.ok) {
+            const imgBuffer = await imgRes.arrayBuffer();
+            imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+          }
+        } catch (e) {
+          console.warn("[Veo] Failed to fetch anchor image, falling back to text-only:", e);
+        }
+      }
+
+      const instance: any = { prompt: resolvedPrompt };
+      if (imageBase64) {
+        instance.image = { bytesBase64Encoded: imageBase64 };
+      }
+
+      const requestBody = {
+        instances: [instance],
+        parameters: {
+          aspectRatio: "16:9",
+          durationSeconds: Math.min(p.duration_seconds, 8),
+          personGeneration: "allow_all",
+          safetyFilterLevel: "block_only_high",
+          enhancePrompt: false,
+        },
+      };
+
+      console.log(`[Veo] Starting video generation (${p.duration_seconds}s)...`);
+      const res = await fetchWithRetry(
+        `${GEMINI_BASE}/models/veo-2.0-generate-001:predictLongRunning?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+        { maxRetries: 2, baseDelayMs: 3_000 },
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error(`[Veo] Error ${res.status}:`, errText);
+        throw new Error(`Veo API error ${res.status}: ${errText.slice(0, 500)}`);
+      }
+
+      const opData = await res.json();
+      const operationName = opData.name;
+
+      if (!operationName) {
+        throw new Error("Veo did not return an operation name");
+      }
+
+      // Poll for completion (max ~3 minutes)
+      const maxPolls = 36;
+      const pollIntervalMs = 5_000;
+      let result: any = null;
+
+      for (let i = 0; i < maxPolls; i++) {
+        await new Promise((r) => setTimeout(r, pollIntervalMs));
+
+        const pollRes = await fetchWithRetry(
+          `${GEMINI_BASE}/${operationName}?key=${apiKey}`,
+          { method: "GET", headers: { "Content-Type": "application/json" } },
+          { maxRetries: 2, baseDelayMs: 1_000 },
+        );
+
+        if (!pollRes.ok) {
+          console.warn(`[Veo] Poll ${i + 1} failed: ${pollRes.status}`);
+          continue;
+        }
+
+        const pollData = await pollRes.json();
+
+        if (pollData.done) {
+          result = pollData;
+          break;
+        }
+
+        console.log(`[Veo] Poll ${i + 1}/${maxPolls}: still processing...`);
+      }
+
+      if (!result?.done) {
+        throw new Error("Veo generation timed out after 3 minutes");
+      }
+
+      if (result.error) {
+        throw new Error(`Veo generation failed: ${JSON.stringify(result.error)}`);
+      }
+
+      // Extract video URLs from response
+      const videos = result.response?.generateVideoResponse?.generatedSamples ?? [];
+      if (videos.length === 0) {
+        const filterReasons = result.response?.generateVideoResponse?.raiMediaFilteredReasons ?? [];
+        if (filterReasons.length > 0) {
+          throw new Error(`Video filtered by safety: ${filterReasons.join(", ")}`);
+        }
+        throw new Error("Veo returned no videos");
+      }
+
+      // Upload videos to storage
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const urls: string[] = [];
+      for (let i = 0; i < videos.length; i++) {
+        const video = videos[i].video;
+        if (!video) continue;
+
+        // Video might be a URI or base64
+        if (video.uri) {
+          urls.push(video.uri);
+        } else if (video.bytesBase64Encoded) {
+          const bytes = Uint8Array.from(atob(video.bytesBase64Encoded), (c) => c.charCodeAt(0));
+          const path = `generations/clips/${generationSeed}-${i}.mp4`;
+
+          const { error: uploadErr } = await supabase.storage
+            .from("generation-outputs")
+            .upload(path, bytes, {
+              contentType: "video/mp4",
+              upsert: true,
+            });
+
+          if (uploadErr) {
+            console.error(`[Veo] Upload error for clip ${i}:`, uploadErr);
+            continue;
+          }
+
+          const { data: publicUrl } = supabase.storage
+            .from("generation-outputs")
+            .getPublicUrl(path);
+          urls.push(publicUrl.publicUrl);
+        }
+      }
+
+      if (urls.length === 0) {
+        throw new Error("Failed to extract video URLs from Veo response");
+      }
+
+      return {
+        output_urls: urls,
+        seed: generationSeed,
+        engine: "veo_2",
+      };
+    },
+
+    async targetedEdit(p: EditPayload): Promise<EngineResult> {
+      // Targeted edit: re-generate anchor with modified prompt emphasizing the fix region
+      const editPrompt = `${p.prompt_delta}. Focus on correcting the ${p.target_spec.region} (${p.target_spec.asset_type}).`;
+
+      const requestBody = {
+        instances: [{ prompt: editPrompt }],
+        parameters: {
+          sampleCount: 4,
+          aspectRatio: "16:9",
+          negativePrompt: "low quality, watermark, text, morphed faces",
+          personGeneration: "allow_all",
+          safetyFilterLevel: "block_only_high",
+        },
+      };
+
+      // If we have a reference URL, fetch it for img2img (future: use edit endpoint when available)
+      if (p.target_spec.ref_url) {
+        // For now, include ref in prompt context
+        requestBody.instances[0].prompt += ` Reference image style should match the original.`;
+      }
+
+      console.log(`[Imagen/Edit] Targeted repair for ${p.target_spec.asset_type}...`);
+      const res = await fetchWithRetry(
+        `${GEMINI_BASE}/models/imagen-4.0-generate-001:predict?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody),
+        },
+        { maxRetries: 3, baseDelayMs: 2_000 },
+      );
+
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`Imagen edit error ${res.status}: ${errText.slice(0, 500)}`);
+      }
+
+      const data = await res.json();
+      const predictions = data.predictions ?? [];
+
+      if (predictions.length === 0) {
+        throw new Error("Targeted edit returned no images");
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      const generationSeed = p.seed ?? seed();
+      const urls: string[] = [];
+
+      for (let i = 0; i < predictions.length; i++) {
+        const pred = predictions[i];
+        if (!pred.bytesBase64Encoded) continue;
+
+        const bytes = Uint8Array.from(atob(pred.bytesBase64Encoded), (c) => c.charCodeAt(0));
+        const path = `generations/repairs/${generationSeed}-${i}.png`;
+
+        const { error: uploadErr } = await supabase.storage
+          .from("generation-outputs")
+          .upload(path, bytes, {
+            contentType: pred.mimeType || "image/png",
+            upsert: true,
+          });
+
+        if (!uploadErr) {
+          const { data: publicUrl } = supabase.storage
+            .from("generation-outputs")
+            .getPublicUrl(path);
+          urls.push(publicUrl.publicUrl);
+        }
+      }
+
+      return {
+        output_urls: urls,
+        seed: generationSeed,
+        engine: "imagen_3_edit",
+      };
+    },
+  };
+}
+
+/* ── Stub fallback (when no API key configured) ── */
 const stubAdapter: VideoEngineAdapter = {
   name: "stub",
   async generateAnchor(p) {
-    // In production: call Veo / Seedance / Higgsfield image API
-    const seed = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
+    const s = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
     return {
       output_urls: Array.from({ length: p.count }, (_, i) =>
-        `https://placeholder.generation/anchor-${seed}-${i}.png`
+        `https://placeholder.generation/anchor-${s}-${i}.png`
       ),
-      seed,
+      seed: s,
       engine: "stub_anchor",
     };
   },
   async animateFromAnchor(p) {
-    const seed = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
+    const s = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
     return {
-      output_urls: [`https://placeholder.generation/clip-${seed}.mp4`],
-      seed,
+      output_urls: [`https://placeholder.generation/clip-${s}.mp4`],
+      seed: s,
       engine: "stub_animate",
     };
   },
   async targetedEdit(p) {
-    const seed = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
+    const s = p.seed ?? Math.floor(Math.random() * 9_000_000) + 1_000_000;
     return {
-      output_urls: [`https://placeholder.generation/edit-${seed}.mp4`],
-      seed,
+      output_urls: [`https://placeholder.generation/edit-${s}.mp4`],
+      seed: s,
       engine: "stub_edit",
     };
   },
 };
 
 function getAdapter(_engineHint: string): VideoEngineAdapter {
-  // Future: switch on engineHint to return real adapters
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (apiKey) {
+    console.log("[Engine] Using Google Imagen + Veo adapter");
+    return buildGoogleAdapter(apiKey);
+  }
+  console.warn("[Engine] No GEMINI_API_KEY — falling back to stub adapter");
   return stubAdapter;
 }
 
@@ -101,7 +438,16 @@ Deno.serve(async (req) => {
     if (isResponse(authResult)) return authResult;
 
     const body = await req.json();
-    const { shot_id, mode = "anchor", parent_generation_id, anchor_url, target_spec, prompt_delta, anchor_count = 4 } = body;
+    const {
+      shot_id,
+      mode = "anchor",
+      parent_generation_id,
+      anchor_url,
+      target_spec,
+      prompt_delta,
+      anchor_count = 4,
+      repair_target,
+    } = body;
 
     if (!shot_id) {
       return new Response(
@@ -157,7 +503,7 @@ Deno.serve(async (req) => {
       .join("");
 
     // ── 4. Determine generation plan ──
-    const engineHint = compilePayload.routing_metadata?.preferred_engine ?? "veo_3.1";
+    const engineHint = compilePayload.routing_metadata?.preferred_engine ?? "veo_2";
     const adapter = getAdapter(engineHint);
 
     const statusForMode = { anchor: "anchoring", animate: "animating", targeted_edit: "repairing" } as const;
@@ -184,6 +530,7 @@ Deno.serve(async (req) => {
           fallback: compilePayload.routing_metadata?.fallback_engine,
           mode,
           anchor_count: mode === "anchor" ? anchor_count : undefined,
+          repair_target: repair_target ?? undefined,
         },
         parent_generation_id: parent_generation_id ?? null,
         style_contract_version: compilePayload.style_contract_version ?? null,
@@ -207,7 +554,7 @@ Deno.serve(async (req) => {
         result = await adapter.generateAnchor({
           prompt_pack: compilePayload.generation_payload,
           reference_bundle: compilePayload.generation_payload?.identity_tokens,
-          continuity_profile: compilePayload.style_context,
+          continuity_profile: compilePayload.temporal_guardrails,
           count: anchor_count,
         });
       } else if (mode === "animate") {
@@ -222,13 +569,19 @@ Deno.serve(async (req) => {
           duration_seconds: compilePayload.generation_payload?.execution_params?.duration_seconds ?? 5,
         });
       } else if (mode === "targeted_edit") {
-        if (!anchor_url || !target_spec) {
-          throw new Error("anchor_url and target_spec required for targeted_edit mode");
-        }
+        // Build prompt delta from repair target context
+        const resolvedPrompt = compilePayload.generation_payload?.resolved_text_prompt ?? shot.prompt_text ?? "";
+        const repairHint = repair_target
+          ? `Regenerate this shot, focusing on fixing the ${repair_target}.`
+          : prompt_delta ?? "";
+
         result = await adapter.targetedEdit({
-          source_url: anchor_url,
-          target_spec,
-          prompt_delta: prompt_delta ?? "",
+          source_url: anchor_url ?? "",
+          target_spec: target_spec ?? {
+            region: repair_target ?? "general",
+            asset_type: repair_target ?? "general",
+          },
+          prompt_delta: `${resolvedPrompt} ${repairHint}`,
         });
       } else {
         throw new Error(`Unknown mode: ${mode}`);
@@ -254,6 +607,7 @@ Deno.serve(async (req) => {
         output_urls: result.output_urls,
         seed: result.seed,
         engine: result.engine,
+        scores_json: result.scores ?? null,
       })
       .eq("id", generation.id);
 
@@ -277,6 +631,7 @@ Deno.serve(async (req) => {
         seed: result.seed,
         engine: result.engine,
         compile_hash: compileHash,
+        scores: result.scores,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
