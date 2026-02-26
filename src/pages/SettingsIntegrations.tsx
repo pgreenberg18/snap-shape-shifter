@@ -235,9 +235,9 @@ const SettingsIntegrations = () => {
         </button>
         <div className="flex items-center gap-2 mb-2">
           <Plug className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl font-bold">Global Settings — API Keys</h2>
+          <h2 className="font-display text-lg font-bold">Global Settings — API Keys</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Bring Your Own Keys — connect your AI service providers. These are shared across all projects. Each version can choose which provider to use.</p>
+        <p className="text-xs text-muted-foreground">Bring Your Own Keys — connect your AI service providers. These are shared across all projects. Each version can choose which provider to use.</p>
       </div>
 
       <Accordion type="multiple" className="space-y-3">
@@ -253,7 +253,7 @@ const SettingsIntegrations = () => {
 
           return (
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
-              <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline">
+              <AccordionTrigger className="text-[11px] font-display font-semibold hover:no-underline">
                 <span className="flex items-center gap-2">{meta.icon}{meta.title}</span>
               </AccordionTrigger>
               <AccordionContent>
@@ -266,7 +266,7 @@ const SettingsIntegrations = () => {
                     return (
                       <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">{provider.provider_name}</p>
+                          <p className="text-[11px] font-medium">{provider.provider_name}</p>
                           {!isEditing && (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Check className="h-3.5 w-3.5 text-green-500" /> Connected & Verified
@@ -309,7 +309,7 @@ const SettingsIntegrations = () => {
                   {added.map((svc) => (
                     <div key={svc.id} className="rounded-lg border border-border bg-secondary p-4">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{svc.name}</p>
+                        <p className="text-[11px] font-medium">{svc.name}</p>
                         <Check className="h-4 w-4 text-green-400" />
                       </div>
                     </div>
@@ -319,7 +319,7 @@ const SettingsIntegrations = () => {
                   {isAdding ? (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm font-semibold">{meta.addLabel}</p>
+                        <p className="text-[11px] font-semibold">{meta.addLabel}</p>
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setAddingSection(null)}>
                           <X className="h-4 w-4" />
                         </Button>
@@ -386,9 +386,9 @@ const SettingsIntegrations = () => {
       <div className="mt-10 space-y-6">
         <div className="flex items-center gap-2 mb-2">
           <Gauge className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl font-bold">Credit Usage</h2>
+          <h2 className="font-display text-lg font-bold">Credit Usage</h2>
         </div>
-        <p className="text-sm text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
+        <p className="text-xs text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
 
         {/* Usage breakdown */}
         <div className="rounded-xl border border-border bg-card p-5 cinema-inset space-y-4">
@@ -407,16 +407,16 @@ const SettingsIntegrations = () => {
           </div>
 
           <div className="flex items-end gap-2">
-            <span className="font-display text-4xl font-bold tabular-nums text-foreground">{(creditUsage?.total ?? 0).toFixed(0)}</span>
-            <span className="text-sm text-muted-foreground mb-1">credits used</span>
+            <span className="font-display text-2xl font-bold tabular-nums text-foreground">{(creditUsage?.total ?? 0).toFixed(0)}</span>
+            <span className="text-xs text-muted-foreground mb-1">credits used</span>
           </div>
 
           {creditUsage && Object.keys(creditUsage.byService).length > 0 && (
             <div className="space-y-2 border-t border-border pt-3">
               {Object.entries(creditUsage.byService).sort(([,a],[,b]) => b - a).map(([svc, credits]) => (
                 <div key={svc} className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{svc}</span>
-                  <span className="text-sm font-mono font-medium tabular-nums">{credits.toFixed(0)}</span>
+                  <span className="text-[11px] text-muted-foreground">{svc}</span>
+                  <span className="text-[11px] font-mono font-medium tabular-nums">{credits.toFixed(0)}</span>
                 </div>
               ))}
             </div>

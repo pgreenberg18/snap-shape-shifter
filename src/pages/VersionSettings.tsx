@@ -57,9 +57,9 @@ const VersionSettings = () => {
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
           <Settings className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-2xl font-bold">Version Providers</h2>
+          <h2 className="font-display text-lg font-bold">Version Providers</h2>
         </div>
-        <p className="text-sm text-muted-foreground">
+         <p className="text-xs text-muted-foreground">
           Select which AI provider to use for each category in this version. Providers are configured in the global app settings.
         </p>
       </div>
@@ -88,7 +88,7 @@ const VersionSettings = () => {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-display font-semibold">
+                  <h3 className="text-[11px] font-display font-semibold">
                     {SECTION_LABELS[sectionId] || sectionId}
                   </h3>
                   {needsSelection && (
@@ -116,7 +116,7 @@ const VersionSettings = () => {
                     {providers.map((p) => (
                       <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border bg-secondary p-3">
                         <RadioGroupItem value={p.id} id={`prov-${p.id}`} />
-                        <Label htmlFor={`prov-${p.id}`} className="text-sm cursor-pointer flex-1">
+                        <Label htmlFor={`prov-${p.id}`} className="text-[11px] cursor-pointer flex-1">
                           {p.provider_name}
                         </Label>
                       </div>

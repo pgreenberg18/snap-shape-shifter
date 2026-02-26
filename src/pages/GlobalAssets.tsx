@@ -102,8 +102,8 @@ const GlobalAssets = () => {
     <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-display text-2xl font-bold">Global Assets</h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h2 className="font-display text-lg font-bold">Global Assets</h2>
+          <p className="text-xs text-muted-foreground mt-1">
             Manage swappable identities. Change an actor, prop, or location and regenerate the entire film.
           </p>
         </div>
@@ -158,7 +158,7 @@ const GlobalAssets = () => {
           <div key={type} className="space-y-3">
             <div className="flex items-center gap-2">
               <Icon className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-lg font-bold">{ASSET_LABELS[type]}s</h3>
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest">{ASSET_LABELS[type]}s</h3>
               <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
                 {items.length}
               </span>
@@ -235,7 +235,7 @@ const AssetCard = ({
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <p className="font-display font-semibold text-sm">{asset.display_name}</p>
+            <p className="font-display font-semibold text-[11px]">{asset.display_name}</p>
             <span className="text-[10px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
               {`{{${asset.internal_ref_code}}}`}
             </span>

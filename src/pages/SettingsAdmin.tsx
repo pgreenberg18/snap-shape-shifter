@@ -98,7 +98,7 @@ const AllNDAs = () => {
             <div className="rounded-lg border border-border bg-secondary/30 overflow-hidden">
               <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 hover:bg-secondary/50 transition-colors">
                 <div className="text-left">
-                  <p className="text-sm font-medium text-foreground">{p.full_name}</p>
+                  <p className="text-[11px] font-medium text-foreground">{p.full_name}</p>
                   <p className="text-xs text-muted-foreground">{p.email}</p>
                   <p className="text-[11px] text-muted-foreground/60">
                     Signed: {p.nda_signed_at ? new Date(p.nda_signed_at).toLocaleDateString() : "—"}
@@ -223,15 +223,15 @@ const CreditUsageSection = () => {
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Total Used</p>
-          <p className="font-display text-2xl font-bold text-foreground">{total.toFixed(0)}</p>
+          <p className="font-display text-lg font-bold text-foreground">{total.toFixed(0)}</p>
         </div>
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Warning At</p>
-          <p className="font-display text-2xl font-bold text-foreground">{warningThreshold ?? "—"}</p>
+          <p className="font-display text-lg font-bold text-foreground">{warningThreshold ?? "—"}</p>
         </div>
         <div className="rounded-lg border border-border bg-secondary/30 p-4">
           <p className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Cutoff At</p>
-          <p className="font-display text-2xl font-bold text-foreground">{cutoffThreshold ?? "—"}</p>
+          <p className="font-display text-lg font-bold text-foreground">{cutoffThreshold ?? "—"}</p>
         </div>
       </div>
 
@@ -251,14 +251,14 @@ const CreditUsageSection = () => {
                     .map((svc) => (
                       <div key={svc.name} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-foreground">{svc.name}</span>
+                          <span className="text-[11px] text-foreground">{svc.name}</span>
                           {svc.verified && (
                             <span className="text-[9px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
                               Active
                             </span>
                           )}
                         </div>
-                        <span className={`font-mono text-sm font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
+                        <span className={`font-mono text-[11px] font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
                           {svc.credits.toFixed(0)}
                         </span>
                       </div>
@@ -357,7 +357,7 @@ const AccessControl = () => {
               <div className="rounded-lg border border-border bg-secondary/30">
                 <CollapsibleTrigger className="flex w-full items-center gap-3 px-4 py-3">
                   <LockIcon status={status} />
-                  <span className="text-sm font-medium text-foreground flex-1 text-left">{p.full_name}</span>
+                  <span className="text-[11px] font-medium text-foreground flex-1 text-left">{p.full_name}</span>
                   <span className="text-[11px] text-muted-foreground/60 font-mono mr-2">{p.email}</span>
                   <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
                 </CollapsibleTrigger>
@@ -432,7 +432,7 @@ const LoginRecords = () => {
               <div className="rounded-lg border border-border bg-secondary/30 p-4">
                 <CollapsibleTrigger className="flex w-full items-center justify-between">
                   <div className="text-left">
-                    <p className="text-sm font-medium text-foreground">
+                    <p className="text-[11px] font-medium text-foreground">
                       {latest.user_name || email}
                     </p>
                     <p className="text-xs text-muted-foreground">{email}</p>
@@ -542,7 +542,7 @@ const SettingsAdmin = () => {
                     setActiveSection(s.id);
                   }
                 }}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[11px] transition-colors ${
                   activeSection === s.id
                     ? "bg-primary/10 text-primary font-medium"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -566,7 +566,7 @@ const SettingsAdmin = () => {
                   <button
                     key={s.id}
                     onClick={() => setActiveSection(s.id)}
-                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[11px] transition-colors ${
                       activeSection === s.id
                         ? "bg-primary/10 text-primary font-medium"
                         : "text-muted-foreground hover:bg-accent hover:text-foreground"
@@ -587,24 +587,24 @@ const SettingsAdmin = () => {
         <div className="max-w-2xl">
           {activeSection === "your-nda" && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Your Signed NDA</h2>
-              <p className="text-sm text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Your Signed NDA</h2>
+              <p className="text-xs text-muted-foreground mb-6">Review your signed non-disclosure agreement.</p>
               {user && <YourNDA userId={user.id} />}
             </div>
           )}
 
           {activeSection === "credit-usage" && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Credit Usage</h2>
-              <p className="text-sm text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Credit Usage</h2>
+              <p className="text-xs text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
               <CreditUsageSection />
             </div>
           )}
 
           {activeSection === "media-library" && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Media Library</h2>
-              <p className="text-sm text-muted-foreground mb-6">Browse all uploaded and generated media across your projects, organized by category.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Media Library</h2>
+              <p className="text-xs text-muted-foreground mb-6">Browse all uploaded and generated media across your projects, organized by category.</p>
               <MediaLibraryPanel />
             </div>
           )}
@@ -612,24 +612,24 @@ const SettingsAdmin = () => {
 
           {activeSection === "all-ndas" && isAdmin && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">All Signed NDAs</h2>
-              <p className="text-sm text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">All Signed NDAs</h2>
+              <p className="text-xs text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
               <AllNDAs />
             </div>
           )}
 
           {activeSection === "access-control" && isAdmin && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Access Control</h2>
-              <p className="text-sm text-muted-foreground mb-6">Grant or revoke access to phases and content for each user.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Access Control</h2>
+              <p className="text-xs text-muted-foreground mb-6">Grant or revoke access to phases and content for each user.</p>
               <AccessControl />
             </div>
           )}
 
           {activeSection === "downloads" && isAdmin && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Downloads</h2>
-              <p className="text-sm text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Downloads</h2>
+              <p className="text-xs text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
               <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-8 text-center">
                 <Download className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">Download center coming soon.</p>
@@ -640,16 +640,16 @@ const SettingsAdmin = () => {
 
           {activeSection === "login-records" && isAdmin && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Login Records</h2>
-              <p className="text-sm text-muted-foreground mb-6">Audit trail of login events and page navigation across all users.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Login Records</h2>
+              <p className="text-xs text-muted-foreground mb-6">Audit trail of login events and page navigation across all users.</p>
               <LoginRecords />
             </div>
           )}
 
           {activeSection === "reset-app" && (
             <div>
-              <h2 className="font-display text-2xl font-bold text-foreground mb-4">Reset App</h2>
-              <p className="text-sm text-muted-foreground mb-6">Clear all local cached data and sign out. This does not delete your account or server-side data.</p>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Reset App</h2>
+              <p className="text-xs text-muted-foreground mb-6">Clear all local cached data and sign out. This does not delete your account or server-side data.</p>
               <Button variant="destructive" onClick={handleReset} className="gap-2">
                 <RotateCcw className="h-4 w-4" /> Reset &amp; Sign Out
               </Button>
