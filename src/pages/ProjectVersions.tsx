@@ -372,16 +372,16 @@ const ProjectVersions = () => {
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
                 <Film className="h-4 w-4 text-primary" />
-                <span className="text-xs font-display font-semibold text-muted-foreground tracking-wide uppercase">Virtual Film Studio</span>
+                <span className="text-[10px] font-display font-semibold text-muted-foreground tracking-widest uppercase">Virtual Film Studio</span>
               </div>
-              <h1 className="font-display text-2xl font-bold tracking-tight text-foreground">
+              <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
                 {project?.title || "Loading…"}
               </h1>
               <div className="flex items-center gap-4 mt-1">
                 {project?.description && (
-                  <p className="text-sm text-muted-foreground">{project.description}</p>
+                  <p className="text-xs text-muted-foreground">{project.description}</p>
                 )}
-                <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground" title="Total estimated project size">
+                <span className="inline-flex items-center gap-1.5 text-[10px] text-muted-foreground" title="Total estimated project size">
                   <HardDrive className="h-3.5 w-3.5" />
                   {formatBytes(totalProjectSize)}
                 </span>
