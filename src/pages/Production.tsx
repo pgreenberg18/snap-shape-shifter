@@ -415,8 +415,8 @@ const Production = () => {
     }
   }, [sceneTextData, filmId, activeSceneNumber, queryClient, syncDependencies]);
 
-  // Reset takes when switching shots
-  const handleSelectShot = (id: string) => {
+  // Load previous generations when switching shots
+  const handleSelectShot = useCallback(async (id: string) => {
     setActiveShotId(id);
     setTakes(EMPTY_TAKES);
     setActiveTakeIdx(null);
@@ -424,7 +424,51 @@ const Production = () => {
     setSelectedAnchorIdx(null);
     setAnchorScores([]);
     setDiffPair(null);
-  };
+
+    // Fetch completed generations for this shot
+    try {
+      const { data: gens } = await supabase
+        .from("generations")
+        .select("id, mode, output_urls, scores_json, status, created_at")
+        .eq("shot_id", id)
+        .eq("status", "complete")
+        .order("created_at", { ascending: false })
+        .limit(10);
+
+      if (!gens || gens.length === 0) return;
+
+      // Restore latest anchor generation
+      const latestAnchor = gens.find((g) => g.mode === "anchor" && g.output_urls && g.output_urls.length > 0);
+      if (latestAnchor?.output_urls) {
+        setAnchorUrls(latestAnchor.output_urls);
+        setSelectedAnchorIdx(0);
+        const scores: AnchorScore[] = Array.isArray(latestAnchor.scores_json)
+          ? latestAnchor.scores_json as AnchorScore[]
+          : latestAnchor.output_urls.map(() => ({}));
+        setAnchorScores(scores);
+      }
+
+      // Restore completed animate/targeted_edit generations into take bin
+      const videoGens = gens
+        .filter((g) => (g.mode === "animate" || g.mode === "targeted_edit") && g.output_urls && g.output_urls.length > 0)
+        .slice(0, 5);
+
+      if (videoGens.length > 0) {
+        setTakes((prev) =>
+          prev.map((t, i) => {
+            const gen = videoGens[i];
+            if (gen?.output_urls?.[0]) {
+              return { ...t, thumbnailUrl: gen.output_urls[0] };
+            }
+            return t;
+          })
+        );
+        setActiveTakeIdx(0);
+      }
+    } catch (err) {
+      console.error("Failed to load previous generations:", err);
+    }
+  }, []);
 
   const handleSelectScene = (idx: number) => {
     setActiveSceneIdx(idx);
