@@ -2,9 +2,14 @@ import { useState, useEffect } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Eye, Users, MapPin, Box, Shirt, Camera,
+  UserCheck, Package, Loader2, Wrench,
 } from "lucide-react";
+
+export type RepairTarget = "character" | "prop" | "wardrobe";
 
 interface ShotDescriptionPaneProps {
   shot: {
@@ -20,13 +25,31 @@ interface ShotDescriptionPaneProps {
     wardrobe?: string[];
     characters?: string[];
   };
+  /** Called when user clicks a targeted repair button */
+  onRepair?: (target: RepairTarget, hint: string) => void;
+  /** Whether a repair generation is currently running */
+  isRepairing?: boolean;
+  /** Which repair target is currently generating */
+  repairTarget?: RepairTarget | null;
+  /** Whether anchors exist (repairs only make sense after generation) */
+  hasAnchors?: boolean;
 }
+
+const REPAIR_BUTTONS: { target: RepairTarget; label: string; icon: typeof UserCheck; hint: string }[] = [
+  { target: "character", label: "Fix Character", icon: UserCheck, hint: "Correct character identity, face, and body proportions" },
+  { target: "prop",      label: "Fix Prop",      icon: Package,   hint: "Correct prop appearance, position, and scale" },
+  { target: "wardrobe",  label: "Fix Wardrobe",  icon: Shirt,     hint: "Correct clothing style, color, and fit" },
+];
 
 const ShotDescriptionPane = ({
   shot,
   scene,
   onUpdateShot,
   sceneElements,
+  onRepair,
+  isRepairing = false,
+  repairTarget = null,
+  hasAnchors = false,
 }: ShotDescriptionPaneProps) => {
   const [description, setDescription] = useState(shot?.prompt_text || "");
   const [angle, setAngle] = useState(shot?.camera_angle || "");
@@ -138,6 +161,43 @@ const ShotDescriptionPane = ({
             )}
           </div>
         </div>
+
+        {/* ── Targeted Repair Buttons ── */}
+        {hasAnchors && onRepair && (
+          <div className="space-y-2">
+            <span className="text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <Wrench className="h-3 w-3 text-primary/70" /> Targeted Repairs
+            </span>
+            <div className="grid grid-cols-3 gap-2">
+              {REPAIR_BUTTONS.map(({ target, label, icon: Icon, hint }) => {
+                const isActive = isRepairing && repairTarget === target;
+                return (
+                  <Button
+                    key={target}
+                    variant="secondary"
+                    size="sm"
+                    disabled={isRepairing}
+                    onClick={() => onRepair(target, hint)}
+                    className={cn(
+                      "h-9 text-[9px] font-mono font-bold uppercase tracking-wider gap-1.5 cinema-inset active:translate-y-px",
+                      isActive && "animate-pulse-glow border-primary/40"
+                    )}
+                  >
+                    {isActive ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Icon className="h-3.5 w-3.5" />
+                    )}
+                    {label}
+                  </Button>
+                );
+              })}
+            </div>
+            <p className="text-[8px] font-mono text-muted-foreground/40 leading-relaxed">
+              Re-generates the selected anchor with region-specific corrections applied.
+            </p>
+          </div>
+        )}
       </div>
     </ScrollArea>
   );
