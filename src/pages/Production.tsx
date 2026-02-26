@@ -11,6 +11,7 @@ import ShotList from "@/components/production/ShotList";
 import type { Shot } from "@/components/production/ShotList";
 import ShotBuilder from "@/components/production/ShotBuilder";
 import ShotDescriptionPane from "@/components/production/ShotDescriptionPane";
+import type { RepairTarget } from "@/components/production/ShotDescriptionPane";
 import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMonitor";
 import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
@@ -84,6 +85,7 @@ const Production = () => {
   const [selectedAnchorIdx, setSelectedAnchorIdx] = useState<number | null>(null);
   const [anchorScores, setAnchorScores] = useState<AnchorScore[]>([]);
   const isDragging = useRef(false);
+  const [repairTarget, setRepairTarget] = useState<RepairTarget | null>(null);
 
   // Persisted script pane dimensions
   const [scriptColWidth, setScriptColWidth] = useState(() => {
@@ -230,13 +232,21 @@ const Production = () => {
     setIsGenerating(true);
     setGenerationMode(mode);
     try {
+      const body: Record<string, unknown> = {
+        shot_id: activeShot.id,
+        mode,
+        anchor_url: mode === "animate"
+          ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined)
+          : mode === "targeted_edit"
+            ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined)
+            : undefined,
+        anchor_count: 4,
+      };
+      if (mode === "targeted_edit" && repairTarget) {
+        body.repair_target = repairTarget;
+      }
       const { data, error } = await supabase.functions.invoke("orchestrate-generation", {
-        body: {
-          shot_id: activeShot.id,
-          mode,
-          anchor_url: mode === "animate" ? (selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined) : undefined,
-          anchor_count: 4,
-        },
+        body,
       });
 
       if (error) throw error;
@@ -269,8 +279,14 @@ const Production = () => {
     } finally {
       setIsGenerating(false);
       setGenerationMode(null);
+      setRepairTarget(null);
     }
-  }, [activeShot, anchorUrls, selectedAnchorIdx, takes]);
+  }, [activeShot, anchorUrls, selectedAnchorIdx, takes, repairTarget]);
+
+  const handleRepair = useCallback((target: RepairTarget, _hint: string) => {
+    setRepairTarget(target);
+    handleGenerate("targeted_edit");
+  }, [handleGenerate]);
 
   // Reset takes when switching shots
   const handleSelectShot = (id: string) => {
@@ -385,6 +401,10 @@ const Production = () => {
                     scene={activeScene}
                     onUpdateShot={(id, updates) => updateShot.mutate({ id, updates })}
                     sceneElements={sceneElements}
+                    onRepair={handleRepair}
+                    isRepairing={isGenerating && generationMode === "targeted_edit"}
+                    repairTarget={repairTarget}
+                    hasAnchors={anchorUrls.length > 0}
                   />
                 </div>
               </div>
