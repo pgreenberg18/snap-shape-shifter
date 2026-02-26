@@ -36,6 +36,8 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "gpt-4o", label: "GPT-4o" },
       { id: "gpt-4o-mini", label: "GPT-4o Mini" },
       { id: "gpt-4-turbo", label: "GPT-4 Turbo" },
+      { id: "gpt-5", label: "GPT-5" },
+      { id: "gpt-5-mini", label: "GPT-5 Mini" },
     ]},
     { id: "gemini", name: "Gemini (Google)", placeholder: "Enter Gemini API key…", variants: [
       { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
@@ -48,32 +50,83 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "claude-4-sonnet", label: "Claude 4 Sonnet" },
       { id: "claude-3.5-sonnet", label: "Claude 3.5 Sonnet" },
     ]},
-    { id: "mistral", name: "Mistral AI", placeholder: "Enter Mistral API key…" },
-    { id: "llama", name: "Llama (Meta)", placeholder: "Enter API key…" },
+    { id: "mistral", name: "Mistral AI", placeholder: "Enter Mistral API key…", variants: [
+      { id: "mistral-large", label: "Mistral Large" },
+      { id: "mistral-medium", label: "Mistral Medium" },
+      { id: "mistral-small", label: "Mistral Small" },
+    ]},
+    { id: "llama", name: "Llama (Meta)", placeholder: "Enter API key…", variants: [
+      { id: "llama-3.1-405b", label: "Llama 3.1 405B" },
+      { id: "llama-3.1-70b", label: "Llama 3.1 70B" },
+      { id: "llama-3.1-8b", label: "Llama 3.1 8B" },
+    ]},
   ],
   "image-generation": [
-    { id: "midjourney", name: "Midjourney", placeholder: "Enter Midjourney API key…" },
-    { id: "dall-e", name: "DALL·E 3 (OpenAI)", placeholder: "Enter OpenAI API key…" },
-    { id: "flux-pro", name: "Flux Pro (Black Forest Labs)", placeholder: "Enter BFL API key…" },
-    { id: "stable-diffusion", name: "Stable Diffusion (Stability AI)", placeholder: "Enter Stability API key…" },
-    { id: "ideogram", name: "Ideogram", placeholder: "Enter Ideogram API key…" },
-    { id: "leonardo", name: "Leonardo AI", placeholder: "Enter Leonardo API key…" },
-    { id: "recraft", name: "Recraft V3", placeholder: "Enter Recraft API key…" },
-    { id: "nana-banana", name: "Nana Banana Pro", placeholder: "Enter API key…" },
-    { id: "imagen-4", name: "Imagen 4 (Google)", placeholder: "Enter Google API key…" },
+    { id: "midjourney", name: "Midjourney", placeholder: "Enter Midjourney API key…", variants: [
+      { id: "mj-v6.1", label: "V6.1" },
+      { id: "mj-v6", label: "V6" },
+      { id: "mj-v5.2", label: "V5.2" },
+    ]},
+    { id: "dall-e", name: "DALL·E 3 (OpenAI)", placeholder: "Enter OpenAI API key…", variants: [
+      { id: "dall-e-3", label: "DALL·E 3" },
+      { id: "dall-e-2", label: "DALL·E 2" },
+    ]},
+    { id: "flux-pro", name: "Flux Pro (Black Forest Labs)", placeholder: "Enter BFL API key…", variants: [
+      { id: "flux-1.1-pro", label: "Flux 1.1 Pro" },
+      { id: "flux-1-pro", label: "Flux 1 Pro" },
+      { id: "flux-1-dev", label: "Flux 1 Dev" },
+    ]},
+    { id: "stable-diffusion", name: "Stable Diffusion (Stability AI)", placeholder: "Enter Stability API key…", variants: [
+      { id: "sd-3.5", label: "SD 3.5" },
+      { id: "sd-3", label: "SD 3" },
+      { id: "sdxl-1.0", label: "SDXL 1.0" },
+    ]},
+    { id: "ideogram", name: "Ideogram", placeholder: "Enter Ideogram API key…", variants: [
+      { id: "ideogram-v2", label: "V2" },
+      { id: "ideogram-v1", label: "V1" },
+    ]},
+    { id: "leonardo", name: "Leonardo AI", placeholder: "Enter Leonardo API key…", variants: [
+      { id: "leonardo-phoenix", label: "Phoenix" },
+      { id: "leonardo-kino-xl", label: "Kino XL" },
+    ]},
+    { id: "recraft", name: "Recraft V3", placeholder: "Enter Recraft API key…", variants: [
+      { id: "recraft-v3", label: "V3" },
+      { id: "recraft-v2", label: "V2" },
+    ]},
+    { id: "nana-banana", name: "Nana Banana Pro", placeholder: "Enter API key…", variants: [
+      { id: "nana-pro", label: "Pro" },
+      { id: "nana-standard", label: "Standard" },
+    ]},
+    { id: "imagen-4", name: "Imagen 4 (Google)", placeholder: "Enter Google API key…", variants: [
+      { id: "imagen-4", label: "Imagen 4" },
+      { id: "imagen-3", label: "Imagen 3" },
+    ]},
   ],
   "sound-stage": [
     { id: "elevenlabs", name: "ElevenLabs", placeholder: "Enter ElevenLabs API key…", variants: [
       { id: "eleven-multilingual-v2", label: "Multilingual V2" },
       { id: "eleven-turbo-v2.5", label: "Turbo V2.5" },
     ]},
-    { id: "playht", name: "Play.ht", placeholder: "Enter Play.ht API key…" },
-    { id: "murf", name: "Murf AI", placeholder: "Enter Murf API key…" },
-    { id: "wellsaid", name: "WellSaid Labs", placeholder: "Enter WellSaid API key…" },
-    { id: "resemble", name: "Resemble AI", placeholder: "Enter Resemble API key…" },
+    { id: "playht", name: "Play.ht", placeholder: "Enter Play.ht API key…", variants: [
+      { id: "playht-3.0", label: "PlayHT 3.0" },
+      { id: "playht-2.0", label: "PlayHT 2.0" },
+    ]},
+    { id: "murf", name: "Murf AI", placeholder: "Enter Murf API key…", variants: [
+      { id: "murf-studio", label: "Studio" },
+      { id: "murf-enterprise", label: "Enterprise" },
+    ]},
+    { id: "wellsaid", name: "WellSaid Labs", placeholder: "Enter WellSaid API key…", variants: [
+      { id: "wellsaid-studio", label: "Studio" },
+    ]},
+    { id: "resemble", name: "Resemble AI", placeholder: "Enter Resemble API key…", variants: [
+      { id: "resemble-v2", label: "V2" },
+      { id: "resemble-v1", label: "V1" },
+    ]},
   ],
   "camera-cart": [
-    { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…" },
+    { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…", variants: [
+      { id: "seedance-1.0", label: "Seedance 1.0" },
+    ]},
     { id: "kling", name: "Kling AI", placeholder: "Enter Kling API key…", variants: [
       { id: "kling-1.5", label: "Kling 1.5" },
       { id: "kling-2.0", label: "Kling 2.0" },
@@ -82,16 +135,38 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "veo-2", label: "Veo 2" },
       { id: "veo-3", label: "Veo 3" },
     ]},
-    { id: "sora", name: "Sora (OpenAI)", placeholder: "Enter Sora API key…" },
-    { id: "runway", name: "Runway Gen-3", placeholder: "Enter Runway API key…" },
-    { id: "pika", name: "Pika Labs", placeholder: "Enter Pika API key…" },
-    { id: "luma", name: "Luma Dream Machine", placeholder: "Enter Luma API key…" },
+    { id: "sora", name: "Sora (OpenAI)", placeholder: "Enter Sora API key…", variants: [
+      { id: "sora-1.0", label: "Sora 1.0" },
+    ]},
+    { id: "runway", name: "Runway Gen-3", placeholder: "Enter Runway API key…", variants: [
+      { id: "runway-gen3-alpha", label: "Gen-3 Alpha" },
+      { id: "runway-gen3", label: "Gen-3" },
+      { id: "runway-gen2", label: "Gen-2" },
+    ]},
+    { id: "pika", name: "Pika Labs", placeholder: "Enter Pika API key…", variants: [
+      { id: "pika-2.0", label: "Pika 2.0" },
+      { id: "pika-1.5", label: "Pika 1.5" },
+    ]},
+    { id: "luma", name: "Luma Dream Machine", placeholder: "Enter Luma API key…", variants: [
+      { id: "luma-1.5", label: "Dream Machine 1.5" },
+      { id: "luma-1.0", label: "Dream Machine 1.0" },
+    ]},
   ],
   "post-house": [
-    { id: "synclabs", name: "SyncLabs", placeholder: "Enter SyncLabs API key…" },
-    { id: "topaz", name: "Topaz AI", placeholder: "Enter Topaz API key…" },
-    { id: "descript", name: "Descript", placeholder: "Enter Descript API key…" },
-    { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…" },
+    { id: "synclabs", name: "SyncLabs", placeholder: "Enter SyncLabs API key…", variants: [
+      { id: "synclabs-v2", label: "SyncLabs V2" },
+      { id: "synclabs-v1", label: "SyncLabs V1" },
+    ]},
+    { id: "topaz", name: "Topaz AI", placeholder: "Enter Topaz API key…", variants: [
+      { id: "topaz-video-4", label: "Video AI 4" },
+      { id: "topaz-video-3", label: "Video AI 3" },
+    ]},
+    { id: "descript", name: "Descript", placeholder: "Enter Descript API key…", variants: [
+      { id: "descript-studio", label: "Studio" },
+    ]},
+    { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…", variants: [
+      { id: "kapwing-pro", label: "Pro" },
+    ]},
   ],
 };
 
