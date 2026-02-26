@@ -174,9 +174,9 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
         </div>
         {onCancel && (
           <Button
-            variant="ghost"
+            variant="destructive"
             size="sm"
-            className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
+            className="gap-1.5 text-xs shrink-0"
             onClick={onCancel}
           >
             <X className="h-3.5 w-3.5" />
