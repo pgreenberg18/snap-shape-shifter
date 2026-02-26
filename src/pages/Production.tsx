@@ -413,6 +413,8 @@ const Production = () => {
     }
   }, [sceneTextData, filmId, activeSceneNumber, queryClient, syncDependencies]);
 
+  const [isLoadingGenerations, setIsLoadingGenerations] = useState(false);
+
   // Load previous generations when switching shots
   const handleSelectShot = useCallback(async (id: string) => {
     setActiveShotId(id);
@@ -422,6 +424,7 @@ const Production = () => {
     setSelectedAnchorIdx(null);
     setAnchorScores([]);
     setDiffPair(null);
+    setIsLoadingGenerations(true);
 
     // Fetch completed generations for this shot
     try {
@@ -465,6 +468,8 @@ const Production = () => {
       }
     } catch (err) {
       console.error("Failed to load previous generations:", err);
+    } finally {
+      setIsLoadingGenerations(false);
     }
   }, []);
 
@@ -607,6 +612,7 @@ const Production = () => {
                     onSelectAnchor={setSelectedAnchorIdx}
                     diffPair={diffPair}
                     onCloseDiff={() => setDiffPair(null)}
+                    isLoadingGenerations={isLoadingGenerations}
                   />
                   </div>
                   <div data-help-id="prod-shot-list">

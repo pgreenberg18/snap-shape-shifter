@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
@@ -48,6 +49,8 @@ interface PlaybackMonitorProps {
   /** Diff overlay — shown after targeted repair */
   diffPair?: DiffPair | null;
   onCloseDiff?: () => void;
+  /** Whether previous generations are being fetched */
+  isLoadingGenerations?: boolean;
 }
 
 const StarRating = ({ rating, onRate }: { rating: number; onRate: (r: number) => void }) => (
@@ -84,6 +87,7 @@ const PlaybackMonitor = ({
   onSelectAnchor,
   diffPair,
   onCloseDiff,
+  isLoadingGenerations,
 }: PlaybackMonitorProps) => {
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
   const activeTake = activeTakeIdx !== null ? takes[activeTakeIdx] : null;
@@ -180,8 +184,17 @@ const PlaybackMonitor = ({
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="text-center space-y-2">
-                    <Camera className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                    <p className="text-xs font-mono text-muted-foreground/50 tracking-wide">STAND BY</p>
+                    {isLoadingGenerations ? (
+                      <>
+                        <Loader2 className="h-8 w-8 text-primary/60 mx-auto animate-spin" />
+                        <p className="text-xs font-mono text-muted-foreground/50 tracking-wide">LOADING…</p>
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                        <p className="text-xs font-mono text-muted-foreground/50 tracking-wide">STAND BY</p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
