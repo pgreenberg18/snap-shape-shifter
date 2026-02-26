@@ -129,7 +129,7 @@ const SceneNavigator = ({
                     "text-xs font-display font-semibold mt-1 break-words leading-snug",
                     isActive ? "text-primary" : "text-foreground"
                   )}>
-                    {scene.scene_heading || scene.setting || "Untitled Scene"}
+                    {scene.scene_heading || scene.location_name || "Untitled Scene"}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2 leading-snug group-hover/scene:line-clamp-3">
                     {scene.description || ""}

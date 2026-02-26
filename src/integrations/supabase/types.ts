@@ -862,6 +862,7 @@ export type Database = {
           special_makeup: string[] | null
           stunts: string[] | null
           vfx: string[] | null
+          visual_design: Json | null
           wardrobe: Json | null
         }
         Insert: {
@@ -891,6 +892,7 @@ export type Database = {
           special_makeup?: string[] | null
           stunts?: string[] | null
           vfx?: string[] | null
+          visual_design?: Json | null
           wardrobe?: Json | null
         }
         Update: {
@@ -920,6 +922,7 @@ export type Database = {
           special_makeup?: string[] | null
           stunts?: string[] | null
           vfx?: string[] | null
+          visual_design?: Json | null
           wardrobe?: Json | null
         }
         Relationships: [
