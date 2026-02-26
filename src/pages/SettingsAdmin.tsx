@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
-  Users, Settings, Image, Gauge,
+  Users, Settings, Image, Gauge, Plug,
   Lock, Unlock, ShieldAlert,
 } from "lucide-react";
 import {
@@ -504,6 +504,7 @@ const SettingsAdmin = () => {
 
   const userSections = [
     { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
+    { id: "integrations", label: "Integrations", icon: Plug },
     { id: "credit-usage", label: "Credit Usage", icon: Gauge },
     { id: "media-library", label: "Media Library", icon: Image },
     { id: "reset-app", label: "Reset App", icon: RotateCcw },
@@ -534,7 +535,13 @@ const SettingsAdmin = () => {
             {userSections.map((s) => (
               <button
                 key={s.id}
-                onClick={() => setActiveSection(s.id)}
+                onClick={() => {
+                  if (s.id === "integrations") {
+                    navigate("/settings");
+                  } else {
+                    setActiveSection(s.id);
+                  }
+                }}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
                   activeSection === s.id
                     ? "bg-primary/10 text-primary font-medium"
