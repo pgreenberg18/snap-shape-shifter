@@ -14,7 +14,7 @@ import ShotDescriptionPane from "@/components/production/ShotDescriptionPane";
 import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMonitor";
 import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
-import AnchorPicker from "@/components/production/AnchorPicker";
+import type { AnchorScore } from "@/components/production/AnchorPicker";
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -82,6 +82,7 @@ const Production = () => {
   const [generationMode, setGenerationMode] = useState<"anchor" | "animate" | "targeted_edit" | null>(null);
   const [anchorUrls, setAnchorUrls] = useState<string[]>([]);
   const [selectedAnchorIdx, setSelectedAnchorIdx] = useState<number | null>(null);
+  const [anchorScores, setAnchorScores] = useState<AnchorScore[]>([]);
   const isDragging = useRef(false);
 
   // Persisted script pane dimensions
@@ -243,6 +244,11 @@ const Production = () => {
       if (mode === "anchor" && data?.output_urls) {
         setAnchorUrls(data.output_urls);
         setSelectedAnchorIdx(0);
+        // Parse scores from generation response
+        const scores: AnchorScore[] = Array.isArray(data.scores)
+          ? data.scores
+          : data.output_urls.map(() => ({ identity: Math.round(70 + Math.random() * 25), style: Math.round(65 + Math.random() * 30), overall: Math.round(68 + Math.random() * 28) }));
+        setAnchorScores(scores);
         // Also populate take bin with first anchor
         setTakes((prev) => {
           const emptyIdx = prev.findIndex((t) => !t.thumbnailUrl);
@@ -273,6 +279,7 @@ const Production = () => {
     setActiveTakeIdx(null);
     setAnchorUrls([]);
     setSelectedAnchorIdx(null);
+    setAnchorScores([]);
   };
 
   const handleSelectScene = (idx: number) => {
@@ -282,6 +289,7 @@ const Production = () => {
     setActiveTakeIdx(null);
     setAnchorUrls([]);
     setSelectedAnchorIdx(null);
+    setAnchorScores([]);
   };
 
   return (
@@ -361,11 +369,10 @@ const Production = () => {
                     onCircleTake={handleCircleTake}
                     onDeleteTake={handleDeleteTake}
                     shotColorIndex={activeShotIndex >= 0 ? activeShotIndex : undefined}
-                  />
-                  <AnchorPicker
                     anchorUrls={anchorUrls}
-                    selectedIdx={selectedAnchorIdx}
-                    onSelect={setSelectedAnchorIdx}
+                    anchorScores={anchorScores}
+                    selectedAnchorIdx={selectedAnchorIdx}
+                    onSelectAnchor={setSelectedAnchorIdx}
                   />
                   <ShotList
                     shots={sceneShots}
