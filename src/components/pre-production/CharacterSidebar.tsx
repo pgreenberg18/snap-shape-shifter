@@ -336,7 +336,7 @@ const DraggableCharItem = ({
                 #{ranking.rank}
               </span>
             )}
-            <p className={cn("text-[11px] font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
+            <p className={cn("text-xs font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
               {char.name}
             </p>
             {isLocked && (
