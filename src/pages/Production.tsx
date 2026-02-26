@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Camera } from "lucide-react";
+import { Camera, Film, ChevronRight } from "lucide-react";
 import { useFilmId } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,6 +92,8 @@ const Production = () => {
   const [diffPair, setDiffPair] = useState<DiffPair | null>(null);
   const [vicePanelOpen, setVicePanelOpen] = useState(false);
   const [isAutoShotting, setIsAutoShotting] = useState(false);
+  const [scenesCollapsed, setScenesCollapsed] = useState(false);
+  const collapseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Persisted script pane dimensions
   const [scriptColWidth, setScriptColWidth] = useState(() => {
@@ -433,20 +435,25 @@ const Production = () => {
     setSelectedAnchorIdx(null);
     setAnchorScores([]);
     setDiffPair(null);
+    // Auto-collapse scene list after 200ms
+    if (collapseTimer.current) clearTimeout(collapseTimer.current);
+    collapseTimer.current = setTimeout(() => setScenesCollapsed(true), 200);
   };
 
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-[calc(100vh-64px)]">
         {/* ── LEFT: Scene Navigator ── */}
-        <SceneNavigator
-          scenes={scenes}
-          activeSceneIdx={activeSceneIdx}
-          onSelectScene={handleSelectScene}
-          shotCounts={shotCounts}
-          width={sidebarWidth}
-          onResizeStart={handleResizeStart}
-        />
+        {!scenesCollapsed && (
+          <SceneNavigator
+            scenes={scenes}
+            activeSceneIdx={activeSceneIdx}
+            onSelectScene={handleSelectScene}
+            shotCounts={shotCounts}
+            width={sidebarWidth}
+            onResizeStart={handleResizeStart}
+          />
+        )}
 
         {/* ── CENTER: Script / Shots / Viewer ── */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -454,6 +461,17 @@ const Production = () => {
             <>
               {/* Scene header */}
               <div className="flex items-center gap-3 px-6 py-3 border-b border-border bg-card/60 backdrop-blur-sm shrink-0">
+                {scenesCollapsed && (
+                  <button
+                    onClick={() => setScenesCollapsed(false)}
+                    className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors shrink-0 mr-1"
+                    title="Show scenes list"
+                  >
+                    <Film className="h-3.5 w-3.5" />
+                    <span>Scenes</span>
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                )}
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-mono font-bold">
                   {activeSceneNumber}
                 </span>
