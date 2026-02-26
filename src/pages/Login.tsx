@@ -160,7 +160,7 @@ const Login = () => {
             className="w-full gap-3 bg-secondary hover:bg-accent text-foreground border-border"
             onClick={async () => {
               await lovable.auth.signInWithOAuth("google", {
-                redirect_uri: window.location.origin + "/projects",
+                redirect_uri: window.location.origin,
               });
             }}
           >
