@@ -11,6 +11,9 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, Package, MapPin, Shirt, Car, type LucideIcon } from "lucide-react";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import AssetDetailPanel from "./AssetDetailPanel";
 import ResizableSidebar from "./ResizableSidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -186,6 +189,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [analyzingItem, setAnalyzingItem] = useState<string | null>(null);
 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
+  const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   // Script viewer state
@@ -546,9 +551,31 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   }, [selectedItem, sceneBreakdown, storagePrefix]);
 
   // When an item is clicked in the sidebar, select it for the detail panel
-  const handleSelectItem = useCallback((itemName: string) => {
+  const handleSelectItem = useCallback((itemName: string, e?: React.MouseEvent) => {
+    if (e && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      setMultiSelected(prev => {
+        const next = new Set(prev);
+        if (next.has(itemName)) next.delete(itemName); else next.add(itemName);
+        return next;
+      });
+      return;
+    }
+    setMultiSelected(new Set());
     setSelectedItem((prev) => prev === itemName ? null : itemName);
   }, []);
+
+  const handleMultiMerge = useCallback(() => {
+    if (!multiMergeDialog || multiMergeDialog.length < 2) return;
+    const [, ...rest] = multiMergeDialog;
+    const next = new Set(mergedAway);
+    for (const item of rest) next.add(item);
+    persistMerged(next);
+    persistGroups(groups.map((g) => ({ ...g, children: g.children.filter((c) => !rest.includes(c)) })));
+    toast.success(`${rest.length} items merged`);
+    setMultiSelected(new Set());
+    setMultiMergeDialog(null);
+  }, [multiMergeDialog, mergedAway, persistMerged, groups, persistGroups]);
 
   if (items.length === 0) {
     return (
@@ -630,7 +657,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
               {/* Groups */}
               {filteredGroups.map((group) => (
-                <SidebarGroup
+              <SidebarGroup
                   key={group.id}
                   group={group}
                   icon={Icon}
@@ -647,6 +674,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                   selectedItem={selectedItem}
                   onSelectItem={handleSelectItem}
                   refImages={refImages}
+                  multiSelected={multiSelected}
+                  onMultiMerge={(ids) => setMultiMergeDialog(ids)}
                 />
               ))}
 
@@ -661,17 +690,34 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                     <div className="flex-1 border-t border-border/30 ml-1" />
                   </div>
                   {ungrouped.map((item) => (
-                    <SidebarItem
-                      key={item}
-                      id={item}
-                      label={displayName(item)}
-                      icon={Icon}
-                      isSelected={selectedItem === item}
-                      onSelect={() => handleSelectItem(item)}
-                      refImageUrl={refImages[item]}
-                      reclassifyOptions={reclassifyOptions}
-                      onReclassify={onReclassify}
-                    />
+                    <ContextMenu key={item}>
+                      <ContextMenuTrigger asChild>
+                        <div>
+                          <SidebarItem
+                            id={item}
+                            label={displayName(item)}
+                            icon={Icon}
+                            isSelected={selectedItem === item}
+                            isMultiSelected={multiSelected.has(item)}
+                            onSelect={(e) => handleSelectItem(item, e)}
+                            refImageUrl={refImages[item]}
+                            reclassifyOptions={reclassifyOptions}
+                            onReclassify={onReclassify}
+                          />
+                        </div>
+                      </ContextMenuTrigger>
+                      {multiSelected.size >= 2 && multiSelected.has(item) && (
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => setMultiMergeDialog([...multiSelected])}
+                            className="gap-2"
+                          >
+                            <Merge className="h-4 w-4" />
+                            Merge {multiSelected.size} items
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      )}
+                    </ContextMenu>
                   ))}
                 </div>
               )}
@@ -758,6 +804,22 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleMerge}>Merge</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Multi-merge confirmation */}
+      <AlertDialog open={!!multiMergeDialog} onOpenChange={(open) => !open && setMultiMergeDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Merge className="h-5 w-5 text-primary" /> Merge {multiMergeDialog?.length ?? 0} Items?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The first selected item will be kept. The other {(multiMergeDialog?.length ?? 0) - 1} duplicate(s) will be hidden. You can restore them from the "Merged Away" section.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMultiMerge}>Merge</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -986,11 +1048,12 @@ const DraggableItem = ({
 
 /* ── Sidebar Item (compact list row) ── */
 const SidebarItem = ({
-  id, label, icon: Icon, isSelected, onSelect, refImageUrl,
+  id, label, icon: Icon, isSelected, isMultiSelected, onSelect, refImageUrl,
   reclassifyOptions, onReclassify,
 }: {
   id: string; label: string; icon: LucideIcon; isSelected: boolean;
-  onSelect: () => void; refImageUrl?: string;
+  isMultiSelected?: boolean;
+  onSelect: (e?: React.MouseEvent) => void; refImageUrl?: string;
   reclassifyOptions?: ReclassifyOption[];
   onReclassify?: (item: string, target: string) => void;
 }) => {
@@ -1003,9 +1066,10 @@ const SidebarItem = ({
       className={cn(
         "w-full text-left px-4 py-2.5 flex items-center gap-2 transition-all border-l-2 cursor-pointer",
         isSelected ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/60",
+        isMultiSelected && "bg-primary/10 ring-1 ring-primary/30 border-l-primary",
         isOver && !isSelected && "bg-primary/10 border-l-primary ring-1 ring-primary/30"
       )}
-      onClick={onSelect}
+      onClick={(e) => onSelect(e)}
     >
       <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors" onClick={(e) => e.stopPropagation()}>
         <GripVertical className="h-3.5 w-3.5" />
@@ -1062,14 +1126,17 @@ const SidebarGroup = ({
   group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit,
   displayName, selectedItem, onSelectItem, refImages,
+  multiSelected, onMultiMerge,
 }: {
   group: ItemGroup; icon: LucideIcon; isCollapsed: boolean; onToggle: () => void;
   onDelete: () => void; onRemoveChild: (item: string) => void;
   isEditing: boolean; editName: string;
   onStartEdit: () => void; onEditChange: (v: string) => void; onSaveEdit: () => void;
   displayName: (item: string) => string;
-  selectedItem: string | null; onSelectItem: (name: string) => void;
+  selectedItem: string | null; onSelectItem: (name: string, e?: React.MouseEvent) => void;
   refImages: Record<string, string>;
+  multiSelected?: Set<string>;
+  onMultiMerge?: (ids: string[]) => void;
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `group::${group.id}` });
 
@@ -1099,28 +1166,46 @@ const SidebarGroup = ({
       </div>
       {!isCollapsed && group.children.length > 0 && (
         <div className="pb-1">
-          {group.children.map((item) => (
-            <div
-              key={item}
-              onClick={() => onSelectItem(item)}
-              className={cn(
-                "flex items-center gap-2 px-6 py-2 cursor-pointer transition-all border-l-2",
-                selectedItem === item ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/40"
-              )}
-            >
-              <div className="h-6 w-6 rounded overflow-hidden bg-secondary flex items-center justify-center shrink-0">
-                {refImages[item] ? (
-                  <img src={refImages[item]} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <Icon className="h-3 w-3 text-muted-foreground" />
+          {group.children.map((item) => {
+            const isMulti = multiSelected?.has(item);
+            return (
+              <ContextMenu key={item}>
+                <ContextMenuTrigger asChild>
+                  <div
+                    onClick={(e) => onSelectItem(item, e)}
+                    className={cn(
+                      "flex items-center gap-2 px-6 py-2 cursor-pointer transition-all border-l-2",
+                      selectedItem === item ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/40",
+                      isMulti && "bg-primary/10 ring-1 ring-primary/30 border-l-primary"
+                    )}
+                  >
+                    <div className="h-6 w-6 rounded overflow-hidden bg-secondary flex items-center justify-center shrink-0">
+                      {refImages[item] ? (
+                        <img src={refImages[item]} alt="" className="h-full w-full object-cover" />
+                      ) : (
+                        <Icon className="h-3 w-3 text-muted-foreground" />
+                      )}
+                    </div>
+                    <p className={cn("text-xs font-display font-semibold truncate flex-1", selectedItem === item ? "text-primary" : "text-foreground")}>{displayName(item)}</p>
+                    <button onClick={(e) => { e.stopPropagation(); onRemoveChild(item); }} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0 opacity-0 group-hover:opacity-100">
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                </ContextMenuTrigger>
+                {multiSelected && multiSelected.size >= 2 && isMulti && onMultiMerge && (
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      onClick={() => onMultiMerge([...multiSelected])}
+                      className="gap-2"
+                    >
+                      <Merge className="h-4 w-4" />
+                      Merge {multiSelected.size} items
+                    </ContextMenuItem>
+                  </ContextMenuContent>
                 )}
-              </div>
-              <p className={cn("text-xs font-display font-semibold truncate flex-1", selectedItem === item ? "text-primary" : "text-foreground")}>{displayName(item)}</p>
-              <button onClick={(e) => { e.stopPropagation(); onRemoveChild(item); }} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0 opacity-0 group-hover:opacity-100">
-                <X className="h-2.5 w-2.5" />
-              </button>
-            </div>
-          ))}
+              </ContextMenu>
+            );
+          })}
         </div>
       )}
     </div>

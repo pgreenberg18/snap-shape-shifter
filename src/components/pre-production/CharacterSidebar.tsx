@@ -13,8 +13,11 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search, Merge } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ResizableSidebar from "./ResizableSidebar";
 import { useQueryClient } from "@tanstack/react-query";
@@ -57,9 +60,38 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   const [editName, setEditName] = useState("");
   const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({ LEAD: true, STRONG_SUPPORT: true, FEATURE: false, UNDER_5: false, BACKGROUND: false });
   const [searchQuery, setSearchQuery] = useState("");
+  const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [mergeDialog, setMergeDialog] = useState<{
     sourceId: string; targetId: string; sourceName: string; targetName: string;
   } | null>(null);
+  const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
+
+  const handleMultiClick = useCallback((id: string, e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      e.preventDefault();
+      setMultiSelected(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+    } else {
+      setMultiSelected(new Set());
+    }
+  }, []);
+
+  const handleMultiMerge = useCallback(async () => {
+    if (!multiMergeDialog || multiMergeDialog.length < 2) return;
+    const [keepId, ...deleteIds] = multiMergeDialog;
+    for (const id of deleteIds) {
+      const { error } = await supabase.from("characters").delete().eq("id", id);
+      if (error) { toast.error("Failed to merge characters"); return; }
+    }
+    toast.success(`${deleteIds.length} characters merged`);
+    queryClient.invalidateQueries({ queryKey: ["characters"] });
+    if (deleteIds.includes(selectedCharId ?? "")) onSelect(keepId);
+    setMultiSelected(new Set());
+    setMultiMergeDialog(null);
+  }, [multiMergeDialog, queryClient, selectedCharId, onSelect]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -209,25 +241,44 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
                     <CollapsibleContent>
                       {chars.map((char) => {
                         const ranking = rankingMap.get(char.name.toUpperCase());
+                        const isMulti = multiSelected.has(char.id);
                         return (
-                          <DraggableCharItem
-                            key={char.id}
-                            char={char}
-                            isActive={selectedCharId === char.id}
-                            isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
-                            isDragging={activeId === char.id}
-                            onSelect={() => onSelect(char.id)}
-                            onSuggest={onSuggest ? () => onSuggest(char.id) : undefined}
-                            isEditing={editingId === char.id}
-                            editName={editName}
-                            onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
-                            onEditChange={setEditName}
-                            onSaveEdit={() => handleRename(char.id)}
-                            onCancelEdit={() => { setEditingId(null); setEditName(""); }}
-                            ranking={ranking}
-                            approved={(char as any).approved ?? false}
-                            onToggleApproval={() => handleToggleApproval(char.id, (char as any).approved ?? false)}
-                          />
+                          <ContextMenu key={char.id}>
+                            <ContextMenuTrigger asChild>
+                              <div>
+                                <DraggableCharItem
+                                  char={char}
+                                  isActive={selectedCharId === char.id}
+                                  isMultiSelected={isMulti}
+                                  isLocked={showVoiceSeed ? !!char.voice_generation_seed : !!char.image_url}
+                                  isDragging={activeId === char.id}
+                                  onSelect={() => onSelect(char.id)}
+                                  onMultiClick={(e) => handleMultiClick(char.id, e)}
+                                  onSuggest={onSuggest ? () => onSuggest(char.id) : undefined}
+                                  isEditing={editingId === char.id}
+                                  editName={editName}
+                                  onStartEdit={() => { setEditingId(char.id); setEditName(char.name); }}
+                                  onEditChange={setEditName}
+                                  onSaveEdit={() => handleRename(char.id)}
+                                  onCancelEdit={() => { setEditingId(null); setEditName(""); }}
+                                  ranking={ranking}
+                                  approved={(char as any).approved ?? false}
+                                  onToggleApproval={() => handleToggleApproval(char.id, (char as any).approved ?? false)}
+                                />
+                              </div>
+                            </ContextMenuTrigger>
+                            {multiSelected.size >= 2 && isMulti && (
+                              <ContextMenuContent>
+                                <ContextMenuItem
+                                  onClick={() => setMultiMergeDialog([...multiSelected])}
+                                  className="gap-2"
+                                >
+                                  <Merge className="h-4 w-4" />
+                                  Merge {multiSelected.size} characters
+                                </ContextMenuItem>
+                              </ContextMenuContent>
+                            )}
+                          </ContextMenu>
                         );
                       })}
                     </CollapsibleContent>
@@ -264,18 +315,34 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!multiMergeDialog} onOpenChange={(open) => !open && setMultiMergeDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2"><Merge className="h-5 w-5 text-primary" /> Merge {multiMergeDialog?.length ?? 0} Characters?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The first selected character will be kept. The other {(multiMergeDialog?.length ?? 0) - 1} duplicate(s) will be permanently deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleMultiMerge}>Merge</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </ResizableSidebar>
   );
 };
 
 /* ── Draggable character item ── */
 const DraggableCharItem = ({
-  char, isActive, isLocked, isDragging, onSelect, onSuggest,
+  char, isActive, isMultiSelected, isLocked, isDragging, onSelect, onMultiClick, onSuggest,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit, onCancelEdit, ranking,
   approved, onToggleApproval,
 }: {
-  char: Character; isActive: boolean; isLocked: boolean; isDragging: boolean;
+  char: Character; isActive: boolean; isMultiSelected: boolean; isLocked: boolean; isDragging: boolean;
   onSelect: () => void;
+  onMultiClick: (e: React.MouseEvent) => void;
   onSuggest?: () => void;
   isEditing: boolean; editName: string;
   onStartEdit: () => void; onEditChange: (v: string) => void;
@@ -287,12 +354,21 @@ const DraggableCharItem = ({
   const { attributes, listeners, setNodeRef: setDragRef } = useDraggable({ id: char.id });
   const { isOver, setNodeRef: setDropRef } = useDroppable({ id: char.id });
 
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.metaKey || e.ctrlKey) {
+      onMultiClick(e);
+    } else {
+      onSelect();
+    }
+  };
+
   return (
     <div
       ref={(node) => { setDragRef(node); setDropRef(node); }}
       className={cn(
         "w-full text-left px-4 py-2.5 flex items-center gap-2 transition-all border-l-2",
         isActive ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/60",
+        isMultiSelected && "bg-primary/10 ring-1 ring-primary/30 border-l-primary",
         isDragging && "opacity-30",
         isOver && !isDragging && "bg-primary/10 border-l-primary ring-1 ring-primary/30"
       )}
@@ -311,7 +387,7 @@ const DraggableCharItem = ({
         <GripVertical className="h-3.5 w-3.5" />
       </div>
 
-      <button onClick={onSelect} className="shrink-0">
+      <button onClick={handleClick} className="shrink-0">
         <div className={cn(
           "relative flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold font-display uppercase overflow-hidden",
           isActive ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
@@ -320,7 +396,7 @@ const DraggableCharItem = ({
         </div>
       </button>
 
-      <button onClick={onSelect} className="flex-1 min-w-0 text-left">
+      <button onClick={handleClick} className="flex-1 min-w-0 text-left">
         {isEditing ? (
           <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
             <Input autoFocus value={editName} onChange={(e) => onEditChange(e.target.value)}
