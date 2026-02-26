@@ -8,8 +8,9 @@ import {
 } from "@/components/ui/select";
 import {
   AudioWaveform, Mic, Languages, Sparkles, Palette, Scan, Zap, Music2, Loader2,
-  Upload, Download, FileUp, Wand2, Film,
+  Upload, Download, FileUp, Wand2, Film, Globe,
 } from "lucide-react";
+import LocalizationSuitePanel from "./LocalizationSuitePanel";
 import { toast } from "sonner";
 
 /* ── Tri-State Toggle ── */
@@ -163,7 +164,7 @@ const COLOR_FORMATS = [
   { ext: ".clf", label: "CLF (.clf)" },
 ];
 
-type Tab = "sound" | "color" | "score" | "fx";
+type Tab = "sound" | "color" | "score" | "fx" | "locale";
 
 interface PostProductionSidebarProps {
   onInsertMusicClip?: (label: string) => void;
@@ -204,6 +205,7 @@ const PostProductionSidebar = ({ onInsertMusicClip, onFileImport }: PostProducti
     { id: "score", label: "Score", icon: Music2 },
     { id: "fx", label: "FX", icon: Wand2 },
     { id: "color", label: "Color", icon: Palette },
+    { id: "locale", label: "Locale", icon: Globe },
   ];
 
   return (
@@ -532,6 +534,11 @@ const PostProductionSidebar = ({ onInsertMusicClip, onFileImport }: PostProducti
               </div>
             </div>
           </>
+        )}
+
+        {/* ═══ LOCALE TAB ═══ */}
+        {tab === "locale" && (
+          <LocalizationSuitePanel onFileImport={onFileImport} />
         )}
       </div>
 
