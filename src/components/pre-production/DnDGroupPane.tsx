@@ -85,6 +85,13 @@ const CONTEXT_MAP: Record<string, string> = {
   vehicles: "vehicle",
 };
 
+/** Convert a string to Title Case (each word capitalized) */
+function toTitleCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/(?:^|\s|[-/])\S/g, (match) => match.toUpperCase());
+}
+
 /* ── Find scenes containing an item by storagePrefix type ── */
 
 /** Check if two strings are a meaningful match (not just substring noise) */
@@ -260,7 +267,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     });
   }, [groups, query, renames]);
 
-  const displayName = useCallback((item: string) => renames[item] || item, [renames]);
+  const displayName = useCallback((item: string) => toTitleCase(renames[item] || item), [renames]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -586,7 +593,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* ═══ LEFT SIDEBAR — Item List ═══ */}
-      <ResizableSidebar defaultWidth={340} minWidth={220} maxWidthPercent={30}>
+      <ResizableSidebar defaultWidth={380} minWidth={220} maxWidthPercent={30}>
         <div className="px-4 py-3 border-b border-border space-y-2">
           <div className="flex items-center justify-between">
             <div>
@@ -694,7 +701,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
               {activeId ? (
                 <div className="rounded-lg border border-primary bg-card p-2 flex items-center gap-2 shadow-xl rotate-2 scale-105">
                   <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
-                  <p className="text-sm font-display font-semibold text-foreground truncate">{displayName(activeId)}</p>
+                  <p className="text-xs font-display font-semibold text-foreground truncate">{displayName(activeId)}</p>
                 </div>
               ) : null}
             </DragOverlay>
@@ -899,7 +906,7 @@ const DraggableItem = ({
         ) : (
           <>
             <div className="min-w-0 flex-1 cursor-pointer" onClick={onClick}>
-              <p className="text-sm font-display font-semibold text-foreground truncate hover:text-primary transition-colors">{label}</p>
+              <p className="text-xs font-display font-semibold text-foreground truncate hover:text-primary transition-colors">{label}</p>
             </div>
             {onUploadReference && (
               <>
@@ -1016,7 +1023,7 @@ const SidebarItem = ({
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <p className={cn("text-sm font-display font-semibold truncate", isSelected ? "text-primary" : "text-foreground")}>
+        <p className={cn("text-xs font-display font-semibold truncate", isSelected ? "text-primary" : "text-foreground")}>
           {label}
         </p>
       </div>
@@ -1083,7 +1090,7 @@ const SidebarGroup = ({
         ) : (
           <>
             <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
-            <p className="font-display text-sm font-bold text-foreground flex-1 truncate">{group.name}</p>
+            <p className="font-display text-xs font-bold text-foreground flex-1 truncate">{toTitleCase(group.name)}</p>
             <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{group.children.length}</span>
             <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }} className="text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"><Pencil className="h-2.5 w-2.5" /></button>
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-muted-foreground/40 hover:text-destructive transition-colors p-0.5"><X className="h-3 w-3" /></button>
@@ -1108,7 +1115,7 @@ const SidebarGroup = ({
                   <Icon className="h-3 w-3 text-muted-foreground" />
                 )}
               </div>
-              <p className={cn("text-sm truncate flex-1", selectedItem === item ? "text-primary font-semibold" : "text-foreground")}>{displayName(item)}</p>
+              <p className={cn("text-xs font-display font-semibold truncate flex-1", selectedItem === item ? "text-primary" : "text-foreground")}>{displayName(item)}</p>
               <button onClick={(e) => { e.stopPropagation(); onRemoveChild(item); }} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0 opacity-0 group-hover:opacity-100">
                 <X className="h-2.5 w-2.5" />
               </button>
@@ -1163,7 +1170,7 @@ const GroupDropZone = ({
         ) : (
           <>
             <Icon className="h-4 w-4 text-primary shrink-0" />
-            <p className="font-display text-sm font-bold text-foreground flex-1 cursor-pointer hover:text-primary transition-colors" onClick={() => onGroupClick?.(group)}>{group.name}</p>
+            <p className="font-display text-xs font-bold text-foreground flex-1 cursor-pointer hover:text-primary transition-colors" onClick={() => onGroupClick?.(group)}>{toTitleCase(group.name)}</p>
             <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{group.children.length}</span>
             {onGroupClick && (
               <button onClick={(e) => { e.stopPropagation(); onGroupClick(group); }} className="text-muted-foreground/40 hover:text-primary transition-colors p-0.5" title="View all in script">
@@ -1185,7 +1192,7 @@ const GroupDropZone = ({
                 ) : (
                   <Icon className="h-3 w-3 text-muted-foreground shrink-0" />
                 )}
-                <p className="text-sm text-foreground truncate flex-1 cursor-pointer hover:text-primary transition-colors" onClick={() => onItemClick?.(item)}>{displayName(item)}</p>
+                <p className="text-xs font-display font-semibold text-foreground truncate flex-1 cursor-pointer hover:text-primary transition-colors" onClick={() => onItemClick?.(item)}>{displayName(item)}</p>
                 <button onClick={(e) => { e.stopPropagation(); onItemClick?.(item); }} className="text-muted-foreground/40 hover:text-primary transition-colors p-0.5" title="View in script">
                   <ScrollText className="h-2.5 w-2.5" />
                 </button>

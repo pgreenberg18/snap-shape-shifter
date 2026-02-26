@@ -318,7 +318,7 @@ const DraggableLocation = ({ id, isOverlay, isAuditionActive, onAudition }: { id
     >
       <GripVertical className="h-3.5 w-3.5 text-muted-foreground/40 shrink-0" />
       <MapPin className="h-3.5 w-3.5 text-primary shrink-0" />
-      <p className="text-sm font-display font-semibold text-foreground truncate flex-1">{id}</p>
+      <p className="text-xs font-display font-semibold text-foreground truncate flex-1">{id}</p>
       {onAudition && (
         <button
           onClick={(e) => { e.stopPropagation(); onAudition(); }}
@@ -389,7 +389,7 @@ const GroupDropZone = ({
         ) : (
           <>
             <MapPin className="h-4 w-4 text-primary shrink-0" />
-            <h3 className="font-display text-sm font-bold text-foreground flex-1 truncate">
+            <h3 className="font-display text-xs font-bold text-foreground flex-1 truncate">
               {group.name}
             </h3>
             <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
@@ -427,7 +427,7 @@ const GroupDropZone = ({
                 className="rounded-lg border border-border bg-card pl-8 pr-3 py-2 flex items-center gap-2 group/child"
               >
                 <MapPin className="h-3 w-3 text-primary/60 shrink-0" />
-                <p className="text-sm text-foreground truncate flex-1">{loc}</p>
+                <p className="text-xs font-display font-semibold text-foreground truncate flex-1">{loc}</p>
                 <button
                   onClick={() => onRemoveChild(loc)}
                   className="text-muted-foreground hover:text-destructive transition-colors opacity-0 group-hover/child:opacity-100 p-0.5"

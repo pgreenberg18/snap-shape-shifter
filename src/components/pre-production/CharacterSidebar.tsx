@@ -150,7 +150,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   };
 
   return (
-    <ResizableSidebar defaultWidth={340} minWidth={220} maxWidthPercent={30}>
+    <ResizableSidebar defaultWidth={380} minWidth={220} maxWidthPercent={30}>
       <div className="px-4 py-3 border-b border-border space-y-2">
         <div>
           <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
