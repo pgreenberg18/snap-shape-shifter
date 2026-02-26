@@ -407,7 +407,7 @@ const MediaLibraryPanel = () => {
               </div>
             ) : (
               <div className="h-8 w-12 rounded border border-border overflow-hidden bg-secondary/50 shrink-0 flex items-center justify-center">
-                <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
+                <FileText className="h-3.5 w-3.5 text-foreground" />
               </div>
             )}
             <p className="flex-1 min-w-0 text-sm font-mono font-medium text-foreground truncate">{item.name}</p>
