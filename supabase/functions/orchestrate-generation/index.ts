@@ -53,6 +53,99 @@ interface EditPayload {
   seed?: number;
 }
 
+/* ── Anchor scoring via Gemini Flash ── */
+
+async function scoreAnchors(
+  anchorUrls: string[],
+  prompt: string,
+  styleContract: any,
+  apiKey: string,
+): Promise<{ identity?: number; style?: number; overall?: number }[]> {
+  try {
+    const styleDesc = styleContract
+      ? `Style contract: visual DNA="${styleContract.visual_dna ?? ""}", color mandate=${JSON.stringify(styleContract.color_mandate ?? {})}, lighting="${JSON.stringify(styleContract.lighting_doctrine ?? {})}".`
+      : "";
+
+    const parts: any[] = [
+      {
+        text: `You are a visual QA scorer for AI-generated film frames. Score each image on two axes (0-100):
+1. **identity** — How well does the image match the described characters, objects, and scene? Consider face consistency, costume accuracy, and prop fidelity.
+2. **style** — How well does the image comply with the visual style contract? Consider color palette, lighting, texture, and overall cinematic feel.
+
+Also compute **overall** as a weighted average: overall = 0.6*identity + 0.4*style.
+
+Scene prompt: "${prompt}"
+${styleDesc}
+
+Return ONLY a JSON array with one object per image in order, like:
+[{"identity":85,"style":72,"overall":80},...]
+No explanation, just the JSON array.`,
+      },
+    ];
+
+    // Add each anchor as an inline image
+    for (const url of anchorUrls) {
+      try {
+        const imgRes = await fetch(url);
+        if (!imgRes.ok) continue;
+        const imgBuf = new Uint8Array(await imgRes.arrayBuffer());
+        let binary = "";
+        const chunkSize = 8192;
+        for (let i = 0; i < imgBuf.length; i += chunkSize) {
+          binary += String.fromCharCode(...imgBuf.subarray(i, i + chunkSize));
+        }
+        parts.push({
+          inlineData: {
+            mimeType: "image/png",
+            data: btoa(binary),
+          },
+        });
+      } catch {
+        // Skip images that fail to fetch
+      }
+    }
+
+    if (parts.length <= 1) {
+      // No images could be fetched
+      return anchorUrls.map(() => ({}));
+    }
+
+    const res = await fetchWithRetry(
+      `${GEMINI_BASE}/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { temperature: 0.1, maxOutputTokens: 512 },
+        }),
+      },
+      { maxRetries: 2, baseDelayMs: 1_000 },
+    );
+
+    if (!res.ok) {
+      console.warn("[Scorer] Gemini scoring failed:", res.status);
+      return anchorUrls.map(() => ({}));
+    }
+
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    // Extract JSON array from response
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      console.warn("[Scorer] Could not parse scores from:", text.slice(0, 200));
+      return anchorUrls.map(() => ({}));
+    }
+    const scores = JSON.parse(jsonMatch[0]);
+    // Ensure we have the right count
+    while (scores.length < anchorUrls.length) scores.push({});
+    return scores.slice(0, anchorUrls.length);
+  } catch (err) {
+    console.warn("[Scorer] Scoring failed:", err);
+    return anchorUrls.map(() => ({}));
+  }
+}
+
 /* ── Google Imagen + Veo adapter ── */
 
 function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
@@ -598,6 +691,24 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Generation execution failed", details: String(execErr), generation_id: generation.id }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
+    }
+
+    // ── 6b. Score anchors with Gemini Flash ──
+    if (mode === "anchor" && result.output_urls.length > 0) {
+      const geminiKey = Deno.env.get("GEMINI_API_KEY");
+      if (geminiKey) {
+        const resolvedPrompt = compilePayload.generation_payload?.resolved_text_prompt ?? shot.prompt_text ?? "";
+        // Fetch style contract for scoring context
+        const { data: styleContract } = await supabase
+          .from("film_style_contracts")
+          .select("visual_dna, color_mandate, lighting_doctrine, texture_mandate")
+          .eq("film_id", shot.film_id)
+          .maybeSingle();
+        
+        console.log("[Scorer] Scoring", result.output_urls.length, "anchor frames...");
+        result.scores = await scoreAnchors(result.output_urls, resolvedPrompt, styleContract, geminiKey);
+        console.log("[Scorer] Scores:", JSON.stringify(result.scores));
+      }
     }
 
     // ── 7. Update generation record with results ──
