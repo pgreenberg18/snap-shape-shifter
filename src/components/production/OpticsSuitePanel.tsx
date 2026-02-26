@@ -258,9 +258,9 @@ const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps
   const [focusSoftness, setFocusSoftness] = useState([0]);
 
   // Collapsible states
-  const [lightsOpen, setLightsOpen] = useState(true);
-  const [cameraOpen, setCameraOpen] = useState(true);
-  const [actionOpen, setActionOpen] = useState(true);
+  const [lightsOpen, setLightsOpen] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [actionOpen, setActionOpen] = useState(false);
   const [dirTemplateOpen, setDirTemplateOpen] = useState(false);
 
   // ── Matched director profile ──
