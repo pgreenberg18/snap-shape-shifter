@@ -94,7 +94,7 @@ const Release = () => {
       <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
         <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
-      <h3 className="font-display text-sm font-bold">{label}</h3>
+      <h3 className="font-display text-xs font-bold uppercase tracking-widest">{label}</h3>
     </div>
   );
 
@@ -129,7 +129,7 @@ const Release = () => {
                   <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
                     <FileVideo className="h-3.5 w-3.5 text-primary" />
                   </div>
-                  <h2 className="font-display text-sm font-bold">Export Master Film</h2>
+                  <h2 className="font-display text-xs font-bold uppercase tracking-widest">Export Master Film</h2>
                 </div>
                 <Button size="sm" className="gap-1.5 h-7 px-4 text-[10px]" disabled={processing === "master"} onClick={() => handleProcess("master")}>
                   {processing === "master" ? (
@@ -417,7 +417,7 @@ const Release = () => {
                   <ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(145 50% 50%)" }} />
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-bold">Chain-of-Title & Provenance</h3>
+                  <h3 className="font-display text-xs font-bold uppercase tracking-widest">Chain-of-Title & Provenance</h3>
                   <p className="text-[9px] font-mono" style={{ color: "hsl(145 40% 55%)" }}>C2PA Verified</p>
                 </div>
               </div>
