@@ -2,7 +2,12 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
-// Custom credit meter icon with blue accent
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 
 interface CreditMeterProps {
@@ -60,7 +65,7 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
     }
   };
 
-  return (
+  const button = (
     <button
       data-help-id="nav-credit-meter"
       onClick={handleClick}
@@ -69,7 +74,7 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
         expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
         "text-muted-foreground hover:bg-accent hover:text-foreground"
       )}
-      title="Credit Usage"
+      title={expanded ? "Credit Usage" : undefined}
     >
       <div className="relative shrink-0">
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0">
@@ -97,6 +102,23 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
         </div>
       )}
     </button>
+  );
+
+  if (expanded) return button;
+
+  return (
+    <TooltipProvider delayDuration={120}>
+      <Tooltip>
+        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipContent
+          side="right"
+          sideOffset={8}
+          className="bg-popover text-popover-foreground border-border"
+        >
+          <p className="text-xs font-medium tracking-wide text-foreground">Credit Usage</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
