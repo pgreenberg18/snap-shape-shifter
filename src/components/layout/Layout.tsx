@@ -264,9 +264,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Main Content */}
         <main
-          className="flex-1 overflow-y-auto transition-colors duration-300"
+          className="relative flex-1 overflow-y-auto transition-colors duration-300 lens-flare"
           style={{ backgroundColor: phases.find((p) => location.pathname.includes(`/${p.key}`))?.tint }}
-        >{children}</main>
+        >
+          {/* Secondary lens flare — bottom-left */}
+          <div className="pointer-events-none absolute bottom-[15%] left-[10%] w-[80px] h-[80px] rounded-full z-[15] mix-blend-screen" style={{ background: 'radial-gradient(circle, rgba(124,203,255,0.15) 0%, rgba(47,125,255,0.06) 40%, transparent 70%)', filter: 'blur(14px)' }} />
+          {children}
+        </main>
       </div>
     </div>
   );
