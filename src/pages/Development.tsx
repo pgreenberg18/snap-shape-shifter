@@ -1156,51 +1156,74 @@ const Development = () => {
       {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
         <section>
           {analysis?.status !== "complete" && (
-            <h2 className="font-display text-2xl font-bold mb-4">Script Breakdown</h2>
-          )}
-
-          {/* Loading state with progress */}
-          {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} onCancel={async () => {
-            setAnalyzing(false);
-            if (analysis?.id) {
-              await supabase.from("script_analyses").update({ status: "error", error_message: "Cancelled by user" }).eq("id", analysis.id);
-              queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-            }
-            toast({ title: "Processing cancelled" });
-          }} />}
-
-          {/* Error state */}
-          {analysis?.status === "error" && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                <div>
-                  <p className="font-display font-semibold text-sm">Analysis Failed</p>
-                  <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="w-full">
+                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                  <div className="flex items-center gap-2">
+                    <ScrollText className="h-5 w-5 text-primary" />
+                    <h3 className="font-display text-lg font-bold">Script Breakdown</h3>
+                    {isAnalyzing && (
+                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin text-primary" /> Processing
+                      </span>
+                    )}
+                    {analysis?.status === "error" && (
+                      <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" /> Error
+                      </span>
+                    )}
+                  </div>
+                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
                 </div>
-              </div>
-              <Button
-                onClick={async () => {
-                  setAnalyzing(true);
-                  const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
-                    body: { analysis_id: analysis.id },
-                  });
-                  setAnalyzing(false);
-                  if (invokeErr) {
-                    toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
-                  } else {
-                    queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-                    toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
-                  }
-                }}
-                disabled={isAnalyzing}
-                className="gap-2"
-                variant="outline"
-              >
-                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                Analyze Again
-              </Button>
-            </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                  {/* Loading state with progress */}
+                  {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} onCancel={async () => {
+                    setAnalyzing(false);
+                    if (analysis?.id) {
+                      await supabase.from("script_analyses").update({ status: "error", error_message: "Cancelled by user" }).eq("id", analysis.id);
+                      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+                    }
+                    toast({ title: "Processing cancelled" });
+                  }} />}
+
+                  {/* Error state */}
+                  {analysis?.status === "error" && (
+                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
+                      <div className="flex items-center gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                        <div>
+                          <p className="font-display font-semibold text-sm">Analysis Failed</p>
+                          <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={async () => {
+                          setAnalyzing(true);
+                          const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
+                            body: { analysis_id: analysis.id },
+                          });
+                          setAnalyzing(false);
+                          if (invokeErr) {
+                            toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
+                          } else {
+                            queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+                            toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
+                          }
+                        }}
+                        disabled={isAnalyzing}
+                        className="gap-2"
+                        variant="outline"
+                      >
+                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                        Analyze Again
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* Complete results */}
