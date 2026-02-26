@@ -352,11 +352,12 @@ const uid = () => `grp_${++_uid}_${Date.now()}`;
 interface Props {
   data: any;
   analysisId?: string;
+  filmId?: string;
   onAllReviewedChange?: (allReviewed: boolean) => void;
   sceneLocations?: string[];
 }
 
-export default function GlobalElementsManager({ data, analysisId, onAllReviewedChange, sceneLocations }: Props) {
+export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations }: Props) {
   const managed = data?._managed;
   // Use managed data only if locations are present (not null), otherwise rebuild
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
@@ -372,6 +373,8 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [addingTo, setAddingTo] = useState<CategoryKey | null>(null);
   const [newItemText, setNewItemText] = useState("");
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
   const [reviewStatus, setReviewStatus] = useState<Record<CategoryKey, "unreviewed" | "needs_review" | "completed">>(
     managed?.reviewStatus || {
       characters: "unreviewed",
@@ -382,6 +385,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
     },
   );
   const initialMount = useRef(true);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // Notify parent when all sections are reviewed
   useEffect(() => {
@@ -410,8 +414,15 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
     return () => clearTimeout(timeout);
   }, [categories, reviewStatus, analysisId]);
 
-  /* selection */
+  /* selection — first click selects, second click on same item enters edit mode */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
+    // If already selected, enter edit mode instead of deselecting
+    if (selected.has(item) && activeCategory === category) {
+      setEditingItem(item);
+      setEditText(item);
+      setTimeout(() => editInputRef.current?.focus(), 0);
+      return;
+    }
     setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(item)) {
@@ -424,12 +435,160 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
       else setActiveCategory(category);
       return next;
     });
-  }, [activeCategory]);
+  }, [activeCategory, selected]);
 
   const clearSelection = useCallback(() => {
     setSelected(new Set());
     setActiveCategory(null);
+    setEditingItem(null);
   }, []);
+
+  /* rename item — update local state + propagate to DB */
+  const renameItem = useCallback(async (oldName: string, newName: string, category: CategoryKey) => {
+    const trimmed = newName.trim();
+    if (!trimmed || trimmed === oldName) {
+      setEditingItem(null);
+      return;
+    }
+
+    // Update local categories state
+    setCategories((prev) => {
+      const cat = { ...prev[category] };
+      cat.ungrouped = cat.ungrouped.map((u) => (u === oldName ? trimmed : u));
+      cat.groups = cat.groups.map((g) => ({
+        ...g,
+        parentName: g.parentName === oldName ? trimmed : g.parentName,
+        variants: g.variants.map((v) => (v === oldName ? trimmed : v)),
+      }));
+
+      const updated = { ...prev, [category]: cat };
+
+      // When a character is renamed, also update wardrobe group names
+      if (category === "characters") {
+        const wardrobe = { ...updated.wardrobe };
+        const oldUpper = oldName.toUpperCase();
+        wardrobe.groups = wardrobe.groups.map((g) =>
+          g.parentName.toUpperCase() === oldUpper
+            ? { ...g, parentName: trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase() }
+            : g
+        );
+        updated.wardrobe = wardrobe;
+      }
+
+      return updated;
+    });
+
+    // Update selection set
+    setSelected((prev) => {
+      if (!prev.has(oldName)) return prev;
+      const next = new Set(prev);
+      next.delete(oldName);
+      next.add(trimmed);
+      return next;
+    });
+
+    setEditingItem(null);
+
+    // Propagate to DB if filmId available
+    if (!filmId) return;
+
+    try {
+      if (category === "characters") {
+        // Update characters table
+        await supabase
+          .from("characters")
+          .update({ name: trimmed })
+          .eq("film_id", filmId)
+          .eq("name", oldName);
+        // Update parsed_scenes characters arrays
+        const { data: scenes } = await supabase
+          .from("parsed_scenes")
+          .select("id, characters")
+          .eq("film_id", filmId);
+        if (scenes) {
+          for (const scene of scenes) {
+            const chars: string[] = Array.isArray(scene.characters) ? scene.characters : [];
+            if (chars.includes(oldName)) {
+              const updated = chars.map((c: string) => (c === oldName ? trimmed : c));
+              await supabase.from("parsed_scenes").update({ characters: updated }).eq("id", scene.id);
+            }
+          }
+        }
+        // Update wardrobe_scene_assignments
+        await supabase
+          .from("wardrobe_scene_assignments")
+          .update({ character_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("character_name", oldName);
+        // Update asset_identity_registry
+        await supabase
+          .from("asset_identity_registry")
+          .update({ display_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("display_name", oldName)
+          .eq("asset_type", "character");
+      } else if (category === "locations") {
+        // Update parsed_scenes location_name
+        await supabase
+          .from("parsed_scenes")
+          .update({ location_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("location_name", oldName);
+        // Update asset_identity_registry
+        await supabase
+          .from("asset_identity_registry")
+          .update({ display_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("display_name", oldName)
+          .eq("asset_type", "location");
+      } else if (category === "props") {
+        // Update parsed_scenes key_objects arrays
+        const { data: scenes } = await supabase
+          .from("parsed_scenes")
+          .select("id, key_objects")
+          .eq("film_id", filmId);
+        if (scenes) {
+          for (const scene of scenes) {
+            const objs: string[] = Array.isArray(scene.key_objects) ? scene.key_objects : [];
+            if (objs.includes(oldName)) {
+              const updated = objs.map((o: string) => (o === oldName ? trimmed : o));
+              await supabase.from("parsed_scenes").update({ key_objects: updated }).eq("id", scene.id);
+            }
+          }
+        }
+        // Update asset_identity_registry
+        await supabase
+          .from("asset_identity_registry")
+          .update({ display_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("display_name", oldName)
+          .eq("asset_type", "prop");
+      } else if (category === "wardrobe") {
+        // Update wardrobe_scene_assignments
+        await supabase
+          .from("wardrobe_scene_assignments")
+          .update({ clothing_item: trimmed })
+          .eq("film_id", filmId)
+          .eq("clothing_item", oldName);
+        // Update asset_identity_registry
+        await supabase
+          .from("asset_identity_registry")
+          .update({ display_name: trimmed })
+          .eq("film_id", filmId)
+          .eq("display_name", oldName)
+          .eq("asset_type", "wardrobe");
+      }
+
+      // Update film_assets
+      await supabase
+        .from("film_assets")
+        .update({ asset_name: trimmed })
+        .eq("film_id", filmId)
+        .eq("asset_name", oldName);
+    } catch (err) {
+      console.error("Failed to propagate rename:", err);
+    }
+  }, [filmId]);
 
   /* merge flow */
   const openMerge = useCallback(() => {
@@ -637,6 +796,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                           {[...group.variants].sort((a, b) => a.localeCompare(b)).map((v, i) => {
                             const isSelected = selected.has(v) && activeCategory === key;
                             const isDisabled = activeCategory !== null && activeCategory !== key;
+                            const isEditing = editingItem === v;
                             return (
                               <span
                                 key={i}
@@ -646,16 +806,33 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                                     ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
                                     : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
                                   isDisabled && "opacity-40",
+                                  isEditing && "ring-2 ring-primary/50",
                                 )}
                               >
-                                <button
-                                  disabled={isDisabled}
-                                  onClick={() => toggleSelect(v, key)}
-                                  className="cursor-pointer"
-                                >
-                                  {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-                                  {v}
-                                </button>
+                                {isEditing ? (
+                                  <input
+                                    ref={editInputRef}
+                                    value={editText}
+                                    onChange={(e) => setEditText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") renameItem(v, editText, key);
+                                      if (e.key === "Escape") setEditingItem(null);
+                                    }}
+                                    onBlur={() => renameItem(v, editText, key)}
+                                    className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
+                                    style={{ width: `${Math.max(editText.length, 3)}ch` }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <button
+                                    disabled={isDisabled}
+                                    onClick={() => toggleSelect(v, key)}
+                                    className="cursor-pointer"
+                                  >
+                                    {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+                                    {v}
+                                  </button>
+                                )}
                               </span>
                             );
                           })}
@@ -671,6 +848,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                     {[...cat.ungrouped].sort((a, b) => a.localeCompare(b)).map((item, i) => {
                       const isSelected = selected.has(item) && activeCategory === key;
                       const isDisabled = activeCategory !== null && activeCategory !== key;
+                      const isEditing = editingItem === item;
                       return (
                         <span
                           key={i}
@@ -680,23 +858,42 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
                               ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
                               : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
                             isDisabled && "opacity-40",
+                            isEditing && "ring-2 ring-primary/50",
                           )}
                         >
-                          <button
-                            disabled={isDisabled}
-                            onClick={() => toggleSelect(item, key)}
-                            className="cursor-pointer"
-                          >
-                            {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-                            {item}
-                          </button>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteItem(key, item); }}
-                            className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
-                            title="Remove"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
+                          {isEditing ? (
+                            <input
+                              ref={editInputRef}
+                              value={editText}
+                              onChange={(e) => setEditText(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") renameItem(item, editText, key);
+                                if (e.key === "Escape") setEditingItem(null);
+                              }}
+                              onBlur={() => renameItem(item, editText, key)}
+                              className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
+                              style={{ width: `${Math.max(editText.length, 3)}ch` }}
+                              autoFocus
+                            />
+                          ) : (
+                            <button
+                              disabled={isDisabled}
+                              onClick={() => toggleSelect(item, key)}
+                              className="cursor-pointer"
+                            >
+                              {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+                              {item}
+                            </button>
+                          )}
+                          {!isEditing && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); deleteItem(key, item); }}
+                              className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+                              title="Remove"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          )}
                         </span>
                       );
                     })}
@@ -738,7 +935,7 @@ export default function GlobalElementsManager({ data, analysisId, onAllReviewedC
 
                 {cat.ungrouped.length > 1 && selected.size === 0 && addingTo !== key && (
                   <p className="text-xs text-muted-foreground italic">
-                    Click items to select, then link similar ones together
+                    Click to select, click again to edit name, press Enter to save
                   </p>
                 )}
 
