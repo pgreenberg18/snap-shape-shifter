@@ -137,6 +137,43 @@ export const useDetectConflicts = () => {
   });
 };
 
+/* ── Batch regenerate all dirty shots ── */
+export const useRegenerateAllDirty = () => {
+  const queryClient = useQueryClient();
+  const filmId = useFilmId();
+
+  return useMutation({
+    mutationFn: async (dirtyItems: ViceDirtyItem[]) => {
+      const results: { shotId: string; status: string; error?: string }[] = [];
+
+      for (const item of dirtyItems) {
+        try {
+          const { data, error } = await supabase.functions.invoke("orchestrate-generation", {
+            body: { shot_id: item.shot_id, mode: "anchor", anchor_count: 4 },
+          });
+          if (error) throw error;
+
+          // Mark dirty item as resolved
+          await supabase
+            .from("vice_dirty_queue")
+            .update({ status: "resolved", resolved_at: new Date().toISOString() })
+            .eq("id", item.id);
+
+          results.push({ shotId: item.shot_id, status: "queued" });
+        } catch (e) {
+          results.push({ shotId: item.shot_id, status: "failed", error: String(e) });
+        }
+      }
+
+      return results;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["vice-dirty-queue", filmId] });
+      queryClient.invalidateQueries({ queryKey: ["vice-conflicts", filmId] });
+    },
+  });
+};
+
 /* ── Propagate intent change ── */
 export const usePropagateChange = () => {
   const queryClient = useQueryClient();
