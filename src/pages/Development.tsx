@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import { useScriptViewer } from "@/components/ScriptViewerDialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -2243,10 +2244,10 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, onRev
 
 const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onToggleApproved, onToggleRejected }: { scene: any; index: number; storagePath: string; approved: boolean; rejected: boolean; onToggleApproved: () => void; onToggleRejected: () => void }) => {
   const [expanded, setExpanded] = useState(false);
-  const [scriptOpen, setScriptOpen] = useState(false);
   const [scriptParagraphs, setScriptParagraphs] = useState<{ type: string; text: string }[] | null>(null);
   const [scriptLoading, setScriptLoading] = useState(false);
   const [scriptPage, setScriptPage] = useState<string | null>(scene.page || null);
+  const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
 
   const parseFdxScene = (xml: string): { type: string; text: string }[] => {
     const heading = scene.scene_heading?.trim();
@@ -2321,23 +2322,33 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
   };
 
   const loadScript = async () => {
+    const sceneNum = scene.scene_number ?? index + 1;
+    const title = scene.scene_heading || `Scene ${sceneNum}`;
+
     if (scriptParagraphs !== null) {
-      setScriptOpen(true);
+      openScriptViewer({
+        title,
+        description: "Original screenplay formatting",
+        scenes: [{ sceneNum, heading: title, paragraphs: scriptParagraphs }],
+      });
       return;
     }
+
+    openScriptViewer({ title, description: "Original screenplay formatting" });
     setScriptLoading(true);
-    setScriptOpen(true);
     try {
       const { data, error } = await supabase.storage.from("scripts").download(storagePath);
       if (error || !data) throw error || new Error("Download failed");
       const full = await data.text();
 
-      // Detect FDX (XML) vs plain text
       const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
       const parsed = isFdx ? parseFdxScene(full) : parsePlainTextScene(full);
       setScriptParagraphs(parsed);
+      setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: parsed }]);
     } catch {
-      setScriptParagraphs([{ type: "Action", text: "[Could not load script file]" }]);
+      const fallback = [{ type: "Action", text: "[Could not load script file]" }];
+      setScriptParagraphs(fallback);
+      setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: fallback }]);
     } finally {
       setScriptLoading(false);
     }
@@ -2395,81 +2406,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
         />
       )}
 
-      {/* Script Dialog — printed page appearance */}
-      <Dialog open={scriptOpen} onOpenChange={setScriptOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-5 pb-3">
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <ScrollText className="h-4 w-4" />
-              {scene.scene_heading || `Scene ${scene.scene_number ?? index + 1}`}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              Original screenplay formatting
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto px-6 pb-6">
-            {scriptLoading ? (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground py-20">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading script…
-              </div>
-            ) : (
-              <div
-                className="mx-auto bg-white text-black shadow-lg"
-                style={{
-                  fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
-                  fontSize: "12px",
-                  lineHeight: "1.0",
-                  padding: "72px 60px 72px 90px",
-                  maxWidth: "612px",
-                  minHeight: "792px",
-                }}
-              >
-                {scriptParagraphs?.map((p, i) => {
-                  switch (p.type) {
-                    case "Scene Heading":
-                      return (
-                        <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
-                          <span>{scene.scene_number ?? index + 1}</span>
-                          <span style={{ marginLeft: 24 }}>{p.text}</span>
-                        </p>
-                      );
-                    case "Character":
-                      return (
-                        <p key={i} style={{ textTransform: "uppercase", textAlign: "left", paddingLeft: "37%", marginTop: 18, marginBottom: 0 }}>
-                          {p.text}
-                        </p>
-                      );
-                    case "Parenthetical":
-                      return (
-                        <p key={i} style={{ paddingLeft: "28%", fontStyle: "italic", marginTop: 0, marginBottom: 0 }}>
-                          {p.text}
-                        </p>
-                      );
-                    case "Dialogue":
-                      return (
-                        <p key={i} style={{ paddingLeft: "17%", paddingRight: "17%", marginTop: 0, marginBottom: 0 }}>
-                          {p.text}
-                        </p>
-                      );
-                    case "Transition":
-                      return (
-                        <p key={i} style={{ textAlign: "right", textTransform: "uppercase", marginTop: 18, marginBottom: 12 }}>
-                          {p.text}
-                        </p>
-                      );
-                    default: // Action
-                      return (
-                        <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>
-                          {p.text}
-                        </p>
-                      );
-                  }
-                })}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Script viewer is now handled by global ScriptViewerProvider */}
     </div>
   );
 };

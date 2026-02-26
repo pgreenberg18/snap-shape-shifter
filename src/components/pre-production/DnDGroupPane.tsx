@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useScriptViewer } from "@/components/ScriptViewerDialog";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -193,12 +194,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-  // Script viewer state
-  const [scriptOpen, setScriptOpen] = useState(false);
-  const [scriptTitle, setScriptTitle] = useState("");
-  const [scriptHighlightTerms, setScriptHighlightTerms] = useState<string[]>([]);
-  const [scriptScenes, setScriptScenes] = useState<{ sceneNum: number; heading: string; paragraphs: { type: string; text: string }[] }[]>([]);
-  const [scriptLoading, setScriptLoading] = useState(false);
+  // Script viewer — use global provider
+  const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
 
   // Load persisted state — seed from initialGroups if no localStorage groups exist
   useEffect(() => {
@@ -401,7 +398,6 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     for (const name of itemNames) {
       const matches = findScenesForItem(name, sceneBreakdown, storagePrefix, excludeFromKeyObjects);
       for (const m of matches) {
-        // If targeting a specific scene, only include that one
         const sn = m.scene.scene_number ? parseInt(m.scene.scene_number, 10) : m.sceneIndex + 1;
         if (targetSceneNum !== undefined && sn !== targetSceneNum) continue;
         if (!allMatches.has(m.sceneIndex)) allMatches.set(m.sceneIndex, m.scene);
@@ -413,11 +409,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       return;
     }
 
-    setScriptTitle(dialogTitle);
-    setScriptHighlightTerms(itemNames);
-    setScriptOpen(true);
-    setScriptScenes([]);
-    setScriptLoading(true);
+    const desc = `${allMatches.size} scene${allMatches.size !== 1 ? "s" : ""} referencing this item · highlighted in yellow`;
+    openScriptViewer({ title: dialogTitle, description: desc, highlightTerms: itemNames });
 
     // Sort scenes by scene number
     const sortedScenes = [...allMatches.entries()]
@@ -425,8 +418,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       .map(([, scene]) => scene);
 
     if (!storagePath) {
-      // No script file — show scene descriptions from breakdown
-      setScriptScenes(sortedScenes.map((scene) => ({
+      setScriptViewerScenes(sortedScenes.map((scene: any) => ({
         sceneNum: scene.scene_number ? parseInt(scene.scene_number, 10) : 0,
         heading: scene.scene_heading || "Unknown",
         paragraphs: [
@@ -434,7 +426,6 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
           { type: "Action", text: scene.description || "" },
         ],
       })));
-      setScriptLoading(false);
       return;
     }
 
@@ -486,7 +477,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
           const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
           const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
           const sceneText = full.substring(sIdx, eIdx).trim();
-          const parsed = sceneText.split("\n").filter((l) => l.trim()).map((line) => {
+          const parsed = sceneText.split("\n").filter((l: string) => l.trim()).map((line: string) => {
             const trimmed = line.trim();
             if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
             if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
@@ -496,10 +487,10 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         }
       }
 
-      setScriptScenes(parsedScenes);
+      setScriptViewerScenes(parsedScenes);
     } catch {
       toast.error("Could not load script file");
-      setScriptScenes(sortedScenes.map((scene) => ({
+      setScriptViewerScenes(sortedScenes.map((scene: any) => ({
         sceneNum: scene.scene_number ? parseInt(scene.scene_number, 10) : 0,
         heading: scene.scene_heading || "Unknown",
         paragraphs: [
@@ -507,10 +498,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
           { type: "Action", text: scene.description || "[Could not load script file]" },
         ],
       })));
-    } finally {
-      setScriptLoading(false);
     }
-  }, [sceneBreakdown, storagePath, storagePrefix]);
+  }, [sceneBreakdown, storagePath, storagePrefix, openScriptViewer, setScriptViewerScenes]);
 
   const handleItemClick = useCallback((itemName: string) => {
     if (expandableSubtitles && subtitles?.[itemName]) {
@@ -824,91 +813,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ═══ SCRIPT VIEWER DIALOG ═══ */}
-      <Dialog open={scriptOpen} onOpenChange={setScriptOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-5 pb-3">
-            <DialogTitle className="flex items-center gap-2 text-base">
-              <ScrollText className="h-4 w-4" />
-              {scriptTitle}
-            </DialogTitle>
-            <DialogDescription className="text-xs">
-              {scriptScenes.length} scene{scriptScenes.length !== 1 ? "s" : ""} referencing this item · highlighted in yellow
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 overflow-auto px-6 pb-6">
-            {scriptLoading ? (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground py-20">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading script…
-              </div>
-            ) : scriptScenes.length === 0 ? (
-              <div className="flex items-center justify-center text-muted-foreground py-20">
-                No script content found for this item.
-              </div>
-            ) : (
-              <div className="space-y-8">
-                {scriptScenes.map((scene, si) => (
-                  <div
-                    key={si}
-                    className="mx-auto bg-white text-black shadow-lg"
-                    style={{
-                      fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
-                      fontSize: "12px",
-                      lineHeight: "1.0",
-                      padding: "72px 60px 72px 90px",
-                      maxWidth: "612px",
-                      minHeight: "400px",
-                    }}
-                  >
-                    {scene.paragraphs.map((p, i) => {
-                      const hl = (text: string) => highlightTerms(text, scriptHighlightTerms);
-                      switch (p.type) {
-                        case "Scene Heading":
-                          return (
-                            <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>
-                              <span>{scene.sceneNum}</span>
-                              <span style={{ marginLeft: 24 }}>{hl(p.text)}</span>
-                            </p>
-                          );
-                        case "Character":
-                          return (
-                            <p key={i} style={{ textTransform: "uppercase", textAlign: "left", paddingLeft: "37%", marginTop: 18, marginBottom: 0 }}>
-                              {p.text}
-                            </p>
-                          );
-                        case "Parenthetical":
-                          return (
-                            <p key={i} style={{ paddingLeft: "28%", fontStyle: "italic", marginTop: 0, marginBottom: 0 }}>
-                              {hl(p.text)}
-                            </p>
-                          );
-                        case "Dialogue":
-                          return (
-                            <p key={i} style={{ paddingLeft: "17%", paddingRight: "17%", marginTop: 0, marginBottom: 0 }}>
-                              {hl(p.text)}
-                            </p>
-                          );
-                        case "Transition":
-                          return (
-                            <p key={i} style={{ textAlign: "right", textTransform: "uppercase", marginTop: 18, marginBottom: 12 }}>
-                              {p.text}
-                            </p>
-                          );
-                        default:
-                          return (
-                            <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>
-                              {hl(p.text)}
-                            </p>
-                          );
-                      }
-                    })}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Script viewer is now handled by global ScriptViewerProvider */}
     </div>
   );
 };
