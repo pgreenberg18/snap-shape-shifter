@@ -74,7 +74,7 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
         <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0">
           <path d="M12 21a9 9 0 110-18 9 9 0 010 18z" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
           <path d="M6 17a8 8 0 0112 0" stroke="currentColor" strokeWidth="1" opacity="0.2" />
-          <path d="M12 12l3-4" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
+          <path d="M12 12l3-4" stroke="hsl(160 84% 45%)" strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
           <circle cx="12" cy="12" r="1.2" fill="currentColor" opacity="0.5" />
         </svg>
         <div

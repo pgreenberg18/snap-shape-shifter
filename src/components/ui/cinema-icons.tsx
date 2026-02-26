@@ -135,7 +135,7 @@ export const PrecisionGearIcon = ({ className }: IconProps) => (
     <path d="M12 2l1.4 2.5a1 1 0 00.9.5h2.8l.7 2.7-2.3 1.3a1 1 0 00-.5.9l.3 2.8-2.7.7-1.3-2.3a1 1 0 00-.9 0L9.1 12.4l-.7-2.7 2.3-1.3a1 1 0 00.5-.9L10.9 4.7l2.7-.7z" stroke="currentColor" strokeWidth="1.3" opacity="0.5" />
     <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1" opacity="0.25" strokeDasharray="2 2.5" />
     <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.3" opacity="0.6" />
-    <circle cx="12" cy="12" r="1.2" fill="hsl(217 100% 59%)" opacity="0.9" />
+    <circle cx="12" cy="12" r="1.2" fill="hsl(38 92% 55%)" opacity="0.9" />
     <line x1="12" y1="2.5" x2="12" y2="4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
     <line x1="12" y1="19.5" x2="12" y2="21.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
     <line x1="2.5" y1="12" x2="4.5" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
@@ -147,7 +147,7 @@ export const PrecisionGearIcon = ({ className }: IconProps) => (
 export const InfoBeaconIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
     <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.3" opacity="0.4" />
-    <circle cx="12" cy="8.5" r="1.1" fill="hsl(217 100% 59%)" opacity="0.9" />
+    <circle cx="12" cy="8.5" r="1.1" fill="hsl(190 95% 55%)" opacity="0.9" />
     <rect x="11" y="11" width="2" height="5.5" rx="1" fill="currentColor" opacity="0.6" />
   </svg>
 );
@@ -157,7 +157,7 @@ export const CineBackIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
     <path d="M10 6L4 12l6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M4 12h12a4 4 0 010 8h-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
-    <circle cx="4" cy="12" r="1.2" fill="hsl(217 100% 59%)" opacity="0.7" />
+    <circle cx="4" cy="12" r="1.2" fill="hsl(12 90% 62%)" opacity="0.7" />
   </svg>
 );
 
@@ -174,7 +174,7 @@ export const FilmStripIcon = ({ className }: IconProps) => (
     <rect x="16.5" y="12" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
     <rect x="16.5" y="16" width="2" height="1.5" rx="0.5" fill="currentColor" opacity="0.25" />
     <rect x="9" y="4" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.35" />
-    <rect x="9" y="10" width="6" height="4" rx="0.5" stroke="hsl(217 100% 59%)" strokeWidth="0.8" opacity="0.7" fill="hsl(217 100% 59%)" fillOpacity="0.1" />
+    <rect x="9" y="10" width="6" height="4" rx="0.5" stroke="hsl(270 80% 65%)" strokeWidth="0.8" opacity="0.7" fill="hsl(270 80% 65%)" fillOpacity="0.1" />
     <rect x="9" y="16" width="6" height="4" rx="0.5" stroke="currentColor" strokeWidth="0.8" opacity="0.3" />
   </svg>
 );
@@ -186,7 +186,7 @@ export const MixingConsoleIcon = ({ className }: IconProps) => (
     <line x1="12" y1="4" x2="12" y2="20" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
     <line x1="18" y1="4" x2="18" y2="20" stroke="currentColor" strokeWidth="1.2" opacity="0.25" />
     <rect x="4.2" y="7" width="3.6" height="2.8" rx="0.8" fill="currentColor" opacity="0.4" stroke="currentColor" strokeWidth="0.7" />
-    <rect x="10.2" y="13" width="3.6" height="2.8" rx="0.8" fill="hsl(217 100% 59%)" opacity="0.5" stroke="hsl(217 100% 59%)" strokeWidth="0.7" />
+    <rect x="10.2" y="13" width="3.6" height="2.8" rx="0.8" fill="hsl(330 85% 60%)" opacity="0.5" stroke="hsl(330 85% 60%)" strokeWidth="0.7" />
     <rect x="16.2" y="9" width="3.6" height="2.8" rx="0.8" fill="currentColor" opacity="0.35" stroke="currentColor" strokeWidth="0.7" />
   </svg>
 );
@@ -194,7 +194,7 @@ export const MixingConsoleIcon = ({ className }: IconProps) => (
 /* ── Sign Out: Power button ── */
 export const PowerIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <path d="M12 3v7" stroke="hsl(217 100% 59%)" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
+    <path d="M12 3v7" stroke="hsl(350 90% 60%)" strokeWidth="1.8" strokeLinecap="round" opacity="0.85" />
     <path d="M17.5 6.5a8 8 0 11-11 0" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
   </svg>
 );
@@ -204,7 +204,7 @@ export const PanelCollapseIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
     <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.35" />
     <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
-    <path d="M15 9l-3 3 3 3" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+    <path d="M15 9l-3 3 3 3" stroke="hsl(175 70% 48%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
   </svg>
 );
 
@@ -212,7 +212,7 @@ export const PanelExpandIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
     <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="1.3" opacity="0.35" />
     <line x1="9" y1="3" x2="9" y2="21" stroke="currentColor" strokeWidth="0.8" opacity="0.2" />
-    <path d="M13 9l3 3-3 3" stroke="hsl(217 100% 59%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+    <path d="M13 9l3 3-3 3" stroke="hsl(175 70% 48%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
   </svg>
 );
 
