@@ -215,6 +215,12 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
   "writers-room": "script-analysis",
 };
 
+/* ── Provider groups: services that share the same API key ── */
+const PROVIDER_GROUPS: Record<string, string[]> = {
+  google: ["gemini", "veo", "imagen-4"],
+  openai: ["openai-chat", "dall-e", "sora"],
+};
+
 export { SERVICE_CATALOGS };
 
 const IntegrationsPanel = () => {
@@ -461,7 +467,25 @@ const IntegrationsPanel = () => {
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Service</Label>
-                        <Select value={selectedService} onValueChange={(val) => { setSelectedService(val); setSelectedVariant(""); }}>
+                        <Select value={selectedService} onValueChange={(val) => {
+                          setSelectedService(val);
+                          setSelectedVariant("");
+                          // Auto-fill API key from same provider group
+                          const providerGroup = Object.values(PROVIDER_GROUPS).find((ids) => ids.includes(val));
+                          if (providerGroup && integrations) {
+                            const existingInt = integrations.find((int) => {
+                              const mappedSection = LEGACY_SECTION_MAP[int.section_id] || int.section_id;
+                              const cat = SERVICE_CATALOGS[mappedSection] || [];
+                              const matchedSvc = cat.find((s) => int.provider_name.startsWith(s.name));
+                              return matchedSvc && providerGroup.includes(matchedSvc.id) && int.is_verified && int.api_key_encrypted;
+                            });
+                            if (existingInt?.api_key_encrypted) {
+                              setServiceKey(existingInt.api_key_encrypted);
+                              return;
+                            }
+                          }
+                          setServiceKey("");
+                        }}>
                           <SelectTrigger className="bg-background">
                             <SelectValue placeholder="Select a service…" />
                           </SelectTrigger>
