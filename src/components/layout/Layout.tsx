@@ -6,21 +6,23 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAccessControl } from "@/hooks/useAccessControl";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import {
-  FileText,
-  Clapperboard,
-  Video,
-  Film,
-  Rocket,
-  Settings,
-  HelpCircle,
-  ArrowLeft,
-  Loader2,
-  ChevronsLeft,
-  ChevronsRight,
-  LogOut,
-  SlidersHorizontal,
-} from "lucide-react";
+  ScreenplayIcon,
+  ClapperboardIcon,
+  CineCameraIcon,
+  TimelineIcon,
+  DeliveryIcon,
+  PrecisionGearIcon,
+  InfoBeaconIcon,
+  CineBackIcon,
+  FilmStripIcon,
+  MixingConsoleIcon,
+  PowerIcon,
+  PanelCollapseIcon,
+  PanelExpandIcon,
+  VersionsIcon,
+} from "@/components/ui/cinema-icons";
 import {
   Tooltip,
   TooltipContent,
@@ -31,11 +33,11 @@ import { useHelp } from "@/components/help/HelpPanel";
 import CreditMeter from "./CreditMeter";
 
 const phases = [
-  { key: "development", icon: FileText, label: "Development", tint: "hsl(220 30% 5%)" },
-  { key: "pre-production", icon: Clapperboard, label: "Pre-Production", tint: "hsl(225 28% 6%)" },
-  { key: "production", icon: Video, label: "Production", tint: "hsl(210 25% 5%)" },
-  { key: "post-production", icon: Film, label: "Post-Production", tint: "hsl(230 22% 6%)" },
-  { key: "release", icon: Rocket, label: "Release", tint: "hsl(200 20% 5%)" },
+  { key: "development", icon: ScreenplayIcon, label: "Development", tint: "hsl(220 30% 5%)" },
+  { key: "pre-production", icon: ClapperboardIcon, label: "Pre-Production", tint: "hsl(225 28% 6%)" },
+  { key: "production", icon: CineCameraIcon, label: "Production", tint: "hsl(210 25% 5%)" },
+  { key: "post-production", icon: TimelineIcon, label: "Post-Production", tint: "hsl(230 22% 6%)" },
+  { key: "release", icon: DeliveryIcon, label: "Release", tint: "hsl(200 20% 5%)" },
 ];
 
 const Layout = ({ children }: { children: ReactNode }) => {
@@ -155,7 +157,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           )}
         >
           <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-            <ArrowLeft className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
+            <CineBackIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
           </span>
           {expanded && <span className="text-xs font-medium truncate">Versions</span>}
         </button>
@@ -179,7 +181,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              {expanded ? <ChevronsLeft className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} /> : <ChevronsRight className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />}
+              {expanded ? <PanelCollapseIcon className="h-4.5 w-4.5 shrink-0 icon-glow" /> : <PanelExpandIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />}
             </span>
             {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
           </button>
@@ -193,13 +195,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <HelpCircle className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
+              <InfoBeaconIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
             </span>
             {expanded && <span className="text-xs font-medium truncate">Help</span>}
           </button>
 
           <div className={expanded ? "w-full" : ""}>
-            {renderNavItem("settings", Settings, "Settings")}
+            {renderNavItem("settings", PrecisionGearIcon, "Settings")}
           </div>
 
           <button
@@ -211,7 +213,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             )}
           >
             <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <SlidersHorizontal className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
+              <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
             </span>
             {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
           </button>
@@ -228,7 +230,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[6px] opacity-20" style={{ background: 'linear-gradient(90deg, transparent 10%, rgba(124,203,255,0.15) 30%, rgba(124,203,255,0.3) 50%, rgba(124,203,255,0.15) 70%, transparent 90%)', filter: 'blur(4px)', animation: 'streak-pulse 6s ease-in-out infinite' }} />
           </div>
           <div className="flex items-center gap-2">
-            <Film className="h-4 w-4 text-primary icon-glow" strokeWidth={1.5} />
+            <FilmStripIcon className="h-4 w-4 text-primary icon-glow" />
             <span className="font-display text-sm font-bold tracking-tight text-foreground">
               Virtual Film Studio
             </span>
@@ -248,7 +250,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
               title="View versions"
             >
-              <Clapperboard className="h-3.5 w-3.5 text-primary icon-glow" strokeWidth={1.5} />
+              <VersionsIcon className="h-3.5 w-3.5 text-primary icon-glow" />
               <span className="font-display truncate max-w-[200px]">
                 {film?.title ?? "Loading…"}
               </span>
@@ -261,7 +263,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
               title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5 icon-glow" strokeWidth={1.5} />
+              <PowerIcon className="h-3.5 w-3.5 icon-glow" />
               Sign Out
             </button>
           </div>
