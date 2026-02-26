@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import AdminPanel, { isAdminUser } from "@/components/admin/AdminPanel";
 import NDADocument from "@/components/admin/NDADocument";
 import MediaLibraryPanel from "@/components/settings/MediaLibraryPanel";
+import IntegrationsPanel from "@/components/settings/IntegrationsPanel";
 import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -544,13 +545,7 @@ const SettingsAdmin = () => {
             {userSections.map((s) => (
               <button
                 key={s.id}
-                onClick={() => {
-                  if (s.id === "integrations") {
-                    navigate("/settings");
-                  } else {
-                    setActiveSection(s.id);
-                  }
-                }}
+                onClick={() => setActiveSection(s.id)}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   activeSection === s.id
                     ? "bg-primary/10 text-primary font-medium"
@@ -593,7 +588,7 @@ const SettingsAdmin = () => {
 
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-8">
-        <div className="max-w-2xl">
+        <div className="max-w-4xl">
           {!activeSection && (
             <div className="flex flex-col items-center justify-center h-[60vh] text-center">
               <Settings className="h-10 w-10 text-muted-foreground/20 mb-4" />
@@ -624,6 +619,10 @@ const SettingsAdmin = () => {
               <p className="text-xs text-muted-foreground mb-6">Browse all uploaded and generated media across your projects, organized by category.</p>
               <MediaLibraryPanel />
             </div>
+          )}
+
+          {activeSection === "integrations" && (
+            <IntegrationsPanel />
           )}
 
 

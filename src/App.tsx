@@ -68,7 +68,7 @@ const App = () => (
               <Route path="/projects/:projectId/versions/:versionId/settings" element={<ProtectedRoute><OnboardingGuard><AccessGuard><VersionLayout><VersionSettings /></VersionLayout></AccessGuard></OnboardingGuard></ProtectedRoute>} />
 
               {/* Settings */}
-              <Route path="/settings" element={<ProtectedRoute><OnboardingGuard><SettingsIntegrations /></OnboardingGuard></ProtectedRoute>} />
+              <Route path="/settings" element={<Navigate to="/settings/admin?section=integrations" replace />} />
               <Route path="/settings/admin" element={<ProtectedRoute><OnboardingGuard><SettingsAdmin /></OnboardingGuard></ProtectedRoute>} />
               <Route path="/projects/:projectId/versions/:versionId/global-assets" element={<ProtectedRoute><OnboardingGuard><VersionLayout><GlobalAssets /></VersionLayout></OnboardingGuard></ProtectedRoute>} />
 
