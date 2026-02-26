@@ -11,6 +11,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import AccessGuard from "@/components/AccessGuard";
 import OnboardingGuard from "@/components/OnboardingGuard";
 import ActivityLoggerProvider from "@/components/ActivityLoggerProvider";
+import ContextualHelpProvider from "@/components/ContextualHelpProvider";
 import Login from "@/pages/Login";
 import Signup from "@/pages/Signup";
 import Onboarding from "@/pages/Onboarding";
@@ -43,6 +44,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <ActivityLoggerProvider />
+            <ContextualHelpProvider />
             <HelpPanel />
             <Routes>
               <Route path="/login" element={<Login />} />

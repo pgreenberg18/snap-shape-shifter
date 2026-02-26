@@ -62,6 +62,7 @@ const CreditMeter = ({ expanded }: CreditMeterProps) => {
 
   return (
     <button
+      data-help-id="nav-credit-meter"
       onClick={handleClick}
       className={cn(
         "flex items-center rounded-lg transition-all duration-200 group",

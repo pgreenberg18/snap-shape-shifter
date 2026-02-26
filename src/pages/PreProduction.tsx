@@ -553,7 +553,7 @@ const PreProduction = () => {
         </div>
 
         {/* ═══ CASTING TAB ═══ */}
-        <TabsContent value="casting" className="flex-1 flex overflow-hidden m-0">
+        <TabsContent value="casting" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-characters">
           <CharacterSidebar
             characters={characters}
             isLoading={isLoading}
@@ -997,10 +997,10 @@ const PreProduction = () => {
         </TabsContent>
 
         {/* ═══ OTHER TABS ═══ */}
-        <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0">
+        <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-locations">
           <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} />
         </TabsContent>
-        <TabsContent value="props" className="flex-1 flex overflow-hidden m-0">
+        <TabsContent value="props" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-props">
           <DnDGroupPane
             items={filteredProps} filmId={filmId} storagePrefix="props" icon={Package} title="Props"
             emptyMessage="No props extracted yet. Lock your script in Development."
@@ -1016,7 +1016,7 @@ const PreProduction = () => {
             onReclassify={handleReclassify}
           />
         </TabsContent>
-        <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0">
+        <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-wardrobe">
           {(() => {
             const wardrobeItems = breakdownAssets?.wardrobe ?? [];
             const byCharacter = new Map<string, string[]>();
@@ -1060,7 +1060,7 @@ const PreProduction = () => {
             );
           })()}
         </TabsContent>
-        <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0">
+        <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-vehicles">
           <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." subtitles={breakdownAssets?.vehicleDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
       </Tabs>

@@ -453,6 +453,7 @@ const Production = () => {
             willChange: 'width, opacity',
           }}
         >
+          <div data-help-id="prod-scene-navigator">
           <SceneNavigator
             scenes={scenes}
             activeSceneIdx={activeSceneIdx}
@@ -461,6 +462,7 @@ const Production = () => {
             width={sidebarWidth}
             onResizeStart={handleResizeStart}
           />
+          </div>
         </div>
 
         {/* ── CENTER: Script / Shots / Viewer ── */}
@@ -513,6 +515,7 @@ const Production = () => {
                       </p>
                     </div>
                   )}
+                  <div data-help-id="prod-script-workspace">
                   <ScriptWorkspace
                     scene={activeScene}
                     sceneText={sceneTextData?.raw_text ?? undefined}
@@ -523,7 +526,11 @@ const Production = () => {
                     onAutoShot={handleAutoShot}
                     isAutoShotting={isAutoShotting}
                   />
+                  </div>
+                  <div data-help-id="prod-optics-suite">
                   <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />
+                  </div>
+                  <div data-help-id="prod-shot-builder">
                   <ShotBuilder
                     shot={activeShot}
                     onGenerate={handleGenerate}
@@ -532,6 +539,7 @@ const Production = () => {
                     hasAnchors={anchorUrls.length > 0}
                     selectedAnchorUrl={selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : undefined}
                   />
+                  </div>
                   {/* Right edge resize handle */}
                   <div
                     onMouseDown={handleScriptColResize}
@@ -541,6 +549,7 @@ const Production = () => {
 
                 {/* Right column: Playback Monitor → Shot Stack → Shot Description */}
                 <div className="flex-1 flex flex-col overflow-y-auto py-3 min-w-0">
+                  <div data-help-id="prod-playback-monitor">
                   <PlaybackMonitor
                     aspectRatio={viewportAspect}
                     takes={takes}
@@ -557,12 +566,15 @@ const Production = () => {
                     diffPair={diffPair}
                     onCloseDiff={() => setDiffPair(null)}
                   />
+                  </div>
+                  <div data-help-id="prod-shot-list">
                   <ShotList
                     shots={sceneShots}
                     activeShotId={activeShotId}
                     onSelectShot={handleSelectShot}
                     onAddShot={() => createShot.mutate({ text: "", characters: [] })}
                   />
+                  </div>
                   <ShotDescriptionPane
                     shot={activeShot}
                     scene={activeScene}
