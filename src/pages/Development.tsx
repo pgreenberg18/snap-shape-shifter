@@ -555,6 +555,7 @@ const Development = () => {
     }
     if (!filmId) return;
     setUploading(true);
+    const uploadStartTime = Date.now();
     const abortController = new AbortController();
     uploadAbortRef.current = abortController;
 
@@ -579,8 +580,13 @@ const Development = () => {
 
     setUploadedFile(file.name);
     setUploadedPath(path);
-    setUploading(false);
-    toast({ title: "Script uploaded", description: "Click Analyze to begin breakdown." });
+    // Keep uploading state visible for at least 1.5s so user can see it
+    const elapsed = Date.now() - uploadStartTime;
+    const remaining = Math.max(0, 1500 - elapsed);
+    setTimeout(() => {
+      setUploading(false);
+      toast({ title: "Script uploaded", description: "Click Analyze to begin breakdown." });
+    }, remaining);
   }, [toast, filmId]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
