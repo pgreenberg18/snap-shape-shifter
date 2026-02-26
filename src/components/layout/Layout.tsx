@@ -114,6 +114,26 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   const basePath = `/projects/${projectId}/versions/${versionId}`;
 
+  /** Wraps an element with a lens-flare tooltip when sidebar is collapsed */
+  const FlareTooltip = ({ label, children }: { label: string; children: React.ReactNode }) => {
+    if (expanded) return <>{children}</>;
+    return (
+      <TooltipProvider delayDuration={120}>
+        <Tooltip>
+          <TooltipTrigger asChild>{children}</TooltipTrigger>
+          <TooltipContent
+            side="right"
+            sideOffset={8}
+            data-sidebar-flare=""
+            className="relative overflow-visible border-primary/20 bg-secondary/95 backdrop-blur-md shadow-[0_0_16px_-4px_rgba(47,125,255,0.4)]"
+          >
+            <p className="text-xs font-medium tracking-wide text-foreground">{label}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
   const renderNavItem = (key: string, icon: React.ElementType, label: string, tint?: string) => {
     const to = `${basePath}/${key}`;
     const isActive = location.pathname.includes(`/${key}`);
@@ -122,53 +142,45 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
     if (disabled) {
       return (
-        <TooltipProvider key={key}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span
-                className={cn(
-                  "flex items-center rounded-xl text-muted-foreground/40 cursor-not-allowed transition-all duration-200",
-                  expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-                )}
-                title={label}
-              >
-                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-                  <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
-                </span>
-                {expanded && <span className="text-xs font-medium truncate">{label}</span>}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs">Script is being analyzed…</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        <FlareTooltip key={key} label="Script is being analyzed…">
+          <span
+            className={cn(
+              "flex items-center rounded-xl text-muted-foreground/40 cursor-not-allowed transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
+          >
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
+            </span>
+            {expanded && <span className="text-xs font-medium truncate">{label}</span>}
+          </span>
+        </FlareTooltip>
       );
     }
 
     return (
-      <NavLink
-        key={key}
-        to={to}
-        title={label}
-        data-help-id={`nav-${key}`}
-        className={cn(
-          "flex items-center rounded-xl transition-all duration-200",
-          expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
-          isActive
-            ? "text-primary [box-shadow:0_0_20px_-4px_rgba(47,125,255,0.45),0_0_8px_-2px_rgba(47,125,255,0.2)]"
-            : "text-muted-foreground hover:text-foreground hover:[box-shadow:0_0_16px_-3px_rgba(47,125,255,0.25)] hover:bg-accent"
-        )}
-        style={isActive && tint ? { backgroundColor: tint } : undefined}
-      >
-        <span className={cn(
-          "flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200",
-          isActive ? "bg-primary/15 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]" : "bg-muted/30 group-hover:bg-accent"
-        )}>
-          <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
-        </span>
-        {expanded && <span className="text-xs font-medium truncate">{label}</span>}
-      </NavLink>
+      <FlareTooltip key={key} label={label}>
+        <NavLink
+          to={to}
+          data-help-id={`nav-${key}`}
+          className={cn(
+            "flex items-center rounded-xl transition-all duration-200",
+            expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
+            isActive
+              ? "text-primary [box-shadow:0_0_20px_-4px_rgba(47,125,255,0.45),0_0_8px_-2px_rgba(47,125,255,0.2)]"
+              : "text-muted-foreground hover:text-foreground hover:[box-shadow:0_0_16px_-3px_rgba(47,125,255,0.25)] hover:bg-accent"
+          )}
+          style={isActive && tint ? { backgroundColor: tint } : undefined}
+        >
+          <span className={cn(
+            "flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200",
+            isActive ? "bg-primary/15 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]" : "bg-muted/30 group-hover:bg-accent"
+          )}>
+            <Icon className="h-4.5 w-4.5 shrink-0 icon-glow" strokeWidth={1.5} />
+          </span>
+          {expanded && <span className="text-xs font-medium truncate">{label}</span>}
+        </NavLink>
+      </FlareTooltip>
     );
   };
 
@@ -183,23 +195,24 @@ const Layout = ({ children }: { children: ReactNode }) => {
         style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
       >
         {/* Back to project */}
-        <button
-          onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
-          title="Back to versions"
-          data-help-id="nav-versions"
-          className={cn(
-            "mb-4 flex items-center rounded-xl transition-all duration-200",
-            expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
-            isAnalyzing
-              ? "text-muted-foreground/40 cursor-not-allowed"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)]"
-          )}
-        >
-          <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-            <CineBackIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
-          </span>
-          {expanded && <span className="text-xs font-medium truncate">Versions</span>}
-        </button>
+        <FlareTooltip label="Versions">
+          <button
+            onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
+            data-help-id="nav-versions"
+            className={cn(
+              "mb-4 flex items-center rounded-xl transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
+              isAnalyzing
+                ? "text-muted-foreground/40 cursor-not-allowed"
+                : "text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)]"
+            )}
+          >
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <CineBackIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+            </span>
+            {expanded && <span className="text-xs font-medium truncate">Versions</span>}
+          </button>
+        </FlareTooltip>
 
         <nav className={cn("flex flex-1 flex-col gap-1", expanded ? "w-full px-2" : "items-center")}>
           {phases.filter((phase) => hasPhaseAccess(phase.key)).map((phase) => renderNavItem(phase.key, phase.icon, phase.label, phase.tint))}
@@ -214,67 +227,71 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <CreditMeter expanded={expanded} />
 
           {/* Expand/Collapse toggle */}
-          <button
-            onClick={() => setExpanded((e) => !e)}
-            title={expanded ? "Collapse sidebar" : "Expand sidebar"}
-            className={cn(
-              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
-              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-            )}
-          >
-            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              {expanded ? <PanelCollapseIcon className="h-4.5 w-4.5 shrink-0 icon-glow" /> : <PanelExpandIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />}
-            </span>
-            {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
-          </button>
+          <FlareTooltip label={expanded ? "Collapse" : "Expand"}>
+            <button
+              onClick={() => setExpanded((e) => !e)}
+              className={cn(
+                "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
+                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+              )}
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                {expanded ? <PanelCollapseIcon className="h-4.5 w-4.5 shrink-0 icon-glow" /> : <PanelExpandIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />}
+              </span>
+              {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
+            </button>
+          </FlareTooltip>
 
-          <button
-            onClick={toggleHelp}
-            title="Help"
-            data-help-id="nav-help"
-            className={cn(
-              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
-              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-            )}
-          >
-            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <InfoBeaconIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
-            </span>
-            {expanded && <span className="text-xs font-medium truncate">Help</span>}
-          </button>
+          <FlareTooltip label="Help">
+            <button
+              onClick={toggleHelp}
+              data-help-id="nav-help"
+              className={cn(
+                "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
+                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+              )}
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <InfoBeaconIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+              {expanded && <span className="text-xs font-medium truncate">Help</span>}
+            </button>
+          </FlareTooltip>
 
           <div className={expanded ? "w-full" : ""}>
             {renderNavItem("settings", PrecisionGearIcon, "Settings")}
           </div>
 
-          <button
-            onClick={() => navigate("/settings/admin")}
-            title="Global Settings"
-            data-help-id="nav-global-settings"
-            className={cn(
-              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
-              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-            )}
-          >
-            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
-            </span>
-            {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
-          </button>
+          <FlareTooltip label="Global Settings">
+            <button
+              onClick={() => navigate("/settings/admin")}
+              data-help-id="nav-global-settings"
+              className={cn(
+                "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
+                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+              )}
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+              {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
+            </button>
+          </FlareTooltip>
 
-          <button
-            onClick={async () => { await signOut(); navigate("/login"); }}
-            title="Sign out"
-            className={cn(
-              "flex items-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200",
-              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-            )}
-          >
-            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-              <PowerIcon className="h-3.5 w-3.5 shrink-0 icon-glow" />
-            </span>
-            {expanded && <span className="text-xs font-medium truncate">Sign Out</span>}
-          </button>
+          <FlareTooltip label="Sign Out">
+            <button
+              onClick={async () => { await signOut(); navigate("/login"); }}
+              className={cn(
+                "flex items-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200",
+                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+              )}
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <PowerIcon className="h-3.5 w-3.5 shrink-0 icon-glow" />
+              </span>
+              {expanded && <span className="text-xs font-medium truncate">Sign Out</span>}
+            </button>
+          </FlareTooltip>
         </div>
       </aside>
 
