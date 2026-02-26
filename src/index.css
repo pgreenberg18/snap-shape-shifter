@@ -284,11 +284,7 @@
 
   /* Icon glow — sophisticated icon treatment */
   .icon-glow {
-    filter: drop-shadow(0 0 3px currentColor);
     transition: filter 0.3s ease;
-  }
-  .icon-glow:hover {
-    filter: drop-shadow(0 0 6px currentColor) drop-shadow(0 0 12px currentColor);
   }
 
   /* Specular edge reflection for panels */
