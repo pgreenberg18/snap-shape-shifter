@@ -227,10 +227,11 @@ const Production = () => {
   };
 
   // Generation via orchestrate-generation edge function
-  const handleGenerate = useCallback(async (mode: "anchor" | "animate" | "targeted_edit") => {
+  const handleGenerate = useCallback(async (mode: "anchor" | "animate" | "targeted_edit", overrideRepairTarget?: RepairTarget) => {
     if (!activeShot) return;
     setIsGenerating(true);
     setGenerationMode(mode);
+    const effectiveRepairTarget = overrideRepairTarget ?? repairTarget;
     try {
       const body: Record<string, unknown> = {
         shot_id: activeShot.id,
@@ -242,8 +243,8 @@ const Production = () => {
             : undefined,
         anchor_count: 4,
       };
-      if (mode === "targeted_edit" && repairTarget) {
-        body.repair_target = repairTarget;
+      if (mode === "targeted_edit" && effectiveRepairTarget) {
+        body.repair_target = effectiveRepairTarget;
       }
       const { data, error } = await supabase.functions.invoke("orchestrate-generation", {
         body,
@@ -285,7 +286,7 @@ const Production = () => {
 
   const handleRepair = useCallback((target: RepairTarget, _hint: string) => {
     setRepairTarget(target);
-    handleGenerate("targeted_edit");
+    handleGenerate("targeted_edit", target);
   }, [handleGenerate]);
 
   // Reset takes when switching shots
