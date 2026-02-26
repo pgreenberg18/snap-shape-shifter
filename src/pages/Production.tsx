@@ -443,8 +443,16 @@ const Production = () => {
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-[calc(100vh-64px)]">
-        {/* ── LEFT: Scene Navigator ── */}
-        {!scenesCollapsed && (
+        {/* ── LEFT: Scene Navigator (Apple-style slide) ── */}
+        <div
+          className="shrink-0 overflow-hidden"
+          style={{
+            width: scenesCollapsed ? 0 : sidebarWidth,
+            opacity: scenesCollapsed ? 0 : 1,
+            transition: 'width 0.35s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.2s ease-out',
+            willChange: 'width, opacity',
+          }}
+        >
           <SceneNavigator
             scenes={scenes}
             activeSceneIdx={activeSceneIdx}
@@ -453,7 +461,7 @@ const Production = () => {
             width={sidebarWidth}
             onResizeStart={handleResizeStart}
           />
-        )}
+        </div>
 
         {/* ── CENTER: Script / Shots / Viewer ── */}
         <main className="flex-1 flex flex-col overflow-hidden min-w-0">
