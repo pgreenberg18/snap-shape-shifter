@@ -3511,7 +3511,7 @@ const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, si
   return (
     <Collapsible>
       <CollapsibleTrigger className="w-full">
-        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+        <div data-help-id="dev-ai-notes" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
             <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>

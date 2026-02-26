@@ -546,7 +546,7 @@ const PostProduction = () => {
       {/* Top Half */}
       <div className="flex flex-[5] min-h-0">
         {/* Media Bin + Imported Files */}
-        <div className="w-1/3 border-r border-border flex flex-col overflow-hidden">
+        <div data-help-id="postprod-media-bin" className="w-1/3 border-r border-border flex flex-col overflow-hidden">
           <Tabs value={activeImportTab} onValueChange={setActiveImportTab} className="flex flex-col h-full">
             <div className="px-3 pt-3 pb-0 shrink-0">
               <h3 className="font-display text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">Media Bin</h3>
@@ -572,7 +572,7 @@ const PostProduction = () => {
             <div className="flex-1 overflow-y-auto p-3">
               {/* Style Drift Detection */}
               {shotsData && shotsData.length > 0 && styleContract && (
-                <div className="mb-3">
+                <div className="mb-3" data-help-id="postprod-style-drift">
                   <StyleDriftDetector
                     shots={shotsData}
                     contractVersion={styleContract.version}
@@ -668,7 +668,7 @@ const PostProduction = () => {
       </div>
 
       {/* Bottom Half — Timeline */}
-      <div className="flex-[5] bg-card border-t border-border flex flex-col min-h-0">
+      <div data-help-id="postprod-timeline" className="flex-[5] bg-card border-t border-border flex flex-col min-h-0">
         <div className="flex items-center justify-between px-4 py-2 border-b border-border">
           <div className="flex items-center gap-2">
             <span className="text-xs font-display font-semibold text-muted-foreground uppercase tracking-wider">Timeline</span>
@@ -822,7 +822,7 @@ const PostProduction = () => {
       </AlertDialog>
 
       {/* VFX Fix-It Bay */}
-      <VfxFixItBay clip={vfxClip} onClose={() => setVfxClip(null)} />
+      <div data-help-id="postprod-vfx"><VfxFixItBay clip={vfxClip} onClose={() => setVfxClip(null)} /></div>
       </div>
       {/* Right Sidebar */}
       <PostProductionSidebar
