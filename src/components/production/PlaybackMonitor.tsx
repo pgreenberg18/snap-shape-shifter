@@ -98,10 +98,10 @@ const PlaybackMonitor = ({
       : undefined;
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* ── Viewer Frame ── */}
-      <div className="flex-1 min-h-0 flex items-center justify-center px-2">
-        <div className="w-full max-w-4xl">
+    <div className="flex gap-3 px-2">
+      {/* ── Viewer Frame (half width) ── */}
+      <div className="w-1/2 min-w-0 flex items-start justify-center">
+        <div className="w-full">
           <AspectRatio ratio={aspectRatio}>
             <div
               className="relative w-full h-full rounded-lg bg-black shadow-[inset_0_4px_30px_rgba(0,0,0,0.8)] overflow-hidden border border-border/40"
@@ -194,17 +194,17 @@ const PlaybackMonitor = ({
         </div>
       </div>
 
-      {/* ── Anchor Picker OR Take Bin ── */}
-      {isAnchorMode && onSelectAnchor ? (
-        <AnchorPicker
-          anchorUrls={anchorUrls}
-          selectedIdx={selectedAnchorIdx ?? null}
-          onSelect={onSelectAnchor}
-          scores={anchorScores}
-        />
-      ) : (
-        <div className="px-4 pb-2">
-          <div className="max-w-4xl mx-auto">
+      {/* ── Anchor Picker OR Take Bin (right side) ── */}
+      <div className="w-1/2 min-w-0">
+        {isAnchorMode && onSelectAnchor ? (
+          <AnchorPicker
+            anchorUrls={anchorUrls}
+            selectedIdx={selectedAnchorIdx ?? null}
+            onSelect={onSelectAnchor}
+            scores={anchorScores}
+          />
+        ) : (
+          <div>
             <div className="flex items-center gap-2 mb-1.5">
               <Film className="h-3.5 w-3.5 text-primary" />
               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">
@@ -214,17 +214,17 @@ const PlaybackMonitor = ({
 
             {/* Filmstrip perforations */}
             <div className="flex gap-[2px] mb-1 px-1">
-              {Array.from({ length: 40 }).map((_, i) => (
+              {Array.from({ length: 20 }).map((_, i) => (
                 <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
               ))}
             </div>
 
-            <div className="flex gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {takes.map((take, idx) => (
                 <div
                   key={take.id}
                   className={cn(
-                    "relative flex-1 aspect-video rounded-md overflow-hidden cursor-pointer transition-all duration-200 border-2",
+                    "relative aspect-video rounded-md overflow-hidden cursor-pointer transition-all duration-200 border-2",
                     take.circled
                       ? "border-primary ring-2 ring-primary/40 shadow-[0_0_16px_-4px_hsl(51_100%_50%/0.3)]"
                       : activeTakeIdx === idx
@@ -312,13 +312,13 @@ const PlaybackMonitor = ({
 
             {/* Filmstrip perforations bottom */}
             <div className="flex gap-[2px] mt-1 px-1">
-              {Array.from({ length: 40 }).map((_, i) => (
+              {Array.from({ length: 20 }).map((_, i) => (
                 <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
               ))}
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
