@@ -115,7 +115,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
           isActive
             ? "text-primary cinema-glow"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground"
+            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-[0_0_12px_-3px_rgba(47,125,255,0.2)]"
         )}
         style={isActive && tint ? { backgroundColor: tint } : undefined}
       >
