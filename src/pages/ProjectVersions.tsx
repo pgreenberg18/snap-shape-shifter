@@ -8,6 +8,21 @@ import {
   SlidersHorizontal, ImagePlus, ArrowUpDown,
 } from "lucide-react";
 import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
+import {
+  FilmStripIcon,
+  CineBackIcon,
+  InfoBeaconIcon,
+  PrecisionGearIcon,
+  MixingConsoleIcon,
+  PowerIcon,
+  VersionsIcon,
+} from "@/components/ui/cinema-icons";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useHelp } from "@/components/help/HelpPanel";
 import { Button } from "@/components/ui/button";
 import {
@@ -51,7 +66,7 @@ const ProjectVersions = () => {
   const [servicesOpen, setServicesOpen] = useState(false);
   const [conflictFilmId, setConflictFilmId] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Array<{ section: string; providers: Array<{ id: string; provider_name: string }> }>>([]);
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
 
   const LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
 
@@ -452,105 +467,189 @@ const ProjectVersions = () => {
     );
   };
 
+  const SidebarTooltip = ({ label, children }: { label: string; children: React.ReactNode }) => (
+    <TooltipProvider delayDuration={120}>
+      <Tooltip>
+        <TooltipTrigger asChild>{children}</TooltipTrigger>
+        <TooltipContent
+          side="right"
+          sideOffset={8}
+          className="border-primary/20 bg-secondary/95 backdrop-blur-md shadow-[0_0_16px_-4px_rgba(47,125,255,0.4)]"
+        >
+          <p className="text-xs font-medium tracking-wide text-foreground">{label}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+
+  
+
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <aside className="flex h-full w-16 flex-col items-center border-r border-border bg-card py-4">
-        <button onClick={() => navigate("/projects")} title="Back to projects" className="mb-4 flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+      {/* Sidebar */}
+      <aside
+        className="flex h-full w-16 flex-col items-center py-4 shrink-0 pro-panel"
+        style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}
+      >
+        <SidebarTooltip label="Back to Projects">
+          <button onClick={() => navigate("/projects")} className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <CineBackIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+            </span>
+          </button>
+        </SidebarTooltip>
         <div className="flex-1" />
         <div className="flex flex-col items-center gap-1 mb-2">
-          <button onClick={toggleHelp} title="Help" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
-            <HelpCircle className="h-5 w-5" />
-          </button>
-          <button onClick={() => setServicesOpen(true)} title="Project Services" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
-            <Settings className="h-5 w-5" />
-          </button>
-          <button onClick={() => navigate("/settings/admin")} title="Global Settings" className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200">
-            <SlidersHorizontal className="h-5 w-5" />
-          </button>
+          <SidebarTooltip label="Help">
+            <button onClick={toggleHelp} className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <InfoBeaconIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+            </button>
+          </SidebarTooltip>
+          <SidebarTooltip label="Project Services">
+            <button onClick={() => setServicesOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <PrecisionGearIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+            </button>
+          </SidebarTooltip>
+          <SidebarTooltip label="Global Settings">
+            <button onClick={() => navigate("/settings/admin")} className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+            </button>
+          </SidebarTooltip>
+          <SidebarTooltip label="Sign Out">
+            <button
+              onClick={async () => { await signOut(); navigate("/login"); }}
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <PowerIcon className="h-3.5 w-3.5 shrink-0 icon-glow" />
+              </span>
+            </button>
+          </SidebarTooltip>
         </div>
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
-          <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">
-            {project?.title || "Loading…"}
-          </h1>
-          <p className="text-[10px] text-muted-foreground truncate flex items-center gap-2">
-            {project?.description && <span>{project.description}</span>}
-            <span className="inline-flex items-center gap-1" title="Total estimated project size">
+        {/* Branded Header */}
+        <header className="relative flex h-14 shrink-0 items-center justify-between border-b border-border px-6 pro-panel specular-edge overflow-hidden" style={{ borderRadius: 0 }}>
+          {/* Anamorphic streak */}
+          <div className="pointer-events-none absolute inset-0 z-0">
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[1.5px] opacity-60" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(124,203,255,0.1) 15%, rgba(124,203,255,0.35) 45%, rgba(124,203,255,0.5) 50%, rgba(124,203,255,0.35) 55%, rgba(124,203,255,0.1) 85%, transparent 95%)', filter: 'blur(1px)', animation: 'streak-pulse 6s ease-in-out infinite' }} />
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[6px] opacity-20" style={{ background: 'linear-gradient(90deg, transparent 10%, rgba(124,203,255,0.15) 30%, rgba(124,203,255,0.3) 50%, rgba(124,203,255,0.15) 70%, transparent 90%)', filter: 'blur(4px)', animation: 'streak-pulse 6s ease-in-out infinite' }} />
+          </div>
+          <div className="relative flex items-center gap-3 z-10">
+            <div className="pointer-events-none absolute -inset-x-8 -inset-y-4 z-0" style={{ animation: 'flare-breathe 5s ease-in-out infinite' }}>
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(47,125,255,0.2) 15%, rgba(124,203,255,0.6) 40%, rgba(200,230,255,0.9) 50%, rgba(124,203,255,0.6) 60%, rgba(47,125,255,0.2) 85%, transparent 100%)', filter: 'blur(1.5px)', animation: 'streak-pulse 3.5s ease-in-out infinite' }} />
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[18px]" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,125,255,0.05) 20%, rgba(124,203,255,0.2) 40%, rgba(124,203,255,0.35) 50%, rgba(124,203,255,0.2) 60%, rgba(47,125,255,0.05) 80%, transparent 95%)', filter: 'blur(8px)', animation: 'streak-pulse 5s ease-in-out infinite 0.5s' }} />
+              <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px]" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(124,203,255,0.15) 30%, rgba(200,230,255,0.4) 50%, rgba(124,203,255,0.15) 70%, transparent 100%)', filter: 'blur(2px)', animation: 'streak-pulse 4.5s ease-in-out infinite 1s' }} />
+            </div>
+            <FilmStripIcon className="relative z-10 h-5 w-5 text-primary icon-glow" />
+            <span className="relative z-10 font-display text-[1.9rem] leading-tight font-extrabold tracking-wide text-foreground drop-shadow-[0_0_12px_rgba(124,203,255,0.4)]">
+              Virtual Film Studio
+            </span>
+          </div>
+
+          {/* Centered project name */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground">
+              <VersionsIcon className="h-3.5 w-3.5 text-primary icon-glow" />
+              <span className="font-display truncate max-w-[200px]">
+                {project?.title ?? "Loading…"}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 z-10">
+            <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground" title="Total estimated project size">
               <HardDrive className="h-3 w-3" />
               {formatBytes(totalProjectSize)}
             </span>
-          </p>
+          </div>
         </header>
-        <div className="flex-1 overflow-auto px-8 py-6">
-          <div className="flex items-center justify-between mb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-xs text-muted-foreground"
-              onClick={() => setSortOrder((prev) => prev === "newest" ? "oldest" : prev === "oldest" ? "alpha" : "newest")}
-            >
-              <ArrowUpDown className="h-3.5 w-3.5" />
-              {sortOrder === "newest" ? "Newest" : sortOrder === "oldest" ? "Oldest" : "A–Z"}
-            </Button>
-            <Dialog open={newVersionOpen} onOpenChange={(o) => { setNewVersionOpen(o); if (!o) { setVersionNameError(""); setVersionName(""); } }}>
-              <DialogTrigger asChild>
-                <Button className="gap-2"><Plus className="h-4 w-4" />New Version</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Create New Version</DialogTitle></DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="text-sm font-medium text-foreground">Version Name</label>
-                    <Input value={versionName} onChange={(e) => { setVersionName(e.target.value); if (versionNameError) setVersionNameError(""); }} placeholder={`Version ${(versions?.length || 0) + 1}`} className="mt-1" />
-                    {versionNameError && <p className="text-xs text-destructive mt-1">{versionNameError}</p>}
-                  </div>
-                  <p className="text-xs text-muted-foreground">This creates a blank version. Upload a new script in the Development phase.</p>
-                  <Button onClick={() => { const name = versionName.trim() || `Version ${(versions?.length || 0) + 1}`; if (isDuplicateName(name)) { setVersionNameError(`A version named "${name}" already exists`); return; } createVersion.mutate(); }} disabled={createVersion.isPending} className="w-full">
-                    {createVersion.isPending ? "Creating…" : "Create Version"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-          </div>
 
-        <div className="flex-1 overflow-y-auto p-8 space-y-8">
-          {isLoading ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {[1, 2].map((i) => <div key={i} className="h-32 animate-pulse rounded-xl bg-card" />)}
-            </div>
-          ) : (
-            <>
-              {/* Active versions */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {activeVersions.map((v) => renderVersionCard(v, false))}
+        {/* Content */}
+        <main className="relative flex-1 overflow-y-auto lens-flare lens-flare-streak">
+          <div className="pointer-events-none fixed top-1/3 left-1/2 -translate-x-1/2 w-[300px] h-[300px] rounded-full z-[14] mix-blend-screen opacity-40" style={{ background: 'radial-gradient(circle, rgba(47,125,255,0.12) 0%, transparent 60%)', filter: 'blur(40px)' }} />
+          <div className="mx-auto max-w-7xl px-8 py-6">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <h2 className="font-display text-lg font-bold tracking-tight text-foreground">
+                  Versions
+                </h2>
+                <span className="text-xs text-muted-foreground">
+                  {activeVersions.length} active{archivedVersions.length > 0 ? `, ${archivedVersions.length} archived` : ""}
+                </span>
               </div>
-
-              {/* Archived section */}
-              {archivedVersions.length > 0 && (
-                <div>
-                  <button
-                    onClick={() => setArchiveOpen(!archiveOpen)}
-                    className="flex items-center gap-2 text-sm font-display font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
-                  >
-                    {archiveOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    <Archive className="h-4 w-4" />
-                    Archived ({archivedVersions.length})
-                  </button>
-                  {archiveOpen && (
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                      {archivedVersions.map((v) => renderVersionCard(v, true))}
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => setSortOrder((prev) => prev === "newest" ? "oldest" : prev === "oldest" ? "alpha" : "newest")}
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {sortOrder === "newest" ? "Newest" : sortOrder === "oldest" ? "Oldest" : "A–Z"}
+                </Button>
+                <Dialog open={newVersionOpen} onOpenChange={(o) => { setNewVersionOpen(o); if (!o) { setVersionNameError(""); setVersionName(""); } }}>
+                  <DialogTrigger asChild>
+                    <Button className="gap-2"><Plus className="h-4 w-4" />New Version</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader><DialogTitle>Create New Version</DialogTitle></DialogHeader>
+                    <div className="space-y-4 pt-2">
+                      <div>
+                        <label className="text-sm font-medium text-foreground">Version Name</label>
+                        <Input value={versionName} onChange={(e) => { setVersionName(e.target.value); if (versionNameError) setVersionNameError(""); }} placeholder={`Version ${(versions?.length || 0) + 1}`} className="mt-1" />
+                        {versionNameError && <p className="text-xs text-destructive mt-1">{versionNameError}</p>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">This creates a blank version. Upload a new script in the Development phase.</p>
+                      <Button onClick={() => { const name = versionName.trim() || `Version ${(versions?.length || 0) + 1}`; if (isDuplicateName(name)) { setVersionNameError(`A version named "${name}" already exists`); return; } createVersion.mutate(); }} disabled={createVersion.isPending} className="w-full">
+                        {createVersion.isPending ? "Creating…" : "Create Version"}
+                      </Button>
                     </div>
-                  )}
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+
+            {/* Version Grid */}
+            {isLoading ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[1, 2].map((i) => <div key={i} className="h-48 animate-pulse rounded-xl bg-card" />)}
+              </div>
+            ) : (
+              <div className="space-y-8">
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {activeVersions.map((v) => renderVersionCard(v, false))}
                 </div>
-              )}
-            </>
-          )}
-        </div>
+
+                {archivedVersions.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setArchiveOpen(!archiveOpen)}
+                      className="flex items-center gap-2 text-sm font-display font-semibold text-muted-foreground hover:text-foreground transition-colors mb-4"
+                    >
+                      {archiveOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                      <Archive className="h-4 w-4" />
+                      Archived ({archivedVersions.length})
+                    </button>
+                    {archiveOpen && (
+                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        {archivedVersions.map((v) => renderVersionCard(v, true))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </main>
 
         <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <AlertDialogContent>
