@@ -9,7 +9,6 @@ import {
   Clapperboard,
   GitBranch,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const sourceTypeIcons: Record<string, typeof User> = {
   character: User,
@@ -56,13 +55,17 @@ const TokenNode = ({
   token,
   y,
   edges,
-  onHover,
+  highlighted,
+  dimmed,
+  onEnter,
   onLeave,
 }: {
   token: GraphNode;
   y: number;
   edges: GraphEdge[];
-  onHover: (info: TooltipInfo) => void;
+  highlighted: boolean;
+  dimmed: boolean;
+  onEnter: (nodeId: string, tooltip: TooltipInfo) => void;
   onLeave: () => void;
 }) => {
   const Icon = sourceTypeIcons[token.sourceType ?? ""] ?? Package;
@@ -70,7 +73,7 @@ const TokenNode = ({
   const depTypes = [...new Set(edges.filter((e) => e.from === token.id).map((e) => e.depType))];
 
   const handleEnter = useCallback(() => {
-    onHover({
+    onEnter(token.id, {
       x: TOKEN_COL_X + TOKEN_W + 8,
       y: y + NODE_H / 2,
       content: (
@@ -88,13 +91,17 @@ const TokenNode = ({
         </div>
       ),
     });
-  }, [token, y, connCount, depTypes, onHover]);
+  }, [token, y, connCount, depTypes, onEnter]);
 
   return (
     <g
       onMouseEnter={handleEnter}
       onMouseLeave={onLeave}
       className="cursor-pointer"
+      style={{
+        opacity: dimmed ? 0.2 : 1,
+        transition: "opacity 0.2s ease",
+      }}
     >
       <rect
         x={TOKEN_COL_X}
@@ -102,10 +109,10 @@ const TokenNode = ({
         width={TOKEN_W}
         height={NODE_H}
         rx={6}
-        fill="hsl(var(--primary) / 0.08)"
-        stroke="hsl(var(--primary) / 0.3)"
-        strokeWidth={1}
-        className="transition-all duration-200 hover:fill-[hsl(var(--primary)/0.15)] hover:stroke-[hsl(var(--primary)/0.6)]"
+        fill={highlighted ? "hsl(var(--primary) / 0.2)" : "hsl(var(--primary) / 0.08)"}
+        stroke={highlighted ? "hsl(var(--primary) / 0.7)" : "hsl(var(--primary) / 0.3)"}
+        strokeWidth={highlighted ? 1.5 : 1}
+        style={{ transition: "all 0.2s ease" }}
       />
       <foreignObject x={TOKEN_COL_X + 6} y={y + 4} width={18} height={18}>
         <Icon className="h-3.5 w-3.5 text-primary" />
@@ -142,20 +149,24 @@ const ShotNode = ({
   shot,
   y,
   edges,
-  onHover,
+  highlighted,
+  dimmed,
+  onEnter,
   onLeave,
 }: {
   shot: GraphNode;
   y: number;
   edges: GraphEdge[];
-  onHover: (info: TooltipInfo) => void;
+  highlighted: boolean;
+  dimmed: boolean;
+  onEnter: (nodeId: string, tooltip: TooltipInfo) => void;
   onLeave: () => void;
 }) => {
   const connCount = edges.filter((e) => e.to === shot.id).length;
   const sourceTokens = edges.filter((e) => e.to === shot.id).map((e) => e.from);
 
   const handleEnter = useCallback(() => {
-    onHover({
+    onEnter(shot.id, {
       x: SHOT_COL_X - 8,
       y: y + NODE_H / 2,
       content: (
@@ -171,13 +182,17 @@ const ShotNode = ({
         </div>
       ),
     });
-  }, [shot, y, connCount, sourceTokens, onHover]);
+  }, [shot, y, connCount, sourceTokens, onEnter]);
 
   return (
     <g
       onMouseEnter={handleEnter}
       onMouseLeave={onLeave}
       className="cursor-pointer"
+      style={{
+        opacity: dimmed ? 0.2 : 1,
+        transition: "opacity 0.2s ease",
+      }}
     >
       <rect
         x={SHOT_COL_X}
@@ -185,10 +200,10 @@ const ShotNode = ({
         width={SHOT_W}
         height={NODE_H}
         rx={6}
-        fill="hsl(var(--secondary))"
-        stroke="hsl(var(--border))"
-        strokeWidth={1}
-        className="transition-all duration-200 hover:fill-[hsl(var(--accent))] hover:stroke-[hsl(var(--accent-foreground)/0.3)]"
+        fill={highlighted ? "hsl(var(--accent))" : "hsl(var(--secondary))"}
+        stroke={highlighted ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"}
+        strokeWidth={highlighted ? 1.5 : 1}
+        style={{ transition: "all 0.2s ease" }}
       />
       <foreignObject x={SHOT_COL_X + 5} y={y + 4} width={18} height={18}>
         <Clapperboard className="h-3.5 w-3.5 text-muted-foreground" />
@@ -223,16 +238,12 @@ const ShotNode = ({
 /* ── Tooltip Overlay ── */
 const GraphTooltip = ({ tooltip }: { tooltip: TooltipInfo | null }) => {
   if (!tooltip) return null;
-
-  // Position tooltip to the right of tokens, left of shots
   const isLeftSide = tooltip.x < 200;
   const tx = isLeftSide ? tooltip.x : tooltip.x - 160;
 
   return (
     <foreignObject x={tx} y={tooltip.y - 36} width={155} height={80}>
-      <div
-        className="bg-popover border border-border rounded-md px-2 py-1.5 shadow-lg text-[8px] font-mono leading-relaxed pointer-events-none"
-      >
+      <div className="bg-popover border border-border rounded-md px-2 py-1.5 shadow-lg text-[8px] font-mono leading-relaxed pointer-events-none">
         {tooltip.content}
       </div>
     </foreignObject>
@@ -243,9 +254,17 @@ const GraphTooltip = ({ tooltip }: { tooltip: TooltipInfo | null }) => {
 const ViceDependencyGraph = () => {
   const { data: deps = [], isLoading } = useViceDependencies();
   const [tooltip, setTooltip] = useState<TooltipInfo | null>(null);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const handleHover = useCallback((info: TooltipInfo) => setTooltip(info), []);
-  const handleLeave = useCallback(() => setTooltip(null), []);
+  const handleEnter = useCallback((nodeId: string, info: TooltipInfo) => {
+    setHoveredId(nodeId);
+    setTooltip(info);
+  }, []);
+
+  const handleLeave = useCallback(() => {
+    setHoveredId(null);
+    setTooltip(null);
+  }, []);
 
   const { tokens, shots, edges } = useMemo(() => {
     const tokenMap = new Map<string, { sourceType: string }>();
@@ -255,28 +274,30 @@ const ViceDependencyGraph = () => {
     for (const dep of deps) {
       tokenMap.set(dep.source_token, { sourceType: dep.source_type });
       shotSet.add(dep.shot_id);
-      edgeList.push({
-        from: dep.source_token,
-        to: dep.shot_id,
-        depType: dep.dependency_type,
-      });
+      edgeList.push({ from: dep.source_token, to: dep.shot_id, depType: dep.dependency_type });
     }
 
     return {
       tokens: Array.from(tokenMap.entries()).map(([id, meta]) => ({
-        id,
-        label: id,
-        type: "token" as const,
-        sourceType: meta.sourceType,
+        id, label: id, type: "token" as const, sourceType: meta.sourceType,
       })),
       shots: Array.from(shotSet).map((id) => ({
-        id,
-        label: id.slice(0, 8),
-        type: "shot" as const,
+        id, label: id.slice(0, 8), type: "shot" as const,
       })),
       edges: edgeList,
     };
   }, [deps]);
+
+  // Derive connected node IDs from hovered node
+  const connectedIds = useMemo(() => {
+    if (!hoveredId) return null;
+    const ids = new Set<string>([hoveredId]);
+    for (const e of edges) {
+      if (e.from === hoveredId) ids.add(e.to);
+      if (e.to === hoveredId) ids.add(e.from);
+    }
+    return ids;
+  }, [hoveredId, edges]);
 
   if (isLoading) {
     return (
@@ -341,43 +362,63 @@ const ViceDependencyGraph = () => {
             const toX = SHOT_COL_X;
             const cpOffset = 60;
 
+            const isConnected = connectedIds
+              ? connectedIds.has(edge.from) && connectedIds.has(edge.to)
+              : false;
+            const isDimmed = connectedIds !== null && !isConnected;
+
             return (
               <path
                 key={`edge-${i}`}
                 d={`M ${fromX} ${fromY} C ${fromX + cpOffset} ${fromY}, ${toX - cpOffset} ${toY}, ${toX} ${toY}`}
                 fill="none"
-                stroke="hsl(var(--primary) / 0.25)"
-                strokeWidth={1.5}
-                className="transition-all duration-300"
+                stroke={isConnected ? "hsl(var(--primary) / 0.7)" : "hsl(var(--primary) / 0.25)"}
+                strokeWidth={isConnected ? 2.5 : 1.5}
+                style={{
+                  opacity: isDimmed ? 0.15 : 1,
+                  transition: "all 0.2s ease",
+                }}
               />
             );
           })}
 
           {/* Token nodes */}
-          {tokens.map((token) => (
-            <TokenNode
-              key={`token-${token.id}`}
-              token={token}
-              y={tokenPositions.get(token.id) ?? 0}
-              edges={edges}
-              onHover={handleHover}
-              onLeave={handleLeave}
-            />
-          ))}
+          {tokens.map((token) => {
+            const isHighlighted = connectedIds?.has(token.id) ?? false;
+            const isDimmed = connectedIds !== null && !isHighlighted;
+            return (
+              <TokenNode
+                key={`token-${token.id}`}
+                token={token}
+                y={tokenPositions.get(token.id) ?? 0}
+                edges={edges}
+                highlighted={isHighlighted}
+                dimmed={isDimmed}
+                onEnter={handleEnter}
+                onLeave={handleLeave}
+              />
+            );
+          })}
 
           {/* Shot nodes */}
-          {shots.map((shot) => (
-            <ShotNode
-              key={`shot-${shot.id}`}
-              shot={shot}
-              y={shotPositions.get(shot.id) ?? 0}
-              edges={edges}
-              onHover={handleHover}
-              onLeave={handleLeave}
-            />
-          ))}
+          {shots.map((shot) => {
+            const isHighlighted = connectedIds?.has(shot.id) ?? false;
+            const isDimmed = connectedIds !== null && !isHighlighted;
+            return (
+              <ShotNode
+                key={`shot-${shot.id}`}
+                shot={shot}
+                y={shotPositions.get(shot.id) ?? 0}
+                edges={edges}
+                highlighted={isHighlighted}
+                dimmed={isDimmed}
+                onEnter={handleEnter}
+                onLeave={handleLeave}
+              />
+            );
+          })}
 
-          {/* Tooltip layer (rendered last so it's on top) */}
+          {/* Tooltip layer */}
           <GraphTooltip tooltip={tooltip} />
         </svg>
       </div>
