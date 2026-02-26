@@ -65,8 +65,8 @@ const SceneNavigator = ({
 }: SceneNavigatorProps) => {
   return (
     <aside
-      className="border-r border-border bg-card flex flex-col relative"
-      style={{ width, minWidth: 200, flexShrink: 0 }}
+      className="border-r border-border flex flex-col relative pro-panel specular-edge"
+      style={{ width, minWidth: 200, flexShrink: 0, borderRadius: 0 }}
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <Film className="h-4 w-4 text-primary" />
