@@ -87,7 +87,7 @@ const PARSING_STEPS = [
   { label: "Extracting scenes", key: "extract", detail: "Splitting script into individual scenes…" },
 ];
 
-const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string }) => {
+const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmId?: string; onCancel?: () => void }) => {
   const [elapsed, setElapsed] = useState(0);
   const [startTime] = useState(() => Date.now());
 
@@ -292,6 +292,21 @@ const AnalysisProgress = ({ status, filmId }: { status?: string; filmId?: string
           )}
         </div>
       </div>
+
+      {/* Cancel processing button */}
+      {onCancel && (
+        <div className="flex justify-center pt-2">
+          <Button
+            variant="destructive"
+            size="sm"
+            className="gap-1.5 text-xs"
+            onClick={onCancel}
+          >
+            <X className="h-3.5 w-3.5" />
+            Cancel Processing
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -1147,7 +1162,14 @@ const Development = () => {
           )}
 
           {/* Loading state with progress */}
-          {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} />}
+          {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} onCancel={async () => {
+            setAnalyzing(false);
+            if (analysis?.id) {
+              await supabase.from("script_analyses").update({ status: "error", error_message: "Cancelled by user" }).eq("id", analysis.id);
+              queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+            }
+            toast({ title: "Processing cancelled" });
+          }} />}
 
           {/* Error state */}
           {analysis?.status === "error" && (
