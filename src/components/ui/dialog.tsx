@@ -36,6 +36,11 @@ const DialogContent = React.forwardRef<
   const dragStart = React.useRef({ x: 0, y: 0 });
   const [, forceRender] = React.useState(0);
 
+  // Reset position to center every time dialog mounts
+  React.useEffect(() => {
+    offsetRef.current = { x: 0, y: 0 };
+  }, []);
+
   const onPointerDown = React.useCallback((e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
     if (target.closest("button, input, textarea, select, a, [role='slider'], [data-radix-scroll-area-viewport]")) return;
