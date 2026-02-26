@@ -459,7 +459,7 @@ const LoginRecords = () => {
                 <CollapsibleContent className="mt-3 space-y-1">
                   {loginEvents.length > 0 && (
                     <div className="mb-2">
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sessions</p>
+                      <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Sessions</p>
                       {loginEvents.slice(0, 10).map((e) => (
                         <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
                           <Activity className="h-3 w-3 text-primary/60" />
@@ -472,7 +472,7 @@ const LoginRecords = () => {
                   )}
                   {pageViews.length > 0 && (
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pages Visited</p>
+                      <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-1">Pages Visited</p>
                       {pageViews.slice(0, 20).map((e) => (
                         <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground py-0.5">
                           <Eye className="h-3 w-3 text-muted-foreground/40" />
@@ -536,7 +536,7 @@ const SettingsAdmin = () => {
           </Button>
         </div>
         <div className="p-3 flex-1 flex flex-col">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-primary px-3 mb-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-primary px-3 mb-2">
             <Settings className="inline h-3 w-3 mr-1" />
             Settings
           </h2>
@@ -566,7 +566,7 @@ const SettingsAdmin = () => {
           {isAdmin && (
             <>
               <div className="border-t border-border my-4" />
-              <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground px-3 mb-2">
                 <Shield className="inline h-3 w-3 mr-1" />
                 System Management
               </h2>

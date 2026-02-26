@@ -48,7 +48,7 @@ function SectionHeader({ icon: Icon, label }: { icon: React.ElementType; label: 
   return (
     <div className="flex items-center gap-2 mb-2">
       <Icon className="h-3 w-3 text-primary/70" />
-      <span className="text-[10px] font-display font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-xs font-display font-bold uppercase tracking-wider text-muted-foreground">{label}</span>
     </div>
   );
 }

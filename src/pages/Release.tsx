@@ -94,7 +94,7 @@ const Release = () => {
       <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
         <Icon className="h-3.5 w-3.5 text-primary" />
       </div>
-      <h3 className="font-display text-xs font-bold uppercase tracking-widest">{label}</h3>
+      <h3 className="font-display text-sm font-bold uppercase tracking-widest">{label}</h3>
     </div>
   );
 
