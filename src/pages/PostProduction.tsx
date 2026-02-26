@@ -539,8 +539,13 @@ const PostProduction = () => {
   if (shotsLoading || clipsLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   return (
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
+        <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Post-Production</h1>
+        <p className="text-[10px] text-muted-foreground truncate">Timeline editing, sound mixing, color grading, and VFX compositing.</p>
+      </div>
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragOver={handleDragOver} collisionDetection={pointerWithin}>
-    <div className="flex h-full">
+    <div className="flex flex-1 min-h-0">
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
       {/* Top Half */}
@@ -862,6 +867,7 @@ const PostProduction = () => {
       ) : null}
     </DragOverlay>
     </DndContext>
+    </div>
   );
 };
 

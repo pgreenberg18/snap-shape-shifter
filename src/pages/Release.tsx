@@ -116,7 +116,12 @@ const Release = () => {
   );
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full flex-col">
+      <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
+        <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Release</h1>
+        <p className="text-[10px] text-muted-foreground truncate">Export masters, quality control, upscaling, and distribution packaging.</p>
+      </div>
+    <div className="flex flex-1 min-h-0">
       {/* ═══ LEFT — All Controls ═══ */}
       <ScrollArea className="flex-1 min-w-0">
         <div className="p-4 space-y-4">
@@ -511,6 +516,7 @@ const Release = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };

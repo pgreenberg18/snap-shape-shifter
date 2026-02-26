@@ -533,9 +533,9 @@ const PreProduction = () => {
 
   return (
     <div className="flex h-[calc(100vh-64px)] flex-col">
-      <header className="shrink-0 border-b border-border bg-card px-6 py-5">
-        <h1 className="font-display text-xl font-bold tracking-tight text-foreground">Pre-Production</h1>
-        <p className="mt-1 text-xs text-muted-foreground">
+      <header className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
+        <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Pre-Production</h1>
+        <p className="text-[10px] text-muted-foreground truncate">
           Asset &amp; Identity Lock — define every visual and auditory element before shooting begins.
         </p>
       </header>
