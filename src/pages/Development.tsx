@@ -2091,9 +2091,13 @@ const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdown
         .order("scene_number");
       if (error) throw error;
       // Map parsed_scenes row format to the shape components expect
-      return (data || []).map((s: any) => ({
+      return (data || []).map((s: any) => {
+        // Extract only the slug line from heading (first line, or up to first character/action block)
+        const rawHeading = s.heading || "";
+        const slugLine = rawHeading.split(/\n/)[0].replace(/\s{2,}/g, " ").trim();
+        return {
         scene_number: s.scene_number,
-        scene_heading: s.heading,
+        scene_heading: slugLine,
         description: s.description || "",
         characters: s.characters || [],
         character_details: s.character_details || [],
@@ -2115,7 +2119,8 @@ const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdown
         estimated_page_count: s.estimated_page_count || 0,
         cinematic_elements: s.cinematic_elements || {},
         visual_design: s.visual_design || {},
-      }));
+      };
+      });
     },
     enabled: !!filmId,
   });
