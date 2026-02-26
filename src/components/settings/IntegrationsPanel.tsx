@@ -183,7 +183,7 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     title: "Script Analysis (ChatGPT, Gemini)",
     description: "LLM providers for script parsing and scene breakdown",
     icon: <ScrollText className="h-4 w-4" />,
-    addLabel: "Add LLM Provider",
+    addLabel: "Add Service",
   },
   "image-generation": {
     title: "Image Generation",
