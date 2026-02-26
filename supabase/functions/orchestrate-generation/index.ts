@@ -63,7 +63,6 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
 
     async generateAnchor(p: AnchorPayload): Promise<EngineResult> {
       const resolvedPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
-      const negativePrompt = p.continuity_profile?.negative_prompt_injection ?? "low quality, watermark, text";
       const aspectRatio = p.prompt_pack?.cinematography_metadata?.framing?.aspect_ratio === "2.39:1" ? "16:9" : "16:9";
 
       const requestBody = {
@@ -71,7 +70,6 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
         parameters: {
           sampleCount: Math.min(p.count, 4),
           aspectRatio,
-          negativePrompt,
           personGeneration: "allow_all",
           safetyFilterLevel: "block_only_high",
         },
@@ -160,8 +158,14 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
         try {
           const imgRes = await fetch(p.anchor_url);
           if (imgRes.ok) {
-            const imgBuffer = await imgRes.arrayBuffer();
-            imageBase64 = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
+            const imgBuffer = new Uint8Array(await imgRes.arrayBuffer());
+            // Chunk the conversion to avoid stack overflow
+            let binary = "";
+            const chunkSize = 8192;
+            for (let i = 0; i < imgBuffer.length; i += chunkSize) {
+              binary += String.fromCharCode(...imgBuffer.subarray(i, i + chunkSize));
+            }
+            imageBase64 = btoa(binary);
           }
         } catch (e) {
           console.warn("[Veo] Failed to fetch anchor image, falling back to text-only:", e);
@@ -170,7 +174,7 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
 
       const instance: any = { prompt: resolvedPrompt };
       if (imageBase64) {
-        instance.image = { bytesBase64Encoded: imageBase64 };
+        instance.image = { bytesBase64Encoded: imageBase64, mimeType: "image/png" };
       }
 
       const requestBody = {
@@ -178,8 +182,6 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
         parameters: {
           aspectRatio: "16:9",
           durationSeconds: Math.min(p.duration_seconds, 8),
-          personGeneration: "allow_all",
-          safetyFilterLevel: "block_only_high",
           enhancePrompt: false,
         },
       };
@@ -311,7 +313,6 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
         parameters: {
           sampleCount: 4,
           aspectRatio: "16:9",
-          negativePrompt: "low quality, watermark, text, morphed faces",
           personGeneration: "allow_all",
           safetyFilterLevel: "block_only_high",
         },
