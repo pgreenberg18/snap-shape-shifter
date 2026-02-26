@@ -313,7 +313,7 @@ const SettingsIntegrations = () => {
                     return (
                       <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <p className="text-[11px] font-medium">{provider.provider_name}</p>
+                          <p className="text-base font-medium">{provider.provider_name}</p>
                           {!isEditing && (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Check className="h-3.5 w-3.5 text-green-500" /> Connected & Verified
