@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import TypewriterSceneFeed from "@/components/development/TypewriterSceneFeed";
 import DirectorVisionPanel from "@/components/development/DirectorVisionPanel";
+import DraggableScriptPopup from "@/components/DraggableScriptPopup";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -1583,69 +1584,68 @@ const Development = () => {
                       ))}
                     </div>
 
-                    {/* Script text preview dialog */}
-                    <Dialog open={!!scriptPreview} onOpenChange={(open) => !open && setScriptPreview(null)}>
-                      <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-                        <DialogHeader>
-                          <DialogTitle className="text-sm font-bold">{scriptPreview?.heading}</DialogTitle>
-                          <DialogDescription className="text-xs text-muted-foreground">Original screenplay formatting</DialogDescription>
-                        </DialogHeader>
-                        <div className="flex-1 overflow-y-auto px-6 pb-6">
-                          <div
-                            className="mx-auto bg-white text-black shadow-lg"
-                            style={{
-                              fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
-                              fontSize: "12px",
-                              lineHeight: "1.0",
-                              padding: "72px 60px 72px 90px",
-                              maxWidth: "612px",
-                              minHeight: "400px",
-                            }}
-                          >
-                            {(() => {
-                              const highlightTerm = scriptPreview?.highlight?.replace(/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s*/i, "").trim();
-                              const renderHighlighted = (text: string) => {
-                                if (!highlightTerm || highlightTerm.length < 3) return text;
-                                const idx = text.toLowerCase().indexOf(highlightTerm.toLowerCase());
-                                if (idx === -1) return text;
-                                return (
-                                  <>
-                                    {text.slice(0, idx)}
-                                    <span style={{ backgroundColor: "#FACC15", color: "#000", padding: "0 2px", borderRadius: 2 }}>
-                                      {text.slice(idx, idx + highlightTerm.length)}
-                                    </span>
-                                    {text.slice(idx + highlightTerm.length)}
-                                  </>
-                                );
-                              };
+                    {/* Script text preview popup — draggable & resizable */}
+                    <DraggableScriptPopup
+                      open={!!scriptPreview}
+                      onClose={() => setScriptPreview(null)}
+                      title={scriptPreview?.heading ?? ""}
+                      subtitle="Original screenplay formatting"
+                    >
+                      <div className="px-6 py-4">
+                        <div
+                          className="mx-auto bg-white text-black shadow-lg"
+                          style={{
+                            fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+                            fontSize: "12px",
+                            lineHeight: "1.0",
+                            padding: "72px 60px 72px 90px",
+                            maxWidth: "612px",
+                            minHeight: "400px",
+                          }}
+                        >
+                          {(() => {
+                            const highlightTerm = scriptPreview?.highlight?.replace(/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s*/i, "").trim();
+                            const renderHighlighted = (text: string) => {
+                              if (!highlightTerm || highlightTerm.length < 3) return text;
+                              const idx = text.toLowerCase().indexOf(highlightTerm.toLowerCase());
+                              if (idx === -1) return text;
+                              return (
+                                <>
+                                  {text.slice(0, idx)}
+                                  <span style={{ backgroundColor: "#FACC15", color: "#000", padding: "0 2px", borderRadius: 2 }}>
+                                    {text.slice(idx, idx + highlightTerm.length)}
+                                  </span>
+                                  {text.slice(idx + highlightTerm.length)}
+                                </>
+                              );
+                            };
 
-                              return scriptPreview?.text.split("\n").map((line, i) => {
-                                const trimmed = line.trim();
-                                const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
-                                const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
-                                const isParenthetical = /^\(.*\)$/.test(trimmed);
-                                const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+                            return scriptPreview?.text.split("\n").map((line, i) => {
+                              const trimmed = line.trim();
+                              const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
+                              const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
+                              const isParenthetical = /^\(.*\)$/.test(trimmed);
+                              const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
 
-                                if (isHeading) {
-                                  return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{renderHighlighted(trimmed)}</p>;
-                                }
-                                if (isCharacter) {
-                                  return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{renderHighlighted(trimmed)}</p>;
-                                }
-                                if (isParenthetical) {
-                                  return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
-                                }
-                                if (isDialogue) {
-                                  return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
-                                }
-                                if (!trimmed) return <div key={i} style={{ height: 12 }} />;
-                                return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{renderHighlighted(trimmed)}</p>;
-                              });
-                            })()}
-                          </div>
+                              if (isHeading) {
+                                return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{renderHighlighted(trimmed)}</p>;
+                              }
+                              if (isCharacter) {
+                                return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{renderHighlighted(trimmed)}</p>;
+                              }
+                              if (isParenthetical) {
+                                return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
+                              }
+                              if (isDialogue) {
+                                return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{renderHighlighted(trimmed)}</p>;
+                              }
+                              if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+                              return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{renderHighlighted(trimmed)}</p>;
+                            });
+                          })()}
                         </div>
-                      </DialogContent>
-                    </Dialog>
+                      </div>
+                    </DraggableScriptPopup>
                   </div>
                 )}
               </div>
