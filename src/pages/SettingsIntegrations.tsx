@@ -311,7 +311,7 @@ const SettingsIntegrations = () => {
                     );
 
                     return (
-                      <div key={provider.id} className="rounded-lg border border-border bg-secondary p-4 space-y-3">
+                      <div key={provider.id} className="rounded-lg border border-border/60 bg-secondary p-3 space-y-2 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                         <div className="flex items-center justify-between">
                           <p className="text-base font-medium">{provider.provider_name}</p>
                           {!isEditing && (
