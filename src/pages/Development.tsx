@@ -977,7 +977,12 @@ const Development = () => {
   }, [filmId]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10 space-y-10">
+    <div className="mx-auto max-w-5xl px-6 pt-0 pb-10 space-y-10">
+      {/* Phase header */}
+      <div className="border-b border-border bg-card -mx-6 px-6 py-3 flex items-baseline gap-3">
+        <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Development</h1>
+        <p className="text-[10px] text-muted-foreground truncate">Script analysis, visual DNA, and content safety — the creative blueprint for your film.</p>
+      </div>
       {/* ── Script Details ── */}
       <Collapsible defaultOpen>
         <CollapsibleTrigger className="w-full">
