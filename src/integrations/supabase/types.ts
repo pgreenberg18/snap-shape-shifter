@@ -659,6 +659,97 @@ export type Database = {
           },
         ]
       }
+      generations: {
+        Row: {
+          attempt_count: number
+          compile_hash: string | null
+          created_at: string
+          engine: string
+          film_id: string
+          generation_plan_json: Json | null
+          id: string
+          last_error: string | null
+          mode: string
+          output_urls: string[] | null
+          parent_generation_id: string | null
+          prompt_pack_json: Json | null
+          reference_bundle_json: Json | null
+          scores_json: Json | null
+          seed: number | null
+          selected_output_index: number | null
+          shot_id: string
+          status: string
+          style_contract_version: number | null
+          updated_at: string
+        }
+        Insert: {
+          attempt_count?: number
+          compile_hash?: string | null
+          created_at?: string
+          engine?: string
+          film_id: string
+          generation_plan_json?: Json | null
+          id?: string
+          last_error?: string | null
+          mode?: string
+          output_urls?: string[] | null
+          parent_generation_id?: string | null
+          prompt_pack_json?: Json | null
+          reference_bundle_json?: Json | null
+          scores_json?: Json | null
+          seed?: number | null
+          selected_output_index?: number | null
+          shot_id: string
+          status?: string
+          style_contract_version?: number | null
+          updated_at?: string
+        }
+        Update: {
+          attempt_count?: number
+          compile_hash?: string | null
+          created_at?: string
+          engine?: string
+          film_id?: string
+          generation_plan_json?: Json | null
+          id?: string
+          last_error?: string | null
+          mode?: string
+          output_urls?: string[] | null
+          parent_generation_id?: string | null
+          prompt_pack_json?: Json | null
+          reference_bundle_json?: Json | null
+          scores_json?: Json | null
+          seed?: number | null
+          selected_output_index?: number | null
+          shot_id?: string
+          status?: string
+          style_contract_version?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "generations_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_parent_generation_id_fkey"
+            columns: ["parent_generation_id"]
+            isOneToOne: false
+            referencedRelation: "generations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "generations_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integrations: {
         Row: {
           api_key_encrypted: string | null
