@@ -254,10 +254,10 @@ const Production = () => {
       if (mode === "anchor" && data?.output_urls) {
         setAnchorUrls(data.output_urls);
         setSelectedAnchorIdx(0);
-        // Parse scores from generation response
+        // Use real scores from generation response
         const scores: AnchorScore[] = Array.isArray(data.scores)
           ? data.scores
-          : data.output_urls.map(() => ({ identity: Math.round(70 + Math.random() * 25), style: Math.round(65 + Math.random() * 30), overall: Math.round(68 + Math.random() * 28) }));
+          : data.output_urls.map(() => ({}));
         setAnchorScores(scores);
         // Also populate take bin with first anchor
         setTakes((prev) => {
