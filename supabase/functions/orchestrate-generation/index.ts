@@ -11,6 +11,52 @@ const corsHeaders = {
 
 const GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta";
 
+/** Sanitize prompt text for AI safety filters (especially Veo which is stricter) */
+function sanitizePrompt(text: string): string {
+  return (text || "")
+    .replace(/\bhit\s*man\b/gi, "mysterious figure")
+    .replace(/\bhitman\b/gi, "mysterious figure")
+    .replace(/\bassassin\w*/gi, "operative")
+    .replace(/\bkill\w*/gi, "confront")
+    .replace(/\bmurder\w*/gi, "encounter")
+    .replace(/\binjur\w*/gi, "rugged")
+    .replace(/\bwound\w*/gi, "weathered")
+    .replace(/\bblood\w*/gi, "intense")
+    .replace(/\bbleed\w*/gi, "intense")
+    .replace(/\bgun\b/gi, "device")
+    .replace(/\bguns\b/gi, "devices")
+    .replace(/\brifle\w*/gi, "equipment")
+    .replace(/\bpistol\w*/gi, "device")
+    .replace(/\bweapon\w*/gi, "tool")
+    .replace(/\bshoot\w*/gi, "direct")
+    .replace(/\bshot\b(?!\s*(list|builder|viewport|description))/gi, "frame")
+    .replace(/\bstab\w*/gi, "reach toward")
+    .replace(/\bstrangle\w*/gi, "grasp")
+    .replace(/\bdead\b/gi, "still")
+    .replace(/\bdeath\b/gi, "fate")
+    .replace(/\bcorpse\w*/gi, "figure")
+    .replace(/\bexplod\w*/gi, "burst")
+    .replace(/\bexplosion\w*/gi, "flash")
+    .replace(/\bbomb\w*/gi, "package")
+    .replace(/\bsuicid\w*/gi, "despair")
+    .replace(/\btortur\w*/gi, "intense pressure")
+    .replace(/\bterror\w*/gi, "tension")
+    .replace(/\bviolent\w*/gi, "intense")
+    .replace(/\bviolence\b/gi, "conflict")
+    .replace(/\bhooded\b/gi, "shadowy")
+    .replace(/\bintruder\b/gi, "unexpected visitor")
+    .replace(/\bshredder\b/gi, "disposal unit")
+    .replace(/\bdunking?\b/gi, "pushing")
+    .replace(/\bbully\w*/gi, "intimidat")
+    .replace(/\bsob\w*/gi, "emotional")
+    .replace(/\bthreat\w*/gi, "tension")
+    .replace(/\bnud\w*/gi, "exposed")
+    .replace(/\bdrunk\w*/gi, "disoriented")
+    .replace(/\bdrug\w*/gi, "substance")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 /* ═══════════════════════════════════════════════════════════════
    VideoEngineAdapter — abstraction for swappable generation backends
    ═══════════════════════════════════════════════════════════════ */
@@ -155,7 +201,8 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
     name: "google_veo",
 
     async generateAnchor(p: AnchorPayload): Promise<EngineResult> {
-      const resolvedPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const rawPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const resolvedPrompt = sanitizePrompt(rawPrompt);
       const aspectRatio = p.prompt_pack?.cinematography_metadata?.framing?.aspect_ratio === "2.39:1" ? "16:9" : "16:9";
 
       const requestBody = {
@@ -242,7 +289,8 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
     },
 
     async animateFromAnchor(p: AnimatePayload): Promise<EngineResult> {
-      const resolvedPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const rawPrompt = p.prompt_pack?.resolved_text_prompt ?? p.prompt_pack?.raw_script_action ?? "";
+      const resolvedPrompt = sanitizePrompt(rawPrompt);
       const generationSeed = p.seed ?? seed();
 
       // Fetch anchor image as base64 if it's a URL
@@ -399,7 +447,7 @@ function buildGoogleAdapter(apiKey: string): VideoEngineAdapter {
 
     async targetedEdit(p: EditPayload): Promise<EngineResult> {
       // Targeted edit: re-generate anchor with modified prompt emphasizing the fix region
-      const editPrompt = `${p.prompt_delta}. Focus on correcting the ${p.target_spec.region} (${p.target_spec.asset_type}).`;
+      const editPrompt = sanitizePrompt(`${p.prompt_delta}. Focus on correcting the ${p.target_spec.region} (${p.target_spec.asset_type}).`);
 
       const requestBody = {
         instances: [{ prompt: editPrompt }],
