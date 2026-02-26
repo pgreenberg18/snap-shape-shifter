@@ -1322,6 +1322,153 @@ export type Database = {
           },
         ]
       }
+      vice_conflicts: {
+        Row: {
+          conflict_type: string
+          created_at: string
+          description: string
+          film_id: string
+          id: string
+          resolved: boolean
+          resolved_at: string | null
+          scene_number: number
+          severity: string
+          shot_id: string | null
+        }
+        Insert: {
+          conflict_type: string
+          created_at?: string
+          description: string
+          film_id: string
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          scene_number: number
+          severity?: string
+          shot_id?: string | null
+        }
+        Update: {
+          conflict_type?: string
+          created_at?: string
+          description?: string
+          film_id?: string
+          id?: string
+          resolved?: boolean
+          resolved_at?: string | null
+          scene_number?: number
+          severity?: string
+          shot_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vice_conflicts_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vice_conflicts_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vice_dependencies: {
+        Row: {
+          created_at: string
+          dependency_type: string
+          film_id: string
+          id: string
+          shot_id: string
+          source_token: string
+          source_type: string
+        }
+        Insert: {
+          created_at?: string
+          dependency_type?: string
+          film_id: string
+          id?: string
+          shot_id: string
+          source_token: string
+          source_type: string
+        }
+        Update: {
+          created_at?: string
+          dependency_type?: string
+          film_id?: string
+          id?: string
+          shot_id?: string
+          source_token?: string
+          source_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vice_dependencies_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vice_dependencies_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vice_dirty_queue: {
+        Row: {
+          created_at: string
+          film_id: string
+          id: string
+          resolved_at: string | null
+          shot_id: string
+          status: string
+          trigger_type: string
+          triggered_by: string
+        }
+        Insert: {
+          created_at?: string
+          film_id: string
+          id?: string
+          resolved_at?: string | null
+          shot_id: string
+          status?: string
+          trigger_type?: string
+          triggered_by: string
+        }
+        Update: {
+          created_at?: string
+          film_id?: string
+          id?: string
+          resolved_at?: string | null
+          shot_id?: string
+          status?: string
+          trigger_type?: string
+          triggered_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vice_dirty_queue_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vice_dirty_queue_shot_id_fkey"
+            columns: ["shot_id"]
+            isOneToOne: false
+            referencedRelation: "shots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wardrobe_scene_assignments: {
         Row: {
           character_name: string
