@@ -801,9 +801,9 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                               <span
                                 key={i}
                                 className={cn(
-                                  "text-xs rounded-full px-2.5 py-0.5 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
+                                  "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
                                   isSelected
-                                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
+                                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_rgba(47,125,255,0.4)]"
                                     : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
                                   isDisabled && "opacity-40",
                                   isEditing && "ring-2 ring-primary/50",
@@ -853,9 +853,9 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                         <span
                           key={i}
                           className={cn(
-                            "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1",
+                            "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
                             isSelected
-                              ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30"
+                              ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_rgba(47,125,255,0.4)]"
                               : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
                             isDisabled && "opacity-40",
                             isEditing && "ring-2 ring-primary/50",
