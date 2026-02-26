@@ -7,6 +7,7 @@ import { useAccessControl } from "@/hooks/useAccessControl";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { useGenerationManager } from "@/hooks/useGenerationManager";
 import {
   ScreenplayIcon,
   ClapperboardIcon,
@@ -31,6 +32,42 @@ import {
 } from "@/components/ui/tooltip";
 import { useHelp } from "@/components/help/HelpPanel";
 import CreditMeter from "./CreditMeter";
+
+const GenerationIndicator = ({ expanded }: { expanded: boolean }) => {
+  const { activeGenerations } = useGenerationManager();
+  const running = activeGenerations.filter((g) => g.status === "running");
+  if (running.length === 0) return null;
+
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            className={cn(
+              "flex items-center rounded-xl text-primary transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
+          >
+            <span className="relative flex items-center justify-center h-8 w-8 rounded-lg bg-primary/10">
+              <CineCameraIcon className="h-4.5 w-4.5 shrink-0 icon-glow animate-pulse" strokeWidth={1.5} />
+              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground shadow-[0_0_8px_rgba(47,125,255,0.5)]">
+                {running.length}
+              </span>
+            </span>
+            {expanded && (
+              <span className="text-xs font-medium truncate">
+                {running.length} generating…
+              </span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p className="text-xs">{running.length} generation{running.length > 1 ? "s" : ""} in progress</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+};
 
 const phases = [
   { key: "development", icon: ScreenplayIcon, label: "Development", tint: "hsl(220 30% 5%)" },
@@ -170,6 +207,9 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Bottom nav — Toggle + Help + Settings */}
         <div className={cn("flex flex-col gap-1 mb-2", expanded ? "w-full px-2" : "items-center")}>
+          {/* Active generations indicator */}
+          <GenerationIndicator expanded={expanded} />
+
           {/* Credit Meter */}
           <CreditMeter expanded={expanded} />
 
