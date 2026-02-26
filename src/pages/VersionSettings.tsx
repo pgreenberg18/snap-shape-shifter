@@ -88,7 +88,7 @@ const VersionSettings = () => {
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <h3 className="text-[11px] font-display font-semibold">
+                  <h3 className="text-sm font-display font-semibold">
                     {SECTION_LABELS[sectionId] || sectionId}
                   </h3>
                   {needsSelection && (

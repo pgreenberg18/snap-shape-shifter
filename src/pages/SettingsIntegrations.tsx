@@ -282,7 +282,7 @@ const SettingsIntegrations = () => {
 
           return (
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
-              <AccordionTrigger className="text-[11px] font-display font-semibold hover:no-underline">
+              <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline">
                 <span className="flex items-center gap-2">{meta.icon}{meta.title}</span>
               </AccordionTrigger>
               <AccordionContent>

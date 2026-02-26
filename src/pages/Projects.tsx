@@ -217,7 +217,7 @@ const Projects = () => {
         {/* Stats / quick info */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-primary mb-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">
               Studio Overview
             </h3>
             <div className="space-y-3">
@@ -237,7 +237,7 @@ const Projects = () => {
           </div>
 
           <div>
-            <h3 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
               Quick Actions
             </h3>
             <div className="space-y-1">
