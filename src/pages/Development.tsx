@@ -1938,9 +1938,9 @@ const Development = () => {
       )}
 
       {/* ── Step 4: Lock Script ── */}
-      {analysis?.scene_breakdown && !scriptLocked && (
+      {analysis?.scene_breakdown && !scriptLocked && ratingsApproved && (
         <section>
-          <Collapsible>
+          <Collapsible defaultOpen>
             <CollapsibleTrigger className="w-full">
               <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                 <div className="flex items-center gap-2">
