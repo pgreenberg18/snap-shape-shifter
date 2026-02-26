@@ -410,12 +410,10 @@ const MediaLibraryPanel = () => {
                 <FileText className="h-3.5 w-3.5 text-muted-foreground/50" />
               </div>
             )}
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] font-mono font-medium text-foreground truncate">{item.name}</p>
-              <p className="text-[9px] font-mono text-muted-foreground/60">
-                {new Date(item.createdAt).toLocaleDateString()}
-              </p>
-            </div>
+            <p className="flex-1 min-w-0 text-sm font-mono font-medium text-foreground truncate">{item.name}</p>
+            <span className="text-xs font-mono text-muted-foreground/60 shrink-0">
+              {new Date(item.createdAt).toLocaleDateString()}
+            </span>
             <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
           </button>
         </div>
