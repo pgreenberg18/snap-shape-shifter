@@ -257,7 +257,7 @@ const SettingsIntegrations = () => {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="mb-8">
         <button
-          onClick={() => navigate("/projects")}
+          onClick={() => navigate(-1)}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Back to Settings
