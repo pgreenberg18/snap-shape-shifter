@@ -2134,7 +2134,7 @@ const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdown
             )}
           </div>
           <div className="flex items-center gap-2">
-            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform ${breakdownOpen ? "rotate-180" : ""}`} />
+            <ChevronDown className={`h-5 w-5 text-muted-foreground transition-transform duration-200 ${breakdownOpen ? "rotate-180" : ""}`} />
           </div>
         </div>
       </CollapsibleTrigger>
@@ -3286,7 +3286,7 @@ const ContentSafetyMatrix = ({
                             ) : (
                               <span className="text-xs text-muted-foreground/50">Clear</span>
                             )}
-                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]_&]:rotate-180" />
+                            <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]_&]:rotate-180" />
                           </div>
                         </div>
                       </div>
