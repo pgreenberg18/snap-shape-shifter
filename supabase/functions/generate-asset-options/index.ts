@@ -58,6 +58,83 @@ function safeDesc(text: string): string {
     .trim();
 }
 
+/** Fetch with exponential backoff + jitter. Retries on 429, 5xx, and connection errors. */
+async function fetchWithRetry(
+  url: string,
+  init: RequestInit,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    let response: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000);
+      response = await fetch(url, { ...init, signal: controller.signal });
+      clearTimeout(timeout);
+    } catch (err) {
+      if (attempt === maxRetries) throw err;
+      const waitMs = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+      console.warn(`Fetch error (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${Math.round(waitMs)}ms:`, err);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    // Non-retryable client errors (except 429)
+    if ([400, 401, 403, 404].includes(response.status)) return response;
+    // Credits exhausted — non-retryable
+    if (response.status === 402) return response;
+
+    // Rate limited — respect Retry-After header
+    if (response.status === 429) {
+      if (attempt === maxRetries) return response;
+      const retryAfter = response.headers.get("Retry-After");
+      let delay = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
+      if (retryAfter) {
+        const parsed = parseInt(retryAfter, 10);
+        if (!isNaN(parsed)) delay = parsed * 1000;
+        else {
+          const d = new Date(retryAfter);
+          if (!isNaN(d.getTime())) delay = Math.max(0, d.getTime() - Date.now());
+        }
+      }
+      console.warn(`Rate limited (attempt ${attempt + 1}), waiting ${Math.round(delay)}ms`);
+      await new Promise((r) => setTimeout(r, delay));
+      continue;
+    }
+
+    // 5xx server errors — retry with backoff
+    if (response.status >= 500) {
+      if (attempt === maxRetries) return response;
+      const waitMs = Math.pow(2, attempt) * 1500 + Math.random() * 1000;
+      console.warn(`Server error ${response.status} (attempt ${attempt + 1}), retrying in ${Math.round(waitMs)}ms`);
+      await new Promise((r) => setTimeout(r, waitMs));
+      continue;
+    }
+
+    // Success or other status
+    return response;
+  }
+  throw new Error("fetchWithRetry: unreachable");
+}
+
+/** Stream-read a response body and parse as JSON (avoids body-too-large crashes) */
+async function streamJson(response: Response): Promise<any> {
+  const reader = response.body!.getReader();
+  const chunks: Uint8Array[] = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const combined = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    combined.set(chunk, offset);
+    offset += chunk.length;
+  }
+  return JSON.parse(new TextDecoder().decode(combined));
+}
+
 function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
@@ -273,39 +350,39 @@ REQUIREMENTS:
 
       for (const model of models) {
         console.log(`Asset option ${index + 1}/5 (${asset_type}): trying ${model}`);
-        
+
         let response: Response;
         try {
-          const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 120_000);
-          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
+          response = await fetchWithRetry(
+            "https://ai.gateway.lovable.dev/v1/chat/completions",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                model,
+                messages: [
+                  {
+                    role: "system",
+                    content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
+                  },
+                  { role: "user", content: prompt },
+                ],
+                modalities: ["image", "text"],
+              }),
             },
-            body: JSON.stringify({
-              model,
-              messages: [
-                {
-                  role: "system",
-                  content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
-                },
-                { role: "user", content: prompt },
-              ],
-              modalities: ["image", "text"],
-            }),
-            signal: controller.signal,
-          });
-          clearTimeout(timeout);
+            3,
+          );
         } catch (fetchErr) {
-          console.error(`Fetch error for ${model} option ${index + 1}:`, fetchErr);
+          console.error(`All retries exhausted for ${model} option ${index + 1}:`, fetchErr);
           continue;
         }
 
         if (!response.ok) {
           if (response.status === 429) {
-            return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
+            return new Response(JSON.stringify({ error: "Rate limit exceeded after retries. Please try again later." }), {
               status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
           }
@@ -319,23 +396,9 @@ REQUIREMENTS:
           continue;
         }
 
-        // Stream the response body to avoid "error reading a body from connection"
         let data: any;
         try {
-          const reader = response.body!.getReader();
-          const chunks: Uint8Array[] = [];
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            chunks.push(value);
-          }
-          const combined = new Uint8Array(chunks.reduce((a, c) => a + c.length, 0));
-          let offset = 0;
-          for (const chunk of chunks) {
-            combined.set(chunk, offset);
-            offset += chunk.length;
-          }
-          data = JSON.parse(new TextDecoder().decode(combined));
+          data = await streamJson(response);
         } catch (parseErr) {
           console.error(`Body read/parse error for ${model} option ${index + 1}:`, parseErr);
           continue;
