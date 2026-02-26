@@ -283,7 +283,19 @@ const SettingsIntegrations = () => {
           return (
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
               <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline">
-                <span className="flex items-center gap-2">{meta.icon}{meta.title}</span>
+                <span className="flex items-center gap-2 flex-1">{meta.icon}{meta.title}
+                  {!isAdding && available.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="ml-auto gap-1 text-[10px] h-6 px-2 text-muted-foreground hover:text-foreground"
+                      onClick={(e) => { e.stopPropagation(); openAdd(sectionId); }}
+                    >
+                      <Plus className="h-3 w-3" />
+                      {meta.addLabel}
+                    </Button>
+                  )}
+                </span>
               </AccordionTrigger>
               <AccordionContent>
                 <p className="text-xs text-muted-foreground mb-3">{meta.description}</p>
@@ -408,17 +420,7 @@ const SettingsIntegrations = () => {
                         Connect & Verify
                       </Button>
                     </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 w-full border-dashed"
-                      onClick={() => openAdd(sectionId)}
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      {meta.addLabel}
-                    </Button>
-                  )}
+                  ) : null}
 
                   {/* Empty hint when nothing configured */}
                   {(!providers || providers.length === 0) && added.length === 0 && !isAdding && (
