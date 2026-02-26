@@ -4,8 +4,10 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Minus, Plug,
+  ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Minus, Plug, ExternalLink,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 
 const SECTION_ORDER = [
   "script-analysis",
@@ -33,6 +35,7 @@ interface Props {
 }
 
 const ProjectServicesDialog = ({ projectId, versions, open, onOpenChange }: Props) => {
+  const navigate = useNavigate();
   // Global integrations (verified ones)
   const { data: integrations } = useQuery({
     queryKey: ["integrations"],
@@ -92,6 +95,18 @@ const ProjectServicesDialog = ({ projectId, versions, open, onOpenChange }: Prop
           <DialogDescription>
             Global API services configured in the app, and which provider each version in this project is using.
           </DialogDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-2 w-fit gap-1.5"
+            onClick={() => {
+              onOpenChange(false);
+              navigate("/settings");
+            }}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Manage Providers
+          </Button>
         </DialogHeader>
 
         <div className="space-y-6 pt-2">
