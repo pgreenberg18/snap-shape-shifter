@@ -3,9 +3,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Plus, FolderOpen, Calendar, Trash2, Pencil, Check, X,
-  Film, Settings, HelpCircle, User, ChevronRight,
+  Trash2, Pencil, Check, X, ChevronRight,
 } from "lucide-react";
+import {
+  AddProjectIcon, FilmStripIcon, PrecisionGearIcon, InfoBeaconIcon, ProfileIcon,
+} from "@/components/ui/cinema-icons";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
@@ -191,7 +193,7 @@ const Projects = () => {
         <div className="border-b border-border p-6 space-y-3">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 border border-primary/20 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]">
-              <User className="h-5 w-5 text-primary icon-glow" />
+              <ProfileIcon className="h-5 w-5 text-primary icon-glow" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-display font-semibold text-foreground truncate">
@@ -242,7 +244,7 @@ const Projects = () => {
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
                   <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-accent transition-colors">
-                    <Plus className="h-4 w-4 text-primary icon-glow" />
+                    <AddProjectIcon className="h-4 w-4 text-primary icon-glow" />
                     New Film Project
                   </button>
                 </DialogTrigger>
@@ -277,14 +279,14 @@ const Projects = () => {
             title="Help"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
           >
-            <HelpCircle className="h-5 w-5 icon-glow" />
+            <InfoBeaconIcon className="h-5 w-5 icon-glow" />
           </button>
           <button
             onClick={() => navigate("/settings/admin")}
             title="Settings & Admin"
             className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
           >
-            <Settings className="h-5 w-5 icon-glow" />
+            <PrecisionGearIcon className="h-5 w-5 icon-glow" />
           </button>
         </div>
       </aside>
@@ -327,9 +329,9 @@ const Projects = () => {
           ) : !projects?.length ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
               <div className="relative">
-                <Film className="h-20 w-20 text-muted-foreground/20" />
+                <FilmStripIcon className="h-20 w-20 text-muted-foreground/20" />
                 <div className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                  <Plus className="h-4 w-4" />
+                  <AddProjectIcon className="h-4 w-4" />
                 </div>
               </div>
               <p className="mt-6 font-display text-xl font-bold text-foreground">No productions yet</p>
@@ -337,7 +339,7 @@ const Projects = () => {
                 Create your first project to start building your virtual film. Upload a screenplay and let AI break it down.
               </p>
               <Button onClick={() => setOpen(true)} className="mt-6 gap-2">
-                <Plus className="h-4 w-4" /> New Film Project
+                <AddProjectIcon className="h-4 w-4" /> New Film Project
               </Button>
             </div>
           ) : (
@@ -359,7 +361,7 @@ const Projects = () => {
                       <div className="absolute inset-0 opacity-[0.03]" style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
                       }} />
-                      <Film className="h-8 w-8 text-muted-foreground/20 transition-all duration-300 group-hover:text-primary/40 group-hover:scale-110" />
+                      <FilmStripIcon className="h-8 w-8 text-muted-foreground/20 transition-all duration-300 group-hover:text-primary/40 group-hover:scale-110" />
                       {/* Sprocket holes */}
                       <div className="absolute left-1.5 top-0 bottom-0 flex flex-col justify-center gap-2">
                         {[...Array(3)].map((_, i) => (
@@ -405,11 +407,11 @@ const Projects = () => {
                       )}
                       <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <Film className="h-3 w-3" />
+                          <FilmStripIcon className="h-3 w-3" />
                           {versionCounts?.[project.id] || 0} version{(versionCounts?.[project.id] || 0) !== 1 ? "s" : ""}
                         </span>
                         <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
+                          <FilmStripIcon className="h-3 w-3" />
                           {new Date(project.created_at).toLocaleDateString()}
                         </span>
                       </div>
