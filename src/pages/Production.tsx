@@ -16,6 +16,7 @@ import PlaybackMonitor, { EMPTY_TAKES } from "@/components/production/PlaybackMo
 import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
 import type { AnchorScore } from "@/components/production/AnchorPicker";
+import type { DiffPair } from "@/components/production/DiffOverlay";
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -86,6 +87,7 @@ const Production = () => {
   const [anchorScores, setAnchorScores] = useState<AnchorScore[]>([]);
   const isDragging = useRef(false);
   const [repairTarget, setRepairTarget] = useState<RepairTarget | null>(null);
+  const [diffPair, setDiffPair] = useState<DiffPair | null>(null);
 
   // Persisted script pane dimensions
   const [scriptColWidth, setScriptColWidth] = useState(() => {
@@ -274,6 +276,22 @@ const Production = () => {
           prev.map((t, i) => i === targetIdx ? { ...t, thumbnailUrl: data.output_urls[0] } : t)
         );
         setActiveTakeIdx(targetIdx);
+      } else if (mode === "targeted_edit" && data?.output_urls?.[0]) {
+        // Show diff overlay: original anchor vs repaired
+        const originalUrl = selectedAnchorIdx !== null ? anchorUrls[selectedAnchorIdx] : null;
+        if (originalUrl && effectiveRepairTarget) {
+          setDiffPair({
+            originalUrl,
+            repairedUrl: data.output_urls[0],
+            repairTarget: effectiveRepairTarget,
+          });
+        }
+        // Replace the selected anchor with the repaired version
+        if (selectedAnchorIdx !== null) {
+          setAnchorUrls((prev) =>
+            prev.map((url, i) => i === selectedAnchorIdx ? data.output_urls[0] : url)
+          );
+        }
       }
     } catch (err) {
       console.error("Generation failed:", err);
@@ -297,6 +315,7 @@ const Production = () => {
     setAnchorUrls([]);
     setSelectedAnchorIdx(null);
     setAnchorScores([]);
+    setDiffPair(null);
   };
 
   const handleSelectScene = (idx: number) => {
@@ -307,6 +326,7 @@ const Production = () => {
     setAnchorUrls([]);
     setSelectedAnchorIdx(null);
     setAnchorScores([]);
+    setDiffPair(null);
   };
 
   return (
@@ -390,6 +410,8 @@ const Production = () => {
                     anchorScores={anchorScores}
                     selectedAnchorIdx={selectedAnchorIdx}
                     onSelectAnchor={setSelectedAnchorIdx}
+                    diffPair={diffPair}
+                    onCloseDiff={() => setDiffPair(null)}
                   />
                   <ShotList
                     shots={sceneShots}
