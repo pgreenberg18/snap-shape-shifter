@@ -617,144 +617,168 @@ const PreProduction = () => {
                   </div>
                 )}
 
+                {/* ═══ CHARACTER METADATA (moved above scenes) ═══ */}
+                <Collapsible>
+                  <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
+                    <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                      <User className="h-4 w-4 text-primary" />
+                      <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Character Details</h3>
+                      <div className="flex-1" />
+                      <Button onClick={(e) => { e.stopPropagation(); handleSaveMeta(); }} disabled={savingMeta} variant="secondary" size="sm" className="gap-1.5 text-xs h-7">
+                        {savingMeta ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Save className="h-3.5 w-3.5" />Save</>}
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-5 pb-5 space-y-4">
+                        {/* Description */}
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</label>
+                          <Textarea
+                            value={charDescription}
+                            onChange={(e) => setCharDescription(e.target.value)}
+                            placeholder="A weathered detective in his late 40s, carries himself with quiet authority…"
+                            className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
+                          />
+                        </div>
+
+                        {/* Sex / Age / Child row */}
+                        <div className="grid grid-cols-4 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sex</label>
+                            <Select value={charSex} onValueChange={setCharSex}>
+                              <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Male">Male</SelectItem>
+                                <SelectItem value="Female">Female</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                                <SelectItem value="Unknown">Unknown</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Age Min</label>
+                            <Input
+                              type="number"
+                              value={charAgeMin}
+                              onChange={(e) => setCharAgeMin(e.target.value)}
+                              placeholder="25"
+                              className="h-9 bg-secondary/50 border-border text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Age Max</label>
+                            <Input
+                              type="number"
+                              value={charAgeMax}
+                              onChange={(e) => setCharAgeMax(e.target.value)}
+                              placeholder="35"
+                              className="h-9 bg-secondary/50 border-border text-sm"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Adult / Child</label>
+                            <Select value={charIsChild ? "child" : "adult"} onValueChange={(v) => setCharIsChild(v === "child")}>
+                              <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="adult">Adult</SelectItem>
+                                <SelectItem value="child">Child</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+
                 {/* ═══ SCENE APPEARANCES ═══ */}
                 {(() => {
                   const ranking = rankings?.find(r => r.nameNormalized === selectedChar.name.toUpperCase());
                   if (!ranking?.sceneNumbers?.length) return null;
                   return (
-                    <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Film className="h-4 w-4 text-primary" />
-                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Scenes</h3>
-                        <span className="text-xs text-muted-foreground/50">{ranking.sceneNumbers.length} appearances</span>
+                    <Collapsible>
+                      <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
+                        <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
+                          <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                          <Film className="h-4 w-4 text-primary" />
+                          <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Scenes</h3>
+                          <span className="text-xs text-muted-foreground/50">{ranking.sceneNumbers.length} appearances</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="px-4 pb-4">
+                            <div className="flex flex-wrap gap-1.5">
+                              {ranking.sceneNumbers.map((sn) => (
+                                <button
+                                  key={sn}
+                                  onClick={() => openSceneScript(sn)}
+                                  className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                                  title={`View Scene ${sn} script`}
+                                >
+                                  {sn}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </CollapsibleContent>
                       </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {ranking.sceneNumbers.map((sn) => (
-                          <button
-                            key={sn}
-                            onClick={() => openSceneScript(sn)}
-                            className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                            title={`View Scene ${sn} script`}
-                          >
-                            {sn}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    </Collapsible>
                   );
                 })()}
 
-                {/* ═══ CHARACTER METADATA ═══ */}
-                <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4 text-primary" />
-                      <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Character Details</h3>
-                    </div>
-                    <Button onClick={handleSaveMeta} disabled={savingMeta} variant="secondary" size="sm" className="gap-1.5 text-xs h-7">
-                      {savingMeta ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Save className="h-3.5 w-3.5" />Save</>}
-                    </Button>
-                  </div>
-
-                  {/* Description */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Description</label>
-                    <Textarea
-                      value={charDescription}
-                      onChange={(e) => setCharDescription(e.target.value)}
-                      placeholder="A weathered detective in his late 40s, carries himself with quiet authority…"
-                      className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
-                    />
-                  </div>
-
-                  {/* Sex / Age / Child row */}
-                  <div className="grid grid-cols-4 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Sex</label>
-                      <Select value={charSex} onValueChange={setCharSex}>
-                        <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Male">Male</SelectItem>
-                          <SelectItem value="Female">Female</SelectItem>
-                          <SelectItem value="Other">Other</SelectItem>
-                          <SelectItem value="Unknown">Unknown</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Age Min</label>
-                      <Input
-                        type="number"
-                        value={charAgeMin}
-                        onChange={(e) => setCharAgeMin(e.target.value)}
-                        placeholder="25"
-                        className="h-9 bg-secondary/50 border-border text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Age Max</label>
-                      <Input
-                        type="number"
-                        value={charAgeMax}
-                        onChange={(e) => setCharAgeMax(e.target.value)}
-                        placeholder="35"
-                        className="h-9 bg-secondary/50 border-border text-sm"
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Adult / Child</label>
-                      <Select value={charIsChild ? "child" : "adult"} onValueChange={(v) => setCharIsChild(v === "child")}>
-                        <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="adult">Adult</SelectItem>
-                          <SelectItem value="child">Child</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Audition cards grid — only show after casting call */}
+                {/* ═══ CASTING — Audition cards grid ═══ */}
                 {(cards.length > 0 || generating) && (
-                  <div className="space-y-6">
-                    {/* Row 1: Archetypes */}
-                    {(() => {
-                      const archetypeCards = [...cards.filter((c) => c.section === "archetype")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-                      return archetypeCards.length > 0 && (
-                        <div>
-                          <div className="flex items-center gap-2 mb-3">
-                            <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Archetypes</h3>
-                            <span className="text-[10px] text-muted-foreground/50 bg-secondary px-1.5 py-0.5 rounded">{archetypeCards.length}</span>
-                            <div className="flex-1 border-t border-border ml-2" />
-                          </div>
-                          <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
-                            {archetypeCards.map((card) => (
-                              <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
+                  <Collapsible>
+                    <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
+                      <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform [[data-state=open]>&]:rotate-90" />
+                        <Sparkles className="h-4 w-4 text-primary" />
+                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Casting</h3>
+                        <span className="text-xs text-muted-foreground/50">{cards.length} candidates</span>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-4 pb-4 space-y-6">
+                          {/* Row 1: Archetypes */}
+                          {(() => {
+                            const archetypeCards = [...cards.filter((c) => c.section === "archetype")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                            return archetypeCards.length > 0 && (
+                              <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                  <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Archetypes</h3>
+                                  <span className="text-[10px] text-muted-foreground/50 bg-secondary px-1.5 py-0.5 rounded">{archetypeCards.length}</span>
+                                  <div className="flex-1 border-t border-border ml-2" />
+                                </div>
+                                <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
+                                  {archetypeCards.map((card) => (
+                                    <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
 
-                    {/* Row 2: Wildcards + Novel AI Faces side by side */}
-                    {(() => {
-                      const row2Cards = [...cards.filter((c) => c.section === "wildcard" || c.section === "novel")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
-                      return row2Cards.length > 0 && (
-                        <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
-                          {row2Cards.map((card) => (
-                            <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
-                          ))}
+                          {/* Row 2: Wildcards + Novel AI Faces side by side */}
+                          {(() => {
+                            const row2Cards = [...cards.filter((c) => c.section === "wildcard" || c.section === "novel")].sort((a, b) => (b.rating || 0) - (a.rating || 0));
+                            return row2Cards.length > 0 && (
+                              <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
+                                {row2Cards.map((card) => (
+                                  <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
-                      );
-                    })()}
-                  </div>
+                      </CollapsibleContent>
+                    </div>
+                  </Collapsible>
                 )}
 
                 {/* Expanded headshot dialog */}
