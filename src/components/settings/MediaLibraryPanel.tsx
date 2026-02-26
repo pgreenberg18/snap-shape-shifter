@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
 import { toast } from "sonner";
+import DraggableScriptPopup from "@/components/DraggableScriptPopup";
 
 type MediaItem = {
   id: string;
@@ -529,51 +530,50 @@ const MediaLibraryPanel = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Script Preview Dialog */}
-      <Dialog open={!!scriptPreview} onOpenChange={(open) => !open && setScriptPreview(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col p-0">
-          <div className="px-6 py-4 border-b border-border">
-            <p className="text-sm font-mono font-bold text-foreground">{scriptPreview?.name}</p>
-            <p className="text-[11px] text-muted-foreground">Full screenplay text</p>
-          </div>
-          <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
-            <div
-              className="mx-auto bg-white text-black shadow-lg rounded"
-              style={{
-                fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
-                fontSize: "12px",
-                lineHeight: "1.0",
-                padding: "72px 60px 72px 90px",
-                maxWidth: "612px",
-                minHeight: "400px",
-              }}
-            >
-              {scriptPreview?.text.split("\n").map((line, i) => {
-                const trimmed = line.trim();
-                const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
-                const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
-                const isParenthetical = /^\(.*\)$/.test(trimmed);
-                const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
+      {/* Script Preview — draggable & resizable */}
+      <DraggableScriptPopup
+        open={!!scriptPreview}
+        onClose={() => setScriptPreview(null)}
+        title={scriptPreview?.name ?? ""}
+        subtitle="Full screenplay text"
+      >
+        <div className="px-6 py-4">
+          <div
+            className="mx-auto bg-white text-black shadow-lg rounded"
+            style={{
+              fontFamily: "'Courier Prime', 'Courier New', Courier, monospace",
+              fontSize: "12px",
+              lineHeight: "1.0",
+              padding: "72px 60px 72px 90px",
+              maxWidth: "612px",
+              minHeight: "400px",
+            }}
+          >
+            {scriptPreview?.text.split("\n").map((line, i) => {
+              const trimmed = line.trim();
+              const isHeading = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(trimmed);
+              const isCharacter = trimmed === trimmed.toUpperCase() && trimmed.length > 1 && trimmed.length < 40 && !isHeading && !/^\(/.test(trimmed);
+              const isParenthetical = /^\(.*\)$/.test(trimmed);
+              const isDialogue = !isHeading && !isCharacter && !isParenthetical && line.startsWith("  ") && !line.startsWith("    ");
 
-                if (isHeading) {
-                  return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{trimmed}</p>;
-                }
-                if (isCharacter) {
-                  return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{trimmed}</p>;
-                }
-                if (isParenthetical) {
-                  return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
-                }
-                if (isDialogue) {
-                  return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
-                }
-                if (!trimmed) return <div key={i} style={{ height: 12 }} />;
-                return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{trimmed}</p>;
-              })}
-            </div>
+              if (isHeading) {
+                return <p key={i} style={{ textTransform: "uppercase", fontWeight: "bold", marginTop: i === 0 ? 0 : 24, marginBottom: 12 }}>{trimmed}</p>;
+              }
+              if (isCharacter) {
+                return <p key={i} style={{ textAlign: "center", textTransform: "uppercase", marginTop: 18, marginBottom: 0, paddingLeft: "20%" }}>{trimmed}</p>;
+              }
+              if (isParenthetical) {
+                return <p key={i} style={{ paddingLeft: "25%", fontStyle: "italic", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+              }
+              if (isDialogue) {
+                return <p key={i} style={{ paddingLeft: "15%", paddingRight: "15%", marginBottom: 0, marginTop: 0 }}>{trimmed}</p>;
+              }
+              if (!trimmed) return <div key={i} style={{ height: 12 }} />;
+              return <p key={i} style={{ marginTop: 12, marginBottom: 0 }}>{trimmed}</p>;
+            })}
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      </DraggableScriptPopup>
 
 
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
