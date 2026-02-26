@@ -1,13 +1,33 @@
 import { cn } from "@/lib/utils";
 import { Crosshair, Check, Image } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+
+export interface AnchorScore {
+  identity?: number;   // 0-100
+  style?: number;      // 0-100
+  overall?: number;    // 0-100
+}
 
 interface AnchorPickerProps {
   anchorUrls: string[];
   selectedIdx: number | null;
   onSelect: (idx: number) => void;
+  scores?: AnchorScore[];
 }
 
-const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect }: AnchorPickerProps) => {
+const ScoreBadge = ({ label, value }: { label: string; value: number }) => {
+  const color =
+    value >= 80 ? "text-emerald-400" :
+    value >= 60 ? "text-primary" :
+    "text-destructive/80";
+  return (
+    <span className={cn("text-[8px] font-mono font-bold tabular-nums", color)}>
+      {label}{value}
+    </span>
+  );
+};
+
+const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect, scores }: AnchorPickerProps) => {
   if (anchorUrls.length === 0) return null;
 
   return (
@@ -24,10 +44,18 @@ const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect }: AnchorPickerProps) 
           </span>
         </div>
 
+        {/* Filmstrip perforations top */}
+        <div className="flex gap-[2px] mb-1 px-1">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
+          ))}
+        </div>
+
         {/* 4-up grid */}
         <div className="grid grid-cols-4 gap-2">
           {anchorUrls.map((url, idx) => {
             const isSelected = selectedIdx === idx;
+            const score = scores?.[idx];
             return (
               <button
                 key={idx}
@@ -39,7 +67,7 @@ const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect }: AnchorPickerProps) 
                     : "border-border/40 hover:border-border hover:shadow-md"
                 )}
               >
-                {/* Background — placeholder since URLs are stubs */}
+                {/* Background */}
                 <div className="absolute inset-0 bg-black shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
                   {url.startsWith("http") && !url.includes("placeholder") ? (
                     <img src={url} alt={`Anchor ${idx + 1}`} className="w-full h-full object-cover" />
@@ -72,6 +100,19 @@ const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect }: AnchorPickerProps) 
                   </div>
                 )}
 
+                {/* Auto-score badges */}
+                {score && (
+                  <div className="absolute bottom-1 left-1 right-1 z-10 flex items-center gap-1.5 px-1 py-0.5 rounded bg-black/70 backdrop-blur-sm">
+                    {score.identity != null && <ScoreBadge label="ID:" value={score.identity} />}
+                    {score.style != null && <ScoreBadge label="ST:" value={score.style} />}
+                    {score.overall != null && (
+                      <span className="ml-auto text-[8px] font-mono font-bold text-foreground/70 tabular-nums">
+                        {score.overall}%
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Hover overlay */}
                 {!isSelected && (
                   <div className="absolute inset-0 z-10 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -79,6 +120,13 @@ const AnchorPicker = ({ anchorUrls, selectedIdx, onSelect }: AnchorPickerProps) 
               </button>
             );
           })}
+        </div>
+
+        {/* Filmstrip perforations bottom */}
+        <div className="flex gap-[2px] mt-1 px-1">
+          {Array.from({ length: 40 }).map((_, i) => (
+            <div key={i} className="flex-1 h-[3px] rounded-full bg-white/[0.03]" />
+          ))}
         </div>
       </div>
     </div>
