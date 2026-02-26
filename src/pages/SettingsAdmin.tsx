@@ -235,37 +235,45 @@ const CreditUsageSection = () => {
         </div>
       </div>
 
-      {/* Services by Category */}
+      {/* Services by Category with per-integration subtotals */}
       {Object.keys(categorizedServices).length > 0 ? (
         <div className="space-y-5">
           {Object.entries(categorizedServices)
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([cat, services]) => (
-              <div key={cat} className="space-y-1.5">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {CATEGORY_LABELS[cat] || cat}
-                </h3>
-                <div className="space-y-1">
-                  {services
-                    .sort((a, b) => b.credits - a.credits || a.name.localeCompare(b.name))
-                    .map((svc) => (
-                      <div key={svc.name} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-foreground">{svc.name}</span>
-                          {svc.verified && (
-                            <span className="text-[9px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
-                              Active
-                            </span>
-                          )}
+            .map(([cat, services]) => {
+              const categoryTotal = services.reduce((sum, s) => sum + s.credits, 0);
+              return (
+                <div key={cat} className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {CATEGORY_LABELS[cat] || cat}
+                    </h3>
+                    <span className="font-mono text-xs font-medium tabular-nums text-foreground">
+                      {categoryTotal.toFixed(0)}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {services
+                      .sort((a, b) => b.credits - a.credits || a.name.localeCompare(b.name))
+                      .map((svc) => (
+                        <div key={svc.name} className="flex items-center justify-between rounded-md bg-secondary/30 border border-border px-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-foreground">{svc.name}</span>
+                            {svc.verified && (
+                              <span className="text-[9px] uppercase tracking-wider bg-green-500/10 text-green-500 px-1.5 py-0.5 rounded">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <span className={`font-mono text-[11px] font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
+                            {svc.credits.toFixed(0)}
+                          </span>
                         </div>
-                        <span className={`font-mono text-[11px] font-medium tabular-nums ${svc.credits > 0 ? "text-primary" : "text-muted-foreground/40"}`}>
-                          {svc.credits.toFixed(0)}
-                        </span>
-                      </div>
-                    ))}
+                      ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
         </div>
       ) : (
         <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-12 text-center">
@@ -490,10 +498,10 @@ const SettingsAdmin = () => {
   const navigate = useNavigate();
   const isAdmin = isAdminUser(user?.email);
 
-  // Support deep-linking via ?section= query param
+  // Support deep-linking via ?section= query param; default to no selection
   const searchParams = new URLSearchParams(window.location.search);
-  const initialSection = searchParams.get("section") || "your-nda";
-  const [activeSection, setActiveSection] = useState(initialSection);
+  const sectionParam = searchParams.get("section");
+  const [activeSection, setActiveSection] = useState<string | null>(sectionParam);
 
   const handleReset = () => {
     localStorage.clear();
@@ -585,6 +593,14 @@ const SettingsAdmin = () => {
       {/* Content */}
       <main className="flex-1 overflow-y-auto p-8">
         <div className="max-w-2xl">
+          {!activeSection && (
+            <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+              <Settings className="h-10 w-10 text-muted-foreground/20 mb-4" />
+              <h2 className="font-display text-lg font-bold text-foreground mb-2">Settings</h2>
+              <p className="text-xs text-muted-foreground max-w-sm">Select a section from the sidebar to view or manage your account, integrations, credit usage, and more.</p>
+            </div>
+          )}
+
           {activeSection === "your-nda" && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Your Signed NDA</h2>

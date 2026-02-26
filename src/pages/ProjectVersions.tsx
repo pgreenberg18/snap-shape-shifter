@@ -19,6 +19,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import ProjectServicesDialog from "@/components/settings/ProjectServicesDialog";
+import ProviderConflictDialog from "@/components/settings/ProviderConflictDialog";
+import { useAuth } from "@/hooks/useAuth";
 
 /* ── Size estimation helpers ── */
 const estimateJsonBytes = (val: unknown): number => {
@@ -45,6 +47,11 @@ const ProjectVersions = () => {
   const [renameValue, setRenameValue] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
+  const [conflictFilmId, setConflictFilmId] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<Array<{ section: string; providers: Array<{ id: string; provider_name: string }> }>>([]);
+  const { user } = useAuth();
+
+  const LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
 
   const { data: project } = useQuery({
     queryKey: ["project", projectId],
@@ -264,6 +271,37 @@ const ProjectVersions = () => {
 
   const { toggle: toggleHelp } = useHelp();
 
+  /* ── Check for provider conflicts before navigating ── */
+  const handleVersionClick = useCallback(async (filmId: string) => {
+    if (!user?.id) { navigate(`/projects/${projectId}/versions/${filmId}/development`); return; }
+    // Get verified integrations
+    const { data: integrations } = await supabase
+      .from("integrations").select("id, section_id, provider_name, is_verified")
+      .eq("user_id", user.id);
+    // Get existing selections for this film
+    const { data: selections } = await supabase
+      .from("version_provider_selections").select("section_id")
+      .eq("film_id", filmId);
+    const selectedSections = new Set(selections?.map(s => s.section_id) || []);
+    // Group verified by section
+    const bySection: Record<string, Array<{ id: string; provider_name: string }>> = {};
+    for (const i of integrations || []) {
+      if (!i.is_verified) continue;
+      const section = LEGACY_MAP[i.section_id] || i.section_id;
+      (bySection[section] ??= []).push({ id: i.id, provider_name: i.provider_name });
+    }
+    // Find conflicts: multiple providers, no selection yet
+    const unresolved = Object.entries(bySection)
+      .filter(([section, providers]) => providers.length > 1 && !selectedSections.has(section))
+      .map(([section, providers]) => ({ section, providers }));
+    if (unresolved.length > 0) {
+      setConflictFilmId(filmId);
+      setConflicts(unresolved);
+    } else {
+      navigate(`/projects/${projectId}/versions/${filmId}/development`);
+    }
+  }, [user?.id, projectId, navigate]);
+
   /* ── Reusable version card ── */
   const renderVersionCard = (v: NonNullable<typeof versions>[number], isArchived: boolean) => {
     const versionSize = sizeData?.[v.id] || 0;
@@ -275,7 +313,7 @@ const ProjectVersions = () => {
         }`}
       >
         <button
-          onClick={() => renamingId !== v.id && navigate(`/projects/${projectId}/versions/${v.id}/development`)}
+          onClick={() => renamingId !== v.id && handleVersionClick(v.id)}
           className="flex flex-1 flex-col text-left"
         >
           <div className="flex aspect-video items-center justify-center bg-secondary">
@@ -466,6 +504,20 @@ const ProjectVersions = () => {
             versions={versions}
             open={servicesOpen}
             onOpenChange={setServicesOpen}
+          />
+        )}
+
+        {conflictFilmId && conflicts.length > 0 && (
+          <ProviderConflictDialog
+            filmId={conflictFilmId}
+            conflicts={conflicts}
+            open={true}
+            onResolved={() => {
+              const fid = conflictFilmId;
+              setConflictFilmId(null);
+              setConflicts([]);
+              navigate(`/projects/${projectId}/versions/${fid}/development`);
+            }}
           />
         )}
       </div>
