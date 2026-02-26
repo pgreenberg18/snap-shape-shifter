@@ -338,6 +338,32 @@ const Development = () => {
   const [aiNotesApproved, setAiNotesApproved] = useState(false);
   const enrichingRef = useRef(false);
 
+  // Post-enrichment: finalize analysis then auto-run director fit
+  const runPostEnrichment = useCallback(async (analysisId: string) => {
+    try {
+      console.log("Running finalize-analysis…");
+      const { error: finErr } = await supabase.functions.invoke("finalize-analysis", {
+        body: { analysis_id: analysisId },
+      });
+      if (finErr) console.error("finalize-analysis failed:", finErr);
+      else console.log("Finalization complete, running director fit…");
+
+      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+
+      // Auto-run director style matching
+      if (filmId) {
+        const { error: dirErr } = await supabase.functions.invoke("analyze-director-fit", {
+          body: { film_id: filmId, save: true },
+        });
+        if (dirErr) console.error("analyze-director-fit failed:", dirErr);
+        else console.log("Director fit analysis complete");
+        queryClient.invalidateQueries({ queryKey: ["director-profile", filmId] });
+      }
+    } catch (e) {
+      console.error("Post-enrichment pipeline error:", e);
+    }
+  }, [filmId, queryClient]);
+
   // Parallel batch enrichment helper (5 concurrent)
   const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void) => {
     if (enrichingRef.current || !analysisId) return; // prevent duplicate loops
@@ -378,8 +404,11 @@ const Development = () => {
       enrichingRef.current = false;
       onComplete?.();
       queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+
+      // Chain: finalize → director fit
+      await runPostEnrichment(analysisId);
     })();
-  }, [filmId, queryClient]);
+  }, [filmId, queryClient, runPostEnrichment]);
 
   // Resume enrichment on page load if there are unenriched scenes
   useEffect(() => {
