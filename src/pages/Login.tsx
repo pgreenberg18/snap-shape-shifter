@@ -29,7 +29,7 @@ const Login = () => {
     if (error) {
       toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
     } else {
-      navigate("/development");
+      navigate("/projects");
     }
   };
 
@@ -157,7 +157,7 @@ const Login = () => {
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-3 bg-white hover:bg-gray-100 text-gray-800 border-gray-300"
+            className="w-full gap-3 bg-secondary hover:bg-accent text-foreground border-border"
             onClick={async () => {
               await lovable.auth.signInWithOAuth("google", {
                 redirect_uri: window.location.origin + "/projects",

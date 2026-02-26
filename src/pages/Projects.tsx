@@ -126,6 +126,31 @@ const Projects = () => {
       const filmIds = (films || []).map((f) => f.id);
 
       if (filmIds.length > 0) {
+        // Get shot IDs for template cleanup
+        const shotIds = (await supabase.from("shots").select("id").in("film_id", filmIds)).data?.map(s => s.id) || [];
+        // Get character IDs for audition/consistency cleanup
+        const charIds = (await supabase.from("characters").select("id").in("film_id", filmIds)).data?.map(c => c.id) || [];
+
+        // Clean up shot-dependent tables
+        if (shotIds.length > 0) {
+          await Promise.all([
+            supabase.from("ai_generation_templates").delete().in("shot_id", shotIds),
+            supabase.from("generations").delete().in("shot_id", shotIds),
+            supabase.from("vice_conflicts").delete().in("shot_id", shotIds),
+            supabase.from("vice_dependencies").delete().in("shot_id", shotIds),
+            supabase.from("vice_dirty_queue").delete().in("shot_id", shotIds),
+          ]);
+        }
+
+        // Clean up character-dependent tables
+        if (charIds.length > 0) {
+          await Promise.all([
+            supabase.from("character_auditions").delete().in("character_id", charIds),
+            supabase.from("character_consistency_views").delete().in("character_id", charIds),
+          ]);
+        }
+
+        // Clean up film-dependent tables
         await Promise.all([
           supabase.from("characters").delete().in("film_id", filmIds),
           supabase.from("shots").delete().in("film_id", filmIds),
@@ -133,9 +158,16 @@ const Projects = () => {
           supabase.from("content_safety").delete().in("film_id", filmIds),
           supabase.from("asset_identity_registry").delete().in("film_id", filmIds),
           supabase.from("post_production_clips").delete().in("film_id", filmIds),
-          supabase.from("ai_generation_templates").delete().in("shot_id",
-            (await supabase.from("shots").select("id").in("film_id", filmIds)).data?.map(s => s.id) || []
-          ),
+          supabase.from("film_director_profiles").delete().in("film_id", filmIds),
+          supabase.from("film_style_contracts").delete().in("film_id", filmIds),
+          supabase.from("film_assets").delete().in("film_id", filmIds),
+          supabase.from("scene_style_overrides").delete().in("film_id", filmIds),
+          supabase.from("parsed_scenes").delete().in("film_id", filmIds),
+          supabase.from("wardrobe_scene_assignments").delete().in("film_id", filmIds),
+          supabase.from("production_presets").delete().in("film_id", filmIds),
+          supabase.from("version_provider_selections").delete().in("film_id", filmIds),
+          supabase.from("credit_usage_logs").delete().in("film_id", filmIds),
+          supabase.from("parse_jobs").delete().in("film_id", filmIds),
         ]);
         await supabase.from("films").delete().eq("project_id", projectId);
       }

@@ -208,6 +208,30 @@ const ProjectVersions = () => {
 
   const deleteVersion = useMutation({
     mutationFn: async (filmId: string) => {
+      // Get shot IDs and character IDs for dependent cleanup
+      const shotIds = (await supabase.from("shots").select("id").eq("film_id", filmId)).data?.map(s => s.id) || [];
+      const charIds = (await supabase.from("characters").select("id").eq("film_id", filmId)).data?.map(c => c.id) || [];
+
+      // Clean up shot-dependent tables
+      if (shotIds.length > 0) {
+        await Promise.all([
+          supabase.from("ai_generation_templates").delete().in("shot_id", shotIds),
+          supabase.from("generations").delete().in("shot_id", shotIds),
+          supabase.from("vice_conflicts").delete().in("shot_id", shotIds),
+          supabase.from("vice_dependencies").delete().in("shot_id", shotIds),
+          supabase.from("vice_dirty_queue").delete().in("shot_id", shotIds),
+        ]);
+      }
+
+      // Clean up character-dependent tables
+      if (charIds.length > 0) {
+        await Promise.all([
+          supabase.from("character_auditions").delete().in("character_id", charIds),
+          supabase.from("character_consistency_views").delete().in("character_id", charIds),
+        ]);
+      }
+
+      // Clean up film-dependent tables
       await Promise.all([
         supabase.from("characters").delete().eq("film_id", filmId),
         supabase.from("shots").delete().eq("film_id", filmId),
@@ -216,6 +240,15 @@ const ProjectVersions = () => {
         supabase.from("asset_identity_registry").delete().eq("film_id", filmId),
         supabase.from("post_production_clips").delete().eq("film_id", filmId),
         supabase.from("version_provider_selections").delete().eq("film_id", filmId),
+        supabase.from("film_director_profiles").delete().eq("film_id", filmId),
+        supabase.from("film_style_contracts").delete().eq("film_id", filmId),
+        supabase.from("film_assets").delete().eq("film_id", filmId),
+        supabase.from("scene_style_overrides").delete().eq("film_id", filmId),
+        supabase.from("parsed_scenes").delete().eq("film_id", filmId),
+        supabase.from("wardrobe_scene_assignments").delete().eq("film_id", filmId),
+        supabase.from("production_presets").delete().eq("film_id", filmId),
+        supabase.from("credit_usage_logs").delete().eq("film_id", filmId),
+        supabase.from("parse_jobs").delete().eq("film_id", filmId),
       ]);
       const { error } = await supabase.from("films").delete().eq("id", filmId);
       if (error) throw error;
