@@ -114,6 +114,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         key={key}
         to={to}
         title={label}
+        data-help-id={`nav-${key}`}
         className={cn(
           "flex items-center rounded-xl transition-all duration-200",
           expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
@@ -148,6 +149,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         <button
           onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
           title="Back to versions"
+          data-help-id="nav-versions"
           className={cn(
             "mb-4 flex items-center rounded-xl transition-all duration-200",
             expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
@@ -189,6 +191,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <button
             onClick={toggleHelp}
             title="Help"
+            data-help-id="nav-help"
             className={cn(
               "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
               expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
@@ -207,6 +210,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           <button
             onClick={() => navigate("/settings/admin")}
             title="Global Settings"
+            data-help-id="nav-global-settings"
             className={cn(
               "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
               expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"

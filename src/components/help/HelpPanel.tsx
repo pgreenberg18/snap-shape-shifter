@@ -1,4 +1,4 @@
-import { useState, createContext, useContext, ReactNode, Fragment } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode, Fragment } from "react";
 import { useLocation } from "react-router-dom";
 import { HelpCircle, Search, X, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -888,6 +888,9 @@ interface HelpContextType {
   open: () => void;
   close: () => void;
   toggle: () => void;
+  openArticle: (articleId: string) => void;
+  pendingArticleId: string | null;
+  clearPendingArticle: () => void;
 }
 
 const HelpContext = createContext<HelpContextType>({
@@ -895,12 +898,16 @@ const HelpContext = createContext<HelpContextType>({
   open: () => {},
   close: () => {},
   toggle: () => {},
+  openArticle: () => {},
+  pendingArticleId: null,
+  clearPendingArticle: () => {},
 });
 
 export const useHelp = () => useContext(HelpContext);
 
 export const HelpProvider = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingArticleId, setPendingArticleId] = useState<string | null>(null);
   return (
     <HelpContext.Provider
       value={{
@@ -908,6 +915,12 @@ export const HelpProvider = ({ children }: { children: ReactNode }) => {
         open: () => setIsOpen(true),
         close: () => setIsOpen(false),
         toggle: () => setIsOpen((p) => !p),
+        openArticle: (id: string) => {
+          setPendingArticleId(id);
+          setIsOpen(true);
+        },
+        pendingArticleId,
+        clearPendingArticle: () => setPendingArticleId(null),
       }}
     >
       {children}
@@ -915,12 +928,26 @@ export const HelpProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+export { HELP_ARTICLES };
+export type { HelpArticle };
+
 /* ── Help Panel Component ── */
 const HelpPanel = () => {
-  const { isOpen, close } = useHelp();
+  const { isOpen, close, pendingArticleId, clearPendingArticle } = useHelp();
   const location = useLocation();
   const [search, setSearch] = useState("");
   const [selectedArticle, setSelectedArticle] = useState<HelpArticle | null>(null);
+
+  // Auto-select article when opened via contextual help
+  useEffect(() => {
+    if (pendingArticleId && isOpen) {
+      const found = HELP_ARTICLES.find((a) => a.id === pendingArticleId);
+      if (found) {
+        setSelectedArticle(found);
+      }
+      clearPendingArticle();
+    }
+  }, [pendingArticleId, isOpen, clearPendingArticle]);
 
   const routeKeywords = location.pathname
     .split("/")

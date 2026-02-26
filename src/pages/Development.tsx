@@ -980,7 +980,7 @@ const Development = () => {
       {/* ── Script Details ── */}
       <Collapsible defaultOpen>
         <CollapsibleTrigger className="w-full">
-          <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+          <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
             <div className="flex items-center gap-2">
               <Film className="h-5 w-5 text-primary" />
               <h3 className="font-display text-lg font-bold">Script Details</h3>
@@ -1158,7 +1158,7 @@ const Development = () => {
           {analysis?.status !== "complete" && (
             <Collapsible defaultOpen>
               <CollapsibleTrigger className="w-full">
-                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                <div data-help-id="dev-script-breakdown" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                   <div className="flex items-center gap-2">
                     <ScrollText className="h-5 w-5 text-primary" />
                     <h3 className="font-display text-lg font-bold">Script Breakdown</h3>
@@ -1232,7 +1232,7 @@ const Development = () => {
               {/* ── Format ── */}
               <Collapsible>
                 <CollapsibleTrigger className="w-full">
-                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                  <div data-help-id="dev-format-specs" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Monitor className="h-5 w-5 text-primary" />
                       <h3 className="font-display text-lg font-bold">Format</h3>
@@ -1761,7 +1761,7 @@ const Development = () => {
               {/* ── Director's Vision ── */}
               <Collapsible>
                 <CollapsibleTrigger className="w-full">
-                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                  <div data-help-id="dev-director-vision" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Camera className="h-5 w-5 text-primary" />
                       <h3 className="font-display text-lg font-bold">Director's Vision</h3>
@@ -1780,7 +1780,7 @@ const Development = () => {
               {analysis.visual_summary && (
                 <Collapsible>
                   <CollapsibleTrigger className="w-full">
-                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div data-help-id="dev-visual-summary" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                       <div className="flex items-center gap-2">
                         <Film className="h-5 w-5 text-primary" />
                         <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
@@ -1827,7 +1827,7 @@ const Development = () => {
               {analysis.global_elements && (
                 <Collapsible>
                   <CollapsibleTrigger className="w-full">
-                    <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                    <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                       <div className="flex items-center gap-2">
                         <MapPin className="h-5 w-5 text-primary" />
                         <h3 className="font-display text-lg font-bold">Global Elements</h3>
@@ -1871,7 +1871,7 @@ const Development = () => {
 
       {/* ── Step 3: Content Safety Matrix ── */}
       {analysis?.scene_breakdown && directorProfile && (
-        <section>
+        <section data-help-id="dev-content-safety">
           {scriptLocked ? (
             /* ── LOCKED STATE — collapsible like Global Elements ── */
             <Collapsible>
