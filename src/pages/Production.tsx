@@ -17,6 +17,8 @@ import type { Take } from "@/components/production/PlaybackMonitor";
 import OpticsSuitePanel from "@/components/production/OpticsSuitePanel";
 import type { AnchorScore } from "@/components/production/AnchorPicker";
 import type { DiffPair } from "@/components/production/DiffOverlay";
+import ViceStatusBadge from "@/components/production/ViceStatusBadge";
+import VicePanel from "@/components/production/VicePanel";
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -88,6 +90,7 @@ const Production = () => {
   const isDragging = useRef(false);
   const [repairTarget, setRepairTarget] = useState<RepairTarget | null>(null);
   const [diffPair, setDiffPair] = useState<DiffPair | null>(null);
+  const [vicePanelOpen, setVicePanelOpen] = useState(false);
 
   // Persisted script pane dimensions
   const [scriptColWidth, setScriptColWidth] = useState(() => {
@@ -360,10 +363,13 @@ const Production = () => {
                     {activeScene.setting && ` · ${activeScene.setting}`}
                   </p>
                 </div>
-                <div className="ml-auto flex items-center gap-1.5 px-2 py-1 rounded bg-secondary/80 border border-border/50 shrink-0">
-                  <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
-                    {viewportAspect > 2 ? "2.39:1" : "16:9"}
-                  </span>
+                <div className="ml-auto flex items-center gap-2 shrink-0">
+                  <ViceStatusBadge onClick={() => setVicePanelOpen(true)} />
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded bg-secondary/80 border border-border/50">
+                    <span className="text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-wider">
+                      {viewportAspect > 2 ? "2.39:1" : "16:9"}
+                    </span>
+                  </div>
                 </div>
               </div>
 
@@ -455,6 +461,7 @@ const Production = () => {
             </div>
           )}
         </main>
+      <VicePanel open={vicePanelOpen} onOpenChange={setVicePanelOpen} />
       </div>
     </TooltipProvider>
   );
