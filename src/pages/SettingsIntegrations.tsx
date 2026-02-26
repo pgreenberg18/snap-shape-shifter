@@ -503,9 +503,11 @@ const SettingsIntegrations = () => {
             </Select>
           </div>
 
-          <Button onClick={handleSaveCreditSettings} disabled={savingCredits} className="gap-2">
-            {savingCredits ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Thresholds</>}
-          </Button>
+          <div className="flex justify-end pt-2">
+            <Button onClick={handleSaveCreditSettings} disabled={savingCredits} className="gap-2">
+              {savingCredits ? <><Loader2 className="h-4 w-4 animate-spin" />Saving…</> : <><Save className="h-4 w-4" />Save Thresholds</>}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
