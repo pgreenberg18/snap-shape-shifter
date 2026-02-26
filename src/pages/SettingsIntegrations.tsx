@@ -173,6 +173,7 @@ const SettingsIntegrations = () => {
         provider_name: svc?.name || selectedService,
         api_key_encrypted: serviceKey,
         is_verified: true,
+        user_id: user?.id,
       });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
