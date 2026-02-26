@@ -470,3 +470,49 @@ body::after {
   0%, 100% { opacity: 0.6; transform: scale(0.95); }
   50% { opacity: 1; transform: scale(1.08); }
 }
+
+/* Sidebar tooltip lens flare */
+@keyframes tooltip-flare-in {
+  0% { opacity: 0; transform: translateX(-8px) scaleX(0.3); }
+  60% { opacity: 1; transform: translateX(0) scaleX(1.1); }
+  100% { opacity: 1; transform: translateX(0) scaleX(1); }
+}
+
+[data-radix-popper-content-wrapper] [data-sidebar-flare] {
+  animation: tooltip-flare-in 0.3s ease-out;
+}
+
+[data-sidebar-flare]::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -4px;
+  right: -4px;
+  height: 2px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, rgba(124,203,255,0.5) 30%, rgba(200,230,255,0.8) 50%, rgba(124,203,255,0.5) 70%, transparent);
+  filter: blur(1.5px);
+  pointer-events: none;
+  animation: tooltip-streak-sweep 0.4s ease-out forwards;
+}
+
+[data-sidebar-flare]::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -8px;
+  right: -8px;
+  height: 10px;
+  transform: translateY(-50%);
+  background: linear-gradient(90deg, transparent, rgba(47,125,255,0.15) 20%, rgba(124,203,255,0.25) 50%, rgba(47,125,255,0.15) 80%, transparent);
+  filter: blur(6px);
+  pointer-events: none;
+  animation: tooltip-streak-sweep 0.5s ease-out 0.05s forwards;
+  opacity: 0;
+}
+
+@keyframes tooltip-streak-sweep {
+  0% { opacity: 0; transform: translateY(-50%) scaleX(0.2); }
+  50% { opacity: 1; transform: translateY(-50%) scaleX(1.15); }
+  100% { opacity: 0.7; transform: translateY(-50%) scaleX(1); }
+}
