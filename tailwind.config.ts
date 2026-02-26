@@ -65,6 +65,7 @@ export default {
           glow: "hsl(var(--cinema-glow))",
           surface: "hsl(var(--cinema-surface))",
           elevated: "hsl(var(--cinema-surface-elevated))",
+          highlight: "hsl(var(--cinema-highlight))",
         },
       },
       borderRadius: {

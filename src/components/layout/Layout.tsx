@@ -31,11 +31,11 @@ import { useHelp } from "@/components/help/HelpPanel";
 import CreditMeter from "./CreditMeter";
 
 const phases = [
-  { key: "development", icon: FileText, label: "Development", tint: "hsl(215 20% 10%)" },
-  { key: "pre-production", icon: Clapperboard, label: "Pre-Production", tint: "hsl(230 18% 11%)" },
-  { key: "production", icon: Video, label: "Production", tint: "hsl(200 15% 10%)" },
-  { key: "post-production", icon: Film, label: "Post-Production", tint: "hsl(260 14% 11%)" },
-  { key: "release", icon: Rocket, label: "Release", tint: "hsl(170 12% 10%)" },
+  { key: "development", icon: FileText, label: "Development", tint: "hsl(220 30% 5%)" },
+  { key: "pre-production", icon: Clapperboard, label: "Pre-Production", tint: "hsl(225 28% 6%)" },
+  { key: "production", icon: Video, label: "Production", tint: "hsl(210 25% 5%)" },
+  { key: "post-production", icon: Film, label: "Post-Production", tint: "hsl(230 22% 6%)" },
+  { key: "release", icon: Rocket, label: "Release", tint: "hsl(200 20% 5%)" },
 ];
 
 const Layout = ({ children }: { children: ReactNode }) => {
