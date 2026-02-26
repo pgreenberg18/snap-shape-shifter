@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { isAdminUser } from "@/components/admin/AdminPanel";
+import AdminPanel, { isAdminUser } from "@/components/admin/AdminPanel";
 import NDADocument from "@/components/admin/NDADocument";
 import MediaLibraryPanel from "@/components/settings/MediaLibraryPanel";
 import { useCreditUsage, useCreditSettings } from "@/hooks/useCreditUsage";
@@ -519,6 +519,7 @@ const SettingsAdmin = () => {
   ];
 
   const adminSections = [
+    { id: "admin-dashboard", label: "Admin Dashboard", icon: Activity },
     { id: "all-ndas", label: "All Signed NDAs", icon: Users },
     { id: "access-control", label: "Access Control", icon: Shield },
     { id: "downloads", label: "Downloads", icon: Download },
@@ -625,6 +626,14 @@ const SettingsAdmin = () => {
             </div>
           )}
 
+
+          {activeSection === "admin-dashboard" && isAdmin && (
+            <div>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4">Admin Dashboard</h2>
+              <p className="text-xs text-muted-foreground mb-6">System-wide overview of users, projects, versions, and credit allocation.</p>
+              <AdminPanel />
+            </div>
+          )}
 
           {activeSection === "all-ndas" && isAdmin && (
             <div>
