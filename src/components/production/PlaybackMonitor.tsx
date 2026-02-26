@@ -157,13 +157,25 @@ const PlaybackMonitor = ({
 
               {/* Content */}
               {activeTake?.thumbnailUrl ? (
-                <div className="absolute inset-0 flex items-center justify-center bg-black">
-                  <div className="text-center space-y-2">
-                    <Film className="h-12 w-12 text-primary/60 mx-auto" />
-                    <p className="text-xs font-mono text-muted-foreground">
-                      Take {(activeTakeIdx ?? 0) + 1} · Generated
-                    </p>
-                  </div>
+                <div className="absolute inset-0 bg-black">
+                  {activeTake.thumbnailUrl.includes('/files/') || activeTake.thumbnailUrl.endsWith('.mp4') || activeTake.thumbnailUrl.endsWith('.webm') ? (
+                    <video
+                      key={activeTake.thumbnailUrl}
+                      src={activeTake.thumbnailUrl}
+                      className="w-full h-full object-contain"
+                      controls={false}
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                    />
+                  ) : (
+                    <img
+                      src={activeTake.thumbnailUrl}
+                      alt={`Take ${(activeTakeIdx ?? 0) + 1}`}
+                      className="w-full h-full object-contain"
+                    />
+                  )}
                 </div>
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -272,8 +284,21 @@ const PlaybackMonitor = ({
                 >
                   <div className="absolute inset-0 bg-black shadow-[inset_0_2px_12px_rgba(0,0,0,0.6)]">
                     {take.thumbnailUrl ? (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Film className="h-4 w-4 text-primary/40" />
+                      <div className="w-full h-full">
+                        {take.thumbnailUrl.includes('/files/') || take.thumbnailUrl.endsWith('.mp4') || take.thumbnailUrl.endsWith('.webm') ? (
+                          <video
+                            src={take.thumbnailUrl}
+                            className="w-full h-full object-cover"
+                            muted
+                            playsInline
+                          />
+                        ) : (
+                          <img
+                            src={take.thumbnailUrl}
+                            alt={`Take ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                       </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
