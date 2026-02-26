@@ -556,10 +556,10 @@ const Production = () => {
                 <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
                   <Camera className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h2 className="font-display text-xl font-bold text-foreground">
+                <h2 className="font-display text-lg font-bold text-foreground">
                   Select a Scene to Begin
                 </h2>
-                <p className="text-sm text-muted-foreground max-w-sm">
+                <p className="text-xs text-muted-foreground max-w-sm">
                   Choose a scene from the navigator to start building shots, camera angles, and AI generation prompts.
                 </p>
               </div>

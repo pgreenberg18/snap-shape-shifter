@@ -297,10 +297,10 @@ const Projects = () => {
         <header className="shrink-0 border-b border-border bg-card px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">
+              <h1 className="font-display text-xl font-bold tracking-tight text-foreground">
                 Virtual Film Studio
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-xs text-muted-foreground">
                 Where Imagination Meets Intention
               </p>
             </div>
@@ -334,8 +334,8 @@ const Projects = () => {
                   <AddProjectIcon className="h-4 w-4" />
                 </div>
               </div>
-              <p className="mt-6 font-display text-xl font-bold text-foreground">No productions yet</p>
-              <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+              <p className="mt-6 font-display text-lg font-bold text-foreground">No productions yet</p>
+              <p className="mt-2 text-xs text-muted-foreground max-w-sm">
                 Create your first project to start building your virtual film. Upload a screenplay and let AI break it down.
               </p>
               <Button onClick={() => setOpen(true)} className="mt-6 gap-2">

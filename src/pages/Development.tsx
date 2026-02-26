@@ -162,7 +162,7 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
       <div className="flex items-start gap-3">
         <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
-          <p className="font-display font-semibold text-lg truncate">
+          <p className="font-display font-semibold text-sm truncate">
             {isEnriching ? "Analyzing your script…" : "Parsing your screenplay…"}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
