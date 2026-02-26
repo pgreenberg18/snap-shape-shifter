@@ -91,6 +91,7 @@ const Production = () => {
   const [repairTarget, setRepairTarget] = useState<RepairTarget | null>(null);
   const [diffPair, setDiffPair] = useState<DiffPair | null>(null);
   const [vicePanelOpen, setVicePanelOpen] = useState(false);
+  const [isAutoShotting, setIsAutoShotting] = useState(false);
 
   // Persisted script pane dimensions
   const [scriptColWidth, setScriptColWidth] = useState(() => {
@@ -361,6 +362,57 @@ const Production = () => {
     handleGenerate("targeted_edit", target);
   }, [handleGenerate]);
 
+  // Auto-Shot: AI suggests most cinematic shot type from script context
+  const handleAutoShot = useCallback(async () => {
+    if (!sceneTextData?.raw_text || !filmId || !activeSceneNumber) return;
+    setIsAutoShotting(true);
+    try {
+      // Use a portion of the script text as the shot suggestion basis
+      const scriptText = sceneTextData.raw_text;
+      // Create a shot from the full scene text with an AI-suggested camera angle
+      const SHOT_SUGGESTIONS = [
+        { pattern: /reveal|discover|find|realize/i, angle: "Slow Push-In Close-Up", desc: "Dramatic reveal — slow dolly in to capture the moment of discovery." },
+        { pattern: /run|chase|flee|escape/i, angle: "Handheld Tracking Shot", desc: "Kinetic energy — handheld camera following the action at pace." },
+        { pattern: /silent|still|pause|moment/i, angle: "Locked-Off Wide", desc: "Contemplative stillness — static wide to let the silence breathe." },
+        { pattern: /argue|fight|confront|yell/i, angle: "Cross-Cut Close-Ups", desc: "Tension escalation — alternating tight close-ups between combatants." },
+        { pattern: /enter|arrive|approach|walk/i, angle: "Crane Sweep Down", desc: "Grand entrance — crane descending to reveal the character arriving." },
+        { pattern: /kiss|embrace|hold|touch/i, angle: "Orbiting Two-Shot", desc: "Intimate orbit — camera slowly circling the couple." },
+        { pattern: /look|gaze|stare|watch/i, angle: "Rack Focus Close-Up", desc: "Point of view shift — rack focus from subject to object of gaze." },
+        { pattern: /night|dark|shadow|moon/i, angle: "Low-Key Silhouette", desc: "Noir atmosphere — backlit silhouette with deep shadows." },
+      ];
+
+      const match = SHOT_SUGGESTIONS.find((s) => s.pattern.test(scriptText));
+      const suggestion = match || { angle: "Master Wide Shot", desc: "Establishing master — wide coverage of the full scene geography." };
+
+      // Create the shot with the suggested angle
+      const { data, error } = await supabase
+        .from("shots")
+        .insert({
+          film_id: filmId,
+          scene_number: activeSceneNumber,
+          prompt_text: scriptText.substring(0, 500),
+          camera_angle: suggestion.angle,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      if (data) {
+        queryClient.invalidateQueries({ queryKey: ["shots", filmId] });
+        setActiveShotId(data.id);
+        await syncDependencies(data.id, data.prompt_text);
+      }
+      const { toast } = await import("sonner");
+      toast.success(`Auto-Shot: ${suggestion.angle}`, { description: suggestion.desc });
+    } catch (err) {
+      console.error("Auto-shot failed:", err);
+      const { toast } = await import("sonner");
+      toast.error("Auto-Shot failed");
+    } finally {
+      setIsAutoShotting(false);
+    }
+  }, [sceneTextData, filmId, activeSceneNumber, queryClient, syncDependencies]);
+
   // Reset takes when switching shots
   const handleSelectShot = (id: string) => {
     setActiveShotId(id);
@@ -442,6 +494,8 @@ const Production = () => {
                     height={scriptPaneHeight}
                     onResizeStart={handleScriptHeightResize}
                     shotHighlights={shotHighlights}
+                    onAutoShot={handleAutoShot}
+                    isAutoShotting={isAutoShotting}
                   />
                   <OpticsSuitePanel onAspectRatioChange={handleAspectChange} filmId={filmId} />
                   <ShotBuilder

@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Sparkles, Loader2 } from "lucide-react";
 import { SHOT_COLORS } from "@/lib/shot-colors";
 
 interface ShotHighlight {
@@ -18,6 +18,8 @@ interface ScriptWorkspaceProps {
   height?: number;
   onResizeStart?: (e: React.MouseEvent) => void;
   shotHighlights?: ShotHighlight[];
+  onAutoShot?: () => void;
+  isAutoShotting?: boolean;
 }
 
 /** Check if a line is a scene slugline (INT./EXT. heading) */
@@ -90,6 +92,8 @@ const ScriptWorkspace = ({
   height,
   onResizeStart,
   shotHighlights = [],
+  onAutoShot,
+  isAutoShotting = false,
 }: ScriptWorkspaceProps) => {
   const [selection, setSelection] = useState("");
   const textRef = useRef<HTMLDivElement>(null);
@@ -210,15 +214,32 @@ const ScriptWorkspace = ({
         <span className="text-[9px] font-mono text-muted-foreground/50 ml-1">
           Scene {scene?.scene_number ?? "—"}
         </span>
-        {selection && (
-          <Button
-            size="sm"
-            onClick={handleCreateShot}
-            className="ml-auto h-7 text-[10px] font-display font-bold uppercase tracking-wider gap-1.5 cinema-inset active:translate-y-px"
-          >
-            <Plus className="h-3 w-3" /> Create Shot from Selection
-          </Button>
-        )}
+        <div className="ml-auto flex items-center gap-1.5">
+          {onAutoShot && sceneText && (
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={onAutoShot}
+              disabled={isAutoShotting}
+              className="h-7 text-[10px] font-display font-bold uppercase tracking-wider gap-1.5 cinema-inset active:translate-y-px"
+            >
+              {isAutoShotting ? (
+                <><Loader2 className="h-3 w-3 animate-spin" /> Analyzing…</>
+              ) : (
+                <><Sparkles className="h-3 w-3" /> Auto-Shot</>
+              )}
+            </Button>
+          )}
+          {selection && (
+            <Button
+              size="sm"
+              onClick={handleCreateShot}
+              className="h-7 text-[10px] font-display font-bold uppercase tracking-wider gap-1.5 cinema-inset active:translate-y-px"
+            >
+              <Plus className="h-3 w-3" /> Create Shot from Selection
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Script text */}
