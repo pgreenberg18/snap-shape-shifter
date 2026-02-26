@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { Film, Sun, Moon, Sunrise, Sunset, ArrowRightLeft } from "lucide-react";
+import { Film, Sun, Moon, Sunrise, Sunset, ArrowRightLeft, ScrollText } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 /* ── Status types ── */
@@ -50,6 +51,7 @@ interface SceneNavigatorProps {
   scenes: any[];
   activeSceneIdx: number | null;
   onSelectScene: (idx: number) => void;
+  onViewScript?: (sceneIdx: number) => void;
   shotCounts?: Record<number, number>;
   width: number;
   onResizeStart: (e: React.MouseEvent) => void;
@@ -59,6 +61,7 @@ const SceneNavigator = ({
   scenes,
   activeSceneIdx,
   onSelectScene,
+  onViewScript,
   shotCounts = {},
   width,
   onResizeStart,
@@ -107,13 +110,39 @@ const SceneNavigator = ({
                   <div className="flex items-center gap-1.5">
                     {/* Status dot */}
                     <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", isActive ? "bg-primary" : colors.dot)} />
-                    {/* Scene number */}
-                    <span className={cn(
-                      "font-mono text-[10px] font-bold shrink-0",
-                      isActive ? "text-primary" : "text-muted-foreground"
-                    )}>
-                      {sceneNum}.
-                    </span>
+                    {/* Scene number — clickable to view script */}
+                    {onViewScript ? (
+                      <TooltipProvider delayDuration={200}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onViewScript(i);
+                              }}
+                              className={cn(
+                                "font-mono text-[10px] font-bold shrink-0 rounded px-1 py-0.5 transition-all",
+                                isActive
+                                  ? "text-primary hover:bg-primary/15"
+                                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                              )}
+                            >
+                              {sceneNum}.
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent side="right" className="text-[10px]">
+                            <span className="flex items-center gap-1"><ScrollText className="h-3 w-3" /> View script</span>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <span className={cn(
+                        "font-mono text-[10px] font-bold shrink-0",
+                        isActive ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        {sceneNum}.
+                      </span>
+                    )}
                     {/* INT/EXT badge */}
                     <IntExtBadge value={scene.int_ext} />
                     {/* Time of day */}

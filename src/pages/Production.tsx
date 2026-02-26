@@ -20,6 +20,7 @@ import type { AnchorScore } from "@/components/production/AnchorPicker";
 import type { DiffPair } from "@/components/production/DiffOverlay";
 import ViceStatusBadge from "@/components/production/ViceStatusBadge";
 import VicePanel from "@/components/production/VicePanel";
+import { useScriptViewer } from "@/components/ScriptViewerDialog";
 
 /* ── Hooks ── */
 const useLatestAnalysis = (filmId: string | undefined) =>
@@ -75,6 +76,7 @@ const Production = () => {
   const filmId = useFilmId();
   const queryClient = useQueryClient();
   const { startGeneration, getGenerationsForShot } = useGenerationManager();
+  const { openScriptViewer, setScriptViewerScenes } = useScriptViewer();
   const { data: analysis } = useLatestAnalysis(filmId);
   const { data: allShots = [] } = useShotsForFilm(filmId);
 
@@ -487,6 +489,83 @@ const Production = () => {
     collapseTimer.current = setTimeout(() => setScenesCollapsed(true), 200);
   };
 
+  /* ── View script for a scene ── */
+  const handleViewScript = useCallback(async (sceneIdx: number) => {
+    const scene = scenes[sceneIdx];
+    if (!scene || !analysis?.storage_path) return;
+
+    const sceneNum = scene.scene_number ?? sceneIdx + 1;
+    const title = scene.scene_heading || `Scene ${sceneNum}`;
+
+    openScriptViewer({ title, description: "Original screenplay formatting" });
+
+    try {
+      const { data, error } = await supabase.storage.from("scripts").download(analysis.storage_path);
+      if (error || !data) throw error || new Error("Download failed");
+      const full = await data.text();
+
+      const heading = scene.scene_heading?.trim();
+      const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
+
+      let parsed: { type: string; text: string }[];
+      if (isFdx) {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(full, "text/xml");
+        const paragraphs = Array.from(doc.querySelectorAll("Paragraph"));
+        let startIdx = -1;
+        let endIdx = paragraphs.length;
+        for (let i = 0; i < paragraphs.length; i++) {
+          const p = paragraphs[i];
+          const type = p.getAttribute("Type") || "";
+          const content = Array.from(p.querySelectorAll("Text")).map((t) => t.textContent || "").join("").trim();
+          if (type === "Scene Heading") {
+            if (startIdx === -1 && heading && content.toUpperCase().includes(heading.toUpperCase())) {
+              startIdx = i;
+            } else if (startIdx !== -1) {
+              endIdx = i;
+              break;
+            }
+          }
+        }
+        if (startIdx === -1) startIdx = 0;
+        parsed = [];
+        for (let i = startIdx; i < endIdx; i++) {
+          const p = paragraphs[i];
+          const type = p.getAttribute("Type") || "Action";
+          const content = Array.from(p.querySelectorAll("Text")).map((t) => t.textContent || "").join("");
+          if (content.trim()) parsed.push({ type, text: content });
+        }
+      } else {
+        // Plain text fallback
+        if (!heading) {
+          parsed = [{ type: "Action", text: full }];
+        } else {
+          const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const startMatch = full.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
+          if (!startMatch || startMatch.index === undefined) {
+            parsed = [{ type: "Action", text: full }];
+          } else {
+            const sIdx = startMatch.index;
+            const afterHeading = full.substring(sIdx + startMatch[0].length);
+            const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
+            const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
+            const sceneText = full.substring(sIdx, eIdx).trim();
+            parsed = sceneText.split("\n").filter((l) => l.trim()).map((line) => {
+              const trimmed = line.trim();
+              if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
+              if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
+              return { type: "Action", text: trimmed };
+            });
+          }
+        }
+      }
+
+      setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: parsed }]);
+    } catch {
+      setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: [{ type: "Action", text: "[Could not load script file]" }] }]);
+    }
+  }, [scenes, analysis, openScriptViewer, setScriptViewerScenes]);
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="flex h-[calc(100vh-64px)]">
@@ -505,6 +584,7 @@ const Production = () => {
             scenes={scenes}
             activeSceneIdx={activeSceneIdx}
             onSelectScene={handleSelectScene}
+            onViewScript={handleViewScript}
             shotCounts={shotCounts}
             width={sidebarWidth}
             onResizeStart={handleResizeStart}
