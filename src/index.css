@@ -96,7 +96,15 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display;
+    @apply font-display tracking-wide;
+  }
+
+  /* DaVinci-style spaced labels for sidebar & section headers */
+  [data-sidebar] a,
+  [data-sidebar] button,
+  [data-sidebar] [class*="SidebarGroupLabel"],
+  .hw-label {
+    letter-spacing: 0.06em;
   }
 
   /* Global hardware-panel surfaces — every card/panel gets beveled edges */
