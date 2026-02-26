@@ -448,6 +448,71 @@ export type Database = {
           },
         ]
       }
+      film_director_profiles: {
+        Row: {
+          auto_matched: boolean | null
+          blend_weight: number | null
+          cluster: string | null
+          computed_vector: Json
+          created_at: string
+          emotional_depth: string | null
+          film_id: string
+          id: string
+          match_distance: number | null
+          primary_director_id: string
+          primary_director_name: string
+          quadrant: string | null
+          secondary_director_id: string | null
+          secondary_director_name: string | null
+          updated_at: string
+          visual_mandate: Json | null
+        }
+        Insert: {
+          auto_matched?: boolean | null
+          blend_weight?: number | null
+          cluster?: string | null
+          computed_vector?: Json
+          created_at?: string
+          emotional_depth?: string | null
+          film_id: string
+          id?: string
+          match_distance?: number | null
+          primary_director_id: string
+          primary_director_name: string
+          quadrant?: string | null
+          secondary_director_id?: string | null
+          secondary_director_name?: string | null
+          updated_at?: string
+          visual_mandate?: Json | null
+        }
+        Update: {
+          auto_matched?: boolean | null
+          blend_weight?: number | null
+          cluster?: string | null
+          computed_vector?: Json
+          created_at?: string
+          emotional_depth?: string | null
+          film_id?: string
+          id?: string
+          match_distance?: number | null
+          primary_director_id?: string
+          primary_director_name?: string
+          quadrant?: string | null
+          secondary_director_id?: string | null
+          secondary_director_name?: string | null
+          updated_at?: string
+          visual_mandate?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "film_director_profiles_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: true
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       film_style_contracts: {
         Row: {
           character_directives: Json | null

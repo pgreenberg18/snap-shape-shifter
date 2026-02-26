@@ -484,12 +484,13 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // ── Parallel fetches ──
-    const [filmRes, safetyRes, analysisRes, scenesRes, charsRes] = await Promise.all([
+    const [filmRes, safetyRes, analysisRes, scenesRes, charsRes, directorRes] = await Promise.all([
       supabase.from("films").select("*").eq("id", film_id).single(),
       supabase.from("content_safety").select("*").eq("film_id", film_id).maybeSingle(),
       supabase.from("script_analyses").select("*").eq("film_id", film_id).eq("status", "complete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("parsed_scenes").select("*").eq("film_id", film_id).order("scene_number"),
       supabase.from("characters").select("*").eq("film_id", film_id),
+      supabase.from("film_director_profiles").select("*").eq("film_id", film_id).maybeSingle(),
     ]);
 
     const film = filmRes.data;
@@ -504,6 +505,7 @@ Deno.serve(async (req) => {
     const analysis = analysisRes.data;
     const scenes = scenesRes.data || [];
     const characters = charsRes.data || [];
+    const directorProfile = directorRes.data;
 
     // ── Derive core values ──
     const genres: string[] = (film.genres || []) as string[];
@@ -517,11 +519,17 @@ Deno.serve(async (req) => {
     const visualDesign = globalElements.visual_design || {};
     const aiGenNotes: any[] = analysis?.ai_generation_notes || [];
 
+    // ── Director Visual Mandate (from Engine match) ──
+    const dm = directorProfile?.visual_mandate as { lighting?: string; lens?: string; texture?: string; color?: string; negativeHints?: string } | null;
+
     // ── Build Visual DNA ──
-    const visualDna = [
+    const visualDnaParts = [
       analysis?.visual_summary || "",
       globalElements.signature_style || "",
-    ].filter(Boolean).join(" ");
+      dm?.color ? `Director color signature: ${dm.color}.` : "",
+      dm?.lighting ? `Director lighting signature: ${dm.lighting}.` : "",
+    ];
+    const visualDna = visualDnaParts.filter(Boolean).join(" ");
 
     // ── Build Color Mandate ──
     const colorMandate = {
@@ -530,6 +538,7 @@ Deno.serve(async (req) => {
       genre_contrast: genreProfile.color.contrast,
       script_palette: visualDesign.color_palette || [],
       rating_color_boost: ratingMod.color_boost,
+      director_color: dm?.color || null,
     };
 
     // ── Build Lighting Doctrine ──
@@ -539,10 +548,10 @@ Deno.serve(async (req) => {
       genre_color_temp: genreProfile.lighting.color_temp,
       script_lighting: visualDesign.lighting_language || [],
       rating_intensity: ratingMod.lighting_intensity,
+      director_lighting: dm?.lighting || null,
     };
 
     // ── Build Lens Philosophy ──
-    // Extract from AI generation notes if available
     let lensNotes = "";
     for (const note of aiGenNotes) {
       if (typeof note === "object" && note.topic && /camera|lens|framing|cinematograph/i.test(note.topic)) {
@@ -553,6 +562,7 @@ Deno.serve(async (req) => {
       genre_default_lens: genreProfile.framing.default_lens,
       genre_portrait_style: genreProfile.framing.portrait_style,
       ai_notes: lensNotes.trim(),
+      director_lens: dm?.lens || null,
     };
 
     // ── Build Texture Mandate ──
@@ -560,6 +570,7 @@ Deno.serve(async (req) => {
       genre_grain: genreProfile.texture.grain,
       genre_skin: genreProfile.texture.skin,
       rating_skin_detail: ratingMod.skin_detail,
+      director_texture: dm?.texture || null,
     };
 
     // ── Build Temporal Rules ──
@@ -603,6 +614,7 @@ Deno.serve(async (req) => {
     // ── Build Negative Prompt Base ──
     const negativeParts = [
       "morphed faces, low quality, watermark, text, 3d render, plastic",
+      dm?.negativeHints || "",
       genreProfile.negative,
       ratingMod.negative_additions,
     ].filter(Boolean);
