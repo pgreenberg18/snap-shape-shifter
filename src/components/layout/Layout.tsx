@@ -88,12 +88,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <TooltipTrigger asChild>
               <span
                 className={cn(
-                  "flex items-center rounded-lg text-muted-foreground/40 cursor-not-allowed transition-all duration-200",
+                  "flex items-center rounded-xl text-muted-foreground/40 cursor-not-allowed transition-all duration-200",
                   expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
                 )}
                 title={label}
               >
-                <Icon className="h-5 w-5 shrink-0" />
+                <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                  <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+                </span>
                 {expanded && <span className="text-xs font-medium truncate">{label}</span>}
               </span>
             </TooltipTrigger>
@@ -111,15 +113,20 @@ const Layout = ({ children }: { children: ReactNode }) => {
         to={to}
         title={label}
         className={cn(
-          "flex items-center rounded-lg transition-all duration-200",
+          "flex items-center rounded-xl transition-all duration-200",
           expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
           isActive
-            ? "text-primary cinema-glow"
-            : "text-muted-foreground hover:bg-accent hover:text-foreground hover:shadow-[0_0_12px_-3px_rgba(47,125,255,0.2)]"
+            ? "text-primary [box-shadow:0_0_20px_-4px_rgba(47,125,255,0.45),0_0_8px_-2px_rgba(47,125,255,0.2)]"
+            : "text-muted-foreground hover:text-foreground hover:[box-shadow:0_0_16px_-3px_rgba(47,125,255,0.25)] hover:bg-accent"
         )}
         style={isActive && tint ? { backgroundColor: tint } : undefined}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <span className={cn(
+          "flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200",
+          isActive ? "bg-primary/15 shadow-[0_0_12px_-2px_rgba(47,125,255,0.3)]" : "bg-muted/30 group-hover:bg-accent"
+        )}>
+          <Icon className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+        </span>
         {expanded && <span className="text-xs font-medium truncate">{label}</span>}
       </NavLink>
     );
@@ -139,14 +146,16 @@ const Layout = ({ children }: { children: ReactNode }) => {
           onClick={() => !isAnalyzing && navigate(`/projects/${projectId}`)}
           title="Back to versions"
           className={cn(
-            "mb-4 flex items-center rounded-lg transition-all duration-200",
+            "mb-4 flex items-center rounded-xl transition-all duration-200",
             expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center",
             isAnalyzing
               ? "text-muted-foreground/40 cursor-not-allowed"
-              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)]"
           )}
         >
-          <ArrowLeft className="h-5 w-5 shrink-0" />
+          <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+            <ArrowLeft className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+          </span>
           {expanded && <span className="text-xs font-medium truncate">Versions</span>}
         </button>
 
@@ -164,11 +173,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
             onClick={() => setExpanded((e) => !e)}
             title={expanded ? "Collapse sidebar" : "Expand sidebar"}
             className={cn(
-              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
               expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
             )}
           >
-            {expanded ? <ChevronsLeft className="h-5 w-5 shrink-0" /> : <ChevronsRight className="h-5 w-5 shrink-0" />}
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              {expanded ? <ChevronsLeft className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} /> : <ChevronsRight className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />}
+            </span>
             {expanded && <span className="text-xs font-medium truncate">Collapse</span>}
           </button>
 
@@ -176,11 +187,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
             onClick={toggleHelp}
             title="Help"
             className={cn(
-              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
               expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
             )}
           >
-            <HelpCircle className="h-5 w-5 shrink-0" />
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <HelpCircle className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+            </span>
             {expanded && <span className="text-xs font-medium truncate">Help</span>}
           </button>
 
@@ -192,11 +205,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
             onClick={() => navigate("/settings/admin")}
             title="Global Settings"
             className={cn(
-              "flex items-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200",
+              "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
               expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
             )}
           >
-            <SlidersHorizontal className="h-5 w-5 shrink-0" />
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <SlidersHorizontal className="h-4.5 w-4.5 shrink-0" strokeWidth={1.5} />
+            </span>
             {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
           </button>
         </div>
@@ -207,7 +222,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         {/* Top Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-card px-6">
           <div className="flex items-center gap-2">
-            <Film className="h-4 w-4 text-primary" />
+            <Film className="h-4 w-4 text-primary" strokeWidth={1.5} />
             <span className="font-display text-sm font-bold tracking-tight text-foreground">
               Virtual Film Studio
             </span>
@@ -227,7 +242,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
               title="View versions"
             >
-              <Clapperboard className="h-3.5 w-3.5 text-primary" />
+              <Clapperboard className="h-3.5 w-3.5 text-primary" strokeWidth={1.5} />
               <span className="font-display truncate max-w-[200px]">
                 {film?.title ?? "Loading…"}
               </span>
@@ -240,7 +255,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
               title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-3.5 w-3.5" strokeWidth={1.5} />
               Sign Out
             </button>
           </div>
