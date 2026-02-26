@@ -260,7 +260,7 @@ const SettingsIntegrations = () => {
           onClick={() => navigate("/projects")}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Film Projects
+          <ArrowLeft className="h-4 w-4" /> Back to Settings
         </button>
         <div className="flex items-center gap-2 mb-2">
           <Plug className="h-5 w-5 text-primary" />
