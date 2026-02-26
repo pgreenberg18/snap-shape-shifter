@@ -381,9 +381,13 @@ const SettingsIntegrations = () => {
 
                     // Find matching catalog entry & current variant
                     const matchedSvc = catalog.find((s) => provider.provider_name.startsWith(s.name));
-                    const currentVariantMatch = matchedSvc?.variants?.find((v) =>
-                      provider.provider_name.includes(v.label)
-                    );
+                    // Extract variant from parenthesized suffix after service name, e.g. "Nana Banana Pro (Standard)" → "Standard"
+                    const variantSuffix = matchedSvc
+                      ? provider.provider_name.slice(matchedSvc.name.length).match(/\(([^)]+)\)/)?.[1]
+                      : undefined;
+                    const currentVariantMatch = variantSuffix
+                      ? matchedSvc?.variants?.find((v) => v.label === variantSuffix)
+                      : undefined;
 
                     return (
                       <div key={provider.id} className="rounded-lg border border-border/60 bg-secondary p-3 space-y-2 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
