@@ -305,7 +305,7 @@ const SettingsIntegrations = () => {
 
                         {!isEditing ? (
                           <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs text-muted-foreground tracking-widest">••••••••••••••••</span>
+                            <span className="font-mono text-xs text-muted-foreground tracking-wider">{provider.api_key_encrypted || "—"}</span>
                             <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
                               <Pencil className="h-3 w-3" /> Change
                             </Button>
