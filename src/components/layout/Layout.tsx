@@ -217,6 +217,20 @@ const Layout = ({ children }: { children: ReactNode }) => {
             </span>
             {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
           </button>
+
+          <button
+            onClick={async () => { await signOut(); navigate("/login"); }}
+            title="Sign out"
+            className={cn(
+              "flex items-center rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200",
+              expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+            )}
+          >
+            <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+              <PowerIcon className="h-3.5 w-3.5 shrink-0 icon-glow" />
+            </span>
+            {expanded && <span className="text-xs font-medium truncate">Sign Out</span>}
+          </button>
         </div>
       </aside>
 
@@ -236,18 +250,11 @@ const Layout = ({ children }: { children: ReactNode }) => {
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
-            {isAnalyzing && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                <Loader2 className="h-3 w-3 animate-spin" /> Analyzing…
-              </span>
-            )}
-            <span className="inline-flex items-center rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              Credits: {film?.credits?.toLocaleString() ?? "—"}
-            </span>
+          {/* Centered film name + version */}
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <button
               onClick={() => navigate(`/projects/${projectId}`)}
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
+              className="pointer-events-auto inline-flex items-center gap-2 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-foreground hover:bg-accent transition-colors"
               title="View versions"
             >
               <VersionsIcon className="h-3.5 w-3.5 text-primary icon-glow" />
@@ -258,14 +265,14 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 <span className="text-muted-foreground">— {film.version_name}</span>
               )}
             </button>
-            <button
-              onClick={async () => { await signOut(); navigate("/login"); }}
-              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-secondary px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Sign out"
-            >
-              <PowerIcon className="h-3.5 w-3.5 icon-glow" />
-              Sign Out
-            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {isAnalyzing && (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" /> Analyzing…
+              </span>
+            )}
           </div>
         </header>
 
