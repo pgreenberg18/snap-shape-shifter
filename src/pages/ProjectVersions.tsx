@@ -486,10 +486,14 @@ const ProjectVersions = () => {
     return (
       <div
         key={v.id}
-        className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all duration-200 ${
+        className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card transition-all duration-300 ${
           isArchived ? "border-border/50 opacity-75" : "border-border hover:border-primary/40 hover:cinema-glow"
         }`}
       >
+        {/* Hover lens flare bloom */}
+        {!isArchived && (
+          <div className="pointer-events-none absolute -top-10 -right-10 w-[140px] h-[140px] rounded-full z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 mix-blend-screen" style={{ background: 'radial-gradient(circle, rgba(124,203,255,0.25) 0%, rgba(47,125,255,0.1) 35%, transparent 65%)', filter: 'blur(16px)' }} />
+        )}
         <button
           onClick={() => renamingId !== v.id && handleVersionClick(v.id)}
           className="flex flex-1 flex-col text-left"
