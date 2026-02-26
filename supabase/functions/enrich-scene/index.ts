@@ -212,16 +212,16 @@ ${scene.raw_text}`;
                     required: ["camera_feel", "motion_cues", "shot_suggestions"],
                     description: "Cinematic direction suggestions inferred from the scene's content, tone, and action.",
                   },
-                  visual_design: {
+                    visual_design: {
                     type: "object",
                     properties: {
-                      color_palette: { type: "string", description: "Dominant color palette for this scene — hues, tones, contrast. E.g. 'Desaturated blues and grays, cold fluorescent whites'. Use 'not specified' if not inferable." },
-                      lighting_style: { type: "string", description: "Lighting approach for this scene — quality, direction, mood. E.g. 'Low-key side lighting with deep shadows', 'Overcast natural light'. Use 'not specified' if not inferable." },
-                      visual_references: { type: "string", description: "Film or photography references this scene evokes. E.g. 'Fincher-esque clinical precision', 'Gordon Willis interiors'. Use 'not specified' if none." },
-                      atmosphere: { type: "string", description: "Overall visual atmosphere — e.g. 'Claustrophobic and suffocating', 'Expansive and desolate'. Use 'not specified' if not inferable." },
+                      color_palette: { type: "string", description: "REQUIRED — Always infer the dominant color palette from the scene's location, time of day, mood, and action. Describe specific hues, tones, and contrast. E.g. 'Desaturated blues and grays, cold fluorescent whites' for a night office scene, or 'Warm amber and honey tones with golden hour highlights' for a sunset exterior. NEVER return 'not specified'." },
+                      lighting_style: { type: "string", description: "REQUIRED — Always infer the lighting approach from INT/EXT, time of day, and mood. Describe quality, direction, and emotional effect. E.g. 'Low-key side lighting with deep shadows' for a tense interior, 'Harsh overhead noon sun with minimal shadows' for an exterior day scene. NEVER return 'not specified'." },
+                      visual_references: { type: "string", description: "Suggest 1-2 film or photography references this scene's tone and visual style evoke. E.g. 'Fincher-esque clinical precision', 'Malick-style natural light'. If no strong reference, suggest a general cinematic school like 'Classical Hollywood three-point lighting' or 'French New Wave naturalism'. NEVER return 'not specified'." },
+                      atmosphere: { type: "string", description: "REQUIRED — Always infer the overall visual atmosphere from the scene's mood, action, and setting. E.g. 'Claustrophobic and suffocating', 'Expansive and desolate', 'Warm and intimate'. NEVER return 'not specified'." },
                     },
                     required: ["color_palette", "lighting_style", "visual_references", "atmosphere"],
-                    description: "Visual design direction inferred from the scene's content, setting, mood, and action.",
+                    description: "Visual design direction MUST always be inferred from the scene's content, setting, mood, time of day, and action. Every field is mandatory — never default to 'not specified'.",
                   },
                 },
                 required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements", "visual_design"],
