@@ -593,6 +593,7 @@ export type Database = {
           genres: string[] | null
           id: string
           is_archived: boolean
+          poster_url: string | null
           project_id: string | null
           script_locked: boolean
           time_period: string | null
@@ -613,6 +614,7 @@ export type Database = {
           genres?: string[] | null
           id?: string
           is_archived?: boolean
+          poster_url?: string | null
           project_id?: string | null
           script_locked?: boolean
           time_period?: string | null
@@ -633,6 +635,7 @@ export type Database = {
           genres?: string[] | null
           id?: string
           is_archived?: boolean
+          poster_url?: string | null
           project_id?: string | null
           script_locked?: boolean
           time_period?: string | null

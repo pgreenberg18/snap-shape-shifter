@@ -1,12 +1,13 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X,
   HelpCircle, Settings, Archive, ArchiveRestore, HardDrive, ChevronDown, ChevronRight,
-  SlidersHorizontal,
+  SlidersHorizontal, ImagePlus,
 } from "lucide-react";
+import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
 import { useHelp } from "@/components/help/HelpPanel";
 import { Button } from "@/components/ui/button";
 import {
@@ -302,6 +303,29 @@ const ProjectVersions = () => {
     }
   }, [user?.id, projectId, navigate]);
 
+  /* ── Poster upload handler ── */
+  const handlePosterUpload = useCallback(async (filmId: string, file: File) => {
+    try {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `posters/${filmId}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("film-assets")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("film-assets").getPublicUrl(path);
+      const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      const { error: updateError } = await supabase
+        .from("films")
+        .update({ poster_url: publicUrl })
+        .eq("id", filmId);
+      if (updateError) throw updateError;
+      queryClient.invalidateQueries({ queryKey: ["versions", projectId] });
+      toast.success("Poster updated");
+    } catch (err: any) {
+      toast.error(err.message || "Upload failed");
+    }
+  }, [projectId, queryClient]);
+
   /* ── Reusable version card ── */
   const renderVersionCard = (v: NonNullable<typeof versions>[number], isArchived: boolean) => {
     const versionSize = sizeData?.[v.id] || 0;
@@ -316,8 +340,44 @@ const ProjectVersions = () => {
           onClick={() => renamingId !== v.id && handleVersionClick(v.id)}
           className="flex flex-1 flex-col text-left"
         >
-          <div className="flex aspect-video items-center justify-center bg-secondary">
-            <Film className="h-6 w-6 text-muted-foreground/40 transition-colors group-hover:text-primary/60" />
+          <div className="relative aspect-video overflow-hidden bg-secondary">
+            <img
+              src={v.poster_url || clapperboardTemplate}
+              alt={v.version_name || `Version ${v.version_number}`}
+              className="h-full w-full object-cover"
+            />
+            {/* Text overlay on clapperboard */}
+            {!v.poster_url && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 px-3 text-center">
+                <span className="font-display text-[11px] font-bold leading-tight text-white drop-shadow-md">
+                  {project?.title}
+                </span>
+                <span className="mt-0.5 text-[9px] font-medium text-white/80 drop-shadow">
+                  {v.version_name || `Version ${v.version_number}`}
+                </span>
+                <span className="mt-0.5 text-[8px] text-white/60">
+                  {new Date(v.created_at).toLocaleDateString()}
+                </span>
+              </div>
+            )}
+            {/* Upload overlay */}
+            <label
+              className="absolute bottom-1 right-1 z-10 flex h-6 w-6 cursor-pointer items-center justify-center rounded-md bg-black/60 text-white/70 opacity-0 transition-opacity group-hover:opacity-100 hover:bg-black/80 hover:text-white"
+              title="Upload custom poster"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ImagePlus className="h-3.5 w-3.5" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handlePosterUpload(v.id, file);
+                  e.target.value = "";
+                }}
+              />
+            </label>
           </div>
           <div className="flex flex-1 flex-col p-3">
             {renamingId === v.id ? (
