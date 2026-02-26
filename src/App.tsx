@@ -7,6 +7,7 @@ import Layout from "@/components/layout/Layout";
 import { HelpProvider } from "@/components/help/HelpPanel";
 import HelpPanel from "@/components/help/HelpPanel";
 import { GenerationManagerProvider } from "@/hooks/useGenerationManager";
+import { ScriptViewerProvider } from "@/components/ScriptViewerDialog";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import AccessGuard from "@/components/AccessGuard";
@@ -42,6 +43,7 @@ const App = () => (
       <GenerationManagerProvider>
       <AuthProvider>
         <HelpProvider>
+        <ScriptViewerProvider>
           <Toaster />
           <Sonner />
           <BrowserRouter>
@@ -80,6 +82,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+        </ScriptViewerProvider>
         </HelpProvider>
       </AuthProvider>
       </GenerationManagerProvider>
