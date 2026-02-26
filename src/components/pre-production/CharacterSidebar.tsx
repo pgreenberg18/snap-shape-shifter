@@ -41,11 +41,11 @@ interface CharacterSidebarProps {
 }
 
 const TIER_META: Record<CharacterTier, { label: string; color: string }> = {
-  LEAD: { label: "Lead", color: "bg-primary/20 text-primary border-primary/30" },
-  STRONG_SUPPORT: { label: "Strong Support", color: "bg-accent text-foreground border-border" },
-  FEATURE: { label: "Feature", color: "bg-secondary text-muted-foreground border-border" },
-  UNDER_5: { label: "Under 5", color: "bg-muted text-muted-foreground border-border/50" },
-  BACKGROUND: { label: "Background", color: "bg-muted/50 text-muted-foreground/60 border-border/30" },
+  LEAD: { label: "Lead", color: "bg-primary/15 text-primary border-primary/30" },
+  STRONG_SUPPORT: { label: "Strong Support", color: "bg-primary/10 text-primary/80 border-primary/20" },
+  FEATURE: { label: "Feature", color: "bg-primary/10 text-primary/70 border-primary/20" },
+  UNDER_5: { label: "Under 5", color: "bg-primary/10 text-primary/60 border-primary/15" },
+  BACKGROUND: { label: "Background", color: "bg-primary/5 text-primary/50 border-primary/10" },
 };
 
 const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
@@ -190,7 +190,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
                     <div className="flex items-center w-full px-4 py-2.5 hover:bg-secondary/40 transition-colors">
                       <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-        <span className={cn("text-[10px] font-display font-bold uppercase tracking-widest px-2 py-0.5 rounded border", meta.color)}>
+        <span className={cn("text-xs font-display font-bold uppercase tracking-widest px-2.5 py-1 rounded border", meta.color)}>
                           {meta.label}
                         </span>
                         <span className="text-[10px] text-muted-foreground/50">{chars.length}</span>
@@ -336,7 +336,7 @@ const DraggableCharItem = ({
                 #{ranking.rank}
               </span>
             )}
-            <p className={cn("text-sm font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
+            <p className={cn("text-[11px] font-display font-semibold", isActive ? "text-primary" : "text-foreground")}>
               {char.name}
             </p>
             {isLocked && (
