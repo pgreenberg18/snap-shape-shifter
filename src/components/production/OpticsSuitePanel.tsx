@@ -91,6 +91,20 @@ const ACTION_INTENSITIES = [
   { value: "explosive", label: "Explosive", detail: "Maximum impact" },
 ];
 
+const EMOTION_SLIDERS = [
+  { key: "intensity", label: "Intensity", color: "hsl(var(--primary))" },
+  { key: "humor", label: "Humor", color: "hsl(45 90% 55%)" },
+  { key: "sadness", label: "Sadness", color: "hsl(210 60% 55%)" },
+  { key: "joy", label: "Joy", color: "hsl(35 95% 55%)" },
+  { key: "anger", label: "Anger", color: "hsl(0 70% 55%)" },
+  { key: "fear", label: "Fear", color: "hsl(270 50% 55%)" },
+];
+
+const CAMERA_REFINE_SLIDERS = [
+  { key: "movementSpeed", label: "Movement Speed", min: 0, max: 100 },
+  { key: "focusSoftness", label: "Focus Softness", min: 0, max: 100 },
+];
+
 interface OpticsSuitePanelProps {
   onAspectRatioChange: (ratio: number) => void;
   filmId?: string;
@@ -129,6 +143,13 @@ const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps
   // Action
   const [performanceStyle, setPerformanceStyle] = useState("naturalistic");
   const [actionIntensity, setActionIntensity] = useState("moderate");
+  // Emotion sliders
+  const [emotions, setEmotions] = useState<Record<string, number>>({
+    intensity: 50, humor: 0, sadness: 0, joy: 0, anger: 0, fear: 0,
+  });
+  // Camera refinement sliders
+  const [movementSpeed, setMovementSpeed] = useState([30]);
+  const [focusSoftness, setFocusSoftness] = useState([0]);
 
   // Collapsible states
   const [lightsOpen, setLightsOpen] = useState(true);
@@ -616,6 +637,59 @@ const OpticsSuitePanel = ({ onAspectRatioChange, filmId }: OpticsSuitePanelProps
                         </span>
                       </button>
                     ))}
+                  </div>
+                </SubCollapsible>
+
+                <SubCollapsible icon={Drama} label="Emotional Sliders">
+                  <div className="space-y-3">
+                    <p className="text-[9px] text-muted-foreground/60 font-mono">
+                      Fine-tune the emotional register of this take.
+                    </p>
+                    {EMOTION_SLIDERS.map((em) => (
+                      <div key={em.key} className="space-y-1">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-[10px] font-display font-semibold text-foreground/80">{em.label}</span>
+                          <span className="text-[9px] font-mono tabular-nums" style={{ color: em.color }}>
+                            {emotions[em.key]}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[emotions[em.key]]}
+                          onValueChange={([v]) => setEmotions((prev) => ({ ...prev, [em.key]: v }))}
+                          min={0}
+                          max={100}
+                          step={5}
+                          className="emotion-slider"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </SubCollapsible>
+
+                <SubCollapsible icon={Move} label="Camera Refinement">
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[10px] font-display font-semibold text-foreground/80">Movement Speed</span>
+                        <span className="text-[9px] font-mono tabular-nums text-primary">{movementSpeed[0]}%</span>
+                      </div>
+                      <Slider value={movementSpeed} onValueChange={setMovementSpeed} min={0} max={100} step={5} />
+                      <div className="flex justify-between">
+                        <span className="text-[8px] font-mono text-muted-foreground/50">Static</span>
+                        <span className="text-[8px] font-mono text-muted-foreground/50">Frantic</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-[10px] font-display font-semibold text-foreground/80">Focus Softness</span>
+                        <span className="text-[9px] font-mono tabular-nums text-primary">{focusSoftness[0]}%</span>
+                      </div>
+                      <Slider value={focusSoftness} onValueChange={setFocusSoftness} min={0} max={100} step={5} />
+                      <div className="flex justify-between">
+                        <span className="text-[8px] font-mono text-muted-foreground/50">Razor Sharp</span>
+                        <span className="text-[8px] font-mono text-muted-foreground/50">Dreamy Soft</span>
+                      </div>
+                    </div>
                   </div>
                 </SubCollapsible>
               </div>

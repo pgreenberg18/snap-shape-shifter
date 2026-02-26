@@ -15,6 +15,8 @@ import {
   Loader2, Package, Upload, Lock, Monitor, Trash2, FolderDown,
 } from "lucide-react";
 import { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
+import ArtifactScannerPanel from "@/components/release/ArtifactScannerPanel";
+import TopazDIPanel from "@/components/release/TopazDIPanel";
 import { useFilm } from "@/hooks/useFilm";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -362,8 +364,11 @@ const Release = () => {
             </div>
           </div>
 
-          {/* Row 2: Distribution + C2PA side by side */}
+          {/* Row 2: QC + Distribution side by side */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Artifact Scanner & QC */}
+            <ArtifactScannerPanel />
+
             {/* Distribution Packaging */}
             <div className="rounded-lg border border-border bg-card p-4 cinema-inset space-y-2.5">
               <SH icon={Package} label="Distribution Packaging" />
@@ -398,6 +403,12 @@ const Release = () => {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Row 3: Topaz DI + C2PA side by side */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Topaz DI Engine */}
+            <TopazDIPanel />
 
             {/* C2PA Legal Provenance */}
             <div className="rounded-lg border bg-card p-4 cinema-inset space-y-2.5" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
