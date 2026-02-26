@@ -249,13 +249,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
           </div>
           <div className="relative flex items-center gap-3 z-10">
             {/* Anamorphic lens flare behind title */}
-            <div className="pointer-events-none absolute -inset-x-8 -inset-y-4 z-0">
+            <div className="pointer-events-none absolute -inset-x-8 -inset-y-4 z-0" style={{ animation: 'flare-breathe 5s ease-in-out infinite' }}>
               {/* Core horizontal flare */}
-              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(47,125,255,0.2) 15%, rgba(124,203,255,0.6) 40%, rgba(200,230,255,0.9) 50%, rgba(124,203,255,0.6) 60%, rgba(47,125,255,0.2) 85%, transparent 100%)', filter: 'blur(1.5px)', animation: 'streak-pulse 4s ease-in-out infinite' }} />
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[2px]" style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(47,125,255,0.2) 15%, rgba(124,203,255,0.6) 40%, rgba(200,230,255,0.9) 50%, rgba(124,203,255,0.6) 60%, rgba(47,125,255,0.2) 85%, transparent 100%)', filter: 'blur(1.5px)', animation: 'streak-pulse 3.5s ease-in-out infinite' }} />
               {/* Wide diffused glow */}
-              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[18px]" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,125,255,0.05) 20%, rgba(124,203,255,0.2) 40%, rgba(124,203,255,0.35) 50%, rgba(124,203,255,0.2) 60%, rgba(47,125,255,0.05) 80%, transparent 95%)', filter: 'blur(8px)', animation: 'streak-pulse 4s ease-in-out infinite' }} />
+              <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-[18px]" style={{ background: 'linear-gradient(90deg, transparent 5%, rgba(47,125,255,0.05) 20%, rgba(124,203,255,0.2) 40%, rgba(124,203,255,0.35) 50%, rgba(124,203,255,0.2) 60%, rgba(47,125,255,0.05) 80%, transparent 95%)', filter: 'blur(8px)', animation: 'streak-pulse 5s ease-in-out infinite 0.5s' }} />
               {/* Vertical cross-flare */}
-              <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px]" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(124,203,255,0.15) 30%, rgba(200,230,255,0.4) 50%, rgba(124,203,255,0.15) 70%, transparent 100%)', filter: 'blur(2px)', animation: 'streak-pulse 4s ease-in-out infinite' }} />
+              <div className="absolute left-1/2 -translate-x-1/2 top-0 bottom-0 w-[2px]" style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(124,203,255,0.15) 30%, rgba(200,230,255,0.4) 50%, rgba(124,203,255,0.15) 70%, transparent 100%)', filter: 'blur(2px)', animation: 'streak-pulse 4.5s ease-in-out infinite 1s' }} />
             </div>
             <FilmStripIcon className="relative z-10 h-5 w-5 text-primary icon-glow" />
             <span className="relative z-10 font-display text-lg font-extrabold tracking-wide text-foreground drop-shadow-[0_0_12px_rgba(124,203,255,0.4)]">
