@@ -190,10 +190,10 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
                     <div className="flex items-center w-full px-4 py-2.5 hover:bg-secondary/40 transition-colors">
                       <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
                         {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                        <span className={cn("text-sm font-display font-bold uppercase tracking-wide px-2 py-0.5 rounded border", meta.color)}>
+        <span className={cn("text-[10px] font-display font-bold uppercase tracking-widest px-2 py-0.5 rounded border", meta.color)}>
                           {meta.label}
                         </span>
-                        <span className="text-xs text-muted-foreground/50">{chars.length}</span>
+                        <span className="text-[10px] text-muted-foreground/50">{chars.length}</span>
                         <div className="flex-1 border-t border-border/30 ml-1" />
                       </CollapsibleTrigger>
                       <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
