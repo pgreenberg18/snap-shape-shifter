@@ -2102,9 +2102,20 @@ const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdown
       if (error) throw error;
       // Map parsed_scenes row format to the shape components expect
       return (data || []).map((s: any) => {
-        // Extract only the slug line from heading (first line, or up to first character/action block)
+        // Extract only the slug line from heading
         const rawHeading = s.heading || "";
-        const slugLine = rawHeading.split(/\n/)[0].replace(/\s{2,}/g, " ").trim();
+        // Take the first line; if no newlines, extract up to the first sentence-ending period or 120 chars
+        let slugLine = rawHeading.split(/\n/)[0].replace(/\s{2,}/g, " ").trim();
+        // If the slug line is excessively long (likely full scene text crammed in), extract just the slug portion
+        if (slugLine.length > 120) {
+          // Try to extract INT./EXT. slug line pattern
+          const slugMatch = slugLine.match(/^((?:INT|EXT|INT\/EXT|I\/E)[.\s].+?)(?:\s{2,}|[A-Z]{2,}\s|$)/);
+          if (slugMatch) {
+            slugLine = slugMatch[1].trim();
+          } else {
+            slugLine = slugLine.substring(0, 80) + "…";
+          }
+        }
         return {
         scene_number: s.scene_number,
         scene_heading: slugLine,
