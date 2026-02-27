@@ -1800,7 +1800,7 @@ const Development = () => {
                       </div>
                     </div>
                   </CollapsibleTrigger>
-                  <CollapsibleContent>
+                  <CollapsibleContent forceMount className="data-[state=closed]:hidden">
                     <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
                       <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
                     </div>
