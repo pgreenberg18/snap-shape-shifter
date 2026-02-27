@@ -952,183 +952,116 @@ const PreProduction = () => {
                           <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full h-full object-contain bg-black/20" />
                         )}
                       </div>
-                      {/* Right: controls + variations */}
+                      {/* Middle: controls + variations */}
                       <div className="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-y-auto">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
                           <div className="flex items-center gap-1">
                             {[1, 2, 3].map((star) => (
-                              <button key={star} onClick={() => expandedCard && handleRate(expandedCard, expandedCard.rating === star ? 0 : star)} className="p-0.5">
-                                <Star className={cn("h-4 w-4 transition-colors", (expandedCard?.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/30")} />
+                              <button
+                                key={star}
+                                onClick={() => expandedCard && handleRate(expandedCard, star === expandedCard.rating ? 0 : star)}
+                                className="p-0.5"
+                              >
+                                <Star className={cn("h-3.5 w-3.5 transition-colors", star <= (expandedCard?.rating ?? 0) ? "fill-primary text-primary" : "text-muted-foreground/30")} />
                               </button>
                             ))}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          {expandedCard && !expandedCard.locked && !modifyMode && (
-                            <Button size="sm" variant="outline" onClick={() => setModifyMode(true)} className="gap-1.5">
-                              <Pencil className="h-3.5 w-3.5" />Modify
-                            </Button>
-                          )}
-                          {expandedCard && !expandedCard.locked && (
-                            <Button size="sm" onClick={() => { handleLockIdentity(expandedCard); setExpandedCard(null); }} disabled={locking === expandedCard.id} className="gap-1.5">
-                              {locking === expandedCard.id ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Casting…</> : <><User className="h-3.5 w-3.5" />Cast This Actor</>}
-                            </Button>
-                          )}
-                        </div>
 
                         {/* Modify section */}
-                        {modifyMode && (
-                          <div className="space-y-2 border-t border-border pt-2">
-                            <div className="flex items-center gap-2">
-                              <Pencil className="h-3 w-3 text-muted-foreground" />
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Describe Changes</p>
-                            </div>
-                            <Textarea
-                              value={modifyText}
-                              onChange={(e) => setModifyText(e.target.value)}
-                              placeholder="e.g. Make hair darker, add stubble, older looking…"
-                              className="min-h-[50px] bg-secondary/50 border-border text-sm resize-none"
-                            />
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                disabled={!modifyText.trim() || modifyGenerating}
-                                onClick={async () => {
-                                  if (!expandedCard || !selectedChar || !film || !expandedCard.imageUrl) return;
-                                  setModifyGenerating(true);
-                                  setModifyVariations([
-                                    { index: 0, imageUrl: null, generating: true },
-                                    { index: 1, imageUrl: null, generating: true },
-                                    { index: 2, imageUrl: null, generating: true },
-                                  ]);
-                                  const genBody = {
-                                    characterName: selectedChar.name,
-                                    description: charDescription || (selectedChar as any)?.description || "",
-                                    sex: charSex !== "Unknown" ? charSex : (selectedChar as any)?.sex,
-                                    ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
-                                    ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
-                                    isChild: charIsChild,
-                                    filmTitle: film.title ?? "",
-                                    timePeriod: film.time_period ?? "",
-                                    genre: "",
-                                    referenceImageUrl: expandedCard.imageUrl,
-                                    modifyInstructions: modifyText.trim(),
-                                  };
-                                  const variationIndices = [0, 1, 2];
-                                  const promises = variationIndices.map(async (vi) => {
-                                    try {
-                                      const { data, error } = await supabase.functions.invoke("generate-headshot", {
-                                        body: { ...genBody, cardIndex: expandedCard.id * 3 + vi },
-                                      });
-                                      if (error) throw error;
-                                      const imageUrl = data?.imageUrl ?? null;
-                                      setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, imageUrl, generating: false } : v));
-                                    } catch (e) {
-                                      console.error(`Modify variation ${vi} failed:`, e);
-                                      setModifyVariations((prev) => prev.map((v) => v.index === vi ? { ...v, generating: false } : v));
-                                    }
-                                  });
-                                  await Promise.allSettled(promises);
-                                  setModifyGenerating(false);
-                                }}
-                                className="gap-1.5"
-                              >
-                                {modifyGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Generating…</> : <><Sparkles className="h-3.5 w-3.5" />Generate Variations</>}
-                              </Button>
-                              <Button size="sm" variant="ghost" onClick={() => { setModifyMode(false); setModifyText(""); setModifyVariations([]); }}>Cancel</Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Variation results */}
-                        {modifyVariations.length > 0 && (
-                          <div className="grid grid-cols-3 gap-2 mt-auto">
-                            {modifyVariations.map((v) => (
-                              <div key={v.index} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
-                                {v.generating ? (
-                                  <div className="aspect-[4/5] flex items-center justify-center">
-                                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                                  </div>
-                                ) : v.imageUrl ? (
-                                  <>
-                                    <img src={v.imageUrl} alt={`Variation ${v.index + 1}`} className="w-full aspect-[4/5] object-cover" />
-                                    <div className="absolute inset-0 bg-black/0 hover:bg-black/40 transition-colors flex items-center justify-center opacity-0 hover:opacity-100">
-                                      <Button
-                                        size="sm"
-                                        onClick={async () => {
-                                          if (!expandedCard || !v.imageUrl) return;
-                                          setCards((prev) => prev.map((c) => c.id === expandedCard.id && c.characterId === expandedCard.characterId ? { ...c, imageUrl: v.imageUrl } : c));
-                                          await supabase.from("character_auditions").update({ image_url: v.imageUrl }).eq("character_id", expandedCard.characterId).eq("card_index", expandedCard.id);
-                                          setExpandedCard((prev) => prev ? { ...prev, imageUrl: v.imageUrl! } : prev);
-                                          setModifyMode(false);
-                                          setModifyText("");
-                                          setModifyVariations([]);
-                                          toast.success("Variation selected");
-                                        }}
-                                        className="gap-1.5"
-                                      >
-                                        <Check className="h-3.5 w-3.5" />Select
-                                      </Button>
-                                    </div>
-                                  </>
-                                ) : (
-                                  <div className="aspect-[4/5] flex items-center justify-center text-xs text-muted-foreground">Failed</div>
-                                )}
-                                <p className="text-[10px] text-center text-muted-foreground py-0.5">Var {v.index + 1}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Consistency turnaround views */}
-                        {expandedCard && (() => {
-                          const views = viewsByCharacter.get(expandedCard.characterId);
-                          const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
-                          const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
-                          const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
-                          if (!allSlots.length) return null;
-                          return (
-                            <div className="border-t border-border pt-3 mt-auto">
-                              <div className="flex items-center gap-2 mb-2">
-                                <Layers className="h-3 w-3 text-primary" />
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                                  Turnaround Views
-                                </p>
-                                <span className="text-[10px] text-muted-foreground/50">
-                                  {completedViews.length}/{allSlots.length}
-                                </span>
-                                <div className="flex-1" />
+                        {expandedCard && (
+                          <div className="space-y-2">
+                            <Button size="sm" variant="outline" onClick={() => setModifyMode(!modifyMode)} className="h-7 text-[11px] gap-1.5 w-full justify-start">
+                              <Sparkles className="h-3 w-3" />
+                              {modifyMode ? "Cancel Modify" : "Modify Image"}
+                            </Button>
+                            {modifyMode && (
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="Describe changes... e.g. 'make hair darker' or 'add glasses'"
+                                  value={modifyText}
+                                  onChange={(e) => setModifyText(e.target.value)}
+                                  className="text-xs min-h-[60px] resize-none"
+                                />
                                 <Button
                                   size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleRegenerateViews(expandedCard.characterId)}
-                                  disabled={generatingViews}
-                                  className="h-6 px-2 gap-1 text-[10px]"
+                                  onClick={() => { /* TODO: modify image */ }}
+                                  disabled={modifyGenerating || !modifyText.trim()}
+                                  className="h-7 text-[11px] gap-1.5 w-full"
                                 >
-                                  {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                                  Regenerate
+                                  {modifyGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                                  Generate Variations
                                 </Button>
                               </div>
-                              <div className="grid grid-cols-8 gap-1">
-                                {allSlots.map((v) => (
-                                  v.status === "complete" && v.image_url ? (
-                                    <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                                      <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-square object-contain bg-secondary/50" loading="lazy" />
-                                      <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80">{v.angle_label}</p>
-                                    </button>
-                                  ) : (
-                                    <div key={v.id} className="relative rounded-lg overflow-hidden border border-border aspect-square cloth-shimmer flex flex-col items-center justify-center gap-1">
-                                      <Loader2 className="h-4 w-4 text-primary/40 animate-spin" />
-                                      <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
-                                    </div>
-                                  )
-                                ))}
-                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Modify variations */}
+                        {modifyVariations.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Variations</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {modifyVariations.map((v, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => { /* TODO: select variation */ }}
+                                  className="relative rounded-lg overflow-hidden border border-border hover:border-primary/60 transition-colors cursor-pointer"
+                                >
+                                  <img src={v.imageUrl || ""} alt={`Variation ${i + 1}`} className="w-full aspect-[4/5] object-cover" />
+                                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-1">
+                                    <p className="text-[9px] text-white/80 text-center">Use this</p>
+                                  </div>
+                                </button>
+                              ))}
                             </div>
-                          );
-                        })()}
+                          </div>
+                        )}
                       </div>
+                      {/* Right: Turnaround views column */}
+                      {expandedCard && (() => {
+                        const views = viewsByCharacter.get(expandedCard.characterId);
+                        const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
+                        const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
+                        const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
+                        if (!allSlots.length) return null;
+                        return (
+                          <div className="w-[180px] shrink-0 border-l border-border p-2 flex flex-col gap-2 overflow-y-auto">
+                            <div className="flex items-center gap-1.5">
+                              <Layers className="h-3 w-3 text-primary" />
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                                Views {completedViews.length}/{allSlots.length}
+                              </p>
+                              <div className="flex-1" />
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleRegenerateViews(expandedCard.characterId)}
+                                disabled={generatingViews}
+                                className="h-5 w-5 p-0"
+                              >
+                                {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-1">
+                              {allSlots.map((v) => (
+                                v.status === "complete" && v.image_url ? (
+                                  <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                                    <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-square object-contain bg-secondary/50" loading="lazy" />
+                                    <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
+                                  </button>
+                                ) : (
+                                  <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-square cloth-shimmer flex flex-col items-center justify-center gap-1">
+                                    <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
+                                    <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
+                                  </div>
+                                )
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </DialogContent>
                 </Dialog>
