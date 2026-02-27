@@ -474,17 +474,17 @@ const MediaLibraryPanel = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); setSelected(new Set()); }}>
-        <TabsList className="w-full h-9 bg-secondary/60 border border-border/50 p-0.5">
+        <TabsList className="w-full h-11 bg-secondary/60 border border-border/50 p-0.5">
           {Object.entries(tabData).map(([key, { icon, items }]) => (
             <TabsTrigger
               key={key}
               value={key}
-              className="flex-1 text-[9px] font-mono uppercase tracking-wider h-full gap-1 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"
+              className="flex-1 text-xs font-mono uppercase tracking-wider h-full gap-1.5 data-[state=active]:bg-primary/15 data-[state=active]:text-primary"
             >
               {icon}
               {key}
               {items.length > 0 && (
-                <span className="text-[8px] opacity-60">({items.length})</span>
+                <span className="text-[10px] opacity-60">({items.length})</span>
               )}
             </TabsTrigger>
           ))}
