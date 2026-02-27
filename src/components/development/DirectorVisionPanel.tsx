@@ -361,7 +361,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 <SelectValue placeholder="Select primary director…" />
               </SelectTrigger>
               <SelectContent className="max-h-72 overflow-y-auto">
-                  {DIRECTORS.map((d) => (
+                  {[...DIRECTORS].sort((a, b) => a.name.localeCompare(b.name)).map((d) => (
                     <SelectItem key={d.id} value={d.id} className="text-xs">
                       <span className="font-medium">{d.name}</span>
                       <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
@@ -381,7 +381,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 <SelectValue placeholder="Select secondary…" />
               </SelectTrigger>
               <SelectContent className="max-h-72 overflow-y-auto">
-                  {DIRECTORS.filter((d) => d.id !== primaryId).map((d) => (
+                  {[...DIRECTORS].filter((d) => d.id !== primaryId).sort((a, b) => a.name.localeCompare(b.name)).map((d) => (
                     <SelectItem key={d.id} value={d.id} className="text-xs">
                       <span className="font-medium">{d.name}</span>
                       <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
