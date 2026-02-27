@@ -90,6 +90,7 @@ const PreProduction = () => {
   const [consistencyDialogOpen, setConsistencyDialogOpen] = useState(false);
   const [pendingConsistencyCharId, setPendingConsistencyCharId] = useState<string | null>(null);
   const [generatingViews, setGeneratingViews] = useState(false);
+  const [characterPhotoOpen, setCharacterPhotoOpen] = useState(false);
 
   // Fetch consistency views for all characters in this film
   const { data: consistencyViews } = useQuery({
@@ -606,7 +607,10 @@ const PreProduction = () => {
                 {/* Character header + Casting Call button */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden">
+                    <div
+                      className={cn("h-12 w-12 rounded-full bg-secondary flex items-center justify-center overflow-hidden", selectedChar.image_url && "cursor-pointer ring-offset-background hover:ring-2 hover:ring-primary/50 hover:ring-offset-2 transition-all")}
+                      onClick={() => selectedChar.image_url && setCharacterPhotoOpen(true)}
+                    >
                       {selectedChar.image_url ? (
                         <img src={selectedChar.image_url} alt={selectedChar.name} className="h-full w-full object-cover" />
                       ) : (
@@ -999,6 +1003,78 @@ const PreProduction = () => {
                     </div>
                   </DialogContent>
                 </Dialog>
+
+                {/* Character photo + consistency views popup */}
+                {selectedChar?.image_url && (
+                  <Dialog open={characterPhotoOpen} onOpenChange={setCharacterPhotoOpen}>
+                    <DialogContent className="max-w-3xl p-0 bg-card border-border max-h-[85vh] overflow-y-auto">
+                      <DialogHeader className="sr-only">
+                        <DialogTitle>{selectedChar.name}</DialogTitle>
+                        <DialogDescription>Character identity photo and turnaround views</DialogDescription>
+                      </DialogHeader>
+                      <div className="p-5 space-y-4">
+                        {/* Enlarged cast photo */}
+                        <div className="flex gap-4">
+                          <div className="w-[240px] shrink-0">
+                            <img
+                              src={selectedChar.image_url}
+                              alt={selectedChar.name}
+                              className="w-full rounded-lg object-cover border border-border"
+                              style={{ aspectRatio: "4/5" }}
+                            />
+                          </div>
+                          <div className="flex-1 flex flex-col gap-2 min-w-0">
+                            <h3 className="font-display text-lg font-bold text-foreground">{selectedChar.name}</h3>
+                            {selectedChar.description && (
+                              <p className="text-xs text-muted-foreground leading-relaxed">{selectedChar.description}</p>
+                            )}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground/60 mt-auto">
+                              {selectedChar.sex && <span>{selectedChar.sex}</span>}
+                              {(selectedChar.age_min || selectedChar.age_max) && (
+                                <span>Age: {selectedChar.age_min ?? "?"}-{selectedChar.age_max ?? "?"}</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Consistency turnaround views */}
+                        {(() => {
+                          const views = viewsByCharacter.get(selectedChar.id);
+                          const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
+                          if (!completedViews.length) return null;
+                          return (
+                            <div className="border-t border-border pt-4">
+                              <div className="flex items-center gap-2 mb-3">
+                                <Layers className="h-3.5 w-3.5 text-primary" />
+                                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                  Turnaround Views
+                                </p>
+                                <span className="text-xs text-muted-foreground/50">
+                                  {completedViews.length}/8
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-4 gap-2">
+                                {completedViews.map((v) => (
+                                  <div key={v.id} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
+                                    <img
+                                      src={v.image_url!}
+                                      alt={v.angle_label}
+                                      className="w-full aspect-square object-cover"
+                                      loading="lazy"
+                                    />
+                                    <p className="text-[10px] text-center text-muted-foreground py-1 bg-background/80 font-mono">
+                                      {v.angle_label}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                )}
 
                 {/* ═══ VOICE IDENTITY SECTION — Gated behind image lock ═══ */}
                 <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen} disabled={!hasLockedImage}>
