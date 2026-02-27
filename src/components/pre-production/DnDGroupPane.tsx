@@ -1363,11 +1363,11 @@ const SidebarItem = ({
 };
 
 /* ── Draggable child row within a group ── */
-const DraggableGroupChild = React.forwardRef<HTMLDivElement, {
+function DraggableGroupChild({ id, icon: Icon, label, isSelected, isMultiSelected, onClick, onRemove, refImageUrl }: {
   id: string; icon: LucideIcon; label: string; isSelected: boolean;
   isMultiSelected: boolean; onClick: (e: React.MouseEvent) => void;
   onRemove: () => void; refImageUrl?: string;
-}>(({ id, icon: Icon, label, isSelected, isMultiSelected, onClick, onRemove, refImageUrl }, _ref) => {
+}) {
   const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id });
   return (
     <div
@@ -1396,8 +1396,7 @@ const DraggableGroupChild = React.forwardRef<HTMLDivElement, {
       </button>
     </div>
   );
-});
-DraggableGroupChild.displayName = "DraggableGroupChild";
+}
 
 /* ── Sidebar Group (collapsible) ── */
 const SidebarGroup = ({
