@@ -71,13 +71,13 @@ const AssetDetailPanel = ({
     queryKey: ["wardrobe-scene-assignments", filmId, characterName, itemName],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("wardrobe_scene_assignments" as any)
+        .from("wardrobe_scene_assignments")
         .select("scene_number")
         .eq("film_id", filmId)
         .eq("character_name", characterName!)
         .eq("clothing_item", itemName);
       if (error) throw error;
-      return (data as any[]).map((r) => r.scene_number as number);
+      return (data ?? []).map((r) => r.scene_number);
     },
     enabled: assetType === "wardrobe" && !!characterName,
   });
@@ -89,7 +89,6 @@ const AssetDetailPanel = ({
     if (!characterName) return;
 
     if (assigned) {
-      // If first explicit assignment, seed all detected scenes + this one
       if (!hasExplicitAssignments && sceneNumbers && sceneNumbers.length > 0) {
         const rows = [...new Set([...sceneNumbers, sceneNum])].map((sn) => ({
           film_id: filmId,
@@ -97,17 +96,16 @@ const AssetDetailPanel = ({
           clothing_item: itemName,
           scene_number: sn,
         }));
-        await supabase.from("wardrobe_scene_assignments" as any).upsert(rows, { onConflict: "film_id,character_name,clothing_item,scene_number" } as any);
+        await supabase.from("wardrobe_scene_assignments").upsert(rows);
       } else {
-        await supabase.from("wardrobe_scene_assignments" as any).upsert({
+        await supabase.from("wardrobe_scene_assignments").upsert({
           film_id: filmId,
           character_name: characterName,
           clothing_item: itemName,
           scene_number: sceneNum,
-        } as any, { onConflict: "film_id,character_name,clothing_item,scene_number" } as any);
+        });
       }
     } else {
-      // If no explicit assignments yet, seed all detected scenes minus this one
       if (!hasExplicitAssignments && sceneNumbers && sceneNumbers.length > 0) {
         const rows = sceneNumbers
           .filter((sn) => sn !== sceneNum)
@@ -118,10 +116,10 @@ const AssetDetailPanel = ({
             scene_number: sn,
           }));
         if (rows.length > 0) {
-          await supabase.from("wardrobe_scene_assignments" as any).upsert(rows, { onConflict: "film_id,character_name,clothing_item,scene_number" } as any);
+          await supabase.from("wardrobe_scene_assignments").upsert(rows);
         }
       } else {
-        await supabase.from("wardrobe_scene_assignments" as any).delete()
+        await supabase.from("wardrobe_scene_assignments").delete()
           .eq("film_id", filmId)
           .eq("character_name", characterName)
           .eq("clothing_item", itemName)
@@ -130,6 +128,7 @@ const AssetDetailPanel = ({
     }
 
     queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments", filmId, characterName, itemName] });
+    queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments-char"] });
   }, [filmId, characterName, itemName, hasExplicitAssignments, sceneNumbers, queryClient]);
 
   const isSceneAssigned = useCallback((sceneNum: number) => {
