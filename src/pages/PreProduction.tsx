@@ -826,7 +826,7 @@ const PreProduction = () => {
                                 </div>
                                 <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                                   {archetypeCards.map((card) => (
-                                    <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} />
+                                    <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} consistencyViews={viewsByCharacter.get(card.characterId)} />
                                   ))}
                                 </div>
                               </div>
@@ -839,7 +839,7 @@ const PreProduction = () => {
                             return row2Cards.length > 0 && (
                               <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                                 {row2Cards.map((card) => (
-                                  <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} />
+                                  <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} consistencyViews={viewsByCharacter.get(card.characterId)} />
                                 ))}
                               </div>
                             );
@@ -1755,57 +1755,70 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 }
 
 /* ── Audition Card ── */
-const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasConsistencyViews }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void; hasConsistencyViews?: boolean }) => (
-  <div
-    className={cn(
-      "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
-      "aspect-[3/4]",
-      card.locked ? "border-primary/50 ring-2 ring-primary/30" : "border-border hover:border-primary/30 hover:cinema-glow"
-    )}
-    onClick={() => card.imageUrl && !card.generating && onExpand()}
-  >
-    {card.generating ? (
-      <div className="h-full w-full bg-secondary flex items-center justify-center animate-pulse">
-        <Loader2 className="h-6 w-6 text-muted-foreground/40 animate-spin" />
-      </div>
-    ) : card.imageUrl ? (
-      <img src={card.imageUrl} alt={card.label} className="absolute inset-0 h-full w-full object-cover bg-secondary" />
-    ) : (
-      <div className="h-full w-full bg-secondary flex items-center justify-center">
-        <User className="h-8 w-8 text-muted-foreground/20" />
-      </div>
-    )}
+const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasConsistencyViews, consistencyViews }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void; hasConsistencyViews?: boolean; consistencyViews?: Array<{ id: string; angle_label: string; image_url: string | null; status: string }> }) => {
+  const completedViews = consistencyViews?.filter(v => v.status === "complete" && v.image_url) ?? [];
+  return (
+    <div className="flex flex-col">
+      <div
+        className={cn(
+          "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
+          "aspect-[3/4]",
+          card.locked ? "border-primary/50 ring-2 ring-primary/30" : "border-border hover:border-primary/30 hover:cinema-glow"
+        )}
+        onClick={() => card.imageUrl && !card.generating && onExpand()}
+      >
+        {card.generating ? (
+          <div className="h-full w-full bg-secondary flex items-center justify-center animate-pulse">
+            <Loader2 className="h-6 w-6 text-muted-foreground/40 animate-spin" />
+          </div>
+        ) : card.imageUrl ? (
+          <img src={card.imageUrl} alt={card.label} className="absolute inset-0 h-full w-full object-cover bg-secondary" />
+        ) : (
+          <div className="h-full w-full bg-secondary flex items-center justify-center">
+            <User className="h-8 w-8 text-muted-foreground/20" />
+          </div>
+        )}
 
-    {/* Consistency views icon - top left */}
-    {hasConsistencyViews && card.imageUrl && !card.generating && (
-      <div className="absolute top-2 left-2 flex items-center gap-1 bg-background/80 backdrop-blur-sm text-primary text-[9px] font-bold uppercase tracking-wider px-1.5 py-1 rounded-md border border-primary/20" title="Turnaround views available">
-        <Layers className="h-3 w-3" />
-      </div>
-    )}
+        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-background/90 to-transparent p-2 pt-6">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-foreground truncate">{card.label}</p>
+            {!card.generating && card.imageUrl && (
+              <div className="flex items-center gap-0.5">
+                {[1, 2, 3].map((star) => (
+                  <button key={star} onClick={(e) => { e.stopPropagation(); onRate(card, card.rating === star ? 0 : star); }} className="p-0">
+                    <Star className={cn("h-3 w-3 transition-colors", (card.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/40")} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-background/90 to-transparent p-2 pt-6">
-      <div className="flex items-center justify-between">
-        <p className="text-[10px] font-display font-semibold uppercase tracking-wider text-foreground truncate">{card.label}</p>
-        {!card.generating && card.imageUrl && (
-          <div className="flex items-center gap-0.5">
-            {[1, 2, 3].map((star) => (
-              <button key={star} onClick={(e) => { e.stopPropagation(); onRate(card, card.rating === star ? 0 : star); }} className="p-0">
-                <Star className={cn("h-3 w-3 transition-colors", (card.rating || 0) >= star ? "fill-primary text-primary" : "text-muted-foreground/40")} />
-              </button>
-            ))}
+        {card.locked && (
+          <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md">
+            <Check className="h-3 w-3" /> Cast
           </div>
         )}
       </div>
+
+      {/* Consistency turnaround thumbnails beneath card */}
+      {completedViews.length > 0 && (
+        <div className="mt-1.5 grid grid-cols-4 gap-0.5">
+          {completedViews.slice(0, 8).map((v) => (
+            <div key={v.id} className="rounded overflow-hidden border border-border/50 bg-secondary/30">
+              <img
+                src={v.image_url!}
+                alt={v.angle_label}
+                className="w-full aspect-square object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
-
-    {card.locked && (
-      <div className="absolute top-2 right-2 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md">
-        <Check className="h-3 w-3" /> Cast
-      </div>
-    )}
-
-  </div>
-);
+  );
+};
 
 /* ── Tab trigger with icon ── */
 const PreProductionTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
