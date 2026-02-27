@@ -1002,7 +1002,7 @@ const PreProduction = () => {
                         const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
                         if (!allSlots.length) return null;
                         return (
-                          <div className="w-[200px] shrink-0 border-l border-border flex flex-col h-full">
+                          <div className="w-[240px] shrink-0 border-l border-border flex flex-col h-full">
                             <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
                               <Layers className="h-3 w-3 text-primary" />
                               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
@@ -1013,8 +1013,8 @@ const PreProduction = () => {
                                 {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                               </Button>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-1.5">
-                              <div className="grid grid-cols-2 gap-1">
+                            <div className="flex-1 overflow-y-auto p-2">
+                              <div className="grid grid-cols-2 gap-1.5">
                                 {allSlots.map((v) => (
                                   v.status === "complete" && v.image_url ? (
                                     <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
