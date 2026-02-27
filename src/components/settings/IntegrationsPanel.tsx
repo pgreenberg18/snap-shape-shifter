@@ -602,11 +602,13 @@ const IntegrationsPanel = () => {
 
       {/* ── Credit Usage & Thresholds ── */}
       <div className="mt-10 space-y-6">
-        <div className="flex items-center gap-2 mb-2">
-          <Gauge className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-lg font-bold">Credit Usage</h2>
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Gauge className="h-5 w-5 text-primary" />
+            <h2 className="font-display text-lg font-bold">Credit Usage</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
         </div>
-        <p className="text-xs text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
 
         <div className="grid grid-cols-2 gap-4">
           <div className="rounded-xl border border-border bg-card p-5 cinema-inset space-y-4">
