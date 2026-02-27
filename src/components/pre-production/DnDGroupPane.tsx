@@ -473,6 +473,95 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         }
       }
 
+      // Auto-group locations: merge ungrouped items that share a base location name
+      if (storagePrefix === "locations" && items.length > 0) {
+        const alreadyGrouped = new Set(loadedGroups.flatMap((g) => g.children.map((c) => c.toUpperCase())));
+        const loadedMerged = new Set(loadJson<string[]>(storagePrefix, filmId, "merged", []).map((m) => m.toUpperCase()));
+        const ungrouped = items.filter((it) => !alreadyGrouped.has(it.toUpperCase()) && !loadedMerged.has(it.toUpperCase()));
+
+        // Extract base location: "HOSPITAL ROOM" → "HOSPITAL", "WELLS' HOME - KITCHEN" → "WELLS' HOME"
+        const getLocBase = (name: string): string => {
+          const upper = name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME");
+          const sepMatch = upper.match(/^(.+?)\s*[-–—]\s+/);
+          if (sepMatch) return sepMatch[1].trim();
+          return upper.trim();
+        };
+
+        // Also check if an ungrouped item's base matches an existing group name
+        const groupNameMap = new Map<string, typeof loadedGroups[0]>();
+        for (const g of loadedGroups) {
+          groupNameMap.set(g.name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME"), g);
+        }
+
+        // Build base → items map for ungrouped
+        const baseMap = new Map<string, string[]>();
+        for (const loc of ungrouped) {
+          const base = getLocBase(loc);
+          // First check if this belongs to an existing group
+          let addedToExisting = false;
+          for (const [gNameUpper, g] of groupNameMap) {
+            if (base === gNameUpper || base.startsWith(gNameUpper + " ") || base.startsWith(gNameUpper + "'") ||
+                gNameUpper.startsWith(base + " ") || gNameUpper.startsWith(base + "'") || gNameUpper === base) {
+              if (!g.children.some((c) => c.toUpperCase() === loc.toUpperCase())) {
+                g.children.push(loc);
+                addedToExisting = true;
+              }
+              break;
+            }
+          }
+          if (addedToExisting) continue;
+
+          if (!baseMap.has(base)) baseMap.set(base, []);
+          baseMap.get(base)!.push(loc);
+        }
+
+        // Merge bases that overlap (e.g., "HOSPITAL" and "HOSPITAL CORRIDOR")
+        const bases = [...baseMap.keys()];
+        for (let i = 0; i < bases.length; i++) {
+          for (let j = i + 1; j < bases.length; j++) {
+            if (!baseMap.has(bases[i]) || !baseMap.has(bases[j])) continue;
+            const a = bases[i], b = bases[j];
+            if (a.startsWith(b + " ") || a.startsWith(b + "'") || b.startsWith(a + " ") || b.startsWith(a + "'") || a === b) {
+              const canon = a.length <= b.length ? a : b;
+              const other = canon === a ? b : a;
+              const merged = [...baseMap.get(canon)!, ...baseMap.get(other)!];
+              baseMap.delete(other);
+              baseMap.set(canon, merged);
+            }
+          }
+        }
+
+        // Create new groups from bases with 2+ items, or items with sub-location separators
+        let autoGrouped = false;
+        for (const [base, locs] of baseMap) {
+          const unique = [...new Set(locs)];
+          const hasSub = unique.some((l) => l.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME").includes(" - "));
+          if (unique.length >= 2 || (unique.length === 1 && hasSub)) {
+            const parentName = base.charAt(0) + base.slice(1).toLowerCase().replace(/'/g, "'");
+            // Check if a group with this name already exists
+            const existingGroup = loadedGroups.find((g) => g.name.toUpperCase() === base);
+            if (existingGroup) {
+              for (const loc of unique) {
+                if (!existingGroup.children.some((c) => c.toUpperCase() === loc.toUpperCase())) {
+                  existingGroup.children.push(loc);
+                }
+              }
+            } else {
+              loadedGroups.push({
+                id: `auto-loc-${base.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+                name: parentName,
+                children: unique,
+              });
+            }
+            autoGrouped = true;
+          }
+        }
+
+        if (autoGrouped) {
+          saveJson(storagePrefix, filmId, "groups", loadedGroups);
+        }
+      }
+
       setGroups(loadedGroups);
       setCollapsed(new Set(loadedGroups.map((g) => g.id)));
       setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
