@@ -2443,12 +2443,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
         type = "Action";
       }
 
-      // Merge continuation lines of the same type (except Character/Scene Heading)
-      if (type === lastType && type !== "Character" && type !== "Scene Heading" && result.length > 0) {
-        result[result.length - 1].text += " " + trimmed;
-      } else {
-        result.push({ type, text: trimmed });
-      }
+      result.push({ type, text: trimmed });
       lastType = type;
     }
     return result;
