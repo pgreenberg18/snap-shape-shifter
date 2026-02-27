@@ -19,7 +19,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, Pencil,
-  Gauge, Zap, Save, Loader2,
+  Gauge, Zap, Save, Loader2, ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -221,6 +221,40 @@ const PROVIDER_GROUPS: Record<string, string[]> = {
   openai: ["openai-chat", "dall-e", "sora"],
 };
 
+/* ── Usage page URLs per service ── */
+const SERVICE_USAGE_URLS: Record<string, string> = {
+  "openai-chat": "https://platform.openai.com/usage",
+  "dall-e": "https://platform.openai.com/usage",
+  "sora": "https://platform.openai.com/usage",
+  "gemini": "https://aistudio.google.com/apikey",
+  "veo": "https://aistudio.google.com/apikey",
+  "imagen-4": "https://aistudio.google.com/apikey",
+  "claude": "https://console.anthropic.com/settings/usage",
+  "mistral": "https://console.mistral.ai/usage",
+  "midjourney": "https://www.midjourney.com/account",
+  "flux-pro": "https://api.bfl.ml/admin/usage",
+  "stable-diffusion": "https://platform.stability.ai/account/credits",
+  "ideogram": "https://ideogram.ai/manage",
+  "leonardo": "https://app.leonardo.ai/settings",
+  "recraft": "https://www.recraft.ai/dashboard",
+  "elevenlabs": "https://elevenlabs.io/subscription",
+  "playht": "https://play.ht/studio/billing",
+  "murf": "https://murf.ai/dashboard/billing",
+  "wellsaid": "https://wellsaidlabs.com/account",
+  "resemble": "https://app.resemble.ai/billing",
+  "seedance": "https://console.volcengine.com/billing",
+  "kling": "https://klingai.com/account",
+  "runway": "https://app.runwayml.com/billing",
+  "pika": "https://pika.art/account",
+  "luma": "https://lumalabs.ai/account",
+  "synclabs": "https://app.synclabs.so/billing",
+  "topaz": "https://www.topazlabs.com/account",
+  "descript": "https://www.descript.com/settings/billing",
+  "kapwing": "https://www.kapwing.com/settings",
+  "nana-banana": "https://nanabanana.ai/account",
+  "llama": "https://ai.meta.com",
+};
+
 export { SERVICE_CATALOGS };
 
 const IntegrationsPanel = () => {
@@ -385,7 +419,21 @@ const IntegrationsPanel = () => {
                     return (
                       <div key={provider.id} className="rounded-lg border border-border/60 bg-secondary p-3 space-y-2 shadow-[0_0_0_1px_rgba(255,255,255,0.04)]">
                         <div className="flex items-center justify-between">
-                          <p className="text-base font-medium">{provider.provider_name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-base font-medium">{provider.provider_name}</p>
+                            {matchedSvc && SERVICE_USAGE_URLS[matchedSvc.id] && (
+                              <a
+                                href={SERVICE_USAGE_URLS[matchedSvc.id]}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                Usage
+                              </a>
+                            )}
+                          </div>
                           {!isEditing && (
                             <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                               <Check className="h-3.5 w-3.5 text-green-500" /> Connected & Verified
