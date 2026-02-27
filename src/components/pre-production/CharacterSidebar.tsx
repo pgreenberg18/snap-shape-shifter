@@ -103,6 +103,18 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
     toast.success("Undone");
   }, [undoStack]);
 
+  // Ctrl+Z keyboard shortcut for undo
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey && undoStack.length > 0) {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleUndo, undoStack.length]);
+
   // Reload overrides when filmId changes
   useEffect(() => {
     setOverrides(loadOverrides(filmId));

@@ -308,6 +308,19 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     toast.success("Undone");
   }, [wardrobeUndoStack, filmId, storagePrefix, fetchWardrobeSceneCounts]);
 
+  // Ctrl+Z keyboard shortcut for wardrobe undo
+  useEffect(() => {
+    if (storagePrefix !== "wardrobe") return;
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey && wardrobeUndoStack.length > 0) {
+        e.preventDefault();
+        handleWardrobeUndo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [storagePrefix, handleWardrobeUndo, wardrobeUndoStack.length]);
+
   useEffect(() => {
     fetchWardrobeSceneCounts();
   }, [fetchWardrobeSceneCounts]);
