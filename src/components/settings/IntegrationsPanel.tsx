@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cn } from "@/lib/utils";
 import { useIntegrations } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -388,25 +389,32 @@ const IntegrationsPanel = () => {
 
           return (
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
-              <div className="flex items-center">
-                <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline flex-1">
-                  <span className="flex items-center gap-2">{meta.icon}{meta.title}</span>
-                </AccordionTrigger>
-                {available.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="gap-1 text-[10px] h-6 px-2 text-muted-foreground hover:text-foreground shrink-0"
-                    disabled={isAdding}
-                    onClick={() => openAdd(sectionId)}
-                  >
-                    <Plus className="h-3 w-3" />
-                    {meta.addLabel}
-                  </Button>
-                )}
-              </div>
+              <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline">
+                <span className="flex items-center gap-2">
+                  {meta.icon}
+                  {meta.title}
+                  <span className={cn(
+                    "h-2 w-2 rounded-full shrink-0",
+                    (providers?.some(p => p.is_verified) || added.length > 0) ? "bg-green-500" : "bg-destructive"
+                  )} />
+                </span>
+              </AccordionTrigger>
               <AccordionContent>
-                <p className="text-xs text-muted-foreground mb-3">{meta.description}</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs text-muted-foreground">{meta.description}</p>
+                  {available.length > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-[10px] h-6 px-2 text-muted-foreground hover:text-foreground shrink-0"
+                      disabled={isAdding}
+                      onClick={() => openAdd(sectionId)}
+                    >
+                      <Plus className="h-3 w-3" />
+                      {meta.addLabel}
+                    </Button>
+                  )}
+                </div>
                 <div className="space-y-3 pb-2">
                   {providers?.filter((p) => p.is_verified).map((provider) => {
                     const isEditing = editingId === provider.id;
