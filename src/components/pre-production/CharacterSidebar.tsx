@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensors, useSensor,
@@ -22,6 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import ResizableSidebar from "./ResizableSidebar";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useFilmId } from "@/hooks/useFilm";
 import type { CharacterRanking, CharacterTier } from "@/hooks/useCharacterRanking";
 
 interface Character {
@@ -53,18 +54,51 @@ const TIER_META: Record<CharacterTier, { label: string; color: string }> = {
 
 const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
 
+/* ── Persistence helpers ── */
+interface ManualOverrides {
+  tierOverrides: Record<string, CharacterTier>;
+  sortOverrides: Record<string, number>;
+}
+
+const getStorageKey = (filmId: string | null) => filmId ? `char-sidebar-overrides-${filmId}` : null;
+
+const loadOverrides = (filmId: string | null): ManualOverrides => {
+  const key = getStorageKey(filmId);
+  if (!key) return { tierOverrides: {}, sortOverrides: {} };
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { tierOverrides: {}, sortOverrides: {} };
+};
+
+const saveOverrides = (filmId: string | null, overrides: ManualOverrides) => {
+  const key = getStorageKey(filmId);
+  if (!key) return;
+  localStorage.setItem(key, JSON.stringify(overrides));
+};
+
 const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onSuggest, showVoiceSeed, rankings }: CharacterSidebarProps) => {
   const queryClient = useQueryClient();
+  const filmId = useFilmId();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [openTiers, setOpenTiers] = useState<Record<string, boolean>>({ LEAD: true, STRONG_SUPPORT: true, FEATURE: false, UNDER_5: false, BACKGROUND: false });
   const [searchQuery, setSearchQuery] = useState("");
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
-  const [mergeDialog, setMergeDialog] = useState<{
-    sourceId: string; targetId: string; sourceName: string; targetName: string;
-  } | null>(null);
   const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
+  const [overrides, setOverrides] = useState<ManualOverrides>(() => loadOverrides(filmId));
+
+  // Reload overrides when filmId changes
+  useEffect(() => {
+    setOverrides(loadOverrides(filmId));
+  }, [filmId]);
+
+  // Persist overrides
+  useEffect(() => {
+    saveOverrides(filmId, overrides);
+  }, [filmId, overrides]);
 
   const handleMultiClick = useCallback((id: string, e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey) {
@@ -100,21 +134,81 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   const handleDragEnd = useCallback((e: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = e;
-    if (!over || active.id === over.id || !characters) return;
-    const source = characters.find((c) => c.id === active.id);
-    const target = characters.find((c) => c.id === over.id);
-    if (!source || !target) return;
-    setMergeDialog({ sourceId: source.id, targetId: target.id, sourceName: source.name, targetName: target.name });
-  }, [characters]);
+    if (!over || !characters) return;
 
-  const handleMerge = useCallback(async () => {
-    if (!mergeDialog) return;
-    const { sourceId, targetId } = mergeDialog;
-    const { error } = await supabase.from("characters").delete().eq("id", sourceId);
-    if (error) { toast.error("Failed to merge characters"); }
-    else { toast.success("Characters merged"); queryClient.invalidateQueries({ queryKey: ["characters"] }); if (selectedCharId === sourceId) onSelect(targetId); }
-    setMergeDialog(null);
-  }, [mergeDialog, queryClient, selectedCharId, onSelect]);
+    const draggedCharId = active.id as string;
+    const overId = over.id as string;
+
+    // Dropped on a tier zone
+    if (overId.startsWith("tier:")) {
+      const newTier = overId.replace("tier:", "") as CharacterTier;
+      setOverrides(prev => {
+        const next = { ...prev, tierOverrides: { ...prev.tierOverrides, [draggedCharId]: newTier } };
+        // Reset sort index for this char in new tier (append to end)
+        const sortOverrides = { ...prev.sortOverrides };
+        delete sortOverrides[draggedCharId];
+        return { ...next, sortOverrides };
+      });
+      // Auto-open the target tier
+      setOpenTiers(prev => ({ ...prev, [newTier]: true }));
+      return;
+    }
+
+    // Dropped on another character — reorder within same tier or move to that char's tier
+    if (draggedCharId === overId) return;
+    const draggedChar = characters.find(c => c.id === draggedCharId);
+    const overChar = characters.find(c => c.id === overId);
+    if (!draggedChar || !overChar) return;
+
+    // Determine the tier of the target character
+    const getCharTier = (charId: string, charName: string): CharacterTier => {
+      if (overrides.tierOverrides[charId]) return overrides.tierOverrides[charId];
+      const ranking = rankingMap.get(charName.toUpperCase());
+      return ranking?.tier ?? "BACKGROUND";
+    };
+
+    const sourceTier = getCharTier(draggedCharId, draggedChar.name);
+    const targetTier = getCharTier(overId, overChar.name);
+
+    // Find current order in the target tier
+    const targetTierGroup = tierGroups.find(g => g.tier === targetTier);
+    if (!targetTierGroup) return;
+
+    const targetIndex = targetTierGroup.chars.findIndex(c => c.id === overId);
+
+    // Build new sort indices for the target tier
+    const newSortOverrides = { ...overrides.sortOverrides };
+    const tierChars = [...targetTierGroup.chars];
+
+    // If moving from a different tier, add the dragged char
+    if (sourceTier !== targetTier) {
+      // Remove from old position if present
+      const oldIdx = tierChars.findIndex(c => c.id === draggedCharId);
+      if (oldIdx >= 0) tierChars.splice(oldIdx, 1);
+      // Insert at target position
+      tierChars.splice(targetIndex, 0, draggedChar);
+    } else {
+      // Reorder within same tier
+      const fromIdx = tierChars.findIndex(c => c.id === draggedCharId);
+      if (fromIdx >= 0) {
+        tierChars.splice(fromIdx, 1);
+        tierChars.splice(targetIndex, 0, draggedChar);
+      }
+    }
+
+    // Assign sort indices
+    tierChars.forEach((c, i) => {
+      newSortOverrides[c.id] = i;
+    });
+
+    const newTierOverrides = { ...overrides.tierOverrides };
+    if (sourceTier !== targetTier) {
+      newTierOverrides[draggedCharId] = targetTier;
+      setOpenTiers(prev => ({ ...prev, [targetTier]: true }));
+    }
+
+    setOverrides({ tierOverrides: newTierOverrides, sortOverrides: newSortOverrides });
+  }, [characters, overrides]);
 
   const handleRename = useCallback(async (charId: string) => {
     if (!editName.trim()) return;
@@ -154,28 +248,44 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
     const query = searchQuery.toLowerCase().trim();
     const filtered = query ? characters.filter((c) => c.name.toLowerCase().includes(query)) : characters;
     
-    if (!rankings?.length) return [{ tier: "LEAD" as CharacterTier, chars: filtered }];
+    if (!rankings?.length && Object.keys(overrides.tierOverrides).length === 0) {
+      return [{ tier: "LEAD" as CharacterTier, chars: filtered }];
+    }
 
     const groups = new Map<CharacterTier, Character[]>();
     for (const tier of TIER_ORDER) groups.set(tier, []);
 
-    const sorted = [...filtered].sort((a, b) => {
-      const ra = rankingMap.get(a.name.toUpperCase());
-      const rb = rankingMap.get(b.name.toUpperCase());
-      if (ra && rb) return rb.score - ra.score;
-      if (ra) return -1;
-      if (rb) return 1;
-      return 0;
-    });
-
-    for (const char of sorted) {
-      const ranking = rankingMap.get(char.name.toUpperCase());
-      const tier = ranking?.tier ?? "BACKGROUND";
+    for (const char of filtered) {
+      // Check manual tier override first, then ranking
+      let tier: CharacterTier;
+      if (overrides.tierOverrides[char.id]) {
+        tier = overrides.tierOverrides[char.id];
+      } else {
+        const ranking = rankingMap.get(char.name.toUpperCase());
+        tier = ranking?.tier ?? "BACKGROUND";
+      }
       groups.get(tier)!.push(char);
     }
 
+    // Sort within each tier: manual sort overrides first, then by ranking score
+    for (const [, chars] of groups) {
+      chars.sort((a, b) => {
+        const sa = overrides.sortOverrides[a.id];
+        const sb = overrides.sortOverrides[b.id];
+        if (sa !== undefined && sb !== undefined) return sa - sb;
+        if (sa !== undefined) return -1;
+        if (sb !== undefined) return 1;
+        const ra = rankingMap.get(a.name.toUpperCase());
+        const rb = rankingMap.get(b.name.toUpperCase());
+        if (ra && rb) return rb.score - ra.score;
+        if (ra) return -1;
+        if (rb) return 1;
+        return 0;
+      });
+    }
+
     return TIER_ORDER.map((tier) => ({ tier, chars: groups.get(tier)! })).filter((g) => g.chars.length > 0);
-  }, [characters, rankings, rankingMap, searchQuery]);
+  }, [characters, rankings, rankingMap, searchQuery, overrides]);
 
   const toggleTier = (tier: string) => {
     setOpenTiers((prev) => ({ ...prev, [tier]: !prev[tier] }));
@@ -187,7 +297,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
         <div>
           <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
           <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-            {characters?.length ?? 0} in cast{rankings?.length ? " · ranked by importance" : " · drag to merge duplicates"}
+            {characters?.length ?? 0} in cast{rankings?.length ? " · drag to reorder or change tier" : " · drag to reorder"}
           </p>
         </div>
         <div className="relative">
@@ -219,25 +329,27 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
                 const someApproved = chars.some((c) => (c as any).approved);
                 return (
                   <Collapsible key={tier} open={isOpen} onOpenChange={() => toggleTier(tier)}>
-                    <div className="flex items-center w-full px-4 py-2.5 hover:bg-secondary/40 transition-colors">
-                      <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
-                        {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-        <span className={cn("text-xs font-display font-bold uppercase tracking-widest px-2.5 py-1 rounded border", meta.color)}>
-                          {meta.label}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground/50">{chars.length}</span>
-                        <div className="flex-1 border-t border-border/30 ml-1" />
-                      </CollapsibleTrigger>
-                      <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={allApproved ? true : someApproved ? "indeterminate" : false}
-                          onCheckedChange={() => handleApproveAll(chars.map((c) => c.id))}
-                          className="h-3.5 w-3.5"
-                          title="Approve all in tier"
-                        />
-                        <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider">All</span>
+                    <TierDropZone tier={tier}>
+                      <div className="flex items-center w-full px-4 py-2.5 hover:bg-secondary/40 transition-colors">
+                        <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0">
+                          {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                          <span className={cn("text-xs font-display font-bold uppercase tracking-widest px-2.5 py-1 rounded border", meta.color)}>
+                            {meta.label}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground/50">{chars.length}</span>
+                          <div className="flex-1 border-t border-border/30 ml-1" />
+                        </CollapsibleTrigger>
+                        <div className="flex items-center gap-1.5 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={allApproved ? true : someApproved ? "indeterminate" : false}
+                            onCheckedChange={() => handleApproveAll(chars.map((c) => c.id))}
+                            className="h-3.5 w-3.5"
+                            title="Approve all in tier"
+                          />
+                          <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider">All</span>
+                        </div>
                       </div>
-                    </div>
+                    </TierDropZone>
                     <CollapsibleContent>
                       {chars.map((char) => {
                         const ranking = rankingMap.get(char.name.toUpperCase());
@@ -285,6 +397,21 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
                   </Collapsible>
                 );
               })}
+
+              {/* Show empty tiers as drop targets when dragging */}
+              {activeId && TIER_ORDER.filter(t => !tierGroups.some(g => g.tier === t)).map(tier => {
+                const meta = TIER_META[tier];
+                return (
+                  <TierDropZone key={`empty-${tier}`} tier={tier}>
+                    <div className="flex items-center w-full px-4 py-2.5 opacity-50">
+                      <span className={cn("text-xs font-display font-bold uppercase tracking-widest px-2.5 py-1 rounded border", meta.color)}>
+                        {meta.label}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50 ml-2">Drop here</span>
+                    </div>
+                  </TierDropZone>
+                );
+              })}
             </div>
             <DragOverlay>
               {activeChar ? (
@@ -299,22 +426,6 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
           </DndContext>
         )}
       </ScrollArea>
-
-      <AlertDialog open={!!mergeDialog} onOpenChange={(open) => !open && setMergeDialog(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Merge Characters?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This will merge <span className="font-semibold text-foreground">"{mergeDialog?.sourceName}"</span> into{" "}
-              <span className="font-semibold text-foreground">"{mergeDialog?.targetName}"</span>. The duplicate will be deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleMerge}>Merge</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog open={!!multiMergeDialog} onOpenChange={(open) => !open && setMultiMergeDialog(null)}>
         <AlertDialogContent>
@@ -331,6 +442,16 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
         </AlertDialogContent>
       </AlertDialog>
     </ResizableSidebar>
+  );
+};
+
+/* ── Tier drop zone ── */
+const TierDropZone = ({ tier, children }: { tier: CharacterTier; children: React.ReactNode }) => {
+  const { isOver, setNodeRef } = useDroppable({ id: `tier:${tier}` });
+  return (
+    <div ref={setNodeRef} className={cn(isOver && "bg-primary/10 ring-1 ring-primary/30 rounded")}>
+      {children}
+    </div>
   );
 };
 
@@ -435,7 +556,6 @@ const DraggableCharItem = ({
           </p>
         )}
       </button>
-
 
       {!isEditing && (
         <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }}
