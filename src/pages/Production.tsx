@@ -558,8 +558,8 @@ const Production = () => {
     <TooltipProvider delayDuration={300}>
       <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
-          <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Production</h1>
-          <p className="text-[10px] text-muted-foreground truncate">Shot composition, camera direction, and visual generation — bring every scene to life.</p>
+          <h1 className="font-display text-xl font-bold tracking-tight text-foreground whitespace-nowrap">Production</h1>
+          <p className="text-xs text-muted-foreground truncate">Shot composition, camera direction, and visual generation — bring every scene to life.</p>
         </div>
         <div className="flex flex-1 min-h-0">
         {/* ── LEFT: Scene Navigator (Apple-style slide) ── */}

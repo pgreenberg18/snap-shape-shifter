@@ -541,8 +541,8 @@ const PostProduction = () => {
   return (
     <div className="flex h-full flex-col">
       <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
-        <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Post-Production</h1>
-        <p className="text-[10px] text-muted-foreground truncate">Timeline editing, sound mixing, color grading, and VFX compositing.</p>
+        <h1 className="font-display text-xl font-bold tracking-tight text-foreground whitespace-nowrap">Post-Production</h1>
+        <p className="text-xs text-muted-foreground truncate">Timeline editing, sound mixing, color grading, and VFX compositing.</p>
       </div>
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragOver={handleDragOver} collisionDetection={pointerWithin}>
     <div className="flex flex-1 min-h-0">
