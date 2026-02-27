@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import { Camera, Film, ChevronRight } from "lucide-react";
 import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -534,28 +535,8 @@ const Production = () => {
           if (content.trim()) parsed.push({ type, text: content });
         }
       } else {
-        // Plain text fallback
-        if (!heading) {
-          parsed = [{ type: "Action", text: full }];
-        } else {
-          const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const startMatch = full.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
-          if (!startMatch || startMatch.index === undefined) {
-            parsed = [{ type: "Action", text: full }];
-          } else {
-            const sIdx = startMatch.index;
-            const afterHeading = full.substring(sIdx + startMatch[0].length);
-            const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
-            const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
-            const sceneText = full.substring(sIdx, eIdx).trim();
-            parsed = sceneText.split("\n").filter((l) => l.trim()).map((line) => {
-              const trimmed = line.trim();
-              if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
-              if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
-              return { type: "Action", text: trimmed };
-            });
-          }
-        }
+        // Plain text — use shared parser
+        parsed = parseSceneFromPlainText(full, heading);
       }
 
       setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: parsed }]);
