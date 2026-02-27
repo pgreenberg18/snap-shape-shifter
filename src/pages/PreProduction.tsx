@@ -1042,11 +1042,29 @@ const PreProduction = () => {
         <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-wardrobe">
           {(() => {
             const wardrobeItems = breakdownAssets?.wardrobe ?? [];
+            // Deduplicate: same clothing for different characters gets a character-scoped key
             const byCharacter = new Map<string, string[]>();
+            const clothingCounts = new Map<string, number>();
+            for (const w of wardrobeItems) {
+              clothingCounts.set(w.clothing, (clothingCounts.get(w.clothing) || 0) + 1);
+            }
+            // Build unique item keys: append character when clothing appears for multiple characters
+            const uniqueItems: string[] = [];
+            const subtitleMap: Record<string, string> = {};
             for (const w of wardrobeItems) {
               const char = w.character || "Unknown";
+              // Use character-scoped key if the same clothing appears under multiple characters
+              const itemKey = (clothingCounts.get(w.clothing) || 0) > 1
+                ? `${w.clothing} (${char})`
+                : w.clothing;
+              if (!uniqueItems.includes(itemKey)) {
+                uniqueItems.push(itemKey);
+                subtitleMap[itemKey] = char;
+              }
               if (!byCharacter.has(char)) byCharacter.set(char, []);
-              byCharacter.get(char)!.push(w.clothing);
+              if (!byCharacter.get(char)!.includes(itemKey)) {
+                byCharacter.get(char)!.push(itemKey);
+              }
             }
             // Sort character groups by ranking order (matching auditions sidebar)
             const charOrder = (rankings || []).map(r => r.nameNormalized);
@@ -1070,9 +1088,9 @@ const PreProduction = () => {
             }
             return (
               <DnDGroupPane
-                items={wardrobeItems.map((w) => w.clothing)} filmId={filmId} storagePrefix="wardrobe" icon={Shirt} title="Wardrobe"
+                items={uniqueItems} filmId={filmId} storagePrefix="wardrobe" icon={Shirt} title="Wardrobe"
                 emptyMessage="No wardrobe data extracted yet. Lock your script in Development."
-                subtitles={wardrobeItems.reduce((acc, w) => { acc[w.clothing] = w.character; return acc; }, {} as Record<string, string>)}
+                subtitles={subtitleMap}
                 sceneBreakdown={scenes}
                 storagePath={scriptAnalysis?.storage_path as string | undefined}
                 initialGroups={wardrobeInitialGroups}
