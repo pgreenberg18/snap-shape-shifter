@@ -66,6 +66,8 @@ interface DnDGroupPaneProps {
   allSceneNumbers?: number[];
   /** Scene headings keyed by scene number */
   sceneHeadings?: Record<number, string>;
+  /** Character ranking order (normalized names) for sorting wardrobe groups */
+  characterOrder?: string[];
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -175,7 +177,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings, characterOrder }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -264,6 +266,40 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     return filteredVisibleItems.filter((l) => !grouped.has(l));
   }, [filteredVisibleItems, groups]);
 
+  // For wardrobe: auto-assign any ungrouped items into their character groups
+  useEffect(() => {
+    if (storagePrefix !== "wardrobe" || !subtitles || ungrouped.length === 0) return;
+    let updated = false;
+    const nextGroups = groups.map((g) => ({ ...g, children: [...g.children] }));
+    const newGroups: ItemGroup[] = [];
+    for (const item of ungrouped) {
+      const charName = subtitles[item];
+      if (!charName) continue;
+      const existingGroup = nextGroups.find((g) => g.name.toUpperCase() === charName.toUpperCase());
+      if (existingGroup) {
+        if (!existingGroup.children.includes(item)) {
+          existingGroup.children.push(item);
+          updated = true;
+        }
+      } else {
+        // Create a new group for this character
+        const newGroup = newGroups.find((g) => g.name.toUpperCase() === charName.toUpperCase());
+        if (newGroup) {
+          if (!newGroup.children.includes(item)) newGroup.children.push(item);
+        } else {
+          newGroups.push({
+            id: `wardrobe-char-${charName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+            name: charName,
+            children: [item],
+          });
+        }
+        updated = true;
+      }
+    }
+    if (updated) persistGroups([...nextGroups, ...newGroups]);
+  }, [storagePrefix, subtitles, ungrouped, groups, persistGroups]);
+
+
   const filteredGroups = useMemo(() => {
     if (!query) return groups;
     return groups.filter((g) => {
@@ -271,6 +307,18 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       return g.children.some((c) => (renames[c] || c).toLowerCase().includes(query));
     });
   }, [groups, query, renames]);
+
+  // For wardrobe: sort groups by character ranking order
+  const sortedFilteredGroups = useMemo(() => {
+    if (storagePrefix !== "wardrobe" || !characterOrder || characterOrder.length === 0) return filteredGroups;
+    return [...filteredGroups].sort((a, b) => {
+      const aIdx = characterOrder.indexOf(a.name.toUpperCase());
+      const bIdx = characterOrder.indexOf(b.name.toUpperCase());
+      const aPos = aIdx === -1 ? 9999 : aIdx;
+      const bPos = bIdx === -1 ? 9999 : bIdx;
+      return aPos - bPos;
+    });
+  }, [filteredGroups, characterOrder, storagePrefix]);
 
   const displayName = useCallback((item: string) => toTitleCase(renames[item] || item), [renames]);
 
@@ -644,7 +692,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
               )}
 
               {/* Groups */}
-              {filteredGroups.map((group) => (
+              {sortedFilteredGroups.map((group) => (
               <SidebarGroup
                   key={group.id}
                   group={group}
@@ -669,12 +717,12 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 />
               ))}
 
-              {/* Ungrouped */}
-              {ungrouped.length > 0 && (
+              {/* Ungrouped — hidden for wardrobe since items auto-assign to character groups */}
+              {ungrouped.length > 0 && storagePrefix !== "wardrobe" && (
                 <div className="px-2 py-1">
                   <div className="flex items-center gap-2 px-2 py-2">
                     <h3 className="font-display text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                      {filteredGroups.length > 0 ? "Ungrouped" : `All ${title}`}
+                      {sortedFilteredGroups.length > 0 ? "Ungrouped" : `All ${title}`}
                     </h3>
                     <span className="text-[10px] text-muted-foreground/50">{ungrouped.length}</span>
                     <div className="flex-1 border-t border-border/30 ml-1" />

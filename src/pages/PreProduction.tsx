@@ -1308,6 +1308,7 @@ const PreProduction = () => {
                 initialGroups={wardrobeInitialGroups}
                 allSceneNumbers={allSceneNums}
                 sceneHeadings={headings}
+                characterOrder={charOrder}
               />
             );
           })()}
