@@ -94,6 +94,7 @@ const PreProduction = () => {
   const [pendingConsistencyCharId, setPendingConsistencyCharId] = useState<string | null>(null);
   const [generatingViews, setGeneratingViews] = useState(false);
   const [characterPhotoOpen, setCharacterPhotoOpen] = useState(false);
+  const [lightboxView, setLightboxView] = useState<{ url: string; label: string } | null>(null);
 
   // Fetch consistency views for all characters in this film
   const { data: consistencyViews } = useQuery({
@@ -1071,7 +1072,7 @@ const PreProduction = () => {
                               </div>
                               <div className="grid grid-cols-4 gap-1.5">
                                 {completedViews.map((v) => (
-                                  <div key={v.id} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
+                                  <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
                                     <img
                                       src={v.image_url!}
                                       alt={v.angle_label}
@@ -1081,7 +1082,7 @@ const PreProduction = () => {
                                     <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80">
                                       {v.angle_label}
                                     </p>
-                                  </div>
+                                  </button>
                                 ))}
                               </div>
                             </div>
@@ -1089,6 +1090,29 @@ const PreProduction = () => {
                         })()}
                       </div>
                     </div>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Turnaround view lightbox */}
+                <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
+                  <DialogContent className="max-w-2xl p-2 bg-background border-border">
+                    {lightboxView && (() => {
+                      const views = expandedCard ? viewsByCharacter.get(expandedCard.characterId) : undefined;
+                      const allViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
+                      return (
+                        <div className="flex flex-col items-center gap-2">
+                          <img src={lightboxView.url} alt={lightboxView.label} className="w-full rounded-lg object-contain max-h-[70vh]" />
+                          <p className="text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground">{lightboxView.label}</p>
+                          <div className="flex gap-1 flex-wrap justify-center">
+                            {allViews.map((v) => (
+                              <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className={cn("rounded overflow-hidden border w-12 h-12 transition-colors", lightboxView.url === v.image_url ? "border-primary" : "border-border/50 hover:border-primary/60")}>
+                                <img src={v.image_url!} alt={v.angle_label} className="w-full h-full object-contain bg-secondary/50" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </DialogContent>
                 </Dialog>
 
@@ -1817,6 +1841,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 /* ── Audition Card ── */
 const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasConsistencyViews, consistencyViews }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void; hasConsistencyViews?: boolean; consistencyViews?: Array<{ id: string; angle_label: string; image_url: string | null; status: string }> }) => {
   const completedViews = consistencyViews?.filter(v => v.status === "complete" && v.image_url) ?? [];
+  const [lightboxView, setLightboxView] = useState<{ url: string; label: string } | null>(null);
   return (
     <div className="flex flex-col">
       <div
@@ -1863,18 +1888,32 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
 
       {/* Consistency turnaround thumbnails beneath card */}
       {card.locked && completedViews.length > 0 && (
-        <div className="mt-1.5 grid grid-cols-4 gap-0.5">
-          {completedViews.slice(0, 8).map((v) => (
-            <div key={v.id} className="rounded overflow-hidden border border-border/50 bg-secondary/30">
-              <img
-                src={v.image_url!}
-                alt={v.angle_label}
-                className="w-full aspect-square object-contain bg-secondary/50"
-                loading="lazy"
-              />
-            </div>
-          ))}
-        </div>
+        <>
+          <div className="mt-1.5 grid grid-cols-4 gap-0.5">
+            {completedViews.slice(0, 8).map((v) => (
+              <button key={v.id} onClick={(e) => { e.stopPropagation(); setLightboxView({ url: v.image_url!, label: v.angle_label }); }} className="rounded overflow-hidden border border-border/50 bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-square object-contain bg-secondary/50" loading="lazy" />
+              </button>
+            ))}
+          </div>
+          <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
+            <DialogContent className="max-w-2xl p-2 bg-background border-border">
+              {lightboxView && (
+                <div className="flex flex-col items-center gap-2">
+                  <img src={lightboxView.url} alt={lightboxView.label} className="w-full rounded-lg object-contain max-h-[70vh]" />
+                  <p className="text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground">{lightboxView.label}</p>
+                  <div className="flex gap-1 flex-wrap justify-center">
+                    {completedViews.map((v) => (
+                      <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className={cn("rounded overflow-hidden border w-12 h-12 transition-colors", lightboxView.url === v.image_url ? "border-primary" : "border-border/50 hover:border-primary/60")}>
+                        <img src={v.image_url!} alt={v.angle_label} className="w-full h-full object-contain bg-secondary/50" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );
