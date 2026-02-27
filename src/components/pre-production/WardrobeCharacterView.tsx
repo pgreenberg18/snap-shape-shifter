@@ -37,8 +37,8 @@ const WardrobeCharacterView = ({
   onSelectItem,
   onCreateCostume,
 }: WardrobeCharacterViewProps) => {
-  const [unassignedOpen, setUnassignedOpen] = useState(true);
-  const [sceneAssignmentsOpen, setSceneAssignmentsOpen] = useState(true);
+  const [unassignedOpen, setUnassignedOpen] = useState(false);
+  const [sceneAssignmentsOpen, setSceneAssignmentsOpen] = useState(false);
   const [lockingAssignments, setLockingAssignments] = useState(false);
   const queryClient = useQueryClient();
 
