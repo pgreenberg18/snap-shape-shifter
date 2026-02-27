@@ -453,21 +453,10 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   };
   const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
 
-  // Derive wardrobe tier from scene counts when wardrobeSceneCounts are available
+  // Use the script-based character rankings as the source of truth for tiers
   const getWardrobeTier = useCallback((charName: string, baseRankings: Map<string, CharacterTier>): CharacterTier => {
-    const baseTier = baseRankings.get(charName.toUpperCase());
-    if (wardrobeSceneCounts.size === 0) return baseTier ?? "BACKGROUND";
-    const count = wardrobeSceneCounts.get(charName.toUpperCase()) ?? 0;
-    // Determine tier thresholds relative to max scene count
-    const maxCount = Math.max(...wardrobeSceneCounts.values(), 1);
-    if (count === 0) return "BACKGROUND";
-    const ratio = count / maxCount;
-    if (ratio >= 0.6) return "LEAD";
-    if (ratio >= 0.35) return "STRONG_SUPPORT";
-    if (ratio >= 0.15) return "FEATURE";
-    if (ratio >= 0.05) return "UNDER_5";
-    return "BACKGROUND";
-  }, [wardrobeSceneCounts]);
+    return baseRankings.get(charName.toUpperCase()) ?? "BACKGROUND";
+  }, []);
 
   // Build tier-grouped structure for wardrobe sidebar
   const tierGroupedData = useMemo(() => {
