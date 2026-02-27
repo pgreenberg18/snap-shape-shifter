@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
+import { classifyScreenplayLines } from "@/lib/parse-script-text";
 
 /* ── Types ── */
 export type CharacterTier = "LEAD" | "STRONG_SUPPORT" | "FEATURE" | "UNDER_5" | "BACKGROUND";
@@ -71,9 +72,9 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
     const scene = scenes[si];
     const page = scene.page ? parseInt(scene.page, 10) : si + 1;
 
-    // Characters appearing in this scene
     const sceneCharWords = new Map<string, number>();
 
+    // Register all characters appearing in this scene
     if (Array.isArray(scene.characters)) {
       for (const c of scene.characters) {
         const charName = typeof c === "string" ? c : c?.name;
@@ -85,18 +86,30 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
         s.pages.add(page);
         s.firstPage = Math.min(s.firstPage, page);
         s.lastPage = Math.max(s.lastPage, page);
+      }
+    }
 
-        // Count dialogue words from character description fields
-        const dialogue = typeof c === "string" ? "" : (c?.key_expressions || "") + " " + (c?.emotional_tone || "") + " " + (c?.physical_behavior || "");
-        const wordCount = dialogue.split(/\s+/).filter(Boolean).length;
+    // Count actual dialogue words from raw_text using the screenplay parser
+    if (scene.raw_text) {
+      const lines = (scene.raw_text as string).split("\n");
+      const classified = classifyScreenplayLines(lines);
+      let currentSpeaker: string | null = null;
 
-        if (wordCount > 0 || (typeof c !== "string" && c?.emotional_tone)) {
-          s.dialogueScenes.add(si);
-          s.dialogueLines += 1;
-          s.words += wordCount;
+      for (const p of classified) {
+        if (p.type === "Character") {
+          currentSpeaker = p.text.replace(/\s*\(.*?\)\s*/g, "").trim().toUpperCase();
+        } else if (p.type === "Dialogue" && currentSpeaker) {
+          const wc = p.text.split(/\s+/).filter(Boolean).length;
+          const s = stats.get(currentSpeaker);
+          if (s) {
+            s.words += wc;
+            s.dialogueLines += 1;
+            s.dialogueScenes.add(si);
+            sceneCharWords.set(currentSpeaker, (sceneCharWords.get(currentSpeaker) || 0) + wc);
+          }
+        } else if (p.type !== "Parenthetical") {
+          currentSpeaker = null;
         }
-
-        sceneCharWords.set(s.name.toUpperCase(), (sceneCharWords.get(s.name.toUpperCase()) || 0) + wordCount);
       }
     }
 
