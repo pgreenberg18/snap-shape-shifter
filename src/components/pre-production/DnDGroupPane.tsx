@@ -206,6 +206,30 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [collapsedTiers, setCollapsedTiers] = useState<Set<string>>(new Set(["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"]));
   // Wardrobe: per-character scene counts derived from wardrobe_scene_assignments
   const [wardrobeSceneCounts, setWardrobeSceneCounts] = useState<Map<string, number>>(new Map());
+  // Wardrobe: manual tier overrides for character groups (persisted to localStorage)
+  const [wardrobeTierOverrides, setWardrobeTierOverrides] = useState<Record<string, CharacterTier>>({});
+  const [wardrobeSortOverrides, setWardrobeSortOverrides] = useState<Record<string, number>>({});
+
+  // Load/save wardrobe tier overrides
+  useEffect(() => {
+    if (!filmId || storagePrefix !== "wardrobe") return;
+    try {
+      const raw = localStorage.getItem(`wardrobe-tier-overrides-${filmId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setWardrobeTierOverrides(parsed.tierOverrides || {});
+        setWardrobeSortOverrides(parsed.sortOverrides || {});
+      }
+    } catch {}
+  }, [filmId, storagePrefix]);
+
+  const persistWardrobeTierOverrides = useCallback((tiers: Record<string, CharacterTier>, sorts: Record<string, number>) => {
+    setWardrobeTierOverrides(tiers);
+    setWardrobeSortOverrides(sorts);
+    if (filmId) {
+      localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify({ tierOverrides: tiers, sortOverrides: sorts }));
+    }
+  }, [filmId]);
   const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
@@ -543,13 +567,21 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
     for (const tier of TIER_ORDER_LOCAL) {
       const tierGroups = sortedFilteredGroups.filter((g) => {
+        // Manual override takes priority
+        const manualTier = wardrobeTierOverrides[g.id];
+        if (manualTier) return manualTier === tier;
         const effectiveTier = useWardrobeTiers
           ? getWardrobeTier(g.name, baseRankingMap)
           : (baseRankingMap.get(g.name.toUpperCase()) ?? "BACKGROUND");
         return effectiveTier === tier;
       });
-      // Sort within tier by scene count (descending)
+      // Sort: manual sort overrides first, then by scene count
       tierGroups.sort((a, b) => {
+        const sa = wardrobeSortOverrides[a.id];
+        const sb = wardrobeSortOverrides[b.id];
+        if (sa !== undefined && sb !== undefined) return sa - sb;
+        if (sa !== undefined) return -1;
+        if (sb !== undefined) return 1;
         const countA = wardrobeSceneCounts.get(a.name.toUpperCase()) ?? 0;
         const countB = wardrobeSceneCounts.get(b.name.toUpperCase()) ?? 0;
         return countB - countA;
@@ -557,7 +589,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
     }
     return result;
-  }, [storagePrefix, characterRankings, sortedFilteredGroups, wardrobeSceneCounts, getWardrobeTier]);
+  }, [storagePrefix, characterRankings, sortedFilteredGroups, wardrobeSceneCounts, getWardrobeTier, wardrobeTierOverrides, wardrobeSortOverrides]);
 
   const displayName = useCallback((item: string) => {
     const raw = renames[item] || item;
@@ -576,6 +608,73 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     if (!over || active.id === over.id) return;
     const draggedItem = active.id as string;
     const targetId = over.id as string;
+
+    // Wardrobe: character group dropped on a tier header
+    if (targetId.startsWith("wardrobeTier:") && storagePrefix === "wardrobe") {
+      const newTier = targetId.replace("wardrobeTier:", "") as CharacterTier;
+      const draggedGroup = groups.find((g) => g.id === draggedItem);
+      if (!draggedGroup) return;
+      const newTierOverrides = { ...wardrobeTierOverrides, [draggedGroup.id]: newTier };
+      // Reset sort for this group in new tier
+      const newSortOverrides = { ...wardrobeSortOverrides };
+      delete newSortOverrides[draggedGroup.id];
+      persistWardrobeTierOverrides(newTierOverrides, newSortOverrides);
+      setCollapsedTiers(prev => { const next = new Set(prev); next.delete(newTier); return next; });
+      toast.success(`Moved "${toTitleCase(draggedGroup.name)}" to ${TIER_META[newTier]?.label || newTier}`);
+      return;
+    }
+
+    // Wardrobe: character group dropped on another character group (reorder / cross-tier)
+    if (storagePrefix === "wardrobe" && tierGroupedData) {
+      const draggedGroup = groups.find((g) => g.id === draggedItem);
+      const targetGroup = groups.find((g) => g.id === targetId);
+      if (draggedGroup && targetGroup && draggedGroup.id !== targetGroup.id) {
+        // Determine target's tier
+        const getGroupTier = (g: ItemGroup): CharacterTier => {
+          if (wardrobeTierOverrides[g.id]) return wardrobeTierOverrides[g.id];
+          if (characterRankings) {
+            const r = characterRankings.find(r => r.nameNormalized === g.name.toUpperCase());
+            if (r) return r.tier;
+          }
+          return "BACKGROUND";
+        };
+        const targetTier = getGroupTier(targetGroup);
+        const sourceTier = getGroupTier(draggedGroup);
+
+        // Find target's tier group
+        const targetTierData = tierGroupedData.find(t => t.tier === targetTier);
+        if (targetTierData) {
+          const targetIdx = targetTierData.groups.findIndex(g => g.id === targetGroup.id);
+          const tierChars = [...targetTierData.groups];
+
+          if (sourceTier !== targetTier) {
+            // Remove from old position if present
+            const oldIdx = tierChars.findIndex(g => g.id === draggedGroup.id);
+            if (oldIdx >= 0) tierChars.splice(oldIdx, 1);
+            tierChars.splice(targetIdx, 0, draggedGroup);
+          } else {
+            const fromIdx = tierChars.findIndex(g => g.id === draggedGroup.id);
+            if (fromIdx >= 0) {
+              tierChars.splice(fromIdx, 1);
+              tierChars.splice(targetIdx, 0, draggedGroup);
+            }
+          }
+
+          const newSortOverrides = { ...wardrobeSortOverrides };
+          tierChars.forEach((g, i) => { newSortOverrides[g.id] = i; });
+
+          const newTierOverrides = { ...wardrobeTierOverrides };
+          if (sourceTier !== targetTier) {
+            newTierOverrides[draggedGroup.id] = targetTier;
+            setCollapsedTiers(prev => { const next = new Set(prev); next.delete(targetTier); return next; });
+          }
+
+          persistWardrobeTierOverrides(newTierOverrides, newSortOverrides);
+          return;
+        }
+      }
+    }
+
     if (targetId.startsWith("group::")) {
       const groupId = targetId.replace("group::", "");
       const targetGroup = groups.find((g) => g.id === groupId);
@@ -1005,10 +1104,11 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
               {/* Groups — with tier headers for wardrobe */}
               {tierGroupedData ? (
-                tierGroupedData.map(({ tier, groups: tierGroups }) => {
+                <>
+                {tierGroupedData.map(({ tier, groups: tierGroups }) => {
                   const isTierCollapsed = collapsedTiers.has(tier);
                   return (
-                  <div key={tier}>
+                  <WardrobeTierDropZone key={tier} tier={tier}>
                     <div
                       className="flex items-center gap-2 px-4 pt-3 pb-1 cursor-pointer hover:bg-secondary/30 transition-colors"
                       onClick={() => setCollapsedTiers(prev => {
@@ -1028,33 +1128,48 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                       <div className="flex-1 border-t border-border/30 ml-1" />
                     </div>
                     {!isTierCollapsed && tierGroups.map((group) => (
-                      <SidebarGroup
-                        key={group.id}
-                        group={group}
-                        icon={Icon}
-                        isCollapsed={collapsed.has(group.id)}
-                        onToggle={() => toggleCollapse(group.id)}
-                        onDelete={() => handleDeleteGroup(group.id)}
-                        onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
-                        isEditing={editingGroupId === group.id}
-                        editName={editName}
-                        onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
-                        onEditChange={setEditName}
-                        onSaveEdit={() => handleRenameGroup(group.id)}
-                        displayName={displayName}
-                        selectedItem={selectedItem}
-                        onSelectItem={handleSelectItem}
-                        refImages={refImages}
-                        multiSelected={multiSelected}
-                        onMultiMerge={(ids) => setMultiMergeDialog(ids)}
-                        isGroupSelected={selectedGroup === group.name}
-                        onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
-                        childrenDraggable={storagePrefix === "wardrobe"}
-                      />
+                      <DraggableWardrobeGroup key={group.id} groupId={group.id}>
+                        <SidebarGroup
+                          group={group}
+                          icon={Icon}
+                          isCollapsed={collapsed.has(group.id)}
+                          onToggle={() => toggleCollapse(group.id)}
+                          onDelete={() => handleDeleteGroup(group.id)}
+                          onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
+                          isEditing={editingGroupId === group.id}
+                          editName={editName}
+                          onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
+                          onEditChange={setEditName}
+                          onSaveEdit={() => handleRenameGroup(group.id)}
+                          displayName={displayName}
+                          selectedItem={selectedItem}
+                          onSelectItem={handleSelectItem}
+                          refImages={refImages}
+                          multiSelected={multiSelected}
+                          onMultiMerge={(ids) => setMultiMergeDialog(ids)}
+                          isGroupSelected={selectedGroup === group.name}
+                          onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
+                          childrenDraggable={storagePrefix === "wardrobe"}
+                        />
+                      </DraggableWardrobeGroup>
                     ))}
-                  </div>
+                  </WardrobeTierDropZone>
                   );
-                })
+                })}
+                {activeId && TIER_ORDER.filter(t => !tierGroupedData.some(g => g.tier === t)).map(tier => (
+                  <WardrobeTierDropZone key={`empty-${tier}`} tier={tier}>
+                    <div className="flex items-center gap-2 px-4 pt-3 pb-1 opacity-50">
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-widest border",
+                        TIER_META[tier].color
+                      )}>
+                        {TIER_META[tier].label}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/50">Drop here</span>
+                    </div>
+                  </WardrobeTierDropZone>
+                ))}
+                </>
               ) : (
                 sortedFilteredGroups.map((group) => (
                   <SidebarGroup
@@ -1501,6 +1616,39 @@ const SidebarItem = ({
           </DropdownMenu>
         </div>
       )}
+    </div>
+  );
+};
+
+/* ── Wardrobe tier drop zone ── */
+const WardrobeTierDropZone = ({ tier, children }: { tier: CharacterTier; children: React.ReactNode }) => {
+  const { isOver, setNodeRef } = useDroppable({ id: `wardrobeTier:${tier}` });
+  return (
+    <div ref={setNodeRef} className={cn("transition-all", isOver && "bg-primary/10 ring-1 ring-primary/30 rounded")}>
+      {children}
+    </div>
+  );
+};
+
+/* ── Draggable wardrobe character group wrapper ── */
+const DraggableWardrobeGroup = ({ groupId, children }: { groupId: string; children: React.ReactNode }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: groupId });
+  const { isOver, setNodeRef: setDropRef } = useDroppable({ id: groupId });
+  return (
+    <div
+      ref={(node) => { setNodeRef(node); setDropRef(node); }}
+      className={cn(
+        "transition-all",
+        isDragging && "opacity-30",
+        isOver && !isDragging && "ring-1 ring-primary/30 rounded"
+      )}
+    >
+      <div className="flex items-center">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/30 hover:text-muted-foreground transition-colors pl-2 py-2">
+          <GripVertical className="h-3.5 w-3.5" />
+        </div>
+        <div className="flex-1 min-w-0">{children}</div>
+      </div>
     </div>
   );
 };
