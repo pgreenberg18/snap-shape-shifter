@@ -95,7 +95,7 @@ const ProviderConflictDialog = ({ filmId, projectId, conflicts, open, onResolved
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-yellow-500" />
-            Choose Providers for This Version
+            Choose Integrations for This Version
           </DialogTitle>
           <DialogDescription>
             Multiple providers are configured for the categories below. Please select which one to use in this version before proceeding.
