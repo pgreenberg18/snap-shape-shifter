@@ -1436,59 +1436,93 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   let ageMax: number | null = null;
   let isChild = false;
 
-  // ── 0. Scan raw_text for parenthetical character introductions ──
-  // Scripts typically introduce characters as: CHARACTER NAME (age, description)
-  // e.g. "JULES WINNFIELD (early 30s, Black.)" or "SARAH (28, redhead)"
+  // ── 0. Scan raw_text for the character's FIRST introduction in the script ──
+  // Scripts introduce characters in ALL CAPS followed by parenthetical attributes and
+  // descriptive prose, e.g.:
+  //   JULES WINNFIELD (early 30s, Black) is a hitman with a philosophical bent...
+  //   BUTCH COOLIDGE, a white, tough-looking, serious-faced prizefighter...
+  let scriptIntroDescription = "";
+
   for (const scene of scenes) {
+    if (scriptIntroDescription) break; // Only need the first introduction
     const rawText = scene.raw_text || "";
-    // Match patterns like "CHARNAME (early 30s, Black)" near the character name
     const escapedName = nameUpper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Match: CHARNAME followed by optional parenthetical, then grab the rest of the
+    // introductory text up to the next blank line, character cue, or scene heading.
+    // This captures the full prose description the screenwriter wrote.
     const introPattern = new RegExp(
-      `${escapedName}\\s*\\(([^)]{3,80})\\)`,
-      "i"
+      `${escapedName}\\s*(?:\\(([^)]{3,120})\\))?[,.]?\\s*([^\\n]{5,})`,
+      "m"
     );
     const introMatch = rawText.match(introPattern);
     if (introMatch) {
-      const parenthetical = introMatch[1];
+      const parenthetical = introMatch[1] || "";
+      const proseAfter = (introMatch[2] || "").trim();
+
       // Extract age from parenthetical
-      const earlyMatch = parenthetical.match(/early\s+(\d)0s/i);
-      const midMatch = parenthetical.match(/mid[- ]?(\d)0s/i);
-      const lateMatch = parenthetical.match(/late\s+(\d)0s/i);
-      const plainDecade = parenthetical.match(/\b(\d)0s\b/i);
-      const exactAge = parenthetical.match(/\b(\d{1,2})\b/);
+      if (parenthetical) {
+        const earlyMatch = parenthetical.match(/early\s+(\d)0s/i);
+        const midMatch = parenthetical.match(/mid[- ]?(\d)0s/i);
+        const lateMatch = parenthetical.match(/late\s+(\d)0s/i);
+        const plainDecade = parenthetical.match(/\b(\d)0s\b/i);
+        const exactAge = parenthetical.match(/\b(\d{1,2})\b/);
 
-      if (earlyMatch) {
-        const d = parseInt(earlyMatch[1]);
-        ageMin = d * 10;
-        ageMax = d * 10 + 3;
-      } else if (midMatch) {
-        const d = parseInt(midMatch[1]);
-        ageMin = d * 10 + 4;
-        ageMax = d * 10 + 6;
-      } else if (lateMatch) {
-        const d = parseInt(lateMatch[1]);
-        ageMin = d * 10 + 7;
-        ageMax = d * 10 + 9;
-      } else if (plainDecade) {
-        const d = parseInt(plainDecade[1]);
-        ageMin = d * 10;
-        ageMax = d * 10 + 9;
-      } else if (exactAge) {
-        const a = parseInt(exactAge[1]);
-        if (a > 0 && a < 100) { ageMin = a; ageMax = a; }
+        if (earlyMatch) {
+          const d = parseInt(earlyMatch[1]);
+          ageMin = d * 10;
+          ageMax = d * 10 + 3;
+        } else if (midMatch) {
+          const d = parseInt(midMatch[1]);
+          ageMin = d * 10 + 4;
+          ageMax = d * 10 + 6;
+        } else if (lateMatch) {
+          const d = parseInt(lateMatch[1]);
+          ageMin = d * 10 + 7;
+          ageMax = d * 10 + 9;
+        } else if (plainDecade) {
+          const d = parseInt(plainDecade[1]);
+          ageMin = d * 10;
+          ageMax = d * 10 + 9;
+        } else if (exactAge) {
+          const a = parseInt(exactAge[1]);
+          if (a > 0 && a < 100) { ageMin = a; ageMax = a; }
+        }
+
+        if (ageMax !== null && ageMax <= 12) isChild = true;
+
+        // Extract sex clues from parenthetical
+        const pLower = parenthetical.toLowerCase();
+        if (/\b(female|woman|girl|she)\b/.test(pLower)) sex = "Female";
       }
 
-      if (ageMax !== null && ageMax <= 12) isChild = true;
+      // Build the script introduction description from parenthetical + prose
+      // Grab additional continuation lines (next 1-2 lines that are part of the same action block)
+      const matchEnd = rawText.indexOf(introMatch[0]) + introMatch[0].length;
+      const restAfterMatch = rawText.substring(matchEnd);
+      const continuationLines = restAfterMatch.split("\n");
+      let fullProse = proseAfter;
 
-      // Extract sex clues from parenthetical
-      const pLower = parenthetical.toLowerCase();
-      if (/\b(female|woman|girl|she)\b/.test(pLower)) sex = "Female";
-      else if (/\b(male|man|boy|he|black|white|hispanic|latino|asian|caucasian)\b/.test(pLower) && !/\b(female|woman|girl)\b/.test(pLower)) {
-        // Ethnicity descriptors in a parenthetical after a character name strongly imply a character intro
-        // but don't directly indicate sex — rely on pronoun analysis below
+      for (const line of continuationLines) {
+        const trimmed = line.trim();
+        // Stop at blank lines, character cues (ALL CAPS short lines), or scene headings
+        if (!trimmed) break;
+        if (/^[A-Z][A-Z\s.'-]{1,30}$/.test(trimmed)) break; // Looks like a character cue
+        if (/^(INT\.|EXT\.|INT\/EXT)/.test(trimmed)) break;
+        if (/^\(/.test(trimmed)) break; // Parenthetical dialogue direction
+        fullProse += " " + trimmed;
+        if (fullProse.length > 300) break; // Enough context
       }
 
-      break; // Found the intro, stop
+      // Clean up the description
+      scriptIntroDescription = fullProse
+        .replace(/\s+/g, " ")
+        .trim();
+      // Truncate to ~2 sentences if very long
+      const sentences = scriptIntroDescription.match(/[^.!?]+[.!?]+/g);
+      if (sentences && sentences.length > 3) {
+        scriptIntroDescription = sentences.slice(0, 3).join("").trim();
+      }
     }
   }
 
@@ -1527,28 +1561,17 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
       if (c.physical_behavior) allBehavior.push(c.physical_behavior);
     }
 
-    // Also extract description fragments from raw_text near the character name
-    if (appearanceCount <= 2) {
-      const rawText = scene.raw_text || "";
-      const escapedName = nameUpper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // Look for text immediately after "CHARNAME (parenthetical)" — the intro description
-      const introDescPattern = new RegExp(
-        `${escapedName}\\s*(?:\\([^)]*\\))?[.]?\\s*([^.]{10,200}\\.)`,
-        "i"
-      );
-      const descMatch = rawText.match(introDescPattern);
-      if (descMatch && introFragments.length === 0) {
-        introFragments.push(descMatch[1].trim());
-      }
-    }
   }
 
-  // Build introduction description from first two appearances
+  // Build introduction description: prioritize raw script intro over AI fragments
   let introDescription = "";
-  if (introFragments.length > 0) {
+  if (scriptIntroDescription) {
+    // Use the actual screenwriter's introduction text
+    introDescription = scriptIntroDescription;
+  } else if (introFragments.length > 0) {
     introDescription = [...new Set(introFragments)].join(". ").replace(/\.\./g, ".").trim();
-    if (introDescription && !introDescription.endsWith(".")) introDescription += ".";
   }
+  if (introDescription && !introDescription.endsWith(".")) introDescription += ".";
 
   // ── 2. Scan ALL scenes for sex via pronouns & role titles ──
   const FEMALE_PRONOUNS = /\b(she|her|hers|herself|woman|girl|mother|mom|wife|daughter|sister|actress|queen|princess|waitress|hostess|mrs|ms|miss|lady|ma'am|gal|bride|girlfriend|aunt|grandma|grandmother|niece)\b/i;
