@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { parseSceneFromPlainText } from "@/lib/parse-script-text";
+import type { CharacterTier, CharacterRanking } from "@/hooks/useCharacterRanking";
 import {
   DndContext,
   DragOverlay,
@@ -68,6 +69,8 @@ interface DnDGroupPaneProps {
   sceneHeadings?: Record<number, string>;
   /** Character ranking order (normalized names) for sorting wardrobe groups */
   characterOrder?: string[];
+  /** Character rankings for tier grouping in wardrobe sidebar */
+  characterRankings?: CharacterRanking[];
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -177,7 +180,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings, characterOrder }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings, characterOrder, characterRankings }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -411,6 +414,37 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       return aPos - bPos;
     });
   }, [filteredGroups, characterOrder, storagePrefix]);
+
+  // Tier metadata for wardrobe sidebar grouping
+  const TIER_META: Record<CharacterTier, { label: string; color: string }> = {
+    LEAD: { label: "Lead", color: "bg-primary/15 text-primary border-primary/30" },
+    STRONG_SUPPORT: { label: "Strong Support", color: "bg-primary/10 text-primary/80 border-primary/20" },
+    FEATURE: { label: "Feature", color: "bg-primary/10 text-primary/70 border-primary/20" },
+    UNDER_5: { label: "Under 5", color: "bg-primary/10 text-primary/60 border-primary/15" },
+    BACKGROUND: { label: "Background", color: "bg-primary/5 text-primary/50 border-primary/10" },
+  };
+  const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
+
+  // Build tier-grouped structure for wardrobe sidebar
+  const tierGroupedData = useMemo(() => {
+    if (storagePrefix !== "wardrobe" || !characterRankings || characterRankings.length === 0) return null;
+    const rankingMap = new Map<string, CharacterTier>();
+    for (const r of characterRankings) {
+      rankingMap.set(r.nameNormalized, r.tier);
+    }
+    const result: { tier: CharacterTier; groups: ItemGroup[] }[] = [];
+    for (const tier of TIER_ORDER) {
+      const tierGroups = sortedFilteredGroups.filter((g) => {
+        const t = rankingMap.get(g.name.toUpperCase());
+        return t === tier;
+      });
+      if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
+    }
+    // Add any unranked characters
+    const unranked = sortedFilteredGroups.filter((g) => !rankingMap.has(g.name.toUpperCase()));
+    if (unranked.length > 0) result.push({ tier: "BACKGROUND" as CharacterTier, groups: unranked });
+    return result;
+  }, [storagePrefix, characterRankings, sortedFilteredGroups]);
 
   const displayName = useCallback((item: string) => {
     const raw = renames[item] || item;
@@ -816,31 +850,72 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 </div>
               )}
 
-              {/* Groups */}
-              {sortedFilteredGroups.map((group) => (
-              <SidebarGroup
-                  key={group.id}
-                  group={group}
-                  icon={Icon}
-                  isCollapsed={collapsed.has(group.id)}
-                  onToggle={() => toggleCollapse(group.id)}
-                  onDelete={() => handleDeleteGroup(group.id)}
-                  onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
-                  isEditing={editingGroupId === group.id}
-                  editName={editName}
-                  onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
-                  onEditChange={setEditName}
-                  onSaveEdit={() => handleRenameGroup(group.id)}
-                  displayName={displayName}
-                  selectedItem={selectedItem}
-                  onSelectItem={handleSelectItem}
-                  refImages={refImages}
-                  multiSelected={multiSelected}
-                  onMultiMerge={(ids) => setMultiMergeDialog(ids)}
-                  isGroupSelected={selectedGroup === group.name}
-                  onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
-                />
-              ))}
+              {/* Groups — with tier headers for wardrobe */}
+              {tierGroupedData ? (
+                tierGroupedData.map(({ tier, groups: tierGroups }) => (
+                  <div key={tier}>
+                    <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                      <span className={cn(
+                        "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-widest border",
+                        TIER_META[tier].color
+                      )}>
+                        {TIER_META[tier].label}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground/40">{tierGroups.length}</span>
+                      <div className="flex-1 border-t border-border/30 ml-1" />
+                    </div>
+                    {tierGroups.map((group) => (
+                      <SidebarGroup
+                        key={group.id}
+                        group={group}
+                        icon={Icon}
+                        isCollapsed={collapsed.has(group.id)}
+                        onToggle={() => toggleCollapse(group.id)}
+                        onDelete={() => handleDeleteGroup(group.id)}
+                        onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
+                        isEditing={editingGroupId === group.id}
+                        editName={editName}
+                        onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
+                        onEditChange={setEditName}
+                        onSaveEdit={() => handleRenameGroup(group.id)}
+                        displayName={displayName}
+                        selectedItem={selectedItem}
+                        onSelectItem={handleSelectItem}
+                        refImages={refImages}
+                        multiSelected={multiSelected}
+                        onMultiMerge={(ids) => setMultiMergeDialog(ids)}
+                        isGroupSelected={selectedGroup === group.name}
+                        onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
+                      />
+                    ))}
+                  </div>
+                ))
+              ) : (
+                sortedFilteredGroups.map((group) => (
+                  <SidebarGroup
+                    key={group.id}
+                    group={group}
+                    icon={Icon}
+                    isCollapsed={collapsed.has(group.id)}
+                    onToggle={() => toggleCollapse(group.id)}
+                    onDelete={() => handleDeleteGroup(group.id)}
+                    onRemoveChild={(item) => handleRemoveFromGroup(group.id, item)}
+                    isEditing={editingGroupId === group.id}
+                    editName={editName}
+                    onStartEdit={() => { setEditingGroupId(group.id); setEditingItemId(null); setEditName(group.name); }}
+                    onEditChange={setEditName}
+                    onSaveEdit={() => handleRenameGroup(group.id)}
+                    displayName={displayName}
+                    selectedItem={selectedItem}
+                    onSelectItem={handleSelectItem}
+                    refImages={refImages}
+                    multiSelected={multiSelected}
+                    onMultiMerge={(ids) => setMultiMergeDialog(ids)}
+                    isGroupSelected={selectedGroup === group.name}
+                    onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
+                  />
+                ))
+              )}
 
               {/* Ungrouped — hidden for wardrobe since items auto-assign to character groups */}
               {ungrouped.length > 0 && storagePrefix !== "wardrobe" && (
