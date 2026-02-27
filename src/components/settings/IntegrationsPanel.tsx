@@ -181,7 +181,7 @@ const sectionOrder = [
 
 const sectionMeta: Record<string, { title: string; description: string; icon: React.ReactNode; addLabel: string }> = {
   "script-analysis": {
-    title: "Script Analysis (ChatGPT, Gemini)",
+    title: "Script Analysis",
     description: "LLM providers for script parsing and scene breakdown",
     icon: <ScrollText className="h-4 w-4" />,
     addLabel: "Add Service",
@@ -193,19 +193,19 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     addLabel: "Add Service",
   },
   "sound-stage": {
-    title: "Voice & Audio (ElevenLabs)",
+    title: "Voice & Audio",
     description: "Voice synthesis and audio generation",
     icon: <AudioLines className="h-4 w-4" />,
     addLabel: "Add Service",
   },
   "camera-cart": {
-    title: "Video Generation (Seedance, Kling, Veo, Sora)",
+    title: "Video Generation",
     description: "AI video generation for shot previsualization",
     icon: <Camera className="h-4 w-4" />,
     addLabel: "Add Service",
   },
   "post-house": {
-    title: "Post-Production (SyncLabs, Topaz AI)",
+    title: "Post-Production",
     description: "Lip-sync, upscaling and post-processing tools",
     icon: <Clapperboard className="h-4 w-4" />,
     addLabel: "Add Service",
@@ -393,6 +393,13 @@ const IntegrationsPanel = () => {
                 <span className="flex items-center gap-2">
                   {meta.icon}
                   {meta.title}
+                  {(() => {
+                    const verifiedNames = providers?.filter(p => p.is_verified).map(p => p.provider_name) || [];
+                    const allNames = [...verifiedNames, ...added.map(s => s.name)];
+                    return allNames.length > 0
+                      ? <span className="font-normal text-muted-foreground">({allNames.join(", ")})</span>
+                      : null;
+                  })()}
                   <span className={cn(
                     "h-2 w-2 rounded-full shrink-0",
                     (providers?.some(p => p.is_verified) || added.length > 0) ? "bg-green-500" : "bg-destructive"
