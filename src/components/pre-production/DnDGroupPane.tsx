@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import type { CharacterTier, CharacterRanking } from "@/hooks/useCharacterRanking";
 import {
@@ -203,6 +203,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [searchQuery, setSearchQuery] = useState("");
   const [draftItems, setDraftItems] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [collapsedTiers, setCollapsedTiers] = useState<Set<string>>(new Set(["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"]));
   const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
@@ -465,6 +466,18 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     const targetId = over.id as string;
     if (targetId.startsWith("group::")) {
       const groupId = targetId.replace("group::", "");
+      const targetGroup = groups.find((g) => g.id === groupId);
+      const sourceGroup = groups.find((g) => g.children.includes(draggedItem));
+
+      // For wardrobe: append source character name in parentheses when moving between groups
+      if (storagePrefix === "wardrobe" && sourceGroup && targetGroup && sourceGroup.id !== targetGroup.id) {
+        const sourceName = sourceGroup.name;
+        const currentDisplay = renames[draggedItem] || draggedItem;
+        if (!currentDisplay.toLowerCase().includes(`(${sourceName.toLowerCase()})`)) {
+          persistRenames({ ...renames, [draggedItem]: `${currentDisplay} (${sourceName})` });
+        }
+      }
+
       const next = groups.map((g) => {
         const cleaned = { ...g, children: g.children.filter((c) => c !== draggedItem) };
         if (cleaned.id === groupId && !cleaned.children.includes(draggedItem)) {
@@ -852,9 +865,19 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
               {/* Groups — with tier headers for wardrobe */}
               {tierGroupedData ? (
-                tierGroupedData.map(({ tier, groups: tierGroups }) => (
+                tierGroupedData.map(({ tier, groups: tierGroups }) => {
+                  const isTierCollapsed = collapsedTiers.has(tier);
+                  return (
                   <div key={tier}>
-                    <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                    <div
+                      className="flex items-center gap-2 px-4 pt-3 pb-1 cursor-pointer hover:bg-secondary/30 transition-colors"
+                      onClick={() => setCollapsedTiers(prev => {
+                        const next = new Set(prev);
+                        next.has(tier) ? next.delete(tier) : next.add(tier);
+                        return next;
+                      })}
+                    >
+                      {isTierCollapsed ? <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" />}
                       <span className={cn(
                         "inline-flex items-center px-2 py-0.5 rounded text-[10px] font-display font-bold uppercase tracking-widest border",
                         TIER_META[tier].color
@@ -864,7 +887,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                       <span className="text-[10px] text-muted-foreground/40">{tierGroups.length}</span>
                       <div className="flex-1 border-t border-border/30 ml-1" />
                     </div>
-                    {tierGroups.map((group) => (
+                    {!isTierCollapsed && tierGroups.map((group) => (
                       <SidebarGroup
                         key={group.id}
                         group={group}
@@ -886,10 +909,12 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                         onMultiMerge={(ids) => setMultiMergeDialog(ids)}
                         isGroupSelected={selectedGroup === group.name}
                         onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
+                        childrenDraggable={storagePrefix === "wardrobe"}
                       />
                     ))}
                   </div>
-                ))
+                  );
+                })
               ) : (
                 sortedFilteredGroups.map((group) => (
                   <SidebarGroup
@@ -1337,12 +1362,50 @@ const SidebarItem = ({
   );
 };
 
+/* ── Draggable child row within a group ── */
+const DraggableGroupChild = React.forwardRef<HTMLDivElement, {
+  id: string; icon: LucideIcon; label: string; isSelected: boolean;
+  isMultiSelected: boolean; onClick: (e: React.MouseEvent) => void;
+  onRemove: () => void; refImageUrl?: string;
+}>(({ id, icon: Icon, label, isSelected, isMultiSelected, onClick, onRemove, refImageUrl }, _ref) => {
+  const { attributes, listeners, setNodeRef: setDragRef, isDragging } = useDraggable({ id });
+  return (
+    <div
+      ref={setDragRef}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-2 px-4 py-2 cursor-pointer transition-all border-l-2",
+        isSelected ? "border-l-primary bg-primary/5" : "border-l-transparent hover:bg-secondary/40",
+        isMultiSelected && "bg-primary/10 ring-1 ring-primary/30 border-l-primary",
+        isDragging && "opacity-30"
+      )}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing shrink-0 text-muted-foreground/40 hover:text-muted-foreground transition-colors" onClick={(e) => e.stopPropagation()}>
+        <GripVertical className="h-3 w-3" />
+      </div>
+      <div className="h-6 w-6 rounded overflow-hidden bg-secondary flex items-center justify-center shrink-0">
+        {refImageUrl ? (
+          <img src={refImageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <Icon className="h-3 w-3 text-muted-foreground" />
+        )}
+      </div>
+      <p className={cn("text-xs font-display font-semibold truncate flex-1", isSelected ? "text-primary" : "text-foreground")}>{label}</p>
+      <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="text-muted-foreground/40 hover:text-destructive p-0.5 shrink-0 opacity-0 group-hover:opacity-100">
+        <X className="h-2.5 w-2.5" />
+      </button>
+    </div>
+  );
+});
+DraggableGroupChild.displayName = "DraggableGroupChild";
+
 /* ── Sidebar Group (collapsible) ── */
 const SidebarGroup = ({
   group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit,
   displayName, selectedItem, onSelectItem, refImages,
   multiSelected, onMultiMerge, isGroupSelected, onGroupNameClick,
+  childrenDraggable,
 }: {
   group: ItemGroup; icon: LucideIcon; isCollapsed: boolean; onToggle: () => void;
   onDelete: () => void; onRemoveChild: (item: string) => void;
@@ -1355,6 +1418,7 @@ const SidebarGroup = ({
   onMultiMerge?: (ids: string[]) => void;
   isGroupSelected?: boolean;
   onGroupNameClick?: () => void;
+  childrenDraggable?: boolean;
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `group::${group.id}` });
 
@@ -1396,6 +1460,18 @@ const SidebarGroup = ({
             return (
               <ContextMenu key={item}>
                 <ContextMenuTrigger asChild>
+                  {childrenDraggable ? (
+                    <DraggableGroupChild
+                      id={item}
+                      icon={Icon}
+                      label={displayName(item)}
+                      isSelected={selectedItem === item}
+                      isMultiSelected={!!isMulti}
+                      onClick={(e) => onSelectItem(item, e)}
+                      onRemove={() => onRemoveChild(item)}
+                      refImageUrl={refImages[item]}
+                    />
+                  ) : (
                   <div
                     onClick={(e) => onSelectItem(item, e)}
                     className={cn(
@@ -1416,6 +1492,7 @@ const SidebarGroup = ({
                       <X className="h-2.5 w-2.5" />
                     </button>
                   </div>
+                  )}
                 </ContextMenuTrigger>
                 {multiSelected && multiSelected.size >= 2 && isMulti && onMultiMerge && (
                   <ContextMenuContent>
