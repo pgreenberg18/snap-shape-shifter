@@ -940,12 +940,12 @@ const PreProduction = () => {
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
-                  <DialogContent className="max-w-5xl p-0 bg-card border-border h-[85vh] overflow-hidden">
+                  <DialogContent className="max-w-5xl p-0 bg-card border-border h-[85vh] !overflow-y-hidden !top-[6%]">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
                     </DialogHeader>
-                    <div className="flex h-full">
+                    <div className="flex h-full min-h-0">
                       {/* Left: main headshot — large */}
                       <div className="flex-1 relative h-full bg-black/10 flex items-center justify-center min-w-0">
                         {expandedCard?.imageUrl && (
@@ -1001,7 +1001,7 @@ const PreProduction = () => {
                         const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
                         const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
                         return (
-                          <div className="w-[240px] shrink-0 border-l border-border flex flex-col h-full">
+                          <div className="w-[240px] shrink-0 border-l border-border flex flex-col h-full min-h-0">
                             <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
                               <Layers className="h-3 w-3 text-primary" />
                               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
