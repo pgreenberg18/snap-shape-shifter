@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
     // ── 3. Resolve identity tokens from asset_identity_registry ──
     const refCodes = extractRefCodes(shot.prompt_text);
     let identityTokens: any[] = [];
+    let characterConsistencyViews: any[] = [];
 
     if (refCodes.length > 0) {
       const { data: assets } = await supabase
@@ -231,6 +232,52 @@ Deno.serve(async (req) => {
           is_dirty: a.is_dirty,
           weight: a.asset_type === "character" ? 0.85 : undefined,
         }));
+
+        // Fetch consistency views for referenced characters
+        const charAssets = assets.filter((a) => a.asset_type === "character");
+        if (charAssets.length > 0) {
+          // Find character IDs by matching display_name to characters table
+          const charNames = charAssets.map((a) => a.display_name);
+          const { data: chars } = await supabase
+            .from("characters")
+            .select("id, name")
+            .eq("film_id", shot.film_id)
+            .in("name", charNames);
+
+          if (chars?.length) {
+            const charIds = chars.map((c) => c.id);
+            const { data: views } = await supabase
+              .from("character_consistency_views")
+              .select("character_id, angle_index, angle_label, image_url, status")
+              .in("character_id", charIds)
+              .eq("status", "complete")
+              .order("angle_index");
+
+            if (views?.length) {
+              // Group views by character
+              const viewMap = new Map<string, any[]>();
+              for (const v of views) {
+                if (!v.image_url) continue;
+                if (!viewMap.has(v.character_id)) viewMap.set(v.character_id, []);
+                viewMap.get(v.character_id)!.push({
+                  angle_label: v.angle_label,
+                  image_url: v.image_url,
+                });
+              }
+              // Map back to character names
+              for (const char of chars) {
+                const charViews = viewMap.get(char.id);
+                if (charViews?.length) {
+                  characterConsistencyViews.push({
+                    character_name: char.name,
+                    character_id: char.id,
+                    views: charViews,
+                  });
+                }
+              }
+            }
+          }
+        }
       }
     }
 
@@ -317,6 +364,9 @@ Deno.serve(async (req) => {
         resolved_text_prompt: buildResolvedPrompt(shot, template, cinematography, lockedAssets || [], contract, sceneOverride),
 
         identity_tokens: identityTokens,
+
+        // Character consistency turnaround views for identity anchoring
+        character_consistency_views: characterConsistencyViews,
 
         locked_assets: {
           locations: (lockedAssets || []).filter((a: any) => a.asset_type === "location").map((a: any) => ({

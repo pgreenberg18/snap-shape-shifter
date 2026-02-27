@@ -172,12 +172,28 @@ serve(async (req) => {
     const film = filmRes.data;
     const styleContract = contractRes.data;
 
-    // Fetch character info if wardrobe
+    // Fetch character info + consistency views if wardrobe
     let characterContext = "";
+    let characterReferenceUrl: string | null = null;
+    let consistencyViewUrls: Array<{ label: string; url: string }> = [];
     if (character_id && asset_type === "wardrobe") {
-      const { data: char } = await sb.from("characters").select("name, sex, description").eq("id", character_id).single();
+      const [charRes, viewsRes] = await Promise.all([
+        sb.from("characters").select("name, sex, description, image_url").eq("id", character_id).single(),
+        sb.from("character_consistency_views")
+          .select("angle_label, image_url, status")
+          .eq("character_id", character_id)
+          .eq("status", "complete")
+          .order("angle_index"),
+      ]);
+      const char = charRes.data;
       if (char) {
         characterContext = `Character: ${char.name}. Sex: ${char.sex || "Unknown"}. ${safeDesc(char.description || "")}`;
+        characterReferenceUrl = char.image_url || null;
+      }
+      if (viewsRes.data?.length) {
+        consistencyViewUrls = viewsRes.data
+          .filter((v: any) => v.image_url)
+          .map((v: any) => ({ label: v.angle_label, url: v.image_url }));
       }
     }
 
@@ -305,7 +321,33 @@ REQUIREMENTS:
 - No hands or people visible
 - No text. No watermark.${negativeBlock}`;
       } else if (asset_type === "wardrobe") {
-        prompt = `Generate a single photorealistic wardrobe photograph showing the costume piece "${asset_name}" for the film "${filmTitle}".
+        const hasCharRef = characterReferenceUrl || consistencyViewUrls.length > 0;
+        if (hasCharRef) {
+          // Show character WEARING the wardrobe in a wide shot
+          prompt = `Generate a single photorealistic cinematic wardrobe reference photograph showing the character wearing "${asset_name}" for the film "${filmTitle}".
+
+${characterContext ? `CHARACTER CONTEXT: ${characterContext}` : ""}
+${styleBlock}
+
+VISUAL CONTEXT:
+${visualSummary ? `Film visual summary: ${safeDesc(visualSummary)}` : ""}
+${timePeriod ? `Time period: ${timePeriod}` : ""}
+
+VARIATION STYLE: ${variationStyle}
+This is option ${index + 1} of 5. Apply the "${variationStyle}" approach to this wardrobe piece.
+
+CRITICAL REQUIREMENTS:
+- The character MUST match the reference image(s) exactly — same face, build, skin tone, hair
+- Show the character wearing "${asset_name}" in a medium-wide shot (head to knees visible)
+- 3:4 vertical composition, soft studio or contextual background
+- Costume department photography quality — fabric, fit, and silhouette clearly visible
+- Period-accurate for ${timePeriod || "contemporary"} setting
+- Show fabric texture, construction detail, drape, and color accuracy on the body
+- Photorealistic, production-quality wardrobe fitting photograph
+- No text. No watermark.${negativeBlock}`;
+        } else {
+          // Fallback: mannequin/flat lay (no character reference available)
+          prompt = `Generate a single photorealistic wardrobe photograph showing the costume piece "${asset_name}" for the film "${filmTitle}".
 
 ${characterContext ? `CHARACTER CONTEXT: ${characterContext}` : ""}
 ${styleBlock}
@@ -324,6 +366,7 @@ REQUIREMENTS:
 - Show fabric texture, construction detail, and color accuracy
 - No people visible (mannequin form only if needed)
 - No text. No watermark.${negativeBlock}`;
+        }
       } else {
         // vehicle
         prompt = `Generate a single photorealistic cinematic photograph of the vehicle "${asset_name}" for the film "${filmTitle}".
@@ -366,9 +409,31 @@ REQUIREMENTS:
                 messages: [
                   {
                     role: "system",
-                    content: `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
+                    content: asset_type === "wardrobe" && (characterReferenceUrl || consistencyViewUrls.length > 0)
+                      ? `You are a cinematic wardrobe fitting visualization engine. You receive reference images of an actor/character and must generate that SAME person wearing a specified costume. Maintain absolute identity consistency — same face, features, hair, skin, build. Show the full wardrobe clearly in a medium-wide framing.`
+                      : `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
                   },
-                  { role: "user", content: prompt },
+                  {
+                    role: "user",
+                    content: (() => {
+                      // For wardrobe with character references, include images
+                      if (asset_type === "wardrobe" && (characterReferenceUrl || consistencyViewUrls.length > 0)) {
+                        const parts: Array<{ type: string; text?: string; image_url?: { url: string } }> = [];
+                        // Add the cast headshot as primary reference
+                        if (characterReferenceUrl) {
+                          parts.push({ type: "image_url", image_url: { url: characterReferenceUrl } });
+                        }
+                        // Add the front consistency view if available (best for wardrobe)
+                        const frontView = consistencyViewUrls.find(v => v.label === "Front");
+                        if (frontView) {
+                          parts.push({ type: "image_url", image_url: { url: frontView.url } });
+                        }
+                        parts.push({ type: "text", text: prompt });
+                        return parts;
+                      }
+                      return prompt;
+                    })(),
+                  },
                 ],
                 modalities: ["image", "text"],
               }),
