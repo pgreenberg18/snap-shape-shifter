@@ -1717,7 +1717,14 @@ const Development = () => {
                       <Camera className="h-5 w-5 text-primary" />
                       <h3 className="font-display text-lg font-bold">Director's Vision</h3>
                     </div>
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      {directorProfile ? (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      )}
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
@@ -1727,8 +1734,8 @@ const Development = () => {
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* Visual Summary */}
-              {analysis.visual_summary && (
+              {/* Visual Summary — gated behind Director's Vision confirmation */}
+              {analysis.visual_summary && directorProfile && (
                 <Collapsible>
                   <CollapsibleTrigger className="w-full">
                     <div data-help-id="dev-visual-summary" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
@@ -1801,8 +1808,8 @@ const Development = () => {
                 </Collapsible>
               )}
 
-              {/* AI Generation Notes */}
-              <EditableAIGenerationNotes
+              {/* AI Generation Notes — gated behind Director's Vision confirmation */}
+              {directorProfile && <EditableAIGenerationNotes
                 initialValue={analysis.ai_generation_notes as any}
                 visualSummary={(analysis.visual_summary as string) || ""}
                 timePeriod={film?.time_period || timePeriod}
@@ -1814,7 +1821,7 @@ const Development = () => {
                   setAiNotesApproved(v);
                   persistApproval("ai_notes_approved", v);
                 }}
-              />
+              />}
             </div>
           )}
         </section>
