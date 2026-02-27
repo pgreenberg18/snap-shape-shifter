@@ -2378,10 +2378,43 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
     try {
       const { data, error } = await supabase.storage.from("scripts").download(storagePath);
       if (error || !data) throw error || new Error("Download failed");
-      const full = await data.text();
 
-      const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
-      const parsed = isFdx ? parseFdxScene(full) : parsePlainTextScene(full);
+      // Detect file type
+      const bytes = new Uint8Array(await data.arrayBuffer());
+      const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+
+      let parsed: { type: string; text: string }[];
+
+      if (isPdf) {
+        // Use pdf.js to extract text from PDF
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+        const allLines: string[] = [];
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const tc = await page.getTextContent();
+          const items = (tc.items as any[]).filter((it) => it.str != null && it.transform);
+          // Group by Y coordinate (rows) with tolerance, then sort left-to-right
+          const rowMap = new Map<number, { text: string; x: number }[]>();
+          for (const item of items) {
+            const y = Math.round(item.transform[5] / 2) * 2;
+            if (!rowMap.has(y)) rowMap.set(y, []);
+            rowMap.get(y)!.push({ text: item.str, x: item.transform[4] });
+          }
+          const rows = Array.from(rowMap.entries())
+            .sort((a, b) => b[0] - a[0]) // PDF Y increases upward
+            .map(([, cells]) => cells.sort((a, b) => a.x - b.x).map((c) => c.text).join(""));
+          allLines.push(...rows);
+        }
+        const fullText = allLines.join("\n");
+        parsed = parsePlainTextScene(fullText);
+      } else {
+        const full = new TextDecoder().decode(bytes);
+        const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
+        parsed = isFdx ? parseFdxScene(full) : parsePlainTextScene(full);
+      }
+
       setScriptParagraphs(parsed);
       setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: parsed }]);
     } catch {
