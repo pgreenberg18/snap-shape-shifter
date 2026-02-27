@@ -447,6 +447,22 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         }
       }
 
+      // Wardrobe: ensure every character group has a "Default Wardrobe" as first child
+      if (storagePrefix === "wardrobe") {
+        let defaultAdded = false;
+        const DEFAULT_WARDROBE = "Default Wardrobe";
+        for (const g of loadedGroups) {
+          const hasDefault = g.children.some((c) => c === DEFAULT_WARDROBE);
+          if (!hasDefault && g.children.length >= 0) {
+            g.children = [DEFAULT_WARDROBE, ...g.children.filter((c) => c !== DEFAULT_WARDROBE)];
+            defaultAdded = true;
+          }
+        }
+        if (defaultAdded) {
+          saveJson(storagePrefix, filmId, "groups", loadedGroups);
+        }
+      }
+
       setGroups(loadedGroups);
       setCollapsed(new Set(loadedGroups.map((g) => g.id)));
       setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
