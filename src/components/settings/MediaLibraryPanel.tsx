@@ -367,12 +367,12 @@ const MediaLibraryPanel = () => {
                 />
                 <button
                   onClick={() => toggleFolder(key)}
-                  className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+                  className="flex flex-1 items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors"
                 >
-                  {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-                  <Folder className="h-3 w-3 text-primary/60" />
-                  <span className="font-mono text-[11px] font-medium text-foreground">{key}</span>
-                  <span className="ml-auto text-[9px] text-muted-foreground/60 font-mono">{groupItems.length}</span>
+                  {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <Folder className="h-4 w-4 text-primary/60" />
+                  <span className="font-mono text-sm font-medium text-foreground">{key}</span>
+                  <span className="ml-auto text-xs text-muted-foreground/60 font-mono">{groupItems.length}</span>
                 </button>
               </div>
               {isOpen && <div className="ml-5">{renderItemList(groupItems)}</div>}
