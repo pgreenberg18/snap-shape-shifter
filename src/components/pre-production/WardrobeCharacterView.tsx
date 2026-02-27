@@ -35,6 +35,23 @@ const WardrobeCharacterView = ({
 }: WardrobeCharacterViewProps) => {
   const [unassignedOpen, setUnassignedOpen] = useState(true);
 
+  // Fetch the character's approved headshot
+  const { data: characterHeadshot } = useQuery({
+    queryKey: ["character-headshot", filmId, characterName],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("characters")
+        .select("image_url, approved")
+        .eq("film_id", filmId)
+        .ilike("name", characterName)
+        .eq("approved", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.image_url ?? null;
+    },
+    enabled: !!filmId && !!characterName,
+  });
+
   // Fetch locked wardrobe selections (film_assets with locked=true)
   const { data: lockedAssets = [] } = useQuery({
     queryKey: ["wardrobe-locked-assets", filmId, characterName],
@@ -119,8 +136,12 @@ const WardrobeCharacterView = ({
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center">
-            <Shirt className="h-6 w-6 text-primary" />
+          <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
+            {characterHeadshot ? (
+              <img src={characterHeadshot} alt={characterName} className="h-full w-full object-cover" />
+            ) : (
+              <Shirt className="h-6 w-6 text-primary" />
+            )}
           </div>
           <div>
             <h2 className="font-display text-lg font-bold text-foreground">{characterName}</h2>
