@@ -377,23 +377,110 @@ export const useBreakdownAssets = () => {
         locationDescMap.set(loc, desc);
       }
 
-      // Build prop descriptions
+      // Build prop descriptions + rename props with character ownership + build groups
       const propDescMap: Record<string, string> = {};
+      const renamedProps: string[] = [];
+      const propGroupsByChar = new Map<string, string[]>();
+      const propGroupsByLoc = new Map<string, string[]>();
+
+      // Helper: capitalize first letter of each word
+      const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+      // Helper: check if already has possessive
+      const hasPossessive = (s: string) => /\b[A-Za-z]+'s\b/i.test(s) || /\([A-Za-z]+'s\)/i.test(s);
+
+      // Helper: format character name for possessive
+      const possessive = (name: string) => {
+        const formatted = titleCase(name.toLowerCase());
+        return formatted.endsWith("s") ? `${formatted}'` : `${formatted}'s`;
+      };
+
       for (const prop of propSet) {
         const ctx = propContextMap.get(prop);
         const parts: string[] = [];
+        let displayName = prop;
+        let primaryChar = "";
+        let primaryLoc = "";
+
         if (ctx) {
           const chars = [...ctx.characters];
-          if (chars.length > 0) parts.push("Used by " + chars.slice(0, 3).join(", "));
           const uniqueLocs = [...new Set(ctx.locations)];
+
+          // Determine primary owner: if used by exactly 1 character, that's the owner
+          // If used by 2-3 characters, pick the first (most relevant from script order)
+          if (chars.length === 1) {
+            primaryChar = chars[0];
+          } else if (chars.length >= 2) {
+            // If used in only 1 scene, the character list is specific enough
+            if (ctx.scenes.length <= 2) primaryChar = chars[0];
+          }
+
+          // Rename: add character possessive if not already present
+          if (primaryChar && !hasPossessive(prop)) {
+            const propLower = prop.toLowerCase();
+            // Don't add possessive to generic/shared items
+            const isGeneric = /^(door|wall|window|floor|ceiling|table|chair|desk|bed|light|lamp|sign|screen|monitor)$/i.test(propLower);
+            if (!isGeneric) {
+              displayName = `${possessive(primaryChar)} ${titleCase(prop)}`;
+            }
+          } else {
+            displayName = titleCase(prop);
+          }
+
+          // If no clear character owner, check for a primary location
+          if (!primaryChar && uniqueLocs.length === 1) {
+            primaryLoc = uniqueLocs[0];
+          }
+
+          if (chars.length > 0) parts.push("Used by " + chars.slice(0, 3).join(", "));
           if (uniqueLocs.length > 0) parts.push("Found in " + uniqueLocs.slice(0, 2).join(", "));
           if (ctx.scenes.length > 0) {
             const snippet = ctx.scenes.sort((a, b) => a.length - b.length)[0];
             parts.push(snippet.length <= 120 ? snippet : snippet.slice(0, 117) + "…");
           }
+        } else {
+          displayName = titleCase(prop);
         }
-        propDescMap[prop] = parts.length > 0 ? parts.join(". ") : prop;
+
+        renamedProps.push(displayName);
+        propDescMap[displayName] = parts.length > 0 ? parts.join(". ") : displayName;
+
+        // Group by character
+        if (primaryChar) {
+          const charKey = titleCase(primaryChar.toLowerCase());
+          if (!propGroupsByChar.has(charKey)) propGroupsByChar.set(charKey, []);
+          propGroupsByChar.get(charKey)!.push(displayName);
+        } else if (primaryLoc) {
+          // Group by location (use shorter name)
+          const locKey = primaryLoc.split(" - ")[0].trim();
+          const locDisplay = titleCase(locKey.toLowerCase());
+          if (!propGroupsByLoc.has(locDisplay)) propGroupsByLoc.set(locDisplay, []);
+          propGroupsByLoc.get(locDisplay)!.push(displayName);
+        }
       }
+
+      // Build initialGroups for props
+      const propInitialGroups: Array<{ id: string; name: string; children: string[] }> = [];
+      for (const [charName, items] of propGroupsByChar) {
+        if (items.length >= 1) {
+          propInitialGroups.push({
+            id: `prop-char-${charName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+            name: charName,
+            children: items,
+          });
+        }
+      }
+      for (const [locName, items] of propGroupsByLoc) {
+        if (items.length >= 2) {
+          propInitialGroups.push({
+            id: `prop-loc-${locName.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+            name: locName,
+            children: items,
+          });
+        }
+      }
+      // Sort groups by number of children (most props first)
+      propInitialGroups.sort((a, b) => b.children.length - a.children.length);
 
       // Build vehicle descriptions
       const vehicleDescMap: Record<string, string> = {};
@@ -443,8 +530,9 @@ export const useBreakdownAssets = () => {
         locations: sortedLocations,
         locationDescriptions: Object.fromEntries(locationDescMap),
         locationSceneCounts: Object.fromEntries(locationSceneCount),
-        props: [...propSet].sort(),
+        props: renamedProps.sort(),
         propDescriptions: propDescMap,
+        propInitialGroups,
         wardrobe: [...wardrobeMap.keys()].map((k) => {
           const [character, clothing] = k.split("::");
           return { character, clothing };

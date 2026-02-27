@@ -1244,6 +1244,7 @@ const PreProduction = () => {
             sceneBreakdown={parsedScenes as any[] | undefined}
             storagePath={scriptAnalysis?.storage_path as string | undefined}
             excludeFromKeyObjects={augmentedVehicles}
+            initialGroups={breakdownAssets?.propInitialGroups}
             reclassifyOptions={[
               { label: "Locations", value: "locations", icon: MapPin },
               { label: "Picture Vehicles", value: "vehicles", icon: Car },
