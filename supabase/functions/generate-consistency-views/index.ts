@@ -66,7 +66,7 @@ const ANGLE_VIEWS = [
     index: 5,
     label: "3/4 Right",
     framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
-    direction: "rotated 45 degrees so their LEFT cheek faces the camera and their RIGHT cheek faces away. The character's body and nose point to the RIGHT side of the frame. This is a three-quarter right view — the viewer sees mostly the left side of the face. Mirror of 3/4 left",
+    direction: "the character has turned their head and body slightly to the LEFT so that the camera sees the RIGHT side of their face. The character's RIGHT cheek, RIGHT ear, and RIGHT jawline are closest to the camera. Their nose points to the LEFT side of the frame. This is the OPPOSITE of the 3/4 Left view — it is a three-quarter RIGHT view showing the RIGHT side of the face",
     purpose: "Mirror of 3/4 left — cinematic depth from opposite side",
     camera: "Eye level, pulled back enough to show full body head to toe",
     expression: "Neutral",
