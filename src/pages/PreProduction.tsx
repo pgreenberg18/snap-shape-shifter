@@ -1254,21 +1254,22 @@ const PreProduction = () => {
         <TabsContent value="wardrobe" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-wardrobe">
           {(() => {
             const wardrobeItems = breakdownAssets?.wardrobe ?? [];
-            // Deduplicate: same clothing for different characters gets a character-scoped key
+            // Group wardrobe items by character, using plain clothing names
             const byCharacter = new Map<string, string[]>();
-            const clothingCounts = new Map<string, number>();
-            for (const w of wardrobeItems) {
-              clothingCounts.set(w.clothing, (clothingCounts.get(w.clothing) || 0) + 1);
-            }
-            // Build unique item keys: append character when clothing appears for multiple characters
             const uniqueItems: string[] = [];
             const subtitleMap: Record<string, string> = {};
+            // Track used item keys globally to avoid collisions across characters
+            const usedKeys = new Set<string>();
             for (const w of wardrobeItems) {
               const char = w.character || "Unknown";
-              // Use character-scoped key if the same clothing appears under multiple characters
-              const itemKey = (clothingCounts.get(w.clothing) || 0) > 1
-                ? `${w.clothing} (${char})`
-                : w.clothing;
+              let itemKey = w.clothing;
+              // If the same clothing name was already used (by another character), add a numeric suffix
+              if (usedKeys.has(itemKey)) {
+                let counter = 2;
+                while (usedKeys.has(`${w.clothing} #${counter}`)) counter++;
+                itemKey = `${w.clothing} #${counter}`;
+              }
+              usedKeys.add(itemKey);
               if (!uniqueItems.includes(itemKey)) {
                 uniqueItems.push(itemKey);
                 subtitleMap[itemKey] = char;
