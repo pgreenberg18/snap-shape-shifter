@@ -1008,10 +1008,6 @@ const PreProduction = () => {
                               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                 Views {completedViews.length}/{allSlots.length}
                               </p>
-                              <div className="flex-1" />
-                              <Button size="sm" variant="ghost" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="h-5 w-5 p-0">
-                                {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                              </Button>
                             </div>
                             <div className="flex-1 overflow-y-auto p-2">
                               <div className="grid grid-cols-2 gap-1.5">
@@ -1029,6 +1025,12 @@ const PreProduction = () => {
                                   )
                                 ))}
                               </div>
+                            </div>
+                            <div className="px-2 py-1.5 border-t border-border">
+                              <Button size="sm" variant="outline" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="w-full h-7 text-[10px] gap-1.5">
+                                {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                                Regenerate Views
+                              </Button>
                             </div>
                           </div>
                         );
