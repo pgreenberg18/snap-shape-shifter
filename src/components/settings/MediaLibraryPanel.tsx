@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -29,10 +30,12 @@ type MediaItem = {
   subCategory?: string;
   createdAt: string;
   sourceTable?: string;
+  filmId?: string;
 };
 
 const MediaLibraryPanel = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
   const [activeTab, setActiveTab] = useState("shots");
@@ -73,6 +76,23 @@ const MediaLibraryPanel = () => {
     });
   }, []);
 
+  // Fetch films for version links
+  const { data: films } = useQuery({
+    queryKey: ["settings-media-films"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("films")
+        .select("id, title, version_name, project_id");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const filmMap = new Map(
+    (films || []).map((f) => [f.id, { title: f.title, versionName: f.version_name, projectId: f.project_id }])
+  );
+
   // Fetch shots
   const { data: shots } = useQuery({
     queryKey: ["settings-media-shots"],
@@ -94,7 +114,7 @@ const MediaLibraryPanel = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("characters")
-        .select("id, name, image_url, reference_image_url, created_at")
+        .select("id, name, image_url, reference_image_url, created_at, film_id")
         .order("name");
       if (error) throw error;
       return data;
@@ -108,7 +128,7 @@ const MediaLibraryPanel = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("film_assets")
-        .select("id, asset_name, asset_type, image_url, description, created_at")
+        .select("id, asset_name, asset_type, image_url, description, created_at, film_id")
         .order("asset_type")
         .order("asset_name");
       if (error) throw error;
@@ -123,7 +143,7 @@ const MediaLibraryPanel = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("script_analyses")
-        .select("id, file_name, storage_path, created_at, status")
+        .select("id, file_name, storage_path, created_at, status, film_id")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
@@ -143,6 +163,7 @@ const MediaLibraryPanel = () => {
       subCategory: `Scene ${s.scene_number}`,
       createdAt: s.created_at,
       sourceTable: "shots",
+      filmId: s.film_id,
     }));
 
   const characterItems: MediaItem[] = (characters || []).flatMap((c) => {
@@ -157,6 +178,7 @@ const MediaLibraryPanel = () => {
         subCategory: c.name,
         createdAt: c.created_at,
         sourceTable: "characters",
+        filmId: c.film_id,
       });
     }
     if (c.reference_image_url) {
@@ -169,6 +191,7 @@ const MediaLibraryPanel = () => {
         subCategory: c.name,
         createdAt: c.created_at,
         sourceTable: "characters",
+        filmId: c.film_id,
       });
     }
     return items;
@@ -184,6 +207,7 @@ const MediaLibraryPanel = () => {
       category: a.asset_type.charAt(0).toUpperCase() + a.asset_type.slice(1),
       createdAt: a.created_at,
       sourceTable: "film_assets",
+      filmId: a.film_id,
     }));
 
   const scriptItems: MediaItem[] = (scripts || []).map((s) => ({
@@ -194,6 +218,7 @@ const MediaLibraryPanel = () => {
     category: "Scripts",
     createdAt: s.created_at,
     sourceTable: "script_analyses",
+    filmId: s.film_id,
   }));
 
   // Load exports from localStorage
@@ -410,10 +435,25 @@ const MediaLibraryPanel = () => {
                 <FileText className="h-3.5 w-3.5 text-foreground" />
               </div>
             )}
-            <p className="flex-1 min-w-0 text-sm font-mono font-medium text-foreground truncate">{item.name}</p>
-            <span className="text-xs font-mono text-muted-foreground/60 shrink-0">
-              {new Date(item.createdAt).toLocaleDateString()}
-            </span>
+            <p className="flex-1 min-w-0 text-base font-mono font-medium text-foreground truncate">{item.name}</p>
+            <div className="flex items-center gap-2 shrink-0">
+              {item.filmId && filmMap.get(item.filmId) && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const film = filmMap.get(item.filmId!);
+                    if (film?.projectId) navigate(`/projects/${film.projectId}/versions`);
+                  }}
+                  className="text-[10px] font-mono text-primary/70 hover:text-primary hover:underline transition-colors truncate max-w-[120px]"
+                  title={`${filmMap.get(item.filmId)!.title} — ${filmMap.get(item.filmId)!.versionName}`}
+                >
+                  {filmMap.get(item.filmId)!.versionName || filmMap.get(item.filmId)!.title}
+                </button>
+              )}
+              <span className="text-xs font-mono text-muted-foreground/60">
+                {new Date(item.createdAt).toLocaleDateString()}
+              </span>
+            </div>
             <Eye className="h-3.5 w-3.5 text-muted-foreground/30 group-hover:text-primary transition-colors shrink-0" />
           </button>
         </div>
