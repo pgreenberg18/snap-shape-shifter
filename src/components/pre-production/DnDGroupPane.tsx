@@ -16,6 +16,7 @@ import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import AssetDetailPanel from "./AssetDetailPanel";
+import WardrobeCharacterView from "./WardrobeCharacterView";
 import ResizableSidebar from "./ResizableSidebar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
@@ -191,6 +192,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [analyzingItem, setAnalyzingItem] = useState<string | null>(null);
 
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
+  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -539,8 +541,17 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       return;
     }
     setMultiSelected(new Set());
+    setSelectedGroup(null);
     setSelectedItem((prev) => prev === itemName ? null : itemName);
   }, []);
+
+  // When a group header is clicked in wardrobe mode, show character-level view
+  const handleSelectGroup = useCallback((groupName: string) => {
+    if (storagePrefix !== "wardrobe") return;
+    setSelectedItem(null);
+    setMultiSelected(new Set());
+    setSelectedGroup((prev) => prev === groupName ? null : groupName);
+  }, [storagePrefix]);
 
   const handleMultiMerge = useCallback(() => {
     if (!multiMergeDialog || multiMergeDialog.length < 2) return;
@@ -653,6 +664,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                   refImages={refImages}
                   multiSelected={multiSelected}
                   onMultiMerge={(ids) => setMultiMergeDialog(ids)}
+                  isGroupSelected={selectedGroup === group.name}
+                  onGroupNameClick={storagePrefix === "wardrobe" ? () => handleSelectGroup(group.name) : undefined}
                 />
               ))}
 
@@ -752,6 +765,35 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             allSceneNumbers={allSceneNumbers}
             sceneHeadings={sceneHeadings}
           />
+        ) : selectedGroup && filmId && storagePrefix === "wardrobe" ? (
+          (() => {
+            const groupData = groups.find((g) => g.name === selectedGroup);
+            const wardrobeItems = groupData?.children ?? [];
+            // Find scenes where this character appears
+            const charScenes = sceneBreakdown
+              ? sceneBreakdown
+                  .filter((s: any) => {
+                    const chars = Array.isArray(s.characters) ? s.characters : [];
+                    return chars.some((c: string) =>
+                      c.toUpperCase().trim() === selectedGroup.toUpperCase().trim()
+                    );
+                  })
+                  .map((s: any) => s.scene_number as number)
+                  .filter((n: number) => !isNaN(n))
+                  .sort((a: number, b: number) => a - b)
+              : [];
+            return (
+              <WardrobeCharacterView
+                characterName={selectedGroup}
+                wardrobeItems={wardrobeItems}
+                filmId={filmId}
+                characterSceneNumbers={charScenes}
+                sceneHeadings={sceneHeadings}
+                displayName={displayName}
+                onSelectItem={(item) => { setSelectedGroup(null); setSelectedItem(item); }}
+              />
+            );
+          })()
         ) : (
           <div className="flex-1 flex items-center justify-center p-8 h-full">
             <div className="text-center space-y-3">
@@ -760,7 +802,9 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
               </div>
               <h2 className="font-display text-xl font-bold text-foreground">{title}</h2>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Select an item from the list to view details, upload references, and generate visual options.
+                {storagePrefix === "wardrobe"
+                  ? "Click a character name to view their wardrobe overview, or select a specific costume for details."
+                  : "Select an item from the list to view details, upload references, and generate visual options."}
               </p>
             </div>
           </div>
@@ -1019,7 +1063,7 @@ const SidebarGroup = ({
   group, icon: Icon, isCollapsed, onToggle, onDelete, onRemoveChild,
   isEditing, editName, onStartEdit, onEditChange, onSaveEdit,
   displayName, selectedItem, onSelectItem, refImages,
-  multiSelected, onMultiMerge,
+  multiSelected, onMultiMerge, isGroupSelected, onGroupNameClick,
 }: {
   group: ItemGroup; icon: LucideIcon; isCollapsed: boolean; onToggle: () => void;
   onDelete: () => void; onRemoveChild: (item: string) => void;
@@ -1030,27 +1074,36 @@ const SidebarGroup = ({
   refImages: Record<string, string>;
   multiSelected?: Set<string>;
   onMultiMerge?: (ids: string[]) => void;
+  isGroupSelected?: boolean;
+  onGroupNameClick?: () => void;
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: `group::${group.id}` });
 
   return (
     <div ref={setNodeRef} className={cn(
       "mx-2 my-1 rounded-xl border transition-all",
+      isGroupSelected ? "border-primary ring-1 ring-primary/20 bg-primary/5" :
       isOver ? "border-primary ring-2 ring-primary/20 bg-primary/5" : "border-border bg-card/50"
     )}>
-      <div className="flex items-center gap-2 px-3 py-2.5">
-        <button onClick={onToggle} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
+      <div
+        className={cn(
+          "flex items-center gap-2 px-3 py-2.5",
+          onGroupNameClick && "cursor-pointer hover:bg-secondary/40 transition-colors"
+        )}
+        onClick={onGroupNameClick ? () => { onGroupNameClick(); if (isCollapsed) onToggle(); } : undefined}
+      >
+        <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
           {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
         </button>
         {isEditing ? (
-          <div className="flex items-center gap-1 flex-1 min-w-0">
+          <div className="flex items-center gap-1 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
             <Input autoFocus value={editName} onChange={(e) => onEditChange(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") onSaveEdit(); }} className="h-7 text-xs bg-background flex-1" />
             <Button size="sm" variant="ghost" onClick={onSaveEdit} className="h-7 px-1.5"><Check className="h-3 w-3" /></Button>
           </div>
         ) : (
           <>
             <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
-            <p className="font-display text-xs font-bold text-foreground flex-1 truncate">{toTitleCase(group.name)}</p>
+            <p className={cn("font-display text-xs font-bold flex-1 truncate", isGroupSelected ? "text-primary" : "text-foreground")}>{toTitleCase(group.name)}</p>
             <span className="text-[10px] text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">{group.children.length}</span>
             <button onClick={(e) => { e.stopPropagation(); onStartEdit(); }} className="text-muted-foreground/40 hover:text-foreground transition-colors p-0.5"><Pencil className="h-2.5 w-2.5" /></button>
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-muted-foreground/40 hover:text-destructive transition-colors p-0.5"><X className="h-3 w-3" /></button>
