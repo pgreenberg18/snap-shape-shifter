@@ -40,6 +40,19 @@ export interface AssetAuditionTask {
   error?: string;
 }
 
+/* ── Generic Background Task ── */
+export interface BackgroundTask<T = unknown> {
+  id: string;
+  kind: string;
+  key: string; // unique dedup key
+  status: "running" | "complete" | "error";
+  startedAt: number;
+  result?: T;
+  error?: string;
+  /** Partial results updated incrementally */
+  partialResults?: T;
+}
+
 interface GenerationManagerContextType {
   activeGenerations: ActiveGeneration[];
   hasActiveGenerations: boolean;
@@ -63,6 +76,20 @@ interface GenerationManagerContextType {
   ) => string;
   getAssetAudition: (filmId: string, assetType: string, assetName: string) => AssetAuditionTask | undefined;
   clearAssetAudition: (filmId: string, assetType: string, assetName: string) => void;
+
+  /* Generic background tasks */
+  backgroundTasks: BackgroundTask[];
+  startBackgroundTask: <T = unknown>(
+    kind: string,
+    key: string,
+    executor: (
+      updatePartial: (partial: T) => void,
+      updateStatus: (status: "complete" | "error", result?: T, error?: string) => void
+    ) => Promise<void>,
+    toastLabel?: string
+  ) => string;
+  getBackgroundTask: <T = unknown>(kind: string, key: string) => BackgroundTask<T> | undefined;
+  clearBackgroundTask: (kind: string, key: string) => void;
 }
 
 const GenerationManagerContext = createContext<GenerationManagerContextType>({
@@ -75,6 +102,10 @@ const GenerationManagerContext = createContext<GenerationManagerContextType>({
   startAssetAudition: () => "",
   getAssetAudition: () => undefined,
   clearAssetAudition: () => {},
+  backgroundTasks: [],
+  startBackgroundTask: () => "",
+  getBackgroundTask: () => undefined,
+  clearBackgroundTask: () => {},
 });
 
 export const useGenerationManager = () => useContext(GenerationManagerContext);
@@ -84,11 +115,14 @@ let genCounter = 0;
 export const GenerationManagerProvider = ({ children }: { children: ReactNode }) => {
   const [activeGenerations, setActiveGenerations] = useState<ActiveGeneration[]>([]);
   const [assetAuditions, setAssetAuditions] = useState<AssetAuditionTask[]>([]);
+  const [backgroundTasks, setBackgroundTasks] = useState<BackgroundTask[]>([]);
 
   const hasActiveGenerations =
     activeGenerations.some((g) => g.status === "running") ||
-    assetAuditions.some((a) => a.status === "running");
+    assetAuditions.some((a) => a.status === "running") ||
+    backgroundTasks.some((t) => t.status === "running");
 
+  /* ── Shot Generation ── */
   const startGeneration = useCallback(
     (
       shotId: string,
@@ -161,7 +195,6 @@ export const GenerationManagerProvider = ({ children }: { children: ReactNode })
   }, []);
 
   /* ── Asset Audition Methods ── */
-
   const assetKey = (filmId: string, assetType: string, assetName: string) =>
     `${filmId}::${assetType}::${assetName}`;
 
@@ -206,7 +239,6 @@ export const GenerationManagerProvider = ({ children }: { children: ReactNode })
         startedAt: Date.now(),
       };
 
-      // Replace any existing task for same asset
       setAssetAuditions((prev) => [
         ...prev.filter((a) => assetKey(a.filmId, a.assetType, a.assetName) !== key),
         task,
@@ -248,6 +280,81 @@ export const GenerationManagerProvider = ({ children }: { children: ReactNode })
     []
   );
 
+  /* ── Generic Background Tasks ── */
+  const getBackgroundTask = useCallback(
+    <T = unknown,>(kind: string, key: string): BackgroundTask<T> | undefined => {
+      return backgroundTasks.find(
+        (t) => t.kind === kind && t.key === key
+      ) as BackgroundTask<T> | undefined;
+    },
+    [backgroundTasks]
+  );
+
+  const clearBackgroundTask = useCallback(
+    (kind: string, key: string) => {
+      setBackgroundTasks((prev) =>
+        prev.filter((t) => !(t.kind === kind && t.key === key))
+      );
+    },
+    []
+  );
+
+  const startBackgroundTask = useCallback(
+    <T = unknown,>(
+      kind: string,
+      key: string,
+      executor: (
+        updatePartial: (partial: T) => void,
+        updateStatus: (status: "complete" | "error", result?: T, error?: string) => void
+      ) => Promise<void>,
+      toastLabel?: string
+    ): string => {
+      const id = `bg-${++genCounter}-${Date.now()}`;
+      const task: BackgroundTask<T> = {
+        id,
+        kind,
+        key,
+        status: "running",
+        startedAt: Date.now(),
+      };
+
+      // Replace existing task with same kind+key
+      setBackgroundTasks((prev) => [
+        ...prev.filter((t) => !(t.kind === kind && t.key === key)),
+        task as BackgroundTask,
+      ]);
+
+      const updatePartial = (partial: T) => {
+        setBackgroundTasks((prev) =>
+          prev.map((t) =>
+            t.id === id ? { ...t, partialResults: partial } : t
+          )
+        );
+      };
+
+      const updateStatus = (status: "complete" | "error", result?: T, error?: string) => {
+        setBackgroundTasks((prev) =>
+          prev.map((t) =>
+            t.id === id ? { ...t, status, result, error } : t
+          )
+        );
+        if (status === "complete" && toastLabel) {
+          toast.success(`${toastLabel} complete`);
+        } else if (status === "error" && toastLabel) {
+          toast.error(`${toastLabel} failed`, { description: error });
+        }
+      };
+
+      executor(updatePartial, updateStatus).catch((err) => {
+        const errorMsg = err instanceof Error ? err.message : "Unknown error";
+        updateStatus("error", undefined, errorMsg);
+      });
+
+      return id;
+    },
+    []
+  );
+
   return (
     <GenerationManagerContext.Provider
       value={{
@@ -260,6 +367,10 @@ export const GenerationManagerProvider = ({ children }: { children: ReactNode })
         startAssetAudition,
         getAssetAudition,
         clearAssetAudition,
+        backgroundTasks,
+        startBackgroundTask,
+        getBackgroundTask,
+        clearBackgroundTask,
       }}
     >
       {children}

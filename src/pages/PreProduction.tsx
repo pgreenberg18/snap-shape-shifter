@@ -25,6 +25,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import CharacterSidebar from "@/components/pre-production/CharacterSidebar";
+import { useGenerationManager } from "@/hooks/useGenerationManager";
 
 import DnDGroupPane from "@/components/pre-production/DnDGroupPane";
 
@@ -61,6 +62,7 @@ const PreProduction = () => {
   const { data: breakdownAssets } = useBreakdownAssets();
   const rankings = useCharacterRanking();
   const queryClient = useQueryClient();
+  const { startBackgroundTask, getBackgroundTask } = useGenerationManager();
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [cards, setCards] = useState<AuditionCard[]>([]);
@@ -163,6 +165,44 @@ const PreProduction = () => {
 
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
+
+  // Sync background headshot task results when returning to page
+  const headshotTask = selectedCharId ? getBackgroundTask<{ cards: Record<number, string | null>; done: boolean }>("headshot-casting", selectedCharId) : undefined;
+  useEffect(() => {
+    if (!headshotTask || !selectedCharId) return;
+    if (headshotTask.status === "running") {
+      setGenerating(true);
+      generatingCharIdRef.current = selectedCharId;
+      // Show skeleton cards for any not yet resolved
+      const partial = (headshotTask.partialResults as any)?.cards as Record<number, string | null> | undefined;
+      setCards(CARD_TEMPLATE.map((t) => ({
+        ...t,
+        characterId: selectedCharId,
+        imageUrl: partial?.[t.id] ?? null,
+        locked: false,
+        generating: partial?.[t.id] === undefined,
+        rating: 0,
+      })));
+    } else if (headshotTask.status === "complete") {
+      setGenerating(false);
+      generatingCharIdRef.current = null;
+      // Results are in DB — let normal card loading handle it
+    }
+  }, [headshotTask?.status, headshotTask?.partialResults, selectedCharId]);
+
+  // Sync background consistency views task
+  const viewsTask = selectedCharId ? getBackgroundTask("consistency-views", selectedCharId) : undefined;
+  useEffect(() => {
+    if (!viewsTask) return;
+    if (viewsTask.status === "running") {
+      setGeneratingViews(true);
+    } else {
+      setGeneratingViews(false);
+      if (viewsTask.status === "complete") {
+        queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
+      }
+    }
+  }, [viewsTask?.status, queryClient]);
 
   // Fetch parsed scenes (single source of truth for scene-level data)
   const { data: parsedScenes } = useParsedScenes();
@@ -307,7 +347,6 @@ const PreProduction = () => {
     }));
     setCards(skeletonCards);
 
-    // Capture current values so generation continues even if user navigates away
     const genBody = {
       characterName: charName,
       description: charDescription || (selectedChar as any)?.description || "",
@@ -320,55 +359,67 @@ const PreProduction = () => {
       genre: "",
     };
 
-    let successCount = 0;
+    startBackgroundTask<{ cards: Record<number, string | null>; done: boolean }>(
+      "headshot-casting",
+      charId,
+      async (updatePartial, updateStatus) => {
+        let successCount = 0;
+        const cardResults: Record<number, string | null> = {};
 
-    // Fire all requests and update each card as it resolves
-    const promises = CARD_TEMPLATE.map(async (t) => {
-      try {
-        const { data, error } = await supabase.functions.invoke("generate-headshot", {
-          body: { ...genBody, cardIndex: t.id },
+        const promises = CARD_TEMPLATE.map(async (t) => {
+          try {
+            const { data, error } = await supabase.functions.invoke("generate-headshot", {
+              body: { ...genBody, cardIndex: t.id },
+            });
+            if (error) throw error;
+            const imageUrl = data?.imageUrl ?? null;
+            cardResults[t.id] = imageUrl;
+
+            if (imageUrl) {
+              successCount++;
+              await supabase.from("character_auditions").upsert({
+                character_id: charId,
+                card_index: t.id,
+                section: t.section,
+                label: t.label,
+                image_url: imageUrl,
+                locked: false,
+              }, { onConflict: "character_id,card_index" });
+            }
+
+            // Update partial so UI can pick up incremental results
+            updatePartial({ cards: { ...cardResults }, done: false });
+
+            // Update local UI if still viewing this character
+            if (generatingCharIdRef.current === charId) {
+              setCards((prev) => prev.map((c) =>
+                c.id === t.id ? { ...c, imageUrl, generating: false } : c
+              ));
+            }
+          } catch (e) {
+            console.error(`Headshot ${t.id} failed:`, e);
+            cardResults[t.id] = null;
+            updatePartial({ cards: { ...cardResults }, done: false });
+            if (generatingCharIdRef.current === charId) {
+              setCards((prev) => prev.map((c) =>
+                c.id === t.id ? { ...c, generating: false } : c
+              ));
+            }
+          }
         });
-        if (error) throw error;
-        const imageUrl = data?.imageUrl ?? null;
 
-        // Persist to DB immediately
-        if (imageUrl) {
-          successCount++;
-          await supabase.from("character_auditions").upsert({
-            character_id: charId,
-            card_index: t.id,
-            section: t.section,
-            label: t.label,
-            image_url: imageUrl,
-            locked: false,
-          }, { onConflict: "character_id,card_index" });
-        }
+        await Promise.allSettled(promises);
 
-        // Update UI only if this character is still selected
         if (generatingCharIdRef.current === charId) {
-          setCards((prev) => prev.map((c) =>
-            c.id === t.id ? { ...c, imageUrl, generating: false } : c
-          ));
+          setGenerating(false);
         }
-      } catch (e) {
-        console.error(`Headshot ${t.id} failed:`, e);
-        if (generatingCharIdRef.current === charId) {
-          setCards((prev) => prev.map((c) =>
-            c.id === t.id ? { ...c, generating: false } : c
-          ));
-        }
-      }
-    });
+        generatingCharIdRef.current = null;
 
-    await Promise.allSettled(promises);
-
-    if (generatingCharIdRef.current === charId) {
-      setGenerating(false);
-    }
-    generatingCharIdRef.current = null;
-
-    toast.success(`${successCount}/10 audition faces generated for ${charName}`);
-  }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, film]);
+        updateStatus("complete", { cards: cardResults, done: true });
+      },
+      `${charName} casting`
+    );
+  }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, film, startBackgroundTask]);
 
   const handleLockIdentity = useCallback(async (card: AuditionCard) => {
     if (!card.imageUrl || !card.characterId) return;
@@ -393,25 +444,34 @@ const PreProduction = () => {
 
   const handleGenerateConsistencyViews = useCallback(async () => {
     if (!pendingConsistencyCharId) return;
+    const charId = pendingConsistencyCharId;
     setConsistencyDialogOpen(false);
     setGeneratingViews(true);
-    const charName = characters?.find(c => c.id === pendingConsistencyCharId)?.name ?? "Character";
+    const charName = characters?.find(c => c.id === charId)?.name ?? "Character";
     toast.info(`Generating 8 consistency views for ${charName}… This may take a few minutes.`);
-    try {
-      const { data, error } = await supabase.functions.invoke("generate-consistency-views", {
-        body: { character_id: pendingConsistencyCharId },
-      });
-      if (error) throw error;
-      toast.success(`${data?.generated ?? 0}/8 consistency views generated for ${charName}`);
-    } catch (e: any) {
-      console.error("Consistency views error:", e);
-      toast.error(e?.message || "Failed to generate consistency views");
-    } finally {
-      setGeneratingViews(false);
-      setPendingConsistencyCharId(null);
-      queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
-    }
-  }, [pendingConsistencyCharId, characters]);
+
+    startBackgroundTask(
+      "consistency-views",
+      charId,
+      async (_updatePartial, updateStatus) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-consistency-views", {
+            body: { character_id: charId },
+          });
+          if (error) throw error;
+          updateStatus("complete", { generated: data?.generated ?? 0 });
+        } catch (e: any) {
+          console.error("Consistency views error:", e);
+          updateStatus("error", undefined, e?.message || "Failed to generate consistency views");
+        } finally {
+          setGeneratingViews(false);
+          setPendingConsistencyCharId(null);
+          queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
+        }
+      },
+      `${charName} turnaround views`
+    );
+  }, [pendingConsistencyCharId, characters, startBackgroundTask, queryClient]);
 
   const handleRate = useCallback(async (card: AuditionCard, rating: number) => {
     if (!card.characterId) return;
