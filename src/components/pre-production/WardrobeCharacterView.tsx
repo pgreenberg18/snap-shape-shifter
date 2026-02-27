@@ -115,7 +115,7 @@ const WardrobeCharacterView = ({
   }, [characterSceneNumbers, allAssignedScenes]);
 
   return (
-    <ScrollArea className="flex-1">
+    <ScrollArea className="flex-1 h-full max-h-full overflow-hidden">
       <div className="p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
