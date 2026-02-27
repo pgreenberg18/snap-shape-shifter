@@ -360,15 +360,13 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               <SelectTrigger className="h-8 text-xs bg-background">
                 <SelectValue placeholder="Select primary director…" />
               </SelectTrigger>
-              <SelectContent>
-                <ScrollArea className="max-h-60">
+              <SelectContent className="max-h-72 overflow-y-auto">
                   {DIRECTORS.map((d) => (
                     <SelectItem key={d.id} value={d.id} className="text-xs">
                       <span className="font-medium">{d.name}</span>
                       <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
                     </SelectItem>
                   ))}
-                </ScrollArea>
               </SelectContent>
             </Select>
           </div>
@@ -382,15 +380,13 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               <SelectTrigger className="h-8 text-xs bg-background">
                 <SelectValue placeholder="Select secondary…" />
               </SelectTrigger>
-              <SelectContent>
-                <ScrollArea className="max-h-60">
+              <SelectContent className="max-h-72 overflow-y-auto">
                   {DIRECTORS.filter((d) => d.id !== primaryId).map((d) => (
                     <SelectItem key={d.id} value={d.id} className="text-xs">
                       <span className="font-medium">{d.name}</span>
                       <span className="text-muted-foreground ml-1.5">— {d.knownFor.join(", ")}</span>
                     </SelectItem>
                   ))}
-                </ScrollArea>
               </SelectContent>
             </Select>
           </div>
