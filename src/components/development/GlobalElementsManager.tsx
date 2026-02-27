@@ -960,7 +960,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                   <Button
                     size="sm"
                     variant={reviewStatus[key] === "needs_review" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : "opacity-60")}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "needs_review" ? "bg-amber-500 hover:bg-amber-600 text-white" : "opacity-60")}
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: prev[key] === "needs_review" ? "unreviewed" : "needs_review" }))}
                   >
                     <AlertCircle className="h-3 w-3" />
