@@ -198,7 +198,9 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [draftItems, setDraftItems] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
 
@@ -342,6 +344,53 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     if (updated) persistGroups([...nextGroups, ...newGroups]);
   }, [storagePrefix, subtitles, ungrouped, groups, persistGroups]);
 
+  // Cleanup draft items when navigating away from them
+  useEffect(() => {
+    const prevItem = prevSelectedItemRef.current;
+    prevSelectedItemRef.current = selectedItem;
+    
+    if (prevItem && draftItems.has(prevItem) && prevItem !== selectedItem) {
+      // Check if this draft item has any locked film_asset
+      if (filmId) {
+        supabase
+          .from("film_assets")
+          .select("id")
+          .eq("film_id", filmId)
+          .eq("asset_type", "wardrobe")
+          .eq("asset_name", prevItem)
+          .eq("locked", true)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (!data) {
+              // No locked asset — remove from groups and clean up assignments
+              setDraftItems(prev => {
+                const next = new Set(prev);
+                next.delete(prevItem);
+                return next;
+              });
+              persistGroups(groups.map((g) => ({
+                ...g,
+                children: g.children.filter((c) => c !== prevItem),
+              })));
+              // Clean up scene assignments for the draft
+              supabase
+                .from("wardrobe_scene_assignments")
+                .delete()
+                .eq("film_id", filmId)
+                .eq("clothing_item", prevItem)
+                .then(() => {});
+            } else {
+              // Has been saved — no longer a draft
+              setDraftItems(prev => {
+                const next = new Set(prev);
+                next.delete(prevItem);
+                return next;
+              });
+            }
+          });
+      }
+    }
+  }, [selectedItem, draftItems, filmId, groups, persistGroups]);
 
   const filteredGroups = useMemo(() => {
     if (!query) return groups;
@@ -915,6 +964,37 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 sceneHeadings={sceneHeadings}
                 displayName={displayName}
                 onSelectItem={(item) => { setSelectedGroup(null); setSelectedItem(item); }}
+                onCreateCostume={(sceneNumber) => {
+                  // Generate a unique draft item name
+                  const baseName = `New Costume`;
+                  let draftName = baseName;
+                  let counter = 1;
+                  const existingNames = new Set(wardrobeItems.map(w => w.toLowerCase()));
+                  while (existingNames.has(draftName.toLowerCase())) {
+                    counter++;
+                    draftName = `${baseName} ${counter}`;
+                  }
+                  // Add the draft item to this character's group
+                  const nextGroups = groups.map((g) => {
+                    if (g.name === selectedGroup) {
+                      return { ...g, children: [...g.children, draftName] };
+                    }
+                    return g;
+                  });
+                  persistGroups(nextGroups);
+                  // Track as draft
+                  setDraftItems(prev => new Set([...prev, draftName]));
+                  // Pre-assign the scene
+                  supabase.from("wardrobe_scene_assignments").upsert({
+                    film_id: filmId,
+                    character_name: selectedGroup,
+                    clothing_item: draftName,
+                    scene_number: sceneNumber,
+                  }).then(() => {});
+                  // Navigate to the new item's detail panel
+                  setSelectedGroup(null);
+                  setSelectedItem(draftName);
+                }}
               />
             );
           })()
