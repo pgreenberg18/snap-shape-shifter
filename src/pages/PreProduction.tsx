@@ -1075,7 +1075,7 @@ const PreProduction = () => {
                                     <img
                                       src={v.image_url!}
                                       alt={v.angle_label}
-                                      className="w-full aspect-square object-cover"
+                                      className="w-full aspect-square object-contain bg-secondary/50"
                                       loading="lazy"
                                     />
                                     <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80">
@@ -1869,7 +1869,7 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
               <img
                 src={v.image_url!}
                 alt={v.angle_label}
-                className="w-full aspect-square object-cover"
+                className="w-full aspect-square object-contain bg-secondary/50"
                 loading="lazy"
               />
             </div>
