@@ -196,6 +196,16 @@ export const useBreakdownAssets = () => {
         })();
 
         if (locationName) {
+          // Filter out vehicle-based scene headings (e.g. "HOWARD'S CAR", "CORVETTE")
+          const locLower = locationName.toLowerCase();
+          const isVehicleLocation = VEHICLE_KEYWORDS.some((v) => {
+            const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            return new RegExp(`(?:^|[\\s\\-–—/.,;:'"()])${escaped}(?:$|[\\s\\-–—/.,;:'"()])`, "i").test(` ${locLower} `);
+          });
+          if (isVehicleLocation) {
+            vehicleSet.add(locationName);
+            // Don't add to locationSet — skip to next scene
+          } else {
           locationSet.add(locationName);
           const intExt = s.int_ext || s.heading?.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0]?.toUpperCase() || "";
           const timeOfDay = s.day_night || "";
@@ -208,6 +218,7 @@ export const useBreakdownAssets = () => {
           if (!meta.intExt && intExt) meta.intExt = intExt;
           if (s.environment_details && typeof s.environment_details === "string") meta.envSnippets.push(s.environment_details);
           if (s.mood && typeof s.mood === "string") meta.moods.add(s.mood);
+          }
         }
 
         // Scene context for props/vehicles
