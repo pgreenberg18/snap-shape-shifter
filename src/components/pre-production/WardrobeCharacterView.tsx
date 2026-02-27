@@ -248,9 +248,10 @@ const WardrobeCharacterView = ({
                 </p>
                 <div className="space-y-1.5">
                   {unassignedScenes.map((sn) => (
-                    <div
+                    <button
                       key={sn}
-                      className="flex items-center gap-3 rounded-lg px-3 py-2 bg-background/50 border border-border"
+                      onClick={() => wardrobeItems.length > 0 && onSelectItem(wardrobeItems[0])}
+                      className="w-full flex items-center gap-3 rounded-lg px-3 py-2 bg-background/50 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left"
                     >
                       <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                       <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
@@ -261,10 +262,11 @@ const WardrobeCharacterView = ({
                           {sceneHeadings[sn]}
                         </span>
                       )}
-                      <span className="text-[9px] text-destructive/60 uppercase tracking-wider shrink-0">
-                        No costume
+                      <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold text-destructive uppercase tracking-wider shrink-0 border border-destructive/20 bg-destructive/10 rounded px-2 py-0.5 group-hover:bg-destructive/20 group-hover:border-destructive/30 transition-colors">
+                        <Shirt className="h-3 w-3" />
+                        Assign costume
                       </span>
-                    </div>
+                    </button>
                   ))}
                 </div>
               </CollapsibleContent>
