@@ -3367,10 +3367,36 @@ const ContentSafetyMatrix = ({
   }, {} as Record<string, ContentFlag[]>);
 
   if (loading) {
+    const sceneCount = scenes?.length || 0;
     return (
-      <div className="rounded-xl border border-border bg-card p-10 flex items-center justify-center gap-2 text-muted-foreground">
-        <Loader2 className="h-5 w-5 animate-spin" />
-        <span>Analyzing script for content safety…</span>
+      <div className="rounded-xl border border-border bg-card p-8 space-y-5">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Shield className="h-5 w-5 text-primary animate-pulse" />
+          </div>
+          <div>
+            <p className="font-display font-bold">Analyzing Content Safety</p>
+            <p className="text-xs text-muted-foreground">
+              Scanning {sceneCount} scene{sceneCount !== 1 ? "s" : ""} against MPAA guidelines…
+            </p>
+          </div>
+        </div>
+        <div className="space-y-2">
+          {scenes?.slice(0, 8).map((s: any, i: number) => (
+            <div key={i} className="flex items-center gap-2 text-xs animate-pulse" style={{ animationDelay: `${i * 150}ms` }}>
+              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              <span className="text-muted-foreground truncate">
+                Scene {s.scene_number ?? i + 1}: {s.heading || `Scene ${i + 1}`}
+              </span>
+            </div>
+          ))}
+          {sceneCount > 8 && (
+            <p className="text-xs text-muted-foreground pl-5">…and {sceneCount - 8} more</p>
+          )}
+        </div>
+        <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
+          <div className="h-full w-1/3 rounded-full bg-primary animate-pulse" />
+        </div>
       </div>
     );
   }
