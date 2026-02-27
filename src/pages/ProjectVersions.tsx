@@ -432,7 +432,7 @@ const ProjectVersions = () => {
 
   const { toggle: toggleHelp } = useHelp();
 
-  /* ── Check for provider conflicts before navigating ── */
+  /* ── Auto-seed missing provider selections, only prompt if truly ambiguous ── */
   const handleVersionClick = useCallback(async (filmId: string) => {
     if (!user?.id) { navigate(`/projects/${projectId}/versions/${filmId}/development`); return; }
     // Get verified integrations
@@ -441,7 +441,7 @@ const ProjectVersions = () => {
       .eq("user_id", user.id);
     // Get existing selections for this film
     const { data: selections } = await supabase
-      .from("version_provider_selections").select("section_id")
+      .from("version_provider_selections").select("section_id, provider_service_id")
       .eq("film_id", filmId);
     const selectedSections = new Set(selections?.map(s => s.section_id) || []);
     // Group verified by section
@@ -451,10 +451,25 @@ const ProjectVersions = () => {
       const section = LEGACY_MAP[i.section_id] || i.section_id;
       (bySection[section] ??= []).push({ id: i.id, provider_name: i.provider_name });
     }
-    // Find conflicts: multiple providers, no selection yet
-    const unresolved = Object.entries(bySection)
-      .filter(([section, providers]) => providers.length > 1 && !selectedSections.has(section))
-      .map(([section, providers]) => ({ section, providers }));
+
+    // Auto-seed sections that only have 1 provider and no selection yet
+    const autoSeedRows: Array<{ film_id: string; section_id: string; provider_service_id: string }> = [];
+    const unresolved: Array<{ section: string; providers: Array<{ id: string; provider_name: string }> }> = [];
+
+    for (const [section, providers] of Object.entries(bySection)) {
+      if (selectedSections.has(section)) continue;
+      if (providers.length === 1) {
+        autoSeedRows.push({ film_id: filmId, section_id: section, provider_service_id: providers[0].id });
+      } else {
+        unresolved.push({ section, providers });
+      }
+    }
+
+    // Silently persist auto-selections
+    if (autoSeedRows.length > 0) {
+      await supabase.from("version_provider_selections").upsert(autoSeedRows, { onConflict: "film_id,section_id" });
+    }
+
     if (unresolved.length > 0) {
       setConflictFilmId(filmId);
       setConflicts(unresolved);
