@@ -172,6 +172,7 @@ export const useBreakdownAssets = () => {
 
       const locationSet = new Set<string>();
       const locationDescMap = new Map<string, string>();
+      const locationSceneCount = new Map<string, number>(); // count how many scenes each location appears in
       const propSet = new Set<string>();
       const propContextMap = new Map<string, { scenes: string[]; locations: string[]; characters: Set<string> }>();
       const wardrobeMap = new Map<string, string>();
@@ -197,16 +198,23 @@ export const useBreakdownAssets = () => {
 
         if (locationName) {
           // Filter out vehicle-based scene headings (e.g. "HOWARD'S CAR", "CORVETTE")
-          const locLower = locationName.toLowerCase();
-          const isVehicleLocation = VEHICLE_KEYWORDS.some((v) => {
+          const locLower = locationName.toLowerCase().trim();
+          // Check if the entire location IS a vehicle keyword (exact match)
+          const isExactVehicle = VEHICLE_KEYWORDS.includes(locLower);
+          // Check if the location contains a vehicle keyword as a word
+          const containsVehicleWord = VEHICLE_KEYWORDS.some((v) => {
             const escaped = v.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             return new RegExp(`(?:^|[\\s\\-–—/.,;:'"()])${escaped}(?:$|[\\s\\-–—/.,;:'"()])`, "i").test(` ${locLower} `);
           });
+          // Also detect possessive vehicle patterns: "HOWARD'S CAR", "RACHEL'S CAR"
+          const isPossessiveVehicle = /^[a-z]+'s\s+/i.test(locLower) && VEHICLE_KEYWORDS.some((v) => locLower.replace(/^[a-z]+'s\s+/i, "").trim() === v);
+          const isVehicleLocation = isExactVehicle || containsVehicleWord || isPossessiveVehicle;
           if (isVehicleLocation) {
             vehicleSet.add(locationName);
             // Don't add to locationSet — skip to next scene
           } else {
           locationSet.add(locationName);
+          locationSceneCount.set(locationName, (locationSceneCount.get(locationName) || 0) + 1);
           const intExt = s.int_ext || s.heading?.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0]?.toUpperCase() || "";
           const timeOfDay = s.day_night || "";
 
@@ -283,7 +291,7 @@ export const useBreakdownAssets = () => {
       }
 
       // Second pass: build descriptions — enriched with raw script prose
-      const sortedLocations = [...locationSet].sort();
+      const sortedLocations = [...locationSet].sort((a, b) => (locationSceneCount.get(b) || 0) - (locationSceneCount.get(a) || 0));
       for (const loc of sortedLocations) {
         const meta = locationMeta.get(loc);
         const parts: string[] = [];
@@ -434,6 +442,7 @@ export const useBreakdownAssets = () => {
       return {
         locations: sortedLocations,
         locationDescriptions: Object.fromEntries(locationDescMap),
+        locationSceneCounts: Object.fromEntries(locationSceneCount),
         props: [...propSet].sort(),
         propDescriptions: propDescMap,
         wardrobe: [...wardrobeMap.keys()].map((k) => {

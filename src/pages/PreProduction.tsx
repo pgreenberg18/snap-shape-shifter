@@ -1233,7 +1233,7 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-locations">
-          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={parsedScenes as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} />
+          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={parsedScenes as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} itemSceneCounts={breakdownAssets?.locationSceneCounts} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-props">
           <DnDGroupPane
