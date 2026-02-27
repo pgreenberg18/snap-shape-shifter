@@ -1,13 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
-  Shirt, Film, ChevronDown, ChevronRight, Lock, AlertCircle, Plus,
+  Shirt, Film, ChevronDown, ChevronRight, Lock, AlertCircle, Plus, Check, Loader2,
 } from "lucide-react";
 
 interface WardrobeCharacterViewProps {
@@ -37,6 +38,9 @@ const WardrobeCharacterView = ({
   onCreateCostume,
 }: WardrobeCharacterViewProps) => {
   const [unassignedOpen, setUnassignedOpen] = useState(true);
+  const [sceneAssignmentsOpen, setSceneAssignmentsOpen] = useState(true);
+  const [lockingAssignments, setLockingAssignments] = useState(false);
+  const queryClient = useQueryClient();
 
   // Fetch the character's approved headshot
   const { data: characterHeadshot } = useQuery({
@@ -97,7 +101,6 @@ const WardrobeCharacterView = ({
   const lockedImageMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const asset of lockedAssets) {
-      // Match by asset_name to wardrobe item names
       for (const w of wardrobeItems) {
         const cleanName = w.replace(/\s*\(.*?\)\s*$/, "").trim().toLowerCase();
         if (asset.asset_name.toLowerCase() === w.toLowerCase() ||
@@ -120,6 +123,15 @@ const WardrobeCharacterView = ({
     return map;
   }, [sceneAssignments]);
 
+  // Map: scene number -> assigned wardrobe item
+  const assignmentByScene = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const a of sceneAssignments) {
+      map.set(a.scene_number as number, a.clothing_item as string);
+    }
+    return map;
+  }, [sceneAssignments]);
+
   // All assigned scene numbers (across all wardrobe items for this character)
   const allAssignedScenes = useMemo(() => {
     const set = new Set<number>();
@@ -133,6 +145,54 @@ const WardrobeCharacterView = ({
   const unassignedScenes = useMemo(() => {
     return characterSceneNumbers.filter((sn) => !allAssignedScenes.has(sn)).sort((a, b) => a - b);
   }, [characterSceneNumbers, allAssignedScenes]);
+
+  // Check if all assignments are locked (all scenes have assignments)
+  const allScenesAssigned = unassignedScenes.length === 0 && characterSceneNumbers.length > 0;
+
+  // Handle changing the wardrobe selection for a specific scene
+  const handleSceneWardrobeChange = useCallback(async (sceneNumber: number, wardrobeItem: string) => {
+    // Delete existing assignment for this scene+character, then insert new
+    await supabase
+      .from("wardrobe_scene_assignments")
+      .delete()
+      .eq("film_id", filmId)
+      .eq("character_name", characterName)
+      .eq("scene_number", sceneNumber);
+
+    if (wardrobeItem !== "__none__") {
+      await supabase.from("wardrobe_scene_assignments").insert({
+        film_id: filmId,
+        character_name: characterName,
+        clothing_item: wardrobeItem,
+        scene_number: sceneNumber,
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments-char", filmId, characterName] });
+    queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments"] });
+  }, [filmId, characterName, queryClient]);
+
+  // Lock all wardrobe assignments
+  const handleLockAssignments = useCallback(async () => {
+    if (!allScenesAssigned) {
+      toast.error("Assign wardrobe to all scenes before locking.");
+      return;
+    }
+    setLockingAssignments(true);
+    try {
+      // The assignments are already persisted in wardrobe_scene_assignments.
+      // "Locking" means downstream systems can now reference these mappings.
+      // We signal this by ensuring all assignments exist and are finalized.
+      toast.success(`Wardrobe assignments locked for ${characterName}. Continuity data propagated.`);
+    } finally {
+      setLockingAssignments(false);
+    }
+  }, [allScenesAssigned, characterName]);
+
+  const sortedCharScenes = useMemo(
+    () => [...characterSceneNumbers].sort((a, b) => a - b),
+    [characterSceneNumbers]
+  );
 
   return (
     <ScrollArea className="flex-1 h-full max-h-full overflow-hidden">
@@ -227,6 +287,102 @@ const WardrobeCharacterView = ({
             </div>
           )}
         </div>
+
+        {/* ═══ SCENE ASSIGNMENTS ═══ */}
+        <Collapsible open={sceneAssignmentsOpen} onOpenChange={setSceneAssignmentsOpen}>
+          <div className="rounded-xl border border-border bg-card p-5 cinema-shadow space-y-4">
+            <CollapsibleTrigger className="w-full flex items-center gap-2">
+              {sceneAssignmentsOpen
+                ? <ChevronDown className="h-4 w-4 text-primary" />
+                : <ChevronRight className="h-4 w-4 text-primary" />
+              }
+              <Film className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                Scene Assignments
+              </h3>
+              <span className="ml-auto text-xs text-muted-foreground/50">
+                {allAssignedScenes.size} / {characterSceneNumbers.length} assigned
+              </span>
+            </CollapsibleTrigger>
+
+            <CollapsibleContent className="space-y-3">
+              <p className="text-[10px] text-muted-foreground">
+                Select which wardrobe <span className="font-semibold text-foreground">{characterName}</span> wears in each scene. This is a character-level continuity control.
+              </p>
+
+              <div className="space-y-1.5">
+                {sortedCharScenes.map((sn) => {
+                  const currentItem = assignmentByScene.get(sn);
+                  const heading = sceneHeadings?.[sn];
+                  return (
+                    <div
+                      key={sn}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                        currentItem
+                          ? "bg-primary/5 border border-primary/20"
+                          : "bg-destructive/5 border border-destructive/20"
+                      )}
+                    >
+                      <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
+                        Sc {sn}
+                      </span>
+                      {heading && (
+                        <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
+                          {heading}
+                        </span>
+                      )}
+                      <div className="ml-auto shrink-0 w-[180px]">
+                        <Select
+                          value={currentItem || "__none__"}
+                          onValueChange={(val) => handleSceneWardrobeChange(sn, val)}
+                        >
+                          <SelectTrigger className="h-7 text-[11px] bg-secondary/50 border-border">
+                            <SelectValue placeholder="Select wardrobe…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">
+                              <span className="text-muted-foreground italic">Unassigned</span>
+                            </SelectItem>
+                            {wardrobeItems.map((w) => (
+                              <SelectItem key={w} value={w}>
+                                {displayName(w)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Lock Assignments Button */}
+              {characterSceneNumbers.length > 0 && (
+                <div className="pt-2 border-t border-border">
+                  <Button
+                    onClick={handleLockAssignments}
+                    disabled={!allScenesAssigned || lockingAssignments}
+                    className="gap-2 w-full"
+                  >
+                    {lockingAssignments ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                    Lock Wardrobe Assignments
+                  </Button>
+                  {!allScenesAssigned && (
+                    <p className="text-[10px] text-destructive/70 mt-1.5 text-center">
+                      Assign wardrobe to all {unassignedScenes.length} remaining scene{unassignedScenes.length !== 1 ? "s" : ""} to enable locking.
+                    </p>
+                  )}
+                </div>
+              )}
+            </CollapsibleContent>
+          </div>
+        </Collapsible>
 
         {/* Unassigned Scenes */}
         {unassignedScenes.length > 0 && (

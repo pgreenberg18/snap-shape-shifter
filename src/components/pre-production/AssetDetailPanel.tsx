@@ -1,15 +1,13 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Upload, Loader2, Eye, Film, Save, Sparkles, type LucideIcon,
+  Upload, Loader2, Eye, Film, Save, Sparkles, RotateCcw, Lock, type LucideIcon,
 } from "lucide-react";
 import AssetAuditionPane from "./AssetAuditionPane";
 
@@ -32,6 +30,18 @@ interface AssetDetailPanelProps {
   /** Scene headings keyed by scene number */
   sceneHeadings?: Record<number, string>;
 }
+
+/* 8-view turnaround angles matching the character consistency engine */
+const FITTING_ANGLES = [
+  { index: 0, label: "Front" },
+  { index: 1, label: "¾ Left" },
+  { index: 2, label: "Profile Left" },
+  { index: 3, label: "¾ Back Left" },
+  { index: 4, label: "Back" },
+  { index: 5, label: "¾ Back Right" },
+  { index: 6, label: "Profile Right" },
+  { index: 7, label: "¾ Right" },
+];
 
 const AssetDetailPanel = ({
   itemName,
@@ -64,10 +74,10 @@ const AssetDetailPanel = ({
     onDescriptionChange?.(val);
   };
 
-  // ── Per-scene wardrobe assignments ──
+  // ── Wardrobe: fetch scene assignments for this specific item ──
   const characterName = assetType === "wardrobe" ? (subtitle || "Unknown") : undefined;
 
-  const { data: wardrobeAssignments = [] } = useQuery({
+  const { data: wardrobeItemScenes = [] } = useQuery({
     queryKey: ["wardrobe-scene-assignments", filmId, characterName, itemName],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -77,78 +87,64 @@ const AssetDetailPanel = ({
         .eq("character_name", characterName!)
         .eq("clothing_item", itemName);
       if (error) throw error;
-      return (data ?? []).map((r) => r.scene_number);
+      return (data ?? []).map((r) => r.scene_number).sort((a, b) => a - b);
     },
     enabled: assetType === "wardrobe" && !!characterName,
   });
 
-  const assignedScenes = useMemo(() => new Set(wardrobeAssignments), [wardrobeAssignments]);
-  const hasExplicitAssignments = wardrobeAssignments.length > 0;
-
-  const toggleSceneAssignment = useCallback(async (sceneNum: number, assigned: boolean) => {
-    if (!characterName) return;
-
-    if (assigned) {
-      if (!hasExplicitAssignments && sceneNumbers && sceneNumbers.length > 0) {
-        const rows = [...new Set([...sceneNumbers, sceneNum])].map((sn) => ({
-          film_id: filmId,
-          character_name: characterName,
-          clothing_item: itemName,
-          scene_number: sn,
-        }));
-        await supabase.from("wardrobe_scene_assignments").upsert(rows);
-      } else {
-        await supabase.from("wardrobe_scene_assignments").upsert({
-          film_id: filmId,
-          character_name: characterName,
-          clothing_item: itemName,
-          scene_number: sceneNum,
-        });
-      }
-    } else {
-      if (!hasExplicitAssignments && sceneNumbers && sceneNumbers.length > 0) {
-        const rows = sceneNumbers
-          .filter((sn) => sn !== sceneNum)
-          .map((sn) => ({
-            film_id: filmId,
-            character_name: characterName,
-            clothing_item: itemName,
-            scene_number: sn,
-          }));
-        if (rows.length > 0) {
-          await supabase.from("wardrobe_scene_assignments").upsert(rows);
-        }
-      } else {
-        await supabase.from("wardrobe_scene_assignments").delete()
-          .eq("film_id", filmId)
-          .eq("character_name", characterName)
-          .eq("clothing_item", itemName)
-          .eq("scene_number", sceneNum);
-      }
-    }
-
-    queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments", filmId, characterName, itemName] });
-    queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments-char"] });
-  }, [filmId, characterName, itemName, hasExplicitAssignments, sceneNumbers, queryClient]);
-
-  const isSceneAssigned = useCallback((sceneNum: number) => {
-    if (!hasExplicitAssignments) {
-      return sceneNumbers?.includes(sceneNum) ?? false;
-    }
-    return assignedScenes.has(sceneNum);
-  }, [hasExplicitAssignments, assignedScenes, sceneNumbers]);
-
-  // Merge detected scenes + all film scenes for the assignment UI
-  const wardrobeSceneList = useMemo(() => {
+  // For wardrobe: compute scenes where this item appears
+  // Use explicit assignments if they exist, otherwise fall back to script-detected scenes
+  const wardrobeScenesDisplay = useMemo(() => {
     if (assetType !== "wardrobe") return [];
-    if (!sceneNumbers || sceneNumbers.length === 0) return [];
-    return [...sceneNumbers].sort((a, b) => a - b);
-  }, [assetType, sceneNumbers]);
+    if (wardrobeItemScenes.length > 0) return wardrobeItemScenes;
+    // Fall back to script-detected scenes
+    return sceneNumbers ? [...sceneNumbers].sort((a, b) => a - b) : [];
+  }, [assetType, wardrobeItemScenes, sceneNumbers]);
+
+  // ── Wardrobe Fitting: fetch locked asset + character data for 8-view ──
+  const { data: lockedAssetForItem } = useQuery({
+    queryKey: ["wardrobe-locked-asset-detail", filmId, itemName],
+    queryFn: async () => {
+      const cleanName = itemName.replace(/\s*\(.*?\)\s*$/, "").trim();
+      const { data, error } = await supabase
+        .from("film_assets")
+        .select("*")
+        .eq("film_id", filmId)
+        .eq("asset_type", "wardrobe")
+        .eq("locked", true)
+        .or(`asset_name.ilike.${cleanName},asset_name.ilike.${itemName}`);
+      if (error) throw error;
+      return data?.[0] ?? null;
+    },
+    enabled: assetType === "wardrobe" && !!filmId,
+  });
+
+  const { data: characterData } = useQuery({
+    queryKey: ["character-for-wardrobe-fitting", filmId, characterName],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("characters")
+        .select("id, name, image_url, approved")
+        .eq("film_id", filmId)
+        .ilike("name", characterName!)
+        .eq("approved", true)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: assetType === "wardrobe" && !!filmId && !!characterName,
+  });
+
+  // Fetch existing wardrobe fitting views (if any)
+  // These would be stored similar to character_consistency_views but for wardrobe
+  // For now, show placeholders until the fitting generation system is built
+  const hasLockedWardrobe = !!lockedAssetForItem;
+  const hasApprovedCharacter = !!characterData?.approved;
 
   return (
     <ScrollArea className="flex-1">
       <div className="p-6 space-y-6">
-        {/* Header */}
+        {/* ═══ SLOT 1: Header + Details ═══ */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
@@ -224,92 +220,6 @@ const AssetDetailPanel = ({
           </div>
         )}
 
-        {/* Scene Appearances (non-wardrobe) */}
-        {assetType !== "wardrobe" && sceneNumbers && sceneNumbers.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <Film className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Scenes
-              </h3>
-              <span className="text-xs text-muted-foreground/50">
-                {sceneNumbers.length} appearance{sceneNumbers.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {sceneNumbers.map((sn) => (
-                <button
-                  key={sn}
-                  onClick={() => onOpenScene?.(sn)}
-                  className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                  title={`View Scene ${sn}`}
-                >
-                  {sn}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ═══ WARDROBE: Per-Scene Assignment ═══ */}
-        {assetType === "wardrobe" && wardrobeSceneList.length > 0 && (
-          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-            <div className="flex items-center gap-2 mb-1">
-              <Film className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Scene Assignments
-              </h3>
-              <span className="text-xs text-muted-foreground/50">
-                {wardrobeSceneList.filter((sn) => isSceneAssigned(sn)).length} / {wardrobeSceneList.length} scenes
-              </span>
-            </div>
-            <p className="text-[10px] text-muted-foreground mb-3">
-              Toggle scenes where this wardrobe item is worn. Uncheck to assign different wardrobe for specific scenes.
-            </p>
-            <div className="space-y-1">
-              {wardrobeSceneList.map((sn) => {
-                const assigned = isSceneAssigned(sn);
-                const detected = sceneNumbers?.includes(sn) ?? false;
-                const heading = sceneHeadings?.[sn];
-                return (
-                  <label
-                    key={sn}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 cursor-pointer transition-colors",
-                      assigned
-                        ? "bg-primary/5 border border-primary/20"
-                        : "bg-secondary/30 border border-transparent hover:bg-secondary/50"
-                    )}
-                  >
-                    <Checkbox
-                      checked={assigned}
-                      onCheckedChange={(checked) => toggleSceneAssignment(sn, !!checked)}
-                    />
-                    <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
-                      Sc {sn}
-                    </span>
-                    {heading && (
-                      <span className="text-[11px] text-muted-foreground truncate flex-1">
-                        {heading}
-                      </span>
-                    )}
-                    {detected && !hasExplicitAssignments && (
-                      <span className="text-[9px] text-muted-foreground/50 uppercase tracking-wider shrink-0">
-                        from script
-                      </span>
-                    )}
-                    {!detected && (
-                      <span className="text-[9px] text-primary/60 uppercase tracking-wider shrink-0">
-                        added
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {/* Description / Details */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
           <div className="flex items-center justify-between">
@@ -342,13 +252,73 @@ const AssetDetailPanel = ({
           </div>
         </div>
 
-        {/* Visual Audition */}
+        {/* ═══ SLOT 2: Scenes (read-only list — where this asset appears) ═══ */}
+        {assetType === "wardrobe" ? (
+          /* Wardrobe: show scenes where this specific item is assigned */
+          wardrobeScenesDisplay.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
+              <div className="flex items-center gap-2 mb-3">
+                <Film className="h-4 w-4 text-primary" />
+                <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                  Scenes
+                </h3>
+                <span className="text-xs text-muted-foreground/50">
+                  {wardrobeScenesDisplay.length} appearance{wardrobeScenesDisplay.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground mb-2">
+                Scenes where this wardrobe item is worn. Manage assignments from the character overview.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {wardrobeScenesDisplay.map((sn) => (
+                  <button
+                    key={sn}
+                    onClick={() => onOpenScene?.(sn)}
+                    className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                    title={sceneHeadings?.[sn] || `Scene ${sn}`}
+                  >
+                    {sn}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        ) : (
+          /* Non-wardrobe: standard scene list */
+          sceneNumbers && sceneNumbers.length > 0 && (
+            <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
+              <div className="flex items-center gap-2 mb-3">
+                <Film className="h-4 w-4 text-primary" />
+                <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                  Scenes
+                </h3>
+                <span className="text-xs text-muted-foreground/50">
+                  {sceneNumbers.length} appearance{sceneNumbers.length !== 1 ? "s" : ""}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {sceneNumbers.map((sn) => (
+                  <button
+                    key={sn}
+                    onClick={() => onOpenScene?.(sn)}
+                    className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                    title={`View Scene ${sn}`}
+                  >
+                    {sn}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ═══ SLOT 3: Visual Selection / Audition ═══ */}
         <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Visual Options
+                {assetType === "wardrobe" ? "Wardrobe Selection" : "Visual Options"}
               </h3>
             </div>
           </div>
@@ -358,6 +328,71 @@ const AssetDetailPanel = ({
             assetName={itemName}
           />
         </div>
+
+        {/* ═══ SLOT 4: Wardrobe Fitting (8-view turnaround) — wardrobe only ═══ */}
+        {assetType === "wardrobe" && (
+          <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
+            <div className="flex items-center gap-2">
+              <RotateCcw className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                Wardrobe Fitting
+              </h3>
+              <span className="text-xs text-muted-foreground/50">8-view turnaround</span>
+            </div>
+
+            {!hasLockedWardrobe ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                <Lock className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-xs text-muted-foreground/50">Lock a wardrobe option above to enable fitting</p>
+                <p className="text-[10px] text-muted-foreground/40">
+                  The 8-view fitting generates the locked actor wearing this costume from all angles
+                </p>
+              </div>
+            ) : !hasApprovedCharacter ? (
+              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                <Lock className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-xs text-muted-foreground/50">Character must be cast first</p>
+                <p className="text-[10px] text-muted-foreground/40">
+                  Lock {characterName}'s casting in the Characters tab to enable wardrobe fitting
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-[10px] text-muted-foreground">
+                  Generate 8 standardized views of <span className="font-semibold text-foreground">{characterName}</span> wearing this costume. These become the canonical visual reference for continuity.
+                </p>
+
+                <div className="grid grid-cols-4 gap-2">
+                  {FITTING_ANGLES.map((angle) => (
+                    <div
+                      key={angle.index}
+                      className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
+                    >
+                      <div className="aspect-square flex items-center justify-center bg-secondary/50">
+                        <RotateCcw className="h-5 w-5 text-muted-foreground/20" />
+                      </div>
+                      <p className="text-[9px] font-display font-semibold text-muted-foreground text-center py-1 uppercase tracking-wider">
+                        {angle.label}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  disabled
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Generate Fitting Views
+                </Button>
+                <p className="text-[9px] text-muted-foreground/50 text-center">
+                  Fitting generation coming soon — uses the same 8 angles as character consistency views
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </ScrollArea>
   );
