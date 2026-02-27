@@ -71,6 +71,8 @@ interface DnDGroupPaneProps {
   characterOrder?: string[];
   /** Character rankings for tier grouping in wardrobe sidebar */
   characterRankings?: CharacterRanking[];
+  /** Scene counts per item (for sorting by frequency) */
+  itemSceneCounts?: Record<string, number>;
 }
 
 // ... keep existing code (persistence helpers, CONTEXT_MAP)
@@ -180,7 +182,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
 }
 
 /* ── Main component ── */
-const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings, characterOrder, characterRankings }: DnDGroupPaneProps) => {
+const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMessage, subtitles, expandableSubtitles, sceneBreakdown, storagePath, reclassifyOptions, onReclassify, initialGroups, excludeFromKeyObjects, allSceneNumbers, sceneHeadings, characterOrder, characterRankings, itemSceneCounts }: DnDGroupPaneProps) => {
   const [groups, setGroups] = useState<ItemGroup[]>([]);
   const [mergedAway, setMergedAway] = useState<Set<string>>(new Set());
   const [renames, setRenames] = useState<Record<string, string>>({});
@@ -216,6 +218,12 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     groups?: ItemGroup[];
     renames?: Record<string, string>;
   }>>([]);
+  // General undo history for all sections (group membership + renames + merged)
+  const [generalUndoStack, setGeneralUndoStack] = useState<Array<{
+    groups: ItemGroup[];
+    renames: Record<string, string>;
+    merged: string[];
+  }>>([]);
 
   // Load/save wardrobe tier overrides
   useEffect(() => {
@@ -229,6 +237,29 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       }
     } catch {}
   }, [filmId, storagePrefix]);
+
+  const pushGeneralUndo = useCallback(() => {
+    setGeneralUndoStack(prev => [...prev.slice(-19), {
+      groups: groups.map(g => ({ ...g, children: [...g.children] })),
+      renames: { ...renames },
+      merged: [...mergedAway],
+    }]);
+  }, [groups, renames, mergedAway]);
+
+  const handleGeneralUndo = useCallback(() => {
+    if (generalUndoStack.length === 0) return;
+    const prev = generalUndoStack[generalUndoStack.length - 1];
+    setGeneralUndoStack(s => s.slice(0, -1));
+    setGroups(prev.groups);
+    setRenames(prev.renames);
+    setMergedAway(new Set(prev.merged));
+    if (filmId) {
+      saveJson(storagePrefix, filmId, "groups", prev.groups);
+      saveJson(storagePrefix, filmId, "renames", prev.renames);
+      saveJson(storagePrefix, filmId, "merged", prev.merged);
+    }
+    toast.success("Undone");
+  }, [generalUndoStack, filmId, storagePrefix]);
 
   const pushWardrobeUndo = useCallback(() => {
     setWardrobeUndoStack(prev => [...prev.slice(-19), {
@@ -308,18 +339,22 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     toast.success("Undone");
   }, [wardrobeUndoStack, filmId, storagePrefix, fetchWardrobeSceneCounts]);
 
-  // Ctrl+Z keyboard shortcut for wardrobe undo
+  // Ctrl+Z keyboard shortcut for undo (all sections)
   useEffect(() => {
-    if (storagePrefix !== "wardrobe") return;
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey && wardrobeUndoStack.length > 0) {
-        e.preventDefault();
-        handleWardrobeUndo();
+      if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+        if (storagePrefix === "wardrobe" && wardrobeUndoStack.length > 0) {
+          e.preventDefault();
+          handleWardrobeUndo();
+        } else if (generalUndoStack.length > 0) {
+          e.preventDefault();
+          handleGeneralUndo();
+        }
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [storagePrefix, handleWardrobeUndo, wardrobeUndoStack.length]);
+  }, [storagePrefix, handleWardrobeUndo, wardrobeUndoStack.length, handleGeneralUndo, generalUndoStack.length]);
 
   useEffect(() => {
     fetchWardrobeSceneCounts();
@@ -477,31 +512,56 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       if (storagePrefix === "locations" && items.length > 0) {
         const alreadyGrouped = new Set(loadedGroups.flatMap((g) => g.children.map((c) => c.toUpperCase())));
         const loadedMerged = new Set(loadJson<string[]>(storagePrefix, filmId, "merged", []).map((m) => m.toUpperCase()));
-        const ungrouped = items.filter((it) => !alreadyGrouped.has(it.toUpperCase()) && !loadedMerged.has(it.toUpperCase()));
+        const ungroupedItems = items.filter((it) => !alreadyGrouped.has(it.toUpperCase()) && !loadedMerged.has(it.toUpperCase()));
 
-        // Extract base location: "HOSPITAL ROOM" → "HOSPITAL", "WELLS' HOME - KITCHEN" → "WELLS' HOME"
+        // Common sub-location suffixes that indicate a child of a parent location
+        const SUB_LOC_WORDS = new Set(["ROOM", "HALLWAY", "CORRIDOR", "LOBBY", "ENTRANCE", "EXIT", "OFFICE",
+          "FLOOR", "LOT", "AREA", "STAIRWELL", "STAIR WELL", "SIDE STREET", "DECK", "BACK DECK",
+          "FRONT YARD", "BACK YARD", "BACKYARD", "FRONT DOOR", "BACK DOOR", "DRIVEWAY",
+          "PARKING LOT", "KITCHEN", "BEDROOM", "BATHROOM", "LIVING ROOM", "LOUNGE",
+          "BASEMENT", "ATTIC", "GARAGE", "PORCH", "PATIO", "BALCONY", "ROOFTOP",
+          "FOYER", "HALLWAY", "WAITING ROOM", "CONTROL ROOM", "VISITORS ROOM"]);
+
+        // Extract base location intelligently
         const getLocBase = (name: string): string => {
           const upper = name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME");
+          // Split on dash separator first: "WELLS' HOME - KITCHEN" → "WELLS' HOME"
           const sepMatch = upper.match(/^(.+?)\s*[-–—]\s+/);
           if (sepMatch) return sepMatch[1].trim();
+          // Split on period+space: "CEMETERY. GRAVESIDE" → "CEMETERY"
+          const dotMatch = upper.match(/^(.+?)\.\s+/);
+          if (dotMatch) return dotMatch[1].trim();
+          // Try removing known sub-location suffixes: "HOSPITAL ROOM" → "HOSPITAL"
+          for (const suffix of SUB_LOC_WORDS) {
+            if (upper.endsWith(" " + suffix) && upper.length > suffix.length + 1) {
+              return upper.slice(0, -(suffix.length + 1)).trim();
+            }
+          }
           return upper.trim();
         };
+
+        // Build a map of ALL items (including already-grouped) to find base matches
+        const allItemBases = new Map<string, string>(); // item upper → base
+        for (const it of items) {
+          allItemBases.set(it.toUpperCase(), getLocBase(it));
+        }
 
         // Also check if an ungrouped item's base matches an existing group name
         const groupNameMap = new Map<string, typeof loadedGroups[0]>();
         for (const g of loadedGroups) {
-          groupNameMap.set(g.name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME"), g);
+          const normName = g.name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME");
+          groupNameMap.set(normName, g);
         }
 
         // Build base → items map for ungrouped
         const baseMap = new Map<string, string[]>();
-        for (const loc of ungrouped) {
+        for (const loc of ungroupedItems) {
           const base = getLocBase(loc);
           // First check if this belongs to an existing group
           let addedToExisting = false;
           for (const [gNameUpper, g] of groupNameMap) {
             if (base === gNameUpper || base.startsWith(gNameUpper + " ") || base.startsWith(gNameUpper + "'") ||
-                gNameUpper.startsWith(base + " ") || gNameUpper.startsWith(base + "'") || gNameUpper === base) {
+                gNameUpper.startsWith(base + " ") || gNameUpper.startsWith(base + "'")) {
               if (!g.children.some((c) => c.toUpperCase() === loc.toUpperCase())) {
                 g.children.push(loc);
                 addedToExisting = true;
@@ -516,30 +576,50 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         }
 
         // Merge bases that overlap (e.g., "HOSPITAL" and "HOSPITAL CORRIDOR")
-        const bases = [...baseMap.keys()];
-        for (let i = 0; i < bases.length; i++) {
-          for (let j = i + 1; j < bases.length; j++) {
-            if (!baseMap.has(bases[i]) || !baseMap.has(bases[j])) continue;
-            const a = bases[i], b = bases[j];
-            if (a.startsWith(b + " ") || a.startsWith(b + "'") || b.startsWith(a + " ") || b.startsWith(a + "'") || a === b) {
-              const canon = a.length <= b.length ? a : b;
-              const other = canon === a ? b : a;
-              const merged = [...baseMap.get(canon)!, ...baseMap.get(other)!];
-              baseMap.delete(other);
-              baseMap.set(canon, merged);
+        const mergeOverlappingBases = () => {
+          const bases = [...baseMap.keys()];
+          let changed = true;
+          while (changed) {
+            changed = false;
+            for (let i = 0; i < bases.length; i++) {
+              for (let j = i + 1; j < bases.length; j++) {
+                if (!baseMap.has(bases[i]) || !baseMap.has(bases[j])) continue;
+                const a = bases[i], b = bases[j];
+                const shouldMerge = a === b ||
+                  a.startsWith(b + " ") || a.startsWith(b + "'") ||
+                  b.startsWith(a + " ") || b.startsWith(a + "'") ||
+                  // Also check if one is a sub-location of the other
+                  getLocBase(a) === getLocBase(b);
+                if (shouldMerge) {
+                  const canon = a.length <= b.length ? a : b;
+                  const other = canon === a ? b : a;
+                  const merged = [...baseMap.get(canon)!, ...baseMap.get(other)!];
+                  baseMap.delete(other);
+                  baseMap.set(canon, merged);
+                  bases.splice(j, 1);
+                  changed = true;
+                  break;
+                }
+              }
+              if (changed) break;
             }
           }
-        }
+        };
+        mergeOverlappingBases();
 
         // Create new groups from bases with 2+ items, or items with sub-location separators
         let autoGrouped = false;
         for (const [base, locs] of baseMap) {
           const unique = [...new Set(locs)];
-          const hasSub = unique.some((l) => l.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME").includes(" - "));
+          const hasSub = unique.some((l) => {
+            const upper = l.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME");
+            return upper.includes(" - ") || upper.includes(". ") || getLocBase(l) !== upper;
+          });
           if (unique.length >= 2 || (unique.length === 1 && hasSub)) {
             const parentName = base.charAt(0) + base.slice(1).toLowerCase().replace(/'/g, "'");
             // Check if a group with this name already exists
-            const existingGroup = loadedGroups.find((g) => g.name.toUpperCase() === base);
+            const existingGroup = loadedGroups.find((g) =>
+              g.name.toUpperCase().replace(/['']/g, "'").replace(/\bHOUSE\b/g, "HOME") === base);
             if (existingGroup) {
               for (const loc of unique) {
                 if (!existingGroup.children.some((c) => c.toUpperCase() === loc.toUpperCase())) {
@@ -613,8 +693,13 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
   const ungrouped = useMemo(() => {
     const grouped = new Set(groups.flatMap((g) => g.children));
-    return filteredVisibleItems.filter((l) => !grouped.has(l));
-  }, [filteredVisibleItems, groups]);
+    const result = filteredVisibleItems.filter((l) => !grouped.has(l));
+    // Sort ungrouped by scene count if available
+    if (itemSceneCounts && Object.keys(itemSceneCounts).length > 0) {
+      result.sort((a, b) => (itemSceneCounts[b] || 0) - (itemSceneCounts[a] || 0));
+    }
+    return result;
+  }, [filteredVisibleItems, groups, itemSceneCounts]);
 
   // For wardrobe: auto-assign any ungrouped items into their character groups
   useEffect(() => {
@@ -705,17 +790,25 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     });
   }, [groups, query, renames]);
 
-  // For wardrobe: sort groups by character ranking order
+  // Sort groups: wardrobe by character ranking, locations by scene count, others alphabetical
   const sortedFilteredGroups = useMemo(() => {
-    if (storagePrefix !== "wardrobe" || !characterOrder || characterOrder.length === 0) return filteredGroups;
-    return [...filteredGroups].sort((a, b) => {
-      const aIdx = characterOrder.indexOf(a.name.toUpperCase());
-      const bIdx = characterOrder.indexOf(b.name.toUpperCase());
-      const aPos = aIdx === -1 ? 9999 : aIdx;
-      const bPos = bIdx === -1 ? 9999 : bIdx;
-      return aPos - bPos;
-    });
-  }, [filteredGroups, characterOrder, storagePrefix]);
+    if (storagePrefix === "wardrobe" && characterOrder && characterOrder.length > 0) {
+      return [...filteredGroups].sort((a, b) => {
+        const aIdx = characterOrder.indexOf(a.name.toUpperCase());
+        const bIdx = characterOrder.indexOf(b.name.toUpperCase());
+        const aPos = aIdx === -1 ? 9999 : aIdx;
+        const bPos = bIdx === -1 ? 9999 : bIdx;
+        return aPos - bPos;
+      });
+    }
+    if (itemSceneCounts && Object.keys(itemSceneCounts).length > 0) {
+      // Sort groups by total scene count of their children
+      const groupSceneCount = (g: ItemGroup) =>
+        g.children.reduce((sum, c) => sum + (itemSceneCounts[c] || 0), 0);
+      return [...filteredGroups].sort((a, b) => groupSceneCount(b) - groupSceneCount(a));
+    }
+    return filteredGroups;
+  }, [filteredGroups, characterOrder, storagePrefix, itemSceneCounts]);
 
   // Tier metadata for wardrobe sidebar grouping
   const TIER_META: Record<CharacterTier, { label: string; color: string }> = {
@@ -857,7 +950,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     }
 
     if (targetId.startsWith("group::")) {
-      if (storagePrefix === "wardrobe") pushWardrobeUndo();
+      if (storagePrefix === "wardrobe") pushWardrobeUndo(); else pushGeneralUndo();
       const groupId = targetId.replace("group::", "");
       const targetGroup = groups.find((g) => g.id === groupId);
 
@@ -918,13 +1011,14 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
   const handleMerge = useCallback(() => {
     if (!mergeDialog) return;
+    if (storagePrefix !== "wardrobe") pushGeneralUndo();
     const next = new Set(mergedAway);
     next.add(mergeDialog.source);
     persistMerged(next);
     persistGroups(groups.map((g) => ({ ...g, children: g.children.filter((c) => c !== mergeDialog.source) })));
     toast.success(`Merged "${displayName(mergeDialog.source)}" into "${displayName(mergeDialog.target)}"`);
     setMergeDialog(null);
-  }, [mergeDialog, mergedAway, persistMerged, groups, persistGroups, displayName]);
+  }, [mergeDialog, mergedAway, persistMerged, groups, persistGroups, displayName, pushGeneralUndo, storagePrefix]);
 
   const handleRenameItem = useCallback(async (itemId: string) => {
     if (!editName.trim()) return;
@@ -970,11 +1064,13 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   };
 
   const handleDeleteGroup = (groupId: string) => {
+    if (storagePrefix !== "wardrobe") pushGeneralUndo();
     persistGroups(groups.filter((g) => g.id !== groupId));
     toast.success("Group removed");
   };
 
   const handleRemoveFromGroup = (groupId: string, item: string) => {
+    if (storagePrefix !== "wardrobe") pushGeneralUndo();
     persistGroups(groups.map((g) => g.id === groupId ? { ...g, children: g.children.filter((c) => c !== item) } : g));
   };
 
@@ -1196,6 +1292,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
 
   const handleMultiMerge = useCallback(() => {
     if (!multiMergeDialog || multiMergeDialog.length < 2) return;
+    if (storagePrefix !== "wardrobe") pushGeneralUndo();
     const [, ...rest] = multiMergeDialog;
     const next = new Set(mergedAway);
     for (const item of rest) next.add(item);
@@ -1204,7 +1301,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     toast.success(`${rest.length} items merged`);
     setMultiSelected(new Set());
     setMultiMergeDialog(null);
-  }, [multiMergeDialog, mergedAway, persistMerged, groups, persistGroups]);
+  }, [multiMergeDialog, mergedAway, persistMerged, groups, persistGroups, pushGeneralUndo, storagePrefix]);
 
   if (items.length === 0) {
     return (
@@ -1260,7 +1357,12 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             </div>
             <div className="flex items-center gap-1">
               {storagePrefix === "wardrobe" && wardrobeUndoStack.length > 0 && (
-                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground" onClick={handleWardrobeUndo} title="Undo last move">
+                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground" onClick={handleWardrobeUndo} title="Undo last move (Ctrl+Z)">
+                  <Undo2 className="h-3 w-3" /> Undo
+                </Button>
+              )}
+              {storagePrefix !== "wardrobe" && generalUndoStack.length > 0 && (
+                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground" onClick={handleGeneralUndo} title="Undo last change (Ctrl+Z)">
                   <Undo2 className="h-3 w-3" /> Undo
                 </Button>
               )}
