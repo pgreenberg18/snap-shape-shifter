@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useFilmId } from "@/hooks/useFilm";
+import { useFilmId, useFilm } from "@/hooks/useFilm";
 import {
   DIRECTORS,
   STYLE_AXES,
@@ -110,8 +110,10 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
   const filmId = useFilmId();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { data: film } = useFilm();
   const { data: profile, isLoading: profileLoading } = useDirectorProfile(filmId);
   const { data: filmGenres = [] } = useFilmGenres(filmId);
+  const filmTitle = film?.title || "YOUR FILM";
 
   const [hoveredDirector, setHoveredDirector] = useState<string | null>(null);
   const [selectedPrimary, setSelectedPrimary] = useState<string | null>(null);
@@ -413,6 +415,13 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
       {(profile || scriptVector) && (
         <>
           <div className="rounded-lg border border-border bg-background/50 overflow-hidden relative">
+            {/* Axis labels outside the SVG frame */}
+            <div className="text-center text-[9px] text-muted-foreground/60 py-1 select-none">Intimacy ← → Spectacle</div>
+            <div className="flex">
+              <div className="flex items-center justify-center shrink-0 w-5 select-none">
+                <span className="text-[9px] text-muted-foreground/60 whitespace-nowrap" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>Classical ← → Experimental</span>
+              </div>
+              <div className="flex-1">
             <svg
               viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
               className="w-full h-auto select-none"
@@ -439,10 +448,6 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               <text x={MAP_W - PAD - 6} y={PAD + 12} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + EXPERIMENTAL</text>
               <text x={PAD + 6} y={MAP_H - PAD - 6} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" fontFamily="var(--font-display)">INTIMATE + CLASSICAL</text>
               <text x={MAP_W - PAD - 6} y={MAP_H - PAD - 6} fill="hsl(var(--muted-foreground))" fontSize="8" opacity="0.5" textAnchor="end" fontFamily="var(--font-display)">EPIC + CLASSICAL</text>
-
-              {/* Axis labels */}
-              <text x={MAP_W / 2} y={MAP_H - 6} fill="hsl(var(--muted-foreground))" fontSize="9" textAnchor="middle" opacity="0.6">Intimacy ← → Spectacle</text>
-              <text x={10} y={MAP_H / 2} fill="hsl(var(--muted-foreground))" fontSize="9" textAnchor="middle" opacity="0.6" transform={`rotate(-90, 10, ${MAP_H / 2})`}>Classical ← → Experimental</text>
 
               {/* Blend line between primary and secondary */}
               {primaryDirector && secondaryDirector && (() => {
@@ -526,13 +531,13 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
 
               {/* Script vector marker */}
               {scriptVector && (() => {
-                const { x, y } = vectorToXY(scriptVector);
-                const { sx, sy } = toScreen(x, y);
+                const sv = vectorToXY(scriptVector);
+                const center = toScreen(5, 5);
                 return (
                   <g>
-                    <line x1={sx - 7} y1={sy} x2={sx + 7} y2={sy} stroke="hsl(var(--destructive))" strokeWidth="2" />
-                    <line x1={sx} y1={sy - 7} x2={sx} y2={sy + 7} stroke="hsl(var(--destructive))" strokeWidth="2" />
-                    <text x={sx + 10} y={sy + 3} fill="hsl(var(--destructive))" fontSize="8" fontWeight="bold" fontFamily="var(--font-display)">YOUR SCRIPT</text>
+                    <line x1={center.sx - 7} y1={center.sy} x2={center.sx + 7} y2={center.sy} stroke="hsl(var(--destructive))" strokeWidth="2" />
+                    <line x1={center.sx} y1={center.sy - 7} x2={center.sx} y2={center.sy + 7} stroke="hsl(var(--destructive))" strokeWidth="2" />
+                    <text x={center.sx} y={center.sy - 10} fill="hsl(var(--destructive))" fontSize="8" fontWeight="bold" fontFamily="var(--font-display)" textAnchor="middle">{filmTitle.toUpperCase()}</text>
                   </g>
                 );
               })()}
@@ -550,6 +555,8 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 );
               })()}
             </svg>
+              </div>
+            </div>
             {/* Zoom controls */}
             <div className="absolute bottom-2 right-2 flex items-center gap-1">
               <button
