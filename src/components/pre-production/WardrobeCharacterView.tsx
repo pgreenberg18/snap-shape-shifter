@@ -228,7 +228,7 @@ const WardrobeCharacterView = ({
         {/* Unassigned Scenes */}
         {unassignedScenes.length > 0 && (
           <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen}>
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 cinema-shadow">
+            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 cinema-shadow max-w-[50%]">
               <CollapsibleTrigger className="w-full flex items-center gap-2">
                 {unassignedOpen
                   ? <ChevronDown className="h-4 w-4 text-destructive/70" />
