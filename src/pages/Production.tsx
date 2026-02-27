@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { parseSceneFromPlainText } from "@/lib/parse-script-text";
+import { parseSceneFromPlainText, classifyScreenplayLines } from "@/lib/parse-script-text";
 import { Camera, Film, ChevronRight } from "lucide-react";
 import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -491,7 +491,7 @@ const Production = () => {
   /* ── View script for a scene ── */
   const handleViewScript = useCallback(async (sceneIdx: number) => {
     const scene = scenes[sceneIdx];
-    if (!scene || !analysis?.storage_path) return;
+    if (!scene) return;
 
     const sceneNum = scene.scene_number ?? sceneIdx + 1;
     const title = scene.scene_heading || `Scene ${sceneNum}`;
@@ -499,6 +499,16 @@ const Production = () => {
     openScriptViewer({ title, description: "Original screenplay formatting" });
 
     try {
+      // Prefer raw_text already on the parsed scene — avoids a storage download
+      if (scene.raw_text) {
+        const lines = scene.raw_text.split("\n");
+        const parsed = classifyScreenplayLines(lines);
+        setScriptViewerScenes([{ sceneNum, heading: title, paragraphs: parsed }]);
+        return;
+      }
+
+      // Fallback: download original script file
+      if (!analysis?.storage_path) throw new Error("No script file");
       const { data, error } = await supabase.storage.from("scripts").download(analysis.storage_path);
       if (error || !data) throw error || new Error("Download failed");
       const full = await data.text();
@@ -535,7 +545,6 @@ const Production = () => {
           if (content.trim()) parsed.push({ type, text: content });
         }
       } else {
-        // Plain text — use shared parser
         parsed = parseSceneFromPlainText(full, heading);
       }
 
