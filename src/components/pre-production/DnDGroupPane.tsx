@@ -870,7 +870,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       </ResizableSidebar>
 
       {/* ═══ RIGHT — Detail Panel ═══ */}
-      <main className="flex-1 overflow-hidden">
+      <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {selectedItem && filmId ? (
           <AssetDetailPanel
             itemName={selectedItem}
