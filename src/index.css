@@ -595,7 +595,8 @@ body::after {
   75% { transform: rotate(15deg); }
 }
 
-@media (max-width: 1024px) and (orientation: portrait) {
+/* Only show on real touch devices in portrait — not desktop preview */
+@media (max-width: 1024px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
   #portrait-blocker {
     display: flex !important;
   }
