@@ -142,11 +142,9 @@ const AssetDetailPanel = ({
   // Merge detected scenes + all film scenes for the assignment UI
   const wardrobeSceneList = useMemo(() => {
     if (assetType !== "wardrobe") return [];
-    const allNums = new Set<number>();
-    if (sceneNumbers) sceneNumbers.forEach((sn) => allNums.add(sn));
-    if (allSceneNumbers) allSceneNumbers.forEach((sn) => allNums.add(sn));
-    return [...allNums].sort((a, b) => a - b);
-  }, [assetType, sceneNumbers, allSceneNumbers]);
+    if (!sceneNumbers || sceneNumbers.length === 0) return [];
+    return [...sceneNumbers].sort((a, b) => a - b);
+  }, [assetType, sceneNumbers]);
 
   return (
     <ScrollArea className="flex-1">
