@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Camera, Film, ChevronRight } from "lucide-react";
-import { useFilmId } from "@/hooks/useFilm";
+import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useGenerationManager } from "@/hooks/useGenerationManager";
@@ -78,6 +78,7 @@ const Production = () => {
   const { startGeneration, getGenerationsForShot } = useGenerationManager();
   const { openScriptViewer, setScriptViewerScenes } = useScriptViewer();
   const { data: analysis } = useLatestAnalysis(filmId);
+  const { data: productionParsedScenes } = useParsedScenes();
   const { data: allShots = [] } = useShotsForFilm(filmId);
 
   const [activeSceneIdx, setActiveSceneIdx] = useState<number | null>(null);
@@ -132,10 +133,7 @@ const Production = () => {
     document.addEventListener("mouseup", onUp);
   }, [scriptPaneHeight]);
 
-  const scenes: any[] =
-    analysis?.status === "complete" && Array.isArray(analysis.scene_breakdown)
-      ? (analysis.scene_breakdown as any[])
-      : [];
+  const scenes: any[] = productionParsedScenes ?? [];
 
   const activeScene = activeSceneIdx !== null ? scenes[activeSceneIdx] : null;
   const activeSceneNumber = activeScene?.scene_number ?? (activeSceneIdx !== null ? activeSceneIdx + 1 : undefined);

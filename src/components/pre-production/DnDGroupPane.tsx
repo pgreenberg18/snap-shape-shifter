@@ -132,7 +132,7 @@ function findScenesForItem(itemName: string, scenes: any[], storagePrefix: strin
     if (storagePrefix === "locations") {
       // Match against location_name field (most reliable) and scene_heading
       const locationName = (scene.location_name || "").toLowerCase().trim();
-      const heading = (scene.scene_heading || "").toLowerCase();
+      const heading = (scene.heading || scene.scene_heading || "").toLowerCase();
       const cleanHeading = heading.replace(/^(?:int\.?\s*\/?\s*ext\.?|ext\.?\s*\/?\s*int\.?|int\.?|ext\.?|i\/e\.?)\s*[-–—.\s]*/i, "")
         .replace(/\s*[-–—]\s*(?:day|night|morning|evening|dawn|dusk|afternoon|later|continuous|same time|moments?\s+later|sunset|sunrise|\d{4})\s*$/i, "").trim();
       
@@ -420,9 +420,9 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     if (!storagePath) {
       setScriptViewerScenes(sortedScenes.map((scene: any) => ({
         sceneNum: scene.scene_number ? parseInt(scene.scene_number, 10) : 0,
-        heading: scene.scene_heading || "Unknown",
+        heading: scene.heading || scene.scene_heading || "Unknown",
         paragraphs: [
-          { type: "Scene Heading", text: scene.scene_heading || "" },
+          { type: "Scene Heading", text: scene.heading || scene.scene_heading || "" },
           { type: "Action", text: scene.description || "" },
         ],
       })));
@@ -438,7 +438,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       const parsedScenes: { sceneNum: number; heading: string; paragraphs: { type: string; text: string }[] }[] = [];
 
       for (const scene of sortedScenes) {
-        const heading = scene.scene_heading?.trim();
+        const heading = (scene.heading || scene.scene_heading || "").trim();
         const sceneNum = scene.scene_number ? parseInt(scene.scene_number, 10) : 0;
 
         if (isFdx) {
@@ -492,9 +492,9 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       toast.error("Could not load script file");
       setScriptViewerScenes(sortedScenes.map((scene: any) => ({
         sceneNum: scene.scene_number ? parseInt(scene.scene_number, 10) : 0,
-        heading: scene.scene_heading || "Unknown",
+        heading: scene.heading || scene.scene_heading || "Unknown",
         paragraphs: [
-          { type: "Scene Heading", text: scene.scene_heading || "" },
+          { type: "Scene Heading", text: scene.heading || scene.scene_heading || "" },
           { type: "Action", text: scene.description || "[Could not load script file]" },
         ],
       })));
