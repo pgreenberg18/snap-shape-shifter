@@ -397,8 +397,16 @@ const IntegrationsPanel = () => {
                   {meta.icon}
                   {meta.title}
                   {(() => {
-                    const verifiedNames = providers?.filter(p => p.is_verified).map(p => p.provider_name) || [];
-                    const allNames = [...verifiedNames, ...added.map(s => s.name)];
+                    const shortenName = (name: string) => {
+                      const variantMatch = name.match(/\(([^)]+)\)$/);
+                      const variant = variantMatch?.[1];
+                      const baseName = name.replace(/\s*\([^)]*\)\s*/g, "").trim();
+                      // Use short base: drop parenthetical company names, keep first word
+                      const shortBase = baseName.split(/\s+/)[0];
+                      return variant ? `${shortBase} ${variant}` : shortBase;
+                    };
+                    const verifiedNames = providers?.filter(p => p.is_verified).map(p => shortenName(p.provider_name)) || [];
+                    const allNames = [...verifiedNames, ...added.map(s => shortenName(s.name))];
                     return allNames.length > 0
                       ? <span className="font-normal text-muted-foreground">({allNames.join(", ")})</span>
                       : null;
