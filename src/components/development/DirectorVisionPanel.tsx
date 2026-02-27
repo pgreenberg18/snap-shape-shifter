@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilmId } from "@/hooks/useFilm";
@@ -217,6 +217,51 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
   const MAP_H = 380;
   const PAD = 36;
 
+  // Pan & zoom state — start zoomed in ~3x, centered
+  const [mapZoom, setMapZoom] = useState(3);
+  const [mapPan, setMapPan] = useState({ x: MAP_W / 2 - (MAP_W / 3) / 2, y: MAP_H / 2 - (MAP_H / 3) / 2 });
+  const mapDragging = useRef(false);
+  const mapDragStart = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
+
+  const vbW = MAP_W / mapZoom;
+  const vbH = MAP_H / mapZoom;
+  const vbX = Math.max(0, Math.min(mapPan.x, MAP_W - vbW));
+  const vbY = Math.max(0, Math.min(mapPan.y, MAP_H - vbH));
+
+  const handleMapWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    setMapZoom((prev) => {
+      const next = Math.max(1, Math.min(5, prev - e.deltaY * 0.002));
+      return next;
+    });
+  }, []);
+
+  const handleMapPointerDown = useCallback((e: React.PointerEvent) => {
+    // Don't start pan if clicking a director node
+    if ((e.target as HTMLElement).closest("[data-director-node]")) return;
+    mapDragging.current = true;
+    mapDragStart.current = { x: e.clientX, y: e.clientY, panX: mapPan.x, panY: mapPan.y };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }, [mapPan]);
+
+  const handleMapPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!mapDragging.current) return;
+    const svgEl = e.currentTarget as SVGSVGElement;
+    const rect = svgEl.getBoundingClientRect();
+    const scaleX = (MAP_W / mapZoom) / rect.width;
+    const scaleY = (MAP_H / mapZoom) / rect.height;
+    const dx = (e.clientX - mapDragStart.current.x) * scaleX;
+    const dy = (e.clientY - mapDragStart.current.y) * scaleY;
+    setMapPan({
+      x: mapDragStart.current.panX - dx,
+      y: mapDragStart.current.panY - dy,
+    });
+  }, [mapZoom]);
+
+  const handleMapPointerUp = useCallback(() => {
+    mapDragging.current = false;
+  }, []);
+
   const toScreen = (x: number, y: number) => ({
     sx: PAD + ((x / 10) * (MAP_W - PAD * 2)),
     sy: MAP_H - PAD - ((y / 10) * (MAP_H - PAD * 2)),
@@ -368,7 +413,15 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
       {(profile || scriptVector) && (
         <>
           <div className="rounded-lg border border-border bg-background/50 overflow-hidden relative">
-            <svg viewBox={`0 0 ${MAP_W} ${MAP_H}`} className="w-full h-auto" style={{ maxHeight: 380 }}>
+            <svg
+              viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+              className="w-full h-auto select-none"
+              style={{ maxHeight: 380, cursor: mapDragging.current ? "grabbing" : "grab" }}
+              onWheel={handleMapWheel}
+              onPointerDown={handleMapPointerDown}
+              onPointerMove={handleMapPointerMove}
+              onPointerUp={handleMapPointerUp}
+            >
               {/* Grid lines */}
               {[2.5, 5, 7.5].map((v) => {
                 const { sx } = toScreen(v, 0);
@@ -420,6 +473,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 return (
                   <g
                     key={d.id}
+                    data-director-node
                     className="cursor-pointer transition-opacity"
                     opacity={isHovered || isPrimary || isSecondary || isTop3 ? 1 : hasGenreOverlap ? 0.7 : 0.35}
                     onMouseEnter={() => setHoveredDirector(d.id)}
@@ -496,6 +550,21 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
                 );
               })()}
             </svg>
+            {/* Zoom controls */}
+            <div className="absolute bottom-2 right-2 flex items-center gap-1">
+              <button
+                onClick={() => setMapZoom((z) => Math.min(5, z + 0.5))}
+                className="h-6 w-6 rounded bg-card/80 border border-border text-xs text-muted-foreground hover:text-foreground flex items-center justify-center"
+              >+</button>
+              <button
+                onClick={() => setMapZoom((z) => Math.max(1, z - 0.5))}
+                className="h-6 w-6 rounded bg-card/80 border border-border text-xs text-muted-foreground hover:text-foreground flex items-center justify-center"
+              >−</button>
+              <button
+                onClick={() => { setMapZoom(1); setMapPan({ x: 0, y: 0 }); }}
+                className="h-6 px-1.5 rounded bg-card/80 border border-border text-[9px] text-muted-foreground hover:text-foreground flex items-center justify-center"
+              >Fit</button>
+            </div>
           </div>
 
           {/* Cluster legend */}
