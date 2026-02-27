@@ -54,10 +54,10 @@ Deno.serve(async (req) => {
     const authResult = await requireAuth(req);
     if (isResponse(authResult)) return authResult;
 
-    const { storage_path, scenes } = await req.json();
+    const { storage_path, scenes, film_id } = await req.json();
 
-    if (!storage_path) {
-      return new Response(JSON.stringify({ error: "storage_path is required" }), {
+    if (!storage_path && !film_id) {
+      return new Response(JSON.stringify({ error: "storage_path or film_id is required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -76,22 +76,46 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Download script
-    const { data: fileData, error: downloadErr } = await supabase.storage
-      .from("scripts")
-      .download(storage_path);
+    // Use parsed_scenes from DB as the source of truth (works for all formats including PDF)
+    let sceneTexts: { heading: string; text: string; sceneNumber: number }[] = [];
 
-    if (downloadErr || !fileData) {
-      return new Response(JSON.stringify({ error: "Failed to download script" }), {
-        status: 500,
+    // Determine which film_id to use
+    let resolvedFilmId = film_id;
+    if (!resolvedFilmId && scenes?.length > 0 && scenes[0].film_id) {
+      resolvedFilmId = scenes[0].film_id;
+    }
+
+    if (resolvedFilmId) {
+      const { data: dbScenes } = await supabase
+        .from("parsed_scenes")
+        .select("scene_number, heading, raw_text")
+        .eq("film_id", resolvedFilmId)
+        .order("scene_number", { ascending: true });
+
+      if (dbScenes && dbScenes.length > 0) {
+        sceneTexts = dbScenes.map((s: any) => ({
+          heading: s.heading,
+          text: s.raw_text,
+          sceneNumber: s.scene_number,
+        }));
+      }
+    }
+
+    // Fallback: use scenes array passed from the client
+    if (sceneTexts.length === 0 && scenes?.length > 0) {
+      sceneTexts = scenes.map((s: any, i: number) => ({
+        heading: s.heading || s.scene_heading || `Scene ${i + 1}`,
+        text: s.raw_text || s.text || "",
+        sceneNumber: s.scene_number ?? i + 1,
+      }));
+    }
+
+    if (sceneTexts.length === 0) {
+      return new Response(JSON.stringify({ error: "No scenes found to analyze" }), {
+        status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    const fullText = await fileData.text();
-
-    // Extract scene texts
-    const sceneTexts = extractSceneTexts(fullText, scenes || []);
 
     // Build the prompt with scene texts
     const scenesForAI = sceneTexts.map((s, i) => 
@@ -235,52 +259,3 @@ function salvageTruncatedResponse(response: string): any {
   };
 }
 
-function extractSceneTexts(fullText: string, scenes: any[]): { heading: string; text: string; sceneNumber: number }[] {
-  const isFdx = fullText.trimStart().startsWith("<?xml") || fullText.includes("<FinalDraft");
-  if (isFdx) {
-    const paragraphRegex = /<Paragraph[^>]*Type="([^"]*)"[^>]*>([\s\S]*?)<\/Paragraph>/gi;
-    const paragraphs: { type: string; texts: string }[] = [];
-    let match;
-    while ((match = paragraphRegex.exec(fullText)) !== null) {
-      const type = match[1];
-      const inner = match[2];
-      const texts: string[] = [];
-      let tm;
-      const localTextRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/gi;
-      while ((tm = localTextRegex.exec(inner)) !== null) {
-        texts.push(tm[1].replace(/<[^>]*>/g, ""));
-      }
-      paragraphs.push({ type, texts: texts.join("") });
-    }
-
-    const result: { heading: string; text: string; sceneNumber: number }[] = [];
-    const headingIndices: number[] = [];
-    for (let i = 0; i < paragraphs.length; i++) {
-      if (paragraphs[i].type === "Scene Heading") headingIndices.push(i);
-    }
-    for (let h = 0; h < headingIndices.length; h++) {
-      const startIdx = headingIndices[h];
-      const endIdx = h + 1 < headingIndices.length ? headingIndices[h + 1] : paragraphs.length;
-      const headingText = paragraphs[startIdx].texts.trim();
-      const sceneText: string[] = [];
-      for (let i = startIdx; i < endIdx; i++) {
-        if (paragraphs[i].texts.trim()) sceneText.push(paragraphs[i].texts);
-      }
-      const matchedScene = scenes.find((s: any) => s.scene_heading && headingText.toUpperCase().includes(s.scene_heading.toUpperCase()));
-      result.push({ heading: headingText, text: sceneText.join("\n"), sceneNumber: matchedScene?.scene_number ?? h + 1 });
-    }
-    return result;
-  }
-  const scenePattern = /^((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)$/gim;
-  const matches = [...fullText.matchAll(scenePattern)];
-  const result: { heading: string; text: string; sceneNumber: number }[] = [];
-  for (let i = 0; i < matches.length; i++) {
-    const start = matches[i].index!;
-    const end = i + 1 < matches.length ? matches[i + 1].index! : fullText.length;
-    const heading = matches[i][1].trim();
-    const text = fullText.substring(start, end);
-    const matchedScene = scenes.find((s: any) => s.scene_heading && heading.toUpperCase().includes(s.scene_heading.toUpperCase()));
-    result.push({ heading, text, sceneNumber: matchedScene?.scene_number ?? i + 1 });
-  }
-  return result;
-}

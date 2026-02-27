@@ -1865,6 +1865,7 @@ const Development = () => {
                   <ContentSafetyMatrix
                     scenes={devParsedScenes as any[] || []}
                     storagePath={analysis?.storage_path || ""}
+                    filmId={filmId}
                     language={language}
                     nudity={nudity}
                     violence={violence}
@@ -1916,6 +1917,7 @@ const Development = () => {
                       <ContentSafetyMatrix
                         scenes={devParsedScenes as any[] || []}
                         storagePath={analysis?.storage_path || ""}
+                        filmId={filmId}
                         language={language}
                         nudity={nudity}
                         violence={violence}
@@ -3253,10 +3255,11 @@ function formatScriptLines(text: string): React.ReactNode {
 }
 
 const ContentSafetyMatrix = ({
-  scenes, storagePath, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence, alreadyAnalyzed,
+  scenes, storagePath, filmId, language, nudity, violence, handleToggle, setLanguage, setNudity, setViolence, alreadyAnalyzed,
 }: {
   scenes: any[];
   storagePath: string;
+  filmId?: string;
   language: boolean; nudity: boolean; violence: boolean;
   handleToggle: (field: string, setter: (v: boolean) => void) => (val: boolean) => void;
   setLanguage: (v: boolean) => void; setNudity: (v: boolean) => void; setViolence: (v: boolean) => void;
@@ -3277,7 +3280,7 @@ const ContentSafetyMatrix = ({
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("analyze-content-safety", {
-        body: { storage_path: storagePath, scenes },
+        body: { storage_path: storagePath, scenes, film_id: filmId },
       });
       if (error) throw error;
       const aiFlags: ContentFlag[] = (data.flags || []).map((f: any) => ({
@@ -3302,7 +3305,7 @@ const ContentSafetyMatrix = ({
     } finally {
       setLoading(false);
     }
-  }, [storagePath, scenes, toast]);
+  }, [storagePath, scenes, filmId, toast]);
 
   // Load script text for editing (parse FDX XML to plain text)
   useEffect(() => {
