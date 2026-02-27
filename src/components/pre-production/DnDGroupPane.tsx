@@ -434,16 +434,20 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       rankingMap.set(r.nameNormalized, r.tier);
     }
     const result: { tier: CharacterTier; groups: ItemGroup[] }[] = [];
+    const unranked = sortedFilteredGroups.filter((g) => !rankingMap.has(g.name.toUpperCase()));
     for (const tier of TIER_ORDER) {
       const tierGroups = sortedFilteredGroups.filter((g) => {
         const t = rankingMap.get(g.name.toUpperCase());
         return t === tier;
       });
-      if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
+      // Merge unranked characters into BACKGROUND
+      if (tier === "BACKGROUND") {
+        const combined = [...tierGroups, ...unranked];
+        if (combined.length > 0) result.push({ tier, groups: combined });
+      } else {
+        if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
+      }
     }
-    // Add any unranked characters
-    const unranked = sortedFilteredGroups.filter((g) => !rankingMap.has(g.name.toUpperCase()));
-    if (unranked.length > 0) result.push({ tier: "BACKGROUND" as CharacterTier, groups: unranked });
     return result;
   }, [storagePrefix, characterRankings, sortedFilteredGroups]);
 
