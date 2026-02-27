@@ -53,25 +53,22 @@ const Login = () => {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Left — Cinematic Panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center">
-        <div className="absolute inset-0 bg-gradient-to-br from-background via-card to-background" />
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage: "radial-gradient(circle at 30% 40%, hsl(51 100% 50% / 0.15), transparent 60%), radial-gradient(circle at 70% 70%, hsl(345 100% 50% / 0.1), transparent 50%)",
-          }}
-        />
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden items-center justify-center lens-flare">
+        <div className="absolute inset-0 cinema-panel" />
+        <div className="absolute inset-0 cinema-bloom" />
+        {/* Anamorphic streak */}
+        <div className="absolute inset-0 lens-flare-streak" />
         <div className="relative z-10 text-center space-y-6 px-12">
-          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
-            <Film className="h-10 w-10 text-primary" />
+          <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-2xl pro-panel">
+            <Film className="h-10 w-10 text-primary icon-glow" />
           </div>
-          <h1 className="font-display text-4xl font-bold tracking-tight">
+          <h1 className="font-display text-4xl font-bold tracking-wide">
             Virtual Film Studio
           </h1>
-          <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed">
+          <p className="text-muted-foreground text-lg max-w-sm mx-auto leading-relaxed font-body">
             Direct your vision. From script to screen, powered by artificial intelligence.
           </p>
-          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground/60 font-mono uppercase tracking-widest">
+          <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground/60 font-mono uppercase tracking-[0.2em]">
             <span>24fps</span>
             <span className="h-1 w-1 rounded-full bg-primary/40" />
             <span>4K</span>
@@ -85,18 +82,20 @@ const Login = () => {
       <div className="flex flex-1 items-center justify-center px-6 py-12">
         <div className="w-full max-w-md space-y-8">
           <div className="lg:hidden flex flex-col items-center gap-3 mb-4">
-            <Film className="h-10 w-10 text-primary" />
-            <h1 className="font-display text-2xl font-bold">Virtual Film Studio</h1>
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl pro-panel">
+              <Film className="h-7 w-7 text-primary icon-glow" />
+            </div>
+            <h1 className="font-display text-2xl font-bold tracking-wide">Virtual Film Studio</h1>
           </div>
 
           <div>
-            <h2 className="font-display text-2xl font-bold">Welcome back</h2>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your studio workspace</p>
+            <h2 className="font-display text-2xl font-bold tracking-wide">Welcome back</h2>
+            <p className="text-sm text-muted-foreground mt-1 font-body">Sign in to your studio workspace</p>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm">Email</Label>
+              <Label htmlFor="email" className="text-sm hw-label">Email</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -105,14 +104,14 @@ const Login = () => {
                   placeholder="director@studio.ai"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 bg-secondary border-border"
+                  className="pl-10"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm">Password</Label>
+              <Label htmlFor="password" className="text-sm hw-label">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -121,7 +120,7 @@ const Login = () => {
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 bg-secondary border-border"
+                  className="pl-10"
                   required
                 />
               </div>
@@ -132,7 +131,7 @@ const Login = () => {
                 type="button"
                 onClick={handleResetPassword}
                 disabled={resetLoading}
-                className="text-xs text-primary hover:underline font-medium disabled:opacity-50"
+                className="text-xs text-primary hover:underline font-medium font-mono tracking-wide disabled:opacity-50"
               >
                 {resetLoading ? "Sending…" : "Forgot password?"}
               </button>
@@ -147,17 +146,17 @@ const Login = () => {
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t border-border" />
+              <span className="w-full rack-groove" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">or</span>
+              <span className="bg-background px-3 text-muted-foreground font-mono tracking-[0.2em]">or</span>
             </div>
           </div>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-3 bg-secondary hover:bg-accent text-foreground border-border"
+            className="w-full gap-3"
             onClick={async () => {
               await lovable.auth.signInWithOAuth("google", {
                 redirect_uri: window.location.origin,
@@ -173,7 +172,7 @@ const Login = () => {
             Sign in with Google
           </Button>
 
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground font-body">
             Don't have an account?{" "}
             <Link to="/signup" className="text-primary hover:underline font-medium">
               Create one
