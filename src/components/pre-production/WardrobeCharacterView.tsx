@@ -139,12 +139,12 @@ const WardrobeCharacterView = ({
               Wardrobe Selections
             </h3>
             <span className="text-xs text-muted-foreground/50">
-              {lockedImageMap.size} locked / {wardrobeItems.length} total
+              {lockedImageMap.size} approved
             </span>
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {wardrobeItems.map((item) => {
+            {wardrobeItems.filter((item) => lockedImageMap.has(item)).map((item) => {
               const imageUrl = lockedImageMap.get(item);
               const assignedScenes = assignmentsByItem.get(item) ?? [];
               const sortedScenes = [...assignedScenes].sort((a, b) => a - b);
@@ -153,35 +153,18 @@ const WardrobeCharacterView = ({
                 <button
                   key={item}
                   onClick={() => onSelectItem(item)}
-                  className={cn(
-                    "group relative rounded-xl border overflow-hidden transition-all text-left",
-                    imageUrl
-                      ? "border-primary/30 bg-primary/5 hover:border-primary hover:ring-1 hover:ring-primary/30"
-                      : "border-border bg-card hover:border-primary/50 hover:bg-secondary/50"
-                  )}
+                  className="group relative rounded-xl border border-primary/30 bg-primary/5 hover:border-primary hover:ring-1 hover:ring-primary/30 overflow-hidden transition-all text-left"
                 >
-                  {/* Image / Placeholder */}
                   <div className="aspect-[3/4] overflow-hidden bg-secondary relative">
-                    {imageUrl ? (
-                      <img
-                        src={imageUrl}
-                        alt={displayName(item)}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
-                    ) : (
-                      <div className="h-full w-full flex flex-col items-center justify-center gap-2">
-                        <Shirt className="h-8 w-8 text-muted-foreground/30" />
-                        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wider">
-                          Not yet selected
-                        </span>
-                      </div>
-                    )}
-                    {imageUrl && (
-                      <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-lg">
-                        <Lock className="h-2.5 w-2.5" /> Locked
-                      </div>
-                    )}
+                    <img
+                      src={imageUrl!}
+                      alt={displayName(item)}
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute top-1.5 right-1.5 flex items-center gap-1 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shadow-lg">
+                      <Lock className="h-2.5 w-2.5" /> Locked
+                    </div>
                   </div>
 
                   {/* Label + Scene Numbers */}
@@ -212,6 +195,13 @@ const WardrobeCharacterView = ({
               );
             })}
           </div>
+          {lockedImageMap.size === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 gap-2">
+              <Shirt className="h-8 w-8 text-muted-foreground/30" />
+              <p className="text-xs text-muted-foreground/50">No approved wardrobe selections yet</p>
+              <p className="text-[10px] text-muted-foreground/40">Lock a wardrobe option from the item detail view</p>
+            </div>
+          )}
         </div>
 
         {/* Unassigned Scenes */}
