@@ -42,8 +42,8 @@ const VARIATION_PROFILES: Record<string, string[]> = {
 
 const ASPECT_RATIOS: Record<string, string> = {
   location: "16:9 wide cinematic",
-  prop: "1:1 square centered",
-  wardrobe: "4:5 vertical portrait",
+  prop: "16:9 wide cinematic",
+  wardrobe: "16:9 wide cinematic",
   vehicle: "16:9 wide cinematic",
 };
 
@@ -314,7 +314,7 @@ VARIATION STYLE: ${variationStyle}
 This is option ${index + 1} of 5. Apply the "${variationStyle}" treatment to this prop.
 
 REQUIREMENTS:
-- ${aspect} composition, centered on neutral surface
+- ${aspect} composition, displayed on neutral surface with contextual depth
 - Hero product photography quality — clean, detailed, well-lit
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show material detail, wear patterns, and craftsmanship
@@ -360,7 +360,7 @@ VARIATION STYLE: ${variationStyle}
 This is option ${index + 1} of 5. Apply the "${variationStyle}" approach to this wardrobe piece.
 
 REQUIREMENTS:
-- ${aspect} composition — garment displayed on mannequin or flat lay
+- ${aspect} composition — garment displayed on mannequin or styled layout
 - Costume department photography quality
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show fabric texture, construction detail, and color accuracy
