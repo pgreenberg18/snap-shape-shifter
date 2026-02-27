@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -977,7 +978,9 @@ const Development = () => {
   }, [filmId]);
 
   return (
-    <div className="mx-auto max-w-5xl px-6 pt-0 pb-10 space-y-10">
+    <div className="flex h-full flex-col overflow-hidden">
+      <ScrollArea className="flex-1">
+      <div className="mx-auto max-w-5xl px-6 pt-0 pb-10 space-y-10">
       {/* Phase header */}
       <div className="border-b border-border bg-card -mx-6 px-6 py-3 flex items-baseline gap-3">
         <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Development</h1>
@@ -2070,6 +2073,8 @@ const Development = () => {
           </div>
         </div>
       </DraggableScriptPopup>
+      </div>
+      </ScrollArea>
     </div>
   );
 };

@@ -348,7 +348,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
         {/* Main Content */}
         <main
-          className="relative flex-1 overflow-y-auto transition-colors duration-300 lens-flare lens-flare-streak"
+          className="relative flex-1 overflow-hidden transition-colors duration-300 lens-flare lens-flare-streak"
           style={{ backgroundColor: phases.find((p) => location.pathname.includes(`/${p.key}`))?.tint }}
         >
           {/* Tertiary flare — center bloom */}

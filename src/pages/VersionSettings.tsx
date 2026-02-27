@@ -1,4 +1,5 @@
 import { useFilmId, useIntegrations } from "@/hooks/useFilm";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVersionProviderSelections, useSetVersionProvider } from "@/hooks/useVersionProviders";
 import { Settings, Check, AlertTriangle } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -53,6 +54,7 @@ const VersionSettings = () => {
   const hasAnyProviders = Object.keys(bySection).length > 0;
 
   return (
+    <ScrollArea className="h-full">
     <div className="mx-auto max-w-3xl px-6 py-10">
       <div className="mb-8">
         <div className="flex items-center gap-2 mb-2">
@@ -129,6 +131,7 @@ const VersionSettings = () => {
         </div>
       )}
     </div>
+    </ScrollArea>
   );
 };
 

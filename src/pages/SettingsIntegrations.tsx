@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useIntegrations } from "@/hooks/useFilm";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Accordion,
@@ -334,6 +335,7 @@ const SettingsIntegrations = () => {
   }, {} as Record<string, typeof integrations>) ?? {};
 
   return (
+    <ScrollArea className="h-full">
     <div className="mx-auto max-w-4xl px-6 py-10">
       <div className="mb-8">
         <button
@@ -646,6 +648,7 @@ const SettingsIntegrations = () => {
         </div>
       </div>
     </div>
+    </ScrollArea>
   );
 };
 
