@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User, Pencil,
   Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
-  RotateCcw,
+  RotateCcw, Layers,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -90,6 +90,43 @@ const PreProduction = () => {
   const [consistencyDialogOpen, setConsistencyDialogOpen] = useState(false);
   const [pendingConsistencyCharId, setPendingConsistencyCharId] = useState<string | null>(null);
   const [generatingViews, setGeneratingViews] = useState(false);
+
+  // Fetch consistency views for all characters in this film
+  const { data: consistencyViews } = useQuery({
+    queryKey: ["consistency-views", filmId],
+    queryFn: async () => {
+      if (!filmId) return [];
+      const charIds = characters?.map(c => c.id) ?? [];
+      if (!charIds.length) return [];
+      const { data, error } = await supabase
+        .from("character_consistency_views")
+        .select("*")
+        .in("character_id", charIds);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!filmId && !!characters?.length,
+    refetchInterval: generatingViews ? 5000 : false,
+  });
+
+  const viewsByCharacter = useMemo(() => {
+    const map = new Map<string, typeof consistencyViews>();
+    for (const v of consistencyViews ?? []) {
+      if (!map.has(v.character_id)) map.set(v.character_id, []);
+      map.get(v.character_id)!.push(v);
+    }
+    // Sort each character's views by angle_index
+    for (const [, views] of map) views.sort((a, b) => a.angle_index - b.angle_index);
+    return map;
+  }, [consistencyViews]);
+
+  const charsWithViews = useMemo(() => {
+    const set = new Set<string>();
+    for (const [charId, views] of viewsByCharacter) {
+      if (views.some(v => v.status === "complete" && v.image_url)) set.add(charId);
+    }
+    return set;
+  }, [viewsByCharacter]);
 
   // Reclassified/dismissed props (persisted per film)
   const [reclassified, setReclassified] = useState<Record<string, string>>({});
@@ -331,6 +368,7 @@ const PreProduction = () => {
     } finally {
       setGeneratingViews(false);
       setPendingConsistencyCharId(null);
+      queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
     }
   }, [pendingConsistencyCharId, characters]);
 
@@ -756,7 +794,7 @@ const PreProduction = () => {
                                 </div>
                                 <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                                   {archetypeCards.map((card) => (
-                                    <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
+                                    <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} />
                                   ))}
                                 </div>
                               </div>
@@ -769,7 +807,7 @@ const PreProduction = () => {
                             return row2Cards.length > 0 && (
                               <div className="grid gap-3 grid-cols-5" style={{ gridAutoRows: "1fr" }}>
                                 {row2Cards.map((card) => (
-                                  <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} />
+                                  <AuditionCardComponent key={card.id} card={card} locking={locking === card.id} onLock={() => handleLockIdentity(card)} onExpand={() => setExpandedCard(card)} onRate={handleRate} hasConsistencyViews={charsWithViews.has(card.characterId)} />
                                 ))}
                               </div>
                             );
@@ -922,6 +960,41 @@ const PreProduction = () => {
                             ))}
                           </div>
                         )}
+
+                        {/* Consistency turnaround views */}
+                        {expandedCard && (() => {
+                          const views = viewsByCharacter.get(expandedCard.characterId);
+                          const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
+                          if (!completedViews.length) return null;
+                          return (
+                            <div className="border-t border-border pt-3 mt-auto">
+                              <div className="flex items-center gap-2 mb-2">
+                                <Layers className="h-3 w-3 text-primary" />
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                                  Turnaround Views
+                                </p>
+                                <span className="text-[10px] text-muted-foreground/50">
+                                  {completedViews.length}/8
+                                </span>
+                              </div>
+                              <div className="grid grid-cols-4 gap-1.5">
+                                {completedViews.map((v) => (
+                                  <div key={v.id} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30">
+                                    <img
+                                      src={v.image_url!}
+                                      alt={v.angle_label}
+                                      className="w-full aspect-square object-cover"
+                                      loading="lazy"
+                                    />
+                                    <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80">
+                                      {v.angle_label}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </DialogContent>
@@ -1468,7 +1541,7 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 }
 
 /* ── Audition Card ── */
-const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void }) => (
+const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasConsistencyViews }: { card: AuditionCard; locking: boolean; onLock: () => void; onExpand: () => void; onRate: (card: AuditionCard, rating: number) => void; hasConsistencyViews?: boolean }) => (
   <div
     className={cn(
       "group relative rounded-xl border overflow-hidden transition-all duration-200 cursor-pointer",
@@ -1486,6 +1559,13 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate }: { ca
     ) : (
       <div className="h-full w-full bg-secondary flex items-center justify-center">
         <User className="h-8 w-8 text-muted-foreground/20" />
+      </div>
+    )}
+
+    {/* Consistency views icon - top left */}
+    {hasConsistencyViews && card.imageUrl && !card.generating && (
+      <div className="absolute top-2 left-2 flex items-center gap-1 bg-background/80 backdrop-blur-sm text-primary text-[9px] font-bold uppercase tracking-wider px-1.5 py-1 rounded-md border border-primary/20" title="Turnaround views available">
+        <Layers className="h-3 w-3" />
       </div>
     )}
 
