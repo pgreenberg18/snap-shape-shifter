@@ -271,7 +271,7 @@ export const useBreakdownAssets = () => {
         }
       }
 
-      // Second pass: build descriptions
+      // Second pass: build descriptions — enriched with raw script prose
       const sortedLocations = [...locationSet].sort();
       for (const loc of sortedLocations) {
         const meta = locationMeta.get(loc);
@@ -286,6 +286,51 @@ export const useBreakdownAssets = () => {
           }
           if (meta.moods.size > 0) {
             parts.push("Mood: " + [...meta.moods].join(", "));
+          }
+        }
+
+        // Extract introductory prose from raw_text of the first scene at this location
+        // Screenplays describe locations in the action lines immediately after the scene heading
+        if (parts.length <= 2) {
+          for (const s of scenes) {
+            const sLocName = s.location_name?.trim() || "";
+            if (sLocName !== loc) continue;
+            const rawText = s.raw_text || "";
+            // Skip the heading line(s) and grab the first action paragraph
+            const lines = rawText.split("\n");
+            let foundHeading = false;
+            const proseLines: string[] = [];
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!foundHeading) {
+                // Skip until we pass the scene heading
+                if (/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s/i.test(trimmed)) {
+                  foundHeading = true;
+                }
+                continue;
+              }
+              // Stop at blank lines after collecting prose, character cues, or next heading
+              if (!trimmed && proseLines.length > 0) break;
+              if (!trimmed) continue;
+              // Character cues are ALL CAPS short lines
+              if (/^[A-Z][A-Z\s.'-]{1,30}$/.test(trimmed) && trimmed.length < 35) break;
+              // Parentheticals in dialogue
+              if (/^\(/.test(trimmed)) break;
+              proseLines.push(trimmed);
+              if (proseLines.join(" ").length > 250) break;
+            }
+            if (proseLines.length > 0) {
+              const prose = proseLines.join(" ").replace(/\s+/g, " ").trim();
+              // Truncate to ~2 sentences
+              const sentences = prose.match(/[^.!?]+[.!?]+/g);
+              const snippet = sentences && sentences.length > 2
+                ? sentences.slice(0, 2).join("").trim()
+                : prose;
+              if (snippet.length > 15) {
+                parts.push(snippet);
+                break; // Only need the first scene's intro
+              }
+            }
           }
         }
 
