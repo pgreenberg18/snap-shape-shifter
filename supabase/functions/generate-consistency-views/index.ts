@@ -9,16 +9,139 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/*
+ * Industry-standard 8-view turnaround structure optimized for AI character consistency.
+ *
+ * Core Goals:
+ *  - Lock facial geometry, body proportions, costume structure, silhouette
+ *  - Provide depth + 3D structure cues
+ *  - Minimize distortion
+ *
+ * Global rules enforced in every prompt:
+ *  📷 Lens: 50mm equivalent (full-frame), no wide distortion, no telephoto compression
+ *  💡 Lighting: Neutral studio-flat — soft key, soft fill, light rim, no dramatic shadows, no colored light
+ *  🎨 Background: Solid neutral gray, no gradients, no environment
+ *  🧍 Pose: Neutral stance, arms relaxed at sides, no contrapposto, no weight shift,
+ *           feet shoulder width, hands visible, no overlap blocking torso shape
+ */
+
 const ANGLE_VIEWS = [
-  { index: 0, label: "Front", direction: "facing directly toward the camera, straight-on front view" },
-  { index: 1, label: "¾ Left", direction: "turned approximately 45 degrees to camera-left, three-quarter left view" },
-  { index: 2, label: "Profile Left", direction: "turned 90 degrees to camera-left, full left profile view" },
-  { index: 3, label: "¾ Back Left", direction: "turned approximately 135 degrees to camera-left, three-quarter back-left view showing back of head and partial profile" },
-  { index: 4, label: "Back", direction: "turned fully away from camera, back-of-head view" },
-  { index: 5, label: "¾ Back Right", direction: "turned approximately 135 degrees to camera-right, three-quarter back-right view showing back of head and partial profile" },
-  { index: 6, label: "Profile Right", direction: "turned 90 degrees to camera-right, full right profile view" },
-  { index: 7, label: "¾ Right", direction: "turned approximately 45 degrees to camera-right, three-quarter right view" },
+  {
+    index: 0,
+    label: "Front Full",
+    framing: "Full body, head to toe",
+    direction: "facing directly toward the camera, straight-on front view",
+    purpose: "Primary identity anchor — the base mesh reference",
+    camera: "Eye level, no tilt",
+    expression: "Neutral — no smile, no emotion",
+  },
+  {
+    index: 1,
+    label: "Back Full",
+    framing: "Full body, head to toe",
+    direction: "turned fully away from camera, back-of-head view",
+    purpose: "Hair shape, coat drape, silhouette consistency",
+    camera: "Same height as front",
+    expression: "N/A — back view, posture identical to front",
+  },
+  {
+    index: 2,
+    label: "Left Profile",
+    framing: "Full body, head to toe",
+    direction: "turned exactly 90 degrees to camera-left, true left profile view",
+    purpose: "Nose projection, jaw depth, shoulder width",
+    camera: "Eye level, true 90° — no three-quarter rotation",
+    expression: "Neutral",
+  },
+  {
+    index: 3,
+    label: "Right Profile",
+    framing: "Full body, head to toe",
+    direction: "turned exactly 90 degrees to camera-right, true right profile view, mirror of left profile",
+    purpose: "Asymmetrical face/hair detection — mirror of left profile",
+    camera: "Eye level, true 90°",
+    expression: "Neutral",
+  },
+  {
+    index: 4,
+    label: "3/4 Left",
+    framing: "Full body, head to toe",
+    direction: "turned approximately 45 degrees to camera-left, three-quarter left view",
+    purpose: "Most cinematic angle — AI learns depth + cheekbone structure",
+    camera: "Eye level",
+    expression: "Neutral",
+  },
+  {
+    index: 5,
+    label: "3/4 Right",
+    framing: "Full body, head to toe",
+    direction: "turned approximately 45 degrees to camera-right, three-quarter right view, mirror of 3/4 left",
+    purpose: "Mirror of 3/4 left — cinematic depth from opposite side",
+    camera: "Eye level",
+    expression: "Neutral",
+  },
+  {
+    index: 6,
+    label: "MCU Front",
+    framing: "Medium close-up — chest up",
+    direction: "facing directly toward the camera, straight-on front view",
+    purpose: "Facial detail capture — eyes, skin texture, brow, mouth",
+    camera: "Eye level, same lighting as body shots",
+    expression: "Neutral",
+  },
+  {
+    index: 7,
+    label: "ECU Face",
+    framing: "Extreme close-up — top of head to chin only",
+    direction: "facing directly toward the camera, straight-on front view",
+    purpose: "Micro features — iris color, lip shape, skin pores, wrinkles",
+    camera: "Eye level, no beauty lighting, no filters, no depth blur",
+    expression: "Neutral",
+  },
 ];
+
+const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
+
+📷 LENS:
+- 50mm equivalent (full-frame sensor)
+- NO wide-angle distortion (no 24mm)
+- NO telephoto compression (no 85mm+)
+- NO stylized lens effects
+
+💡 LIGHTING:
+- Neutral, studio-flat lighting
+- Soft key light + soft fill light + light rim light
+- NO dramatic shadows
+- NO colored light
+- NO mood lighting
+- Goal: AI sees geometry, not mood
+
+🎨 BACKGROUND:
+- Solid neutral gray (#808080 to #999999)
+- NO gradients
+- NO environment
+- NO props in background
+
+🧍 POSE (for full body views):
+- Neutral stance
+- Arms relaxed at sides
+- NO contrapposto
+- NO weight shift
+- Feet shoulder width apart
+- Hands visible
+- NO overlap blocking torso shape
+
+🚫 DO NOT INCLUDE:
+- NO emotion or expression variation
+- NO action poses
+- NO wind effects
+- NO motion blur
+- NO stylized lighting
+- NO environment elements
+- NO camera tilt
+- NO artistic interpretation
+
+This is DATA CAPTURE, not art. Accuracy and consistency are paramount.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -68,8 +191,7 @@ serve(async (req) => {
       );
     }
 
-    // Generate all 8 views
-    const results: { index: number; success: boolean }[] = [];
+    // Build identity strings
     const sexStr = character.sex && character.sex !== "Unknown" ? character.sex.toLowerCase() : "person";
     const ageStr = character.age_min && character.age_max
       ? `${character.age_min}-${character.age_max} years old`
@@ -83,27 +205,43 @@ serve(async (req) => {
       .replace(/blood\w*/gi, "intense")
       .replace(/scar\w*/gi, "distinctive features")
       .replace(/hit\s*man/gi, "specialist")
+      .replace(/gun\w*/gi, "device")
+      .replace(/weapon\w*/gi, "prop")
+      .replace(/kill\w*/gi, "confront")
       .trim();
+
+    // Generate all 8 views
+    const results: { index: number; success: boolean }[] = [];
 
     for (const angle of ANGLE_VIEWS) {
       try {
-        const prompt = `Generate a photorealistic character turnaround reference photograph. This is a consistency sheet view for the character "${character.name}" from the film "${film?.title || "Untitled"}". ${periodStr} ${genreStr}
+        const prompt = `Generate a photorealistic CHARACTER TURNAROUND REFERENCE photograph.
+This is view ${angle.index + 1} of 8 for a professional character consistency/turnaround sheet.
 
-CHARACTER IDENTITY (MUST MATCH THE REFERENCE):
+CHARACTER: "${character.name}" from the film "${film?.title || "Untitled"}". ${periodStr} ${genreStr}
+
+CHARACTER IDENTITY (MUST EXACTLY MATCH THE REFERENCE IMAGE):
 - Gender: ${sexStr}
 - Age: ${ageStr}
-- Description: ${safeDesc || "See reference image."}
+- Description: ${safeDesc || "See reference image — match exactly."}
 
-VIEW ANGLE: ${angle.label} — The character is ${angle.direction}.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+VIEW: ${angle.label}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-CRITICAL REQUIREMENTS:
-- This MUST be the EXACT SAME PERSON as the reference headshot — same face, bone structure, skin tone, hair color/style, ethnicity, and build
-- The character should be wearing the same clothing as in the reference
-- Same lighting setup: soft studio lighting, neutral background
-- Full head and upper body visible
-- Clean neutral backdrop (light gray or soft slate)
-- Photorealistic, production-quality
-- This is for a character consistency/turnaround sheet — accuracy to the reference is paramount`;
+FRAMING: ${angle.framing}
+ANGLE: The character is ${angle.direction}.
+PURPOSE: ${angle.purpose}
+CAMERA: ${angle.camera}
+EXPRESSION: ${angle.expression}
+
+IDENTITY LOCK:
+- This MUST be the EXACT SAME PERSON as the reference headshot
+- Same face, bone structure, skin tone, hair color/style, ethnicity, build
+- Same clothing/costume as in the reference
+- Proportionally consistent with all other views in this turnaround set
+
+${GLOBAL_RULES}`;
 
         const models = ["google/gemini-3-pro-image-preview", "google/gemini-2.5-flash-image"];
         let imageBytes: Uint8Array | null = null;
@@ -120,7 +258,20 @@ CRITICAL REQUIREMENTS:
               messages: [
                 {
                   role: "system",
-                  content: "You are a character consistency reference generator. You receive a reference headshot of an actor and must generate the SAME person from a different angle. Maintain absolute identity consistency — same face, features, hair, skin, build, and clothing. This is for a production character turnaround sheet."
+                  content: `You are a character turnaround reference generator for film production.
+
+Your ONLY job is to produce clean, controlled, multi-angle reference images of a character for AI consistency purposes.
+
+You receive a reference headshot of a cast actor and must generate the SAME person from a specified angle.
+
+ABSOLUTE RULES:
+1. IDENTITY CONSISTENCY is paramount — same face, features, hair, skin, build, clothing
+2. This is DATA CAPTURE, not art — no creative interpretation
+3. Studio-flat lighting, neutral gray background, 50mm lens equivalent
+4. Neutral expression, neutral pose (unless close-up views)
+5. The output must look like it belongs on a professional character turnaround sheet
+
+Think of this as generating a 3D model reference — geometry preservation is everything.`,
                 },
                 {
                   role: "user",
@@ -168,8 +319,11 @@ CRITICAL REQUIREMENTS:
         }
 
         if (imageBytes) {
-          const slug = character.name.toLowerCase().replace(/\s+/g, "-");
-          const fileName = `consistency/${slug}-${angle.label.toLowerCase().replace(/[^a-z0-9]/g, "-")}-${Date.now()}.png`;
+          // Deterministic file naming for AI ingestion
+          const slug = character.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const viewSlug = angle.label.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+          const padIndex = String(angle.index + 1).padStart(2, "0");
+          const fileName = `consistency/character_${slug}_${padIndex}_${viewSlug}_${Date.now()}.png`;
 
           const { error: uploadError } = await sb.storage
             .from("character-assets")
