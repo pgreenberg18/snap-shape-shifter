@@ -215,6 +215,49 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     } else {
       loadedGroups = [];
     }
+
+    // Migration: strip "(character)" suffixes from wardrobe item keys in persisted data
+    if (storagePrefix === "wardrobe") {
+      const charSuffixRegex = /\s*\([^)]+\)\s*$/;
+      let migrated = false;
+      const keyMap = new Map<string, string>(); // old key -> new key
+
+      const migrateChildren = (children: string[]) => {
+        return children.map((c) => {
+          if (charSuffixRegex.test(c)) {
+            const cleaned = c.replace(charSuffixRegex, "").trim();
+            keyMap.set(c, cleaned);
+            migrated = true;
+            return cleaned;
+          }
+          return c;
+        });
+      };
+
+      loadedGroups = loadedGroups.map((g) => ({ ...g, children: migrateChildren(g.children) }));
+
+      if (migrated) {
+        saveJson(storagePrefix, filmId, "groups", loadedGroups);
+        // Also migrate renames, refImages, refDescs
+        const savedRenames = loadJson<Record<string, string>>(storagePrefix, filmId, "renames", {});
+        const savedRefImages = loadJson<Record<string, string>>(storagePrefix, filmId, "refImages", {});
+        const savedRefDescs = loadJson<Record<string, string>>(storagePrefix, filmId, "refDescs", {});
+        const migrateRecord = (rec: Record<string, string>) => {
+          const next: Record<string, string> = {};
+          for (const [k, v] of Object.entries(rec)) {
+            next[keyMap.get(k) || k] = v;
+          }
+          return next;
+        };
+        saveJson(storagePrefix, filmId, "renames", migrateRecord(savedRenames));
+        saveJson(storagePrefix, filmId, "refImages", migrateRecord(savedRefImages));
+        saveJson(storagePrefix, filmId, "refDescs", migrateRecord(savedRefDescs));
+        // Also migrate merged-away list
+        const savedMerged = loadJson<string[]>(storagePrefix, filmId, "merged", []);
+        saveJson(storagePrefix, filmId, "merged", savedMerged.map((m) => keyMap.get(m) || m));
+      }
+    }
+
     setGroups(loadedGroups);
     setCollapsed(new Set(loadedGroups.map((g) => g.id)));
     setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
@@ -366,13 +409,41 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     setMergeDialog(null);
   }, [mergeDialog, mergedAway, persistMerged, groups, persistGroups, displayName]);
 
-  const handleRenameItem = useCallback((itemId: string) => {
+  const handleRenameItem = useCallback(async (itemId: string) => {
     if (!editName.trim()) return;
-    persistRenames({ ...renames, [itemId]: editName.trim() });
+    const newName = editName.trim();
+    const oldDisplayName = renames[itemId] || itemId;
+    persistRenames({ ...renames, [itemId]: newName });
     setEditingItemId(null);
     setEditName("");
+
+    // For wardrobe items, propagate rename to film_assets and wardrobe_scene_assignments
+    if (storagePrefix === "wardrobe" && filmId) {
+      const cleanOld = oldDisplayName.replace(/\s*\([^)]+\)\s*$/, "").trim();
+      // Update film_assets
+      const { data: matchingAssets } = await supabase
+        .from("film_assets")
+        .select("id, asset_name")
+        .eq("film_id", filmId)
+        .eq("asset_type", "wardrobe");
+      if (matchingAssets) {
+        for (const asset of matchingAssets) {
+          if (asset.asset_name.toLowerCase() === cleanOld.toLowerCase() ||
+              asset.asset_name.toLowerCase() === itemId.toLowerCase()) {
+            await supabase.from("film_assets").update({ asset_name: newName }).eq("id", asset.id);
+          }
+        }
+      }
+      // Update wardrobe_scene_assignments
+      await supabase
+        .from("wardrobe_scene_assignments" as any)
+        .update({ clothing_item: newName } as any)
+        .eq("film_id", filmId)
+        .or(`clothing_item.eq.${cleanOld},clothing_item.eq.${itemId}`);
+    }
+
     toast.success("Renamed");
-  }, [editName, renames, persistRenames]);
+  }, [editName, renames, persistRenames, storagePrefix, filmId]);
 
   const handleCreateGroup = () => {
     if (!newGroupName.trim()) return;
