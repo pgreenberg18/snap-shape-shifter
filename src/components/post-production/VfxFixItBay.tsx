@@ -139,7 +139,7 @@ const VfxFixItBay = ({ clip, onClose }: VfxFixItBayProps) => {
 
   return (
     <Dialog open={!!clip} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-[90vw] w-[1200px] h-[85vh] p-0 gap-0 flex flex-col bg-card border-border overflow-hidden">
+      <DialogContent className="max-w-[90vw] w-[1200px] max-h-[88vh] p-0 gap-0 flex flex-col bg-card border-border overflow-hidden !top-[5%]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-secondary/30">
           <div className="flex items-center gap-3">

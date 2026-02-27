@@ -940,7 +940,7 @@ const PreProduction = () => {
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
-                  <DialogContent className="max-w-5xl p-0 bg-card border-border h-[85vh] !overflow-y-hidden !top-[6%]">
+                  <DialogContent className="max-w-5xl p-0 bg-card border-border max-h-[88vh] !overflow-y-hidden !top-[5%]">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
