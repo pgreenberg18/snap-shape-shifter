@@ -17,7 +17,7 @@ import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
-import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search, Merge } from "lucide-react";
+import { Users, ChevronRight, ChevronDown, Lock, GripVertical, Pencil, Check, X, Sparkles, Search, Merge, Undo2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ResizableSidebar from "./ResizableSidebar";
 import { useQueryClient } from "@tanstack/react-query";
@@ -89,6 +89,19 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   const [multiSelected, setMultiSelected] = useState<Set<string>>(new Set());
   const [multiMergeDialog, setMultiMergeDialog] = useState<string[] | null>(null);
   const [overrides, setOverrides] = useState<ManualOverrides>(() => loadOverrides(filmId));
+  const [undoStack, setUndoStack] = useState<ManualOverrides[]>([]);
+
+  const pushUndo = useCallback(() => {
+    setUndoStack(prev => [...prev.slice(-19), { ...overrides, tierOverrides: { ...overrides.tierOverrides }, sortOverrides: { ...overrides.sortOverrides } }]);
+  }, [overrides]);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack(s => s.slice(0, -1));
+    setOverrides(prev);
+    toast.success("Undone");
+  }, [undoStack]);
 
   // Reload overrides when filmId changes
   useEffect(() => {
@@ -142,6 +155,7 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
     // Dropped on a tier zone
     if (overId.startsWith("tier:")) {
       const newTier = overId.replace("tier:", "") as CharacterTier;
+      pushUndo();
       setOverrides(prev => {
         const next = { ...prev, tierOverrides: { ...prev.tierOverrides, [draggedCharId]: newTier } };
         // Reset sort index for this char in new tier (append to end)
@@ -207,8 +221,9 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
       setOpenTiers(prev => ({ ...prev, [targetTier]: true }));
     }
 
+    pushUndo();
     setOverrides({ tierOverrides: newTierOverrides, sortOverrides: newSortOverrides });
-  }, [characters, overrides]);
+  }, [characters, overrides, pushUndo]);
 
   const handleRename = useCallback(async (charId: string) => {
     if (!editName.trim()) return;
@@ -294,11 +309,18 @@ const CharacterSidebar = ({ characters, isLoading, selectedCharId, onSelect, onS
   return (
     <ResizableSidebar defaultWidth={380} minWidth={220} maxWidthPercent={30}>
       <div className="px-4 py-3 border-b border-border space-y-2">
-        <div>
-          <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
-          <p className="text-[10px] text-muted-foreground/60 mt-0.5">
-            {characters?.length ?? 0} in cast{rankings?.length ? " · drag to reorder or change tier" : " · drag to reorder"}
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">Characters</h2>
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">
+              {characters?.length ?? 0} in cast{rankings?.length ? " · drag to reorder or change tier" : " · drag to reorder"}
+            </p>
+          </div>
+          {undoStack.length > 0 && (
+            <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground" onClick={handleUndo} title="Undo last move">
+              <Undo2 className="h-3 w-3" /> Undo
+            </Button>
+          )}
         </div>
         <div className="relative">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />

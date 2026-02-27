@@ -12,7 +12,7 @@ import {
   type DragStartEvent,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, Package, MapPin, Shirt, Car, type LucideIcon } from "lucide-react";
+import { ChevronDown, ChevronRight, GripVertical, Plus, X, Pencil, Check, Merge, Upload, Loader2, Eye, ScrollText, Search, ArrowRightLeft, Package, MapPin, Shirt, Car, Undo2, type LucideIcon } from "lucide-react";
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
@@ -209,6 +209,8 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   // Wardrobe: manual tier overrides for character groups (persisted to localStorage)
   const [wardrobeTierOverrides, setWardrobeTierOverrides] = useState<Record<string, CharacterTier>>({});
   const [wardrobeSortOverrides, setWardrobeSortOverrides] = useState<Record<string, number>>({});
+  // Undo history for wardrobe tier/sort overrides
+  const [wardrobeUndoStack, setWardrobeUndoStack] = useState<Array<{ tierOverrides: Record<string, CharacterTier>; sortOverrides: Record<string, number> }>>([]);
 
   // Load/save wardrobe tier overrides
   useEffect(() => {
@@ -224,12 +226,26 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   }, [filmId, storagePrefix]);
 
   const persistWardrobeTierOverrides = useCallback((tiers: Record<string, CharacterTier>, sorts: Record<string, number>) => {
+    // Push current state onto undo stack before applying new state
+    setWardrobeUndoStack(prev => [...prev.slice(-19), { tierOverrides: { ...wardrobeTierOverrides }, sortOverrides: { ...wardrobeSortOverrides } }]);
     setWardrobeTierOverrides(tiers);
     setWardrobeSortOverrides(sorts);
     if (filmId) {
       localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify({ tierOverrides: tiers, sortOverrides: sorts }));
     }
-  }, [filmId]);
+  }, [filmId, wardrobeTierOverrides, wardrobeSortOverrides]);
+
+  const handleWardrobeUndo = useCallback(() => {
+    if (wardrobeUndoStack.length === 0) return;
+    const prev = wardrobeUndoStack[wardrobeUndoStack.length - 1];
+    setWardrobeUndoStack(s => s.slice(0, -1));
+    setWardrobeTierOverrides(prev.tierOverrides);
+    setWardrobeSortOverrides(prev.sortOverrides);
+    if (filmId) {
+      localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify(prev));
+    }
+    toast.success("Undone");
+  }, [wardrobeUndoStack, filmId]);
   const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
@@ -1076,9 +1092,16 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 {visibleItems.length} items{mergedCount > 0 ? ` · ${mergedCount} merged` : ""} · drag to merge
               </p>
             </div>
-            <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={() => setCreatingGroup(true)}>
-              <Plus className="h-3 w-3" /> Group
-            </Button>
+            <div className="flex items-center gap-1">
+              {storagePrefix === "wardrobe" && wardrobeUndoStack.length > 0 && (
+                <Button variant="ghost" size="sm" className="gap-1 text-xs h-7 text-muted-foreground" onClick={handleWardrobeUndo} title="Undo last move">
+                  <Undo2 className="h-3 w-3" /> Undo
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={() => setCreatingGroup(true)}>
+                <Plus className="h-3 w-3" /> Group
+              </Button>
+            </div>
           </div>
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/50" />
