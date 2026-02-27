@@ -122,6 +122,9 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "resemble-v2", label: "V2" },
       { id: "resemble-v1", label: "V1" },
     ]},
+    { id: "lyria", name: "Lyria (Google)", placeholder: "Enter Google API key…", variants: [
+      { id: "lyria-2", label: "Lyria 2" },
+    ]},
   ],
   "camera-cart": [
     { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…", variants: [
@@ -218,7 +221,7 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
 
 /* ── Provider groups: services that share the same API key ── */
 const PROVIDER_GROUPS: Record<string, string[]> = {
-  google: ["gemini", "veo", "imagen-4"],
+  google: ["gemini", "veo", "imagen-4", "lyria"],
   openai: ["openai-chat", "dall-e", "sora"],
 };
 
