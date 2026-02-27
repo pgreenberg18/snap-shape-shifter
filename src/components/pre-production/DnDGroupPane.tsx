@@ -1820,10 +1820,10 @@ const SidebarGroup = ({
     )}>
       <div
         className={cn(
-          "flex items-center gap-2 px-3 py-2.5",
-          onGroupNameClick && "cursor-pointer hover:bg-secondary/40 transition-colors"
+          "flex items-center gap-2 px-3 py-2.5 cursor-pointer hover:bg-secondary/40 transition-colors",
+          onGroupNameClick && ""
         )}
-        onClick={onGroupNameClick ? () => { onGroupNameClick(); if (isCollapsed) onToggle(); } : undefined}
+        onClick={onGroupNameClick ? () => { onGroupNameClick(); if (isCollapsed) onToggle(); } : () => onToggle()}
       >
         <button onClick={(e) => { e.stopPropagation(); onToggle(); }} className="shrink-0 text-muted-foreground hover:text-foreground transition-colors">
           {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
