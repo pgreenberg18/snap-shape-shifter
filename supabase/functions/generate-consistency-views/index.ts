@@ -57,7 +57,7 @@ const ANGLE_VIEWS = [
     index: 4,
     label: "3/4 Left",
     framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
-    direction: "rotated 45 degrees so their RIGHT cheek faces the camera and their LEFT cheek faces away. The character's body and nose point to the LEFT side of the frame. This is a three-quarter left view — the viewer sees mostly the right side of the face",
+    direction: "the character has turned their head and body slightly to the RIGHT so that the camera sees the LEFT side of their face. The character's LEFT cheek, LEFT ear, and LEFT jawline are closest to the camera. Their nose points to the RIGHT side of the frame. This is a three-quarter LEFT view",
     purpose: "Most cinematic angle — AI learns depth + cheekbone structure",
     camera: "Eye level, pulled back enough to show full body head to toe",
     expression: "Neutral",
