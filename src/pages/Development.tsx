@@ -2109,19 +2109,20 @@ const SceneBreakdownFromDB = ({ filmId, storagePath, breakdownOpen, setBreakdown
       if (error) throw error;
       // Map parsed_scenes row format to the shape components expect
       return (data || []).map((s: any) => {
-        // Extract only the slug line from heading
-        const rawHeading = s.heading || "";
-        // Take the first line; if no newlines, extract up to the first sentence-ending period or 120 chars
-        let slugLine = rawHeading.split(/\n/)[0].replace(/\s{2,}/g, " ").trim();
-        // If the slug line is excessively long (likely full scene text crammed in), extract just the slug portion
-        if (slugLine.length > 120) {
-          // Try to extract INT./EXT. slug line pattern
-          const slugMatch = slugLine.match(/^((?:INT|EXT|INT\/EXT|I\/E)[.\s].+?)(?:\s{2,}|[A-Z]{2,}\s|$)/);
-          if (slugMatch) {
-            slugLine = slugMatch[1].trim();
-          } else {
-            slugLine = slugLine.substring(0, 80) + "…";
-          }
+        // Reconstruct slug line from structured fields (heading column may contain full scene text)
+        let slugLine = "";
+        const intExt = (s.int_ext || "").trim().toUpperCase();
+        const locName = (s.location_name || "").trim().toUpperCase();
+        const dayNight = (s.day_night || "").trim().toUpperCase();
+        if (intExt && locName) {
+          slugLine = `${intExt}. ${locName}`;
+          if (dayNight) slugLine += ` – ${dayNight}`;
+        } else {
+          // Fallback: try to extract from heading's first line
+          const rawHeading = s.heading || "";
+          const firstLine = rawHeading.split(/\n/)[0].replace(/\s{2,}/g, " ").trim();
+          const slugMatch = firstLine.match(/^((?:INT|EXT|INT\/EXT|I\/E)[.\s/].{0,150}?)(?:\s{2,}|\n|$)/i);
+          slugLine = slugMatch ? slugMatch[1].trim() : firstLine.substring(0, 100);
         }
         return {
         scene_number: s.scene_number,
