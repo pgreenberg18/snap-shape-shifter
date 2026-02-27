@@ -442,7 +442,7 @@ const MediaLibraryPanel = () => {
                   onClick={(e) => {
                     e.stopPropagation();
                     const film = filmMap.get(item.filmId!);
-                    if (film?.projectId) navigate(`/projects/${film.projectId}/versions`);
+                    if (film?.projectId) navigate(`/projects/${film.projectId}`);
                   }}
                   className="text-[10px] font-mono text-primary/70 hover:text-primary hover:underline transition-colors truncate max-w-[120px]"
                   title={`${filmMap.get(item.filmId)!.title} — ${filmMap.get(item.filmId)!.versionName}`}
