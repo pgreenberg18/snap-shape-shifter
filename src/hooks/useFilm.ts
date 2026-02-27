@@ -178,7 +178,7 @@ export const useBreakdownAssets = () => {
       const vehicleSet = new Set<string>();
       const vehicleContextMap = new Map<string, { scenes: string[]; locations: string[]; characters: Set<string>; years: Set<string>; moods: Set<string> }>();
 
-      const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan"];
+      const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan", "corvette", "mustang", "camaro", "tesla", "porsche", "ferrari", "bmw", "mercedes", "audi", "honda", "toyota", "ford", "chevy", "chevrolet", "dodge", "nissan", "subaru", "lexus", "cadillac", "lincoln", "buick", "pontiac", "oldsmobile"];
       const NON_PROP_KEYWORDS = ["rain", "snow", "fog", "wind", "lightning", "thunder", "fire", "smoke", "explosion", "flames", "mist", "haze", "storm", "sunlight", "moonlight", "shadow", "shadows", "darkness", "light", "glow", "flicker", "house", "building", "cabin", "mansion", "apartment", "warehouse", "barn", "church", "school", "hospital", "hotel", "motel", "office", "restaurant", "bar", "club", "store", "shop", "beach house", "cottage", "shack", "tower", "castle", "palace", "temple"];
 
       // First pass: collect all scene data per location (aggregate across scenes)
