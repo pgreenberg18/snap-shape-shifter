@@ -949,7 +949,7 @@ const PreProduction = () => {
                       {/* Left: headshot image fills full height */}
                       <div className="w-[280px] shrink-0 h-full">
                         {expandedCard?.imageUrl && (
-                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full h-full object-cover" />
+                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full h-full object-contain bg-black/20" />
                         )}
                       </div>
                       {/* Right: controls + variations */}
