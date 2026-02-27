@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { parseSceneFromPlainText } from "@/lib/parse-script-text";
+import { parseSceneFromPlainText, classifyScreenplayLines } from "@/lib/parse-script-text";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm, useParsedScenes } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -1437,15 +1437,40 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     const rawText = scene.raw_text || "";
     const escapedName = nameUpper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // Match: CHARNAME followed by optional parenthetical, then grab the rest of the
-    // introductory text up to the next blank line, character cue, or scene heading.
-    // This captures the full prose description the screenwriter wrote.
+    // Use the screenplay parser to only search within Action paragraphs,
+    // avoiding false matches on dialogue cues or spoken lines.
+    const lines = rawText.split("\n");
+    const classified = classifyScreenplayLines(lines);
+
+    // Build contiguous action blocks so we can find multi-line introductions
+    const actionBlocks: string[] = [];
+    let currentBlock = "";
+    for (const p of classified) {
+      if (p.type === "Action" || p.type === "Scene Heading") {
+        if (p.type === "Action") {
+          currentBlock += (currentBlock ? "\n" : "") + p.text;
+        } else {
+          if (currentBlock) actionBlocks.push(currentBlock);
+          currentBlock = "";
+        }
+      } else {
+        if (currentBlock) actionBlocks.push(currentBlock);
+        currentBlock = "";
+      }
+    }
+    if (currentBlock) actionBlocks.push(currentBlock);
+
+    // Search action blocks for the character introduction pattern:
+    // NAME (parenthetical) followed by descriptive prose
     const introPattern = new RegExp(
       `${escapedName}\\s*(?:\\(([^)]{3,120})\\))?[,.]?\\s*([^\\n]{5,})`,
       "m"
     );
-    const introMatch = rawText.match(introPattern);
-    if (introMatch) {
+
+    for (const block of actionBlocks) {
+      const introMatch = block.match(introPattern);
+      if (!introMatch) continue;
+
       const parenthetical = introMatch[1] || "";
       const proseAfter = (introMatch[2] || "").trim();
 
@@ -1486,32 +1511,29 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
       }
 
       // Build the script introduction description from parenthetical + prose
-      // Grab additional continuation lines (next 1-2 lines that are part of the same action block)
-      const matchEnd = rawText.indexOf(introMatch[0]) + introMatch[0].length;
-      const restAfterMatch = rawText.substring(matchEnd);
+      // Grab continuation lines from the same action block
+      const matchEnd = block.indexOf(introMatch[0]) + introMatch[0].length;
+      const restAfterMatch = block.substring(matchEnd);
       const continuationLines = restAfterMatch.split("\n");
       let fullProse = proseAfter;
 
       for (const line of continuationLines) {
         const trimmed = line.trim();
-        // Stop at blank lines, character cues (ALL CAPS short lines), or scene headings
         if (!trimmed) break;
-        if (/^[A-Z][A-Z\s.'-]{1,30}$/.test(trimmed)) break; // Looks like a character cue
-        if (/^(INT\.|EXT\.|INT\/EXT)/.test(trimmed)) break;
-        if (/^\(/.test(trimmed)) break; // Parenthetical dialogue direction
         fullProse += " " + trimmed;
-        if (fullProse.length > 300) break; // Enough context
+        if (fullProse.length > 300) break;
       }
 
       // Clean up the description
       scriptIntroDescription = fullProse
         .replace(/\s+/g, " ")
         .trim();
-      // Truncate to ~2 sentences if very long
+      // Truncate to ~3 sentences if very long
       const sentences = scriptIntroDescription.match(/[^.!?]+[.!?]+/g);
       if (sentences && sentences.length > 3) {
         scriptIntroDescription = sentences.slice(0, 3).join("").trim();
       }
+      break; // Found the introduction
     }
   }
 
