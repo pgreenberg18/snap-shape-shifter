@@ -1310,6 +1310,7 @@ const PreProduction = () => {
                 allSceneNumbers={allSceneNums}
                 sceneHeadings={headings}
                 characterOrder={charOrder}
+                characterRankings={rankings}
               />
             );
           })()}
