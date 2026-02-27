@@ -467,26 +467,39 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     if (targetId.startsWith("group::")) {
       const groupId = targetId.replace("group::", "");
       const targetGroup = groups.find((g) => g.id === groupId);
-      const sourceGroup = groups.find((g) => g.children.includes(draggedItem));
 
-      // For wardrobe: append source character name in parentheses when moving between groups
-      if (storagePrefix === "wardrobe" && sourceGroup && targetGroup && sourceGroup.id !== targetGroup.id) {
-        const sourceName = sourceGroup.name;
-        const currentDisplay = renames[draggedItem] || draggedItem;
-        if (!currentDisplay.toLowerCase().includes(`(${sourceName.toLowerCase()})`)) {
-          persistRenames({ ...renames, [draggedItem]: `${currentDisplay} (${sourceName})` });
+      // Collect all items to move: multi-selected (if dragged item is part of selection) or just the one
+      const itemsToMove = multiSelected.size >= 2 && multiSelected.has(draggedItem)
+        ? [...multiSelected]
+        : [draggedItem];
+
+      let updatedRenames = { ...renames };
+      for (const item of itemsToMove) {
+        const sourceGroup = groups.find((g) => g.children.includes(item));
+        if (storagePrefix === "wardrobe" && sourceGroup && targetGroup && sourceGroup.id !== targetGroup.id) {
+          const sourceName = sourceGroup.name;
+          const currentDisplay = updatedRenames[item] || item;
+          if (!currentDisplay.toLowerCase().includes(`(${sourceName.toLowerCase()})`)) {
+            updatedRenames[item] = `${currentDisplay} (${sourceName})`;
+          }
         }
+      }
+      if (Object.keys(updatedRenames).length !== Object.keys(renames).length ||
+          Object.entries(updatedRenames).some(([k, v]) => renames[k] !== v)) {
+        persistRenames(updatedRenames);
       }
 
       const next = groups.map((g) => {
-        const cleaned = { ...g, children: g.children.filter((c) => c !== draggedItem) };
-        if (cleaned.id === groupId && !cleaned.children.includes(draggedItem)) {
-          return { ...cleaned, children: [...cleaned.children, draggedItem] };
+        const cleaned = { ...g, children: g.children.filter((c) => !itemsToMove.includes(c)) };
+        if (cleaned.id === groupId) {
+          const toAdd = itemsToMove.filter((i) => !cleaned.children.includes(i));
+          return { ...cleaned, children: [...cleaned.children, ...toAdd] };
         }
         return cleaned;
       });
       persistGroups(next);
-      toast.success("Moved to group");
+      toast.success(itemsToMove.length > 1 ? `Moved ${itemsToMove.length} items` : "Moved to group");
+      setMultiSelected(new Set());
       return;
     }
     if (ungrouped.includes(targetId) && ungrouped.includes(draggedItem)) {
@@ -1011,6 +1024,9 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
                 <div className="rounded-lg border border-primary bg-card p-2 flex items-center gap-2 shadow-xl rotate-2 scale-105">
                   <Icon className="h-3.5 w-3.5 text-primary shrink-0" />
                   <p className="text-xs font-display font-semibold text-foreground truncate">{displayName(activeId)}</p>
+                  {multiSelected.size >= 2 && multiSelected.has(activeId) && (
+                    <span className="text-[9px] font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full">{multiSelected.size}</span>
+                  )}
                 </div>
               ) : null}
             </DragOverlay>
