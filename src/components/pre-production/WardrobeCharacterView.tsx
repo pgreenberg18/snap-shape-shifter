@@ -11,19 +11,33 @@ import {
   Shirt, Film, ChevronDown, ChevronRight, Lock, AlertCircle, Plus, Check, Loader2,
 } from "lucide-react";
 
+interface FilmAsset {
+  id: string;
+  film_id: string;
+  asset_name: string;
+  asset_type: string;
+  image_url: string | null;
+  locked: boolean;
+  created_at: string;
+}
+
+interface WardrobeSceneAssignment {
+  id: string;
+  film_id: string;
+  character_name: string;
+  clothing_item: string;
+  scene_number: number;
+  created_at: string;
+}
+
 interface WardrobeCharacterViewProps {
   characterName: string;
   wardrobeItems: string[];
   filmId: string;
-  /** All scene numbers where this character appears */
   characterSceneNumbers: number[];
-  /** Scene headings keyed by scene number */
   sceneHeadings?: Record<number, string>;
-  /** Display names for wardrobe items */
   displayName: (item: string) => string;
-  /** Callback when a specific wardrobe item is clicked to open detail view */
   onSelectItem: (itemName: string) => void;
-  /** Callback to create a new costume for a given scene */
   onCreateCostume?: (sceneNumber: number) => void;
 }
 
@@ -42,7 +56,6 @@ const WardrobeCharacterView = ({
   const [lockingAssignments, setLockingAssignments] = useState(false);
   const queryClient = useQueryClient();
 
-  // Fetch the character's approved headshot
   const { data: characterHeadshot } = useQuery({
     queryKey: ["character-headshot", filmId, characterName],
     queryFn: async () => {
@@ -59,7 +72,6 @@ const WardrobeCharacterView = ({
     enabled: !!filmId && !!characterName,
   });
 
-  // Fetch locked wardrobe selections (film_assets with locked=true)
   const { data: lockedAssets = [] } = useQuery({
     queryKey: ["wardrobe-locked-assets", filmId, characterName],
     queryFn: async () => {
@@ -70,10 +82,9 @@ const WardrobeCharacterView = ({
         .eq("asset_type", "wardrobe")
         .eq("locked", true);
       if (error) throw error;
-      // Filter to only assets matching this character's wardrobe items
       return (data ?? []).filter((a) =>
         wardrobeItems.some((w) => {
-          const cleanName = w.replace(/\s*\(.*?\)\s*$/, "").trim().toLowerCase();
+          const cleanName = w.replace(/\s*\((.*?)\)\s*$/, "").trim().toLowerCase();
           return a.asset_name.toLowerCase() === w.toLowerCase() ||
                  a.asset_name.toLowerCase() === cleanName;
         })
@@ -82,7 +93,6 @@ const WardrobeCharacterView = ({
     enabled: !!filmId && wardrobeItems.length > 0,
   });
 
-  // Fetch wardrobe scene assignments for this character
   const { data: sceneAssignments = [] } = useQuery({
     queryKey: ["wardrobe-scene-assignments-char", filmId, characterName],
     queryFn: async () => {
@@ -97,12 +107,11 @@ const WardrobeCharacterView = ({
     enabled: !!filmId && !!characterName,
   });
 
-  // Map: wardrobe item -> locked asset image
   const lockedImageMap = useMemo(() => {
     const map = new Map<string, string>();
     for (const asset of lockedAssets) {
       for (const w of wardrobeItems) {
-        const cleanName = w.replace(/\s*\(.*?\)\s*$/, "").trim().toLowerCase();
+        const cleanName = w.replace(/\s*\((.*?)\)\s*$/, "").trim().toLowerCase();
         if (asset.asset_name.toLowerCase() === w.toLowerCase() ||
             asset.asset_name.toLowerCase() === cleanName) {
           if (asset.image_url) map.set(w, asset.image_url);
@@ -112,7 +121,6 @@ const WardrobeCharacterView = ({
     return map;
   }, [lockedAssets, wardrobeItems]);
 
-  // Map: wardrobe item -> assigned scene numbers
   const assignmentsByItem = useMemo(() => {
     const map = new Map<string, number[]>();
     for (const a of sceneAssignments) {
@@ -123,7 +131,6 @@ const WardrobeCharacterView = ({
     return map;
   }, [sceneAssignments]);
 
-  // Map: scene number -> assigned wardrobe item
   const assignmentByScene = useMemo(() => {
     const map = new Map<number, string>();
     for (const a of sceneAssignments) {
@@ -132,7 +139,6 @@ const WardrobeCharacterView = ({
     return map;
   }, [sceneAssignments]);
 
-  // All assigned scene numbers (across all wardrobe items for this character)
   const allAssignedScenes = useMemo(() => {
     const set = new Set<number>();
     for (const [, scenes] of assignmentsByItem) {
@@ -141,17 +147,13 @@ const WardrobeCharacterView = ({
     return set;
   }, [assignmentsByItem]);
 
-  // Unassigned scenes: character scenes with no wardrobe assignment
   const unassignedScenes = useMemo(() => {
     return characterSceneNumbers.filter((sn) => !allAssignedScenes.has(sn)).sort((a, b) => a - b);
   }, [characterSceneNumbers, allAssignedScenes]);
 
-  // Check if all assignments are locked (all scenes have assignments)
   const allScenesAssigned = unassignedScenes.length === 0 && characterSceneNumbers.length > 0;
 
-  // Handle changing the wardrobe selection for a specific scene
   const handleSceneWardrobeChange = useCallback(async (sceneNumber: number, wardrobeItem: string) => {
-    // Delete existing assignment for this scene+character, then insert new
     await supabase
       .from("wardrobe_scene_assignments")
       .delete()
@@ -172,7 +174,6 @@ const WardrobeCharacterView = ({
     queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments"] });
   }, [filmId, characterName, queryClient]);
 
-  // Lock all wardrobe assignments
   const handleLockAssignments = useCallback(async () => {
     if (!allScenesAssigned) {
       toast.error("Assign wardrobe to all scenes before locking.");
@@ -180,9 +181,6 @@ const WardrobeCharacterView = ({
     }
     setLockingAssignments(true);
     try {
-      // The assignments are already persisted in wardrobe_scene_assignments.
-      // "Locking" means downstream systems can now reference these mappings.
-      // We signal this by ensuring all assignments exist and are finalized.
       toast.success(`Wardrobe assignments locked for ${characterName}. Continuity data propagated.`);
     } finally {
       setLockingAssignments(false);
@@ -251,7 +249,6 @@ const WardrobeCharacterView = ({
                     </div>
                   </div>
 
-                  {/* Label + Scene Numbers */}
                   <div className="p-2.5 space-y-1.5">
                     <p className="text-xs font-display font-semibold text-foreground leading-snug truncate">
                       {displayName(item)}
@@ -288,150 +285,153 @@ const WardrobeCharacterView = ({
           )}
         </div>
 
-        {/* ═══ SCENE ASSIGNMENTS ═══ */}
-        <Collapsible open={sceneAssignmentsOpen} onOpenChange={setSceneAssignmentsOpen}>
-          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4 max-w-[50%]">
-            <CollapsibleTrigger className="w-full flex items-center gap-2">
-              {sceneAssignmentsOpen
-                ? <ChevronDown className="h-4 w-4 text-primary" />
-                : <ChevronRight className="h-4 w-4 text-primary" />
-              }
-              <Film className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Scene Assignments
-              </h3>
-              <span className="ml-auto text-xs text-muted-foreground/50">
-                {allAssignedScenes.size} / {characterSceneNumbers.length} assigned
-              </span>
-            </CollapsibleTrigger>
-
-            <CollapsibleContent className="space-y-3">
-              <p className="text-[10px] text-muted-foreground">
-                Select which wardrobe <span className="font-semibold text-foreground">{characterName}</span> wears in each scene. This is a character-level continuity control.
-              </p>
-
-              <div className="space-y-1.5">
-                {sortedCharScenes.map((sn) => {
-                  const currentItem = assignmentByScene.get(sn);
-                  const heading = sceneHeadings?.[sn];
-                  return (
-                    <div
-                      key={sn}
-                      className={cn(
-                        "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
-                        currentItem
-                          ? "bg-primary/5 border border-primary/20"
-                          : "bg-destructive/5 border border-destructive/20"
-                      )}
-                    >
-                      <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
-                        Sc {sn}
-                      </span>
-                      {heading && (
-                        <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
-                          {heading}
-                        </span>
-                      )}
-                      <div className="ml-auto shrink-0 w-[180px]">
-                        <Select
-                          value={currentItem || "__none__"}
-                          onValueChange={(val) => handleSceneWardrobeChange(sn, val)}
-                        >
-                          <SelectTrigger className="h-7 text-[11px] bg-secondary/50 border-border">
-                            <SelectValue placeholder="Select wardrobe…" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__none__">
-                              <span className="text-muted-foreground italic">Unassigned</span>
-                            </SelectItem>
-                            {wardrobeItems.map((w) => (
-                              <SelectItem key={w} value={w}>
-                                {displayName(w)}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Lock Assignments Button */}
-              {characterSceneNumbers.length > 0 && (
-                <div className="pt-2 border-t border-border">
-                  <Button
-                    onClick={handleLockAssignments}
-                    disabled={!allScenesAssigned || lockingAssignments}
-                    className="gap-2 w-full"
-                  >
-                    {lockingAssignments ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Lock className="h-4 w-4" />
-                    )}
-                    Lock Wardrobe Assignments
-                  </Button>
-                  {!allScenesAssigned && (
-                    <p className="text-[10px] text-destructive/70 mt-1.5 text-center">
-                      Assign wardrobe to all {unassignedScenes.length} remaining scene{unassignedScenes.length !== 1 ? "s" : ""} to enable locking.
-                    </p>
-                  )}
-                </div>
-              )}
-            </CollapsibleContent>
-          </div>
-        </Collapsible>
-
-        {/* Unassigned Scenes */}
-        {unassignedScenes.length > 0 && (
-          <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen}>
-            <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 cinema-shadow max-w-[50%]">
+        {/* ═══ SCENE ASSIGNMENTS + UNASSIGNED (side by side) ═══ */}
+        <div className="flex items-start gap-4">
+          {/* Scene Assignments */}
+          <Collapsible open={sceneAssignmentsOpen} onOpenChange={setSceneAssignmentsOpen} className="flex-1 min-w-0">
+            <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4">
               <CollapsibleTrigger className="w-full flex items-center gap-2">
-                {unassignedOpen
-                  ? <ChevronDown className="h-4 w-4 text-destructive/70" />
-                  : <ChevronRight className="h-4 w-4 text-destructive/70" />
+                {sceneAssignmentsOpen
+                  ? <ChevronDown className="h-4 w-4 text-primary" />
+                  : <ChevronRight className="h-4 w-4 text-primary" />
                 }
-                <AlertCircle className="h-4 w-4 text-destructive/70" />
+                <Film className="h-4 w-4 text-primary" />
                 <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                  Unassigned Scenes
+                  Scene Assignments
                 </h3>
-                <span className="ml-auto text-xs text-destructive/70 font-semibold">
-                  {unassignedScenes.length} scene{unassignedScenes.length !== 1 ? "s" : ""}
+                <span className="ml-auto text-xs text-muted-foreground/50">
+                  {allAssignedScenes.size} / {characterSceneNumbers.length} assigned
                 </span>
               </CollapsibleTrigger>
-              <CollapsibleContent>
-                <p className="text-[10px] text-muted-foreground mt-2 mb-3">
-                  These scenes feature <span className="font-semibold text-foreground">{characterName}</span> but have no wardrobe assigned yet.
+
+              <CollapsibleContent className="space-y-3">
+                <p className="text-[10px] text-muted-foreground">
+                  Select which wardrobe <span className="font-semibold text-foreground">{characterName}</span> wears in each scene. This is a character-level continuity control.
                 </p>
+
                 <div className="space-y-1.5">
-                  {unassignedScenes.map((sn) => (
-                    <button
-                      key={sn}
-                      onClick={() => onCreateCostume ? onCreateCostume(sn) : (wardrobeItems.length > 0 && onSelectItem(wardrobeItems[0]))}
-                      className="w-full flex items-center gap-3 rounded-lg px-3 py-2 bg-background/50 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left"
-                    >
-                      <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
-                        Sc {sn}
-                      </span>
-                      {sceneHeadings?.[sn] && (
-                        <span className="text-[11px] text-muted-foreground truncate flex-1">
-                          {sceneHeadings[sn]}
+                  {sortedCharScenes.map((sn) => {
+                    const currentItem = assignmentByScene.get(sn);
+                    const heading = sceneHeadings?.[sn];
+                    return (
+                      <div
+                        key={sn}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                          currentItem
+                            ? "bg-primary/5 border border-primary/20"
+                            : "bg-destructive/5 border border-destructive/20"
+                        )}
+                      >
+                        <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
+                          Sc {sn}
                         </span>
-                      )}
-                      <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold text-destructive uppercase tracking-wider shrink-0 border border-destructive/20 bg-destructive/10 rounded px-2 py-0.5 group-hover:bg-destructive/20 group-hover:border-destructive/30 transition-colors">
-                        <Shirt className="h-3 w-3" />
-                        Assign costume
-                      </span>
-                    </button>
-                  ))}
+                        {heading && (
+                          <span className="text-[11px] text-muted-foreground truncate max-w-[120px]">
+                            {heading}
+                          </span>
+                        )}
+                        <div className="ml-auto shrink-0 w-[180px]">
+                          <Select
+                            value={currentItem || "__none__"}
+                            onValueChange={(val) => handleSceneWardrobeChange(sn, val)}
+                          >
+                            <SelectTrigger className="h-7 text-[11px] bg-secondary/50 border-border">
+                              <SelectValue placeholder="Select wardrobe…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__none__">
+                                <span className="text-muted-foreground italic">Unassigned</span>
+                              </SelectItem>
+                              {wardrobeItems.map((w) => (
+                                <SelectItem key={w} value={w}>
+                                  {displayName(w)}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Lock Assignments Button */}
+                {characterSceneNumbers.length > 0 && (
+                  <div className="pt-2 border-t border-border">
+                    <Button
+                      onClick={handleLockAssignments}
+                      disabled={!allScenesAssigned || lockingAssignments}
+                      className="gap-2 w-full"
+                    >
+                      {lockingAssignments ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Lock className="h-4 w-4" />
+                      )}
+                      Lock Wardrobe Assignments
+                    </Button>
+                    {!allScenesAssigned && (
+                      <p className="text-[10px] text-destructive/70 mt-1.5 text-center">
+                        Assign wardrobe to all {unassignedScenes.length} remaining scene{unassignedScenes.length !== 1 ? "s" : ""} to enable locking.
+                      </p>
+                    )}
+                  </div>
+                )}
               </CollapsibleContent>
             </div>
           </Collapsible>
-        )}
+
+          {/* Unassigned Scenes */}
+          {unassignedScenes.length > 0 && (
+            <Collapsible open={unassignedOpen} onOpenChange={setUnassignedOpen} className="flex-1 min-w-0">
+              <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-4 cinema-shadow">
+                <CollapsibleTrigger className="w-full flex items-center gap-2">
+                  {unassignedOpen
+                    ? <ChevronDown className="h-4 w-4 text-destructive/70" />
+                    : <ChevronRight className="h-4 w-4 text-destructive/70" />
+                  }
+                  <AlertCircle className="h-4 w-4 text-destructive/70" />
+                  <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                    Unassigned Scenes
+                  </h3>
+                  <span className="ml-auto text-xs text-destructive/70 font-semibold">
+                    {unassignedScenes.length} scene{unassignedScenes.length !== 1 ? "s" : ""}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <p className="text-[10px] text-muted-foreground mt-2 mb-3">
+                    These scenes feature <span className="font-semibold text-foreground">{characterName}</span> but have no wardrobe assigned yet.
+                  </p>
+                  <div className="space-y-1.5">
+                    {unassignedScenes.map((sn) => (
+                      <button
+                        key={sn}
+                        onClick={() => onCreateCostume ? onCreateCostume(sn) : (wardrobeItems.length > 0 && onSelectItem(wardrobeItems[0]))}
+                        className="w-full flex items-center gap-3 rounded-lg px-3 py-2 bg-background/50 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left"
+                      >
+                        <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="font-display text-xs font-semibold text-foreground min-w-[32px]">
+                          Sc {sn}
+                        </span>
+                        {sceneHeadings?.[sn] && (
+                          <span className="text-[11px] text-muted-foreground truncate flex-1">
+                            {sceneHeadings[sn]}
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-display font-semibold text-destructive uppercase tracking-wider shrink-0 border border-destructive/20 bg-destructive/10 rounded px-2 py-0.5 group-hover:bg-destructive/20 group-hover:border-destructive/30 transition-colors">
+                          <Shirt className="h-3 w-3" />
+                          Assign costume
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            </Collapsible>
+          )}
+        </div>
 
         {/* All scenes assigned indicator */}
         {unassignedScenes.length === 0 && characterSceneNumbers.length > 0 && (
