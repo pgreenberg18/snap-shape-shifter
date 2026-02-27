@@ -2351,13 +2351,107 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
       : fullText.length;
 
     const sceneText = fullText.substring(startIdx, endIdx).trim();
-    // Simple heuristic: lines in ALL CAPS with no period at end are likely characters
     return sceneText.split("\n").filter((l) => l.trim()).map((line) => {
       const trimmed = line.trim();
       if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
       if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
+      if (/^\(.*\)$/.test(trimmed)) return { type: "Parenthetical", text: trimmed };
+      if (/^(CUT TO:|FADE OUT|FADE IN|DISSOLVE TO:|SMASH CUT|MATCH CUT)/i.test(trimmed)) return { type: "Transition", text: trimmed };
       return { type: "Action", text: trimmed };
     });
+  };
+
+  /** Parse PDF with position-aware screenplay classification */
+  const parsePdfScene = async (bytes: Uint8Array): Promise<{ type: string; text: string }[]> => {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+
+    // Standard US Letter screenplay: 612pt wide
+    // Action: ~72pt (1") left margin
+    // Dialogue: ~180pt (~2.5")
+    // Parenthetical: ~216pt (~3")
+    // Character: ~252pt (~3.5")
+    // Transition: right-aligned (~432pt+)
+    const PAGE_WIDTH = 612;
+
+    interface PdfLine { text: string; x: number; y: number; page: number }
+    const allLines: PdfLine[] = [];
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const items = (tc.items as any[]).filter((it) => it.str != null && it.transform);
+      // Group by Y coordinate (rows)
+      const rowMap = new Map<number, { text: string; x: number }[]>();
+      for (const item of items) {
+        const y = Math.round(item.transform[5] / 2) * 2;
+        if (!rowMap.has(y)) rowMap.set(y, []);
+        rowMap.get(y)!.push({ text: item.str, x: item.transform[4] });
+      }
+      const rows = Array.from(rowMap.entries())
+        .sort((a, b) => b[0] - a[0])
+        .map(([yKey, cells]) => {
+          cells.sort((a, b) => a.x - b.x);
+          return { text: cells.map((c) => c.text).join(""), x: cells[0].x, y: yKey, page: i };
+        });
+      allLines.push(...rows);
+    }
+
+    // Isolate the target scene
+    const heading = scene.scene_heading?.trim() || "";
+    const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    let startIdx = -1;
+    let endIdx = allLines.length;
+    for (let i = 0; i < allLines.length; i++) {
+      const t = allLines[i].text.trim();
+      if (startIdx < 0) {
+        if (new RegExp(headingPattern, "i").test(t) || /^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/i.test(t) && t.includes(heading.split(" ").slice(1, 3).join(" ").toUpperCase())) {
+          startIdx = i;
+        }
+      } else if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/i.test(t)) {
+        endIdx = i;
+        break;
+      }
+    }
+    if (startIdx < 0) startIdx = 0;
+    const sceneLines = allLines.slice(startIdx, endIdx);
+
+    // Classify each line based on X indentation
+    const result: { type: string; text: string }[] = [];
+    let lastType = "";
+    for (const line of sceneLines) {
+      const trimmed = line.text.trim();
+      if (!trimmed) continue;
+      const x = line.x;
+
+      let type: string;
+      if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/i.test(trimmed)) {
+        type = "Scene Heading";
+      } else if (/^(CUT TO:|FADE OUT|FADE IN|DISSOLVE TO:|SMASH CUT|MATCH CUT)/i.test(trimmed)) {
+        type = "Transition";
+      } else if (x >= 230 && /^[A-Z][A-Z\s'.()0-9-]+$/.test(trimmed) && trimmed.length < 45) {
+        type = "Character";
+      } else if (x >= 195 && /^\(/.test(trimmed)) {
+        type = "Parenthetical";
+      } else if (x >= 155 && x < 230 && (lastType === "Character" || lastType === "Dialogue" || lastType === "Parenthetical")) {
+        type = "Dialogue";
+      } else if (x >= 155 && lastType === "Dialogue") {
+        // Continuation of dialogue on next line
+        type = "Dialogue";
+      } else {
+        type = "Action";
+      }
+
+      // Merge continuation lines of the same type (except Character/Scene Heading)
+      if (type === lastType && type !== "Character" && type !== "Scene Heading" && result.length > 0) {
+        result[result.length - 1].text += " " + trimmed;
+      } else {
+        result.push({ type, text: trimmed });
+      }
+      lastType = type;
+    }
+    return result;
   };
 
   const loadScript = async () => {
@@ -2379,36 +2473,13 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
       const { data, error } = await supabase.storage.from("scripts").download(storagePath);
       if (error || !data) throw error || new Error("Download failed");
 
-      // Detect file type
       const bytes = new Uint8Array(await data.arrayBuffer());
-      const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+      const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
 
       let parsed: { type: string; text: string }[];
 
       if (isPdf) {
-        // Use pdf.js to extract text from PDF
-        const pdfjsLib = await import("pdfjs-dist");
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-        const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
-        const allLines: string[] = [];
-        for (let i = 1; i <= pdf.numPages; i++) {
-          const page = await pdf.getPage(i);
-          const tc = await page.getTextContent();
-          const items = (tc.items as any[]).filter((it) => it.str != null && it.transform);
-          // Group by Y coordinate (rows) with tolerance, then sort left-to-right
-          const rowMap = new Map<number, { text: string; x: number }[]>();
-          for (const item of items) {
-            const y = Math.round(item.transform[5] / 2) * 2;
-            if (!rowMap.has(y)) rowMap.set(y, []);
-            rowMap.get(y)!.push({ text: item.str, x: item.transform[4] });
-          }
-          const rows = Array.from(rowMap.entries())
-            .sort((a, b) => b[0] - a[0]) // PDF Y increases upward
-            .map(([, cells]) => cells.sort((a, b) => a.x - b.x).map((c) => c.text).join(""));
-          allLines.push(...rows);
-        }
-        const fullText = allLines.join("\n");
-        parsed = parsePlainTextScene(fullText);
+        parsed = await parsePdfScene(bytes);
       } else {
         const full = new TextDecoder().decode(bytes);
         const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
