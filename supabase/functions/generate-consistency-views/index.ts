@@ -12,27 +12,18 @@ const corsHeaders = {
 /*
  * Industry-standard 8-view turnaround structure optimized for AI character consistency.
  *
- * Core Goals:
- *  - Lock facial geometry, body proportions, costume structure, silhouette
- *  - Provide depth + 3D structure cues
- *  - Minimize distortion
- *
- * Global rules enforced in every prompt:
- *  📷 Lens: 50mm equivalent (full-frame), no wide distortion, no telephoto compression
- *  💡 Lighting: Neutral studio-flat — soft key, soft fill, light rim, no dramatic shadows, no colored light
- *  🎨 Background: Solid neutral gray, no gradients, no environment
- *  🧍 Pose: Neutral stance, arms relaxed at sides, no contrapposto, no weight shift,
- *           feet shoulder width, hands visible, no overlap blocking torso shape
+ * Strategy: Generate Front Full FIRST as the clothing/proportion anchor,
+ * then pass it as a second reference to all remaining views.
  */
 
 const ANGLE_VIEWS = [
   {
     index: 0,
     label: "Front Full",
-    framing: "Full body, head to toe",
+    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet, with small margin above and below. Do NOT crop at the knees or waist",
     direction: "facing directly toward the camera, straight-on front view",
     purpose: "Primary identity anchor — the base mesh reference",
-    camera: "Eye level, no tilt",
+    camera: "Eye level, no tilt, pulled back enough to show full body head to toe",
     expression: "Neutral — no smile, no emotion",
   },
   {
@@ -65,19 +56,19 @@ const ANGLE_VIEWS = [
   {
     index: 4,
     label: "3/4 Left",
-    framing: "Full body, head to toe",
+    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
     direction: "rotated 45 degrees so their RIGHT cheek faces the camera and their LEFT cheek faces away. The character's body and nose point to the LEFT side of the frame. This is a three-quarter left view — the viewer sees mostly the right side of the face",
     purpose: "Most cinematic angle — AI learns depth + cheekbone structure",
-    camera: "Eye level",
+    camera: "Eye level, pulled back enough to show full body head to toe",
     expression: "Neutral",
   },
   {
     index: 5,
     label: "3/4 Right",
-    framing: "Full body, head to toe",
+    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
     direction: "rotated 45 degrees so their LEFT cheek faces the camera and their RIGHT cheek faces away. The character's body and nose point to the RIGHT side of the frame. This is a three-quarter right view — the viewer sees mostly the left side of the face. Mirror of 3/4 left",
     purpose: "Mirror of 3/4 left — cinematic depth from opposite side",
-    camera: "Eye level",
+    camera: "Eye level, pulled back enough to show full body head to toe",
     expression: "Neutral",
   },
   {
@@ -131,6 +122,13 @@ const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
 - Hands visible
 - NO overlap blocking torso shape
 
+👔 CLOTHING (CRITICAL):
+- The character MUST wear the EXACT SAME clothing in EVERY view
+- Same shirt/jacket/dress, same pants/skirt, same shoes, same accessories
+- Do NOT change, add, or remove any clothing items between views
+- Match fabric color, pattern, and texture exactly
+- If the reference shows partial clothing, extrapolate logically but keep consistent
+
 🚫 DO NOT INCLUDE:
 - NO emotion or expression variation
 - NO action poses
@@ -140,8 +138,25 @@ const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
 - NO environment elements
 - NO camera tilt
 - NO artistic interpretation
+- NO clothing changes between views
 
 This is DATA CAPTURE, not art. Accuracy and consistency are paramount.`;
+
+const SYSTEM_PROMPT = `You are a character turnaround reference generator for film production.
+
+Your ONLY job is to produce clean, controlled, multi-angle reference images of a character for AI consistency purposes.
+
+You receive reference images of a cast actor and must generate the SAME person from a specified angle.
+
+ABSOLUTE RULES:
+1. IDENTITY CONSISTENCY is paramount — same face, features, hair, skin, build, clothing
+2. CLOTHING CONSISTENCY is critical — every view must show the EXACT same outfit, shoes, accessories, colors, patterns
+3. This is DATA CAPTURE, not art — no creative interpretation
+4. Studio-flat lighting, neutral gray background, 50mm lens equivalent
+5. Neutral expression, neutral pose (unless close-up views)
+6. The output must look like it belongs on a professional character turnaround sheet
+
+Think of this as generating a 3D model reference — geometry AND wardrobe preservation is everything.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -210,12 +225,12 @@ serve(async (req) => {
       .replace(/kill\w*/gi, "confront")
       .trim();
 
-    // Generate views in parallel batches to avoid edge function timeout
+    // Track results and the front-full anchor URL
     const results: { index: number; success: boolean }[] = [];
+    let frontFullUrl: string | null = null;
 
-    const generateSingleView = async (angle: typeof ANGLE_VIEWS[number]) => {
-      try {
-        const prompt = `Generate a photorealistic CHARACTER TURNAROUND REFERENCE photograph.
+    const buildPrompt = (angle: typeof ANGLE_VIEWS[number], hasFrontRef: boolean) => {
+      return `Generate a photorealistic CHARACTER TURNAROUND REFERENCE photograph.
 This is view ${angle.index + 1} of 8 for a professional character consistency/turnaround sheet.
 
 CHARACTER: "${character.name}" from the film "${film?.title || "Untitled"}". ${periodStr} ${genreStr}
@@ -238,10 +253,32 @@ EXPRESSION: ${angle.expression}
 IDENTITY LOCK:
 - This MUST be the EXACT SAME PERSON as the reference headshot
 - Same face, bone structure, skin tone, hair color/style, ethnicity, build
-- Same clothing/costume as in the reference
+- The clothing/costume MUST be EXACTLY IDENTICAL across all 8 views — same fabric, color, style, accessories, shoes
+- Do NOT change, add, or remove any clothing item from what is shown in the reference images
 - Proportionally consistent with all other views in this turnaround set
+${hasFrontRef ? `
+CLOTHING ANCHOR (CRITICAL):
+Two reference images are provided:
+  IMAGE 1: The original cast headshot — use for FACE identity
+  IMAGE 2: The already-generated Front Full body view — use for CLOTHING and BODY PROPORTIONS
+You MUST match the clothing, shoes, proportions, and overall silhouette from IMAGE 2 EXACTLY.
+Do NOT invent new clothing. Copy the outfit pixel-for-pixel from the front full reference.` : ""}
 
 ${GLOBAL_RULES}`;
+    };
+
+    const generateSingleView = async (angle: typeof ANGLE_VIEWS[number]): Promise<{ index: number; success: boolean; publicUrl?: string }> => {
+      try {
+        const prompt = buildPrompt(angle, !!frontFullUrl);
+
+        const userContent: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
+          { type: "image_url", image_url: { url: character.image_url } },
+        ];
+        // Pass front-full as second reference for clothing consistency
+        if (frontFullUrl) {
+          userContent.push({ type: "image_url", image_url: { url: frontFullUrl } });
+        }
+        userContent.push({ type: "text", text: prompt });
 
         const models = ["google/gemini-3-pro-image-preview", "google/gemini-2.5-flash-image"];
         let imageBytes: Uint8Array | null = null;
@@ -256,43 +293,30 @@ ${GLOBAL_RULES}`;
             body: JSON.stringify({
               model,
               messages: [
-                {
-                  role: "system",
-                  content: `You are a character turnaround reference generator for film production.
-
-Your ONLY job is to produce clean, controlled, multi-angle reference images of a character for AI consistency purposes.
-
-You receive a reference headshot of a cast actor and must generate the SAME person from a specified angle.
-
-ABSOLUTE RULES:
-1. IDENTITY CONSISTENCY is paramount — same face, features, hair, skin, build, clothing
-2. This is DATA CAPTURE, not art — no creative interpretation
-3. Studio-flat lighting, neutral gray background, 50mm lens equivalent
-4. Neutral expression, neutral pose (unless close-up views)
-5. The output must look like it belongs on a professional character turnaround sheet
-
-Think of this as generating a 3D model reference — geometry preservation is everything.`,
-                },
-                {
-                  role: "user",
-                  content: [
-                    { type: "image_url", image_url: { url: character.image_url } },
-                    { type: "text", text: prompt },
-                  ],
-                },
+                { role: "system", content: SYSTEM_PROMPT },
+                { role: "user", content: userContent },
               ],
               modalities: ["image", "text"],
             }),
           });
 
           if (!response.ok) {
+            if (response.status === 429) {
+              return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
+                status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }) as any;
+            }
+            if (response.status === 402) {
+              return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+                status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
+              }) as any;
+            }
             console.error(`AI error (${model}) for angle ${angle.label}:`, response.status);
             continue;
           }
 
           const data = await response.json();
-          const message = data.choices?.[0]?.message;
-          const images = message?.images;
+          const images = data.choices?.[0]?.message?.images;
 
           if (Array.isArray(images) && images.length > 0) {
             const imgUrl = images[0]?.image_url?.url;
@@ -334,7 +358,7 @@ Think of this as generating a 3D model reference — geometry preservation is ev
             .eq("character_id", character_id)
             .eq("angle_index", angle.index);
 
-          return { index: angle.index, success: true };
+          return { index: angle.index, success: true, publicUrl: urlData.publicUrl };
         } else {
           await sb.from("character_consistency_views")
             .update({ status: "failed" })
@@ -352,14 +376,20 @@ Think of this as generating a 3D model reference — geometry preservation is ev
       }
     };
 
-    // Process in 2 batches of 4 in parallel to stay within timeout
-    const batch1 = ANGLE_VIEWS.slice(0, 4);
-    const batch2 = ANGLE_VIEWS.slice(4, 8);
+    // ── STEP 1: Generate Front Full FIRST as the clothing/proportion anchor ──
+    const frontResult = await generateSingleView(ANGLE_VIEWS[0]);
+    results.push(frontResult);
+    if (frontResult.success && frontResult.publicUrl) {
+      frontFullUrl = frontResult.publicUrl;
+      console.log("Front Full anchor generated — clothing locked for remaining views");
+    }
 
-    const batch1Results = await Promise.all(batch1.map(generateSingleView));
+    // ── STEP 2: Remaining 7 views in 2 parallel batches, each referencing front ──
+    const remaining = ANGLE_VIEWS.slice(1);
+    const batch1Results = await Promise.all(remaining.slice(0, 4).map(generateSingleView));
     results.push(...batch1Results);
 
-    const batch2Results = await Promise.all(batch2.map(generateSingleView));
+    const batch2Results = await Promise.all(remaining.slice(4).map(generateSingleView));
     results.push(...batch2Results);
 
     const successCount = results.filter((r) => r.success).length;
