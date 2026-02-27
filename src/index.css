@@ -516,3 +516,40 @@ body::after {
   50% { opacity: 1; transform: translateY(-50%) scaleX(1.15); }
   100% { opacity: 0.7; transform: translateY(-50%) scaleX(1); }
 }
+
+/* ── Cloth Shimmer Animation ── */
+.cloth-shimmer {
+  background: linear-gradient(
+    110deg,
+    hsl(var(--secondary)) 0%,
+    hsl(var(--secondary)) 30%,
+    hsl(var(--primary) / 0.08) 45%,
+    hsl(var(--primary) / 0.15) 50%,
+    hsl(var(--primary) / 0.08) 55%,
+    hsl(var(--secondary)) 70%,
+    hsl(var(--secondary)) 100%
+  );
+  background-size: 300% 100%;
+  animation: cloth-shimmer-sweep 2.4s ease-in-out infinite;
+}
+
+@keyframes cloth-shimmer-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.cloth-wave {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent,
+    transparent 8px,
+    hsl(var(--primary) / 0.03) 8px,
+    hsl(var(--primary) / 0.03) 16px
+  );
+  animation: cloth-wave-drift 3s linear infinite;
+}
+
+@keyframes cloth-wave-drift {
+  0% { background-position: 0 0; }
+  100% { background-position: 32px 32px; }
+}
