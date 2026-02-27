@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
+import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm, useParsedScenes } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -519,20 +520,8 @@ const PreProduction = () => {
         setScriptParagraphs(result);
       } else {
         if (!heading) { setScriptParagraphs([{ type: "Action", text: full }]); setScriptLoading(false); return; }
-        const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const startMatch = full.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
-        if (!startMatch || startMatch.index === undefined) { setScriptParagraphs([{ type: "Action", text: full }]); setScriptLoading(false); return; }
-        const sIdx = startMatch.index;
-        const afterHeading = full.substring(sIdx + startMatch[0].length);
-        const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
-        const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
-        const sceneText = full.substring(sIdx, eIdx).trim();
-        setScriptParagraphs(sceneText.split("\n").filter((l) => l.trim()).map((line) => {
-          const trimmed = line.trim();
-          if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
-          if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
-          return { type: "Action", text: trimmed };
-        }));
+        setScriptParagraphs(parseSceneFromPlainText(full, heading));
+        setScriptParagraphs(parseSceneFromPlainText(full, heading));
       }
     } catch {
       setScriptParagraphs([{ type: "Action", text: "[Could not load script file]" }]);

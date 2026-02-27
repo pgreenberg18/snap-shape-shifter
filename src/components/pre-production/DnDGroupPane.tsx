@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import {
   DndContext,
   DragOverlay,
@@ -469,20 +470,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
           parsedScenes.push({ sceneNum, heading: heading || "Unknown", paragraphs: result });
         } else {
           if (!heading) continue;
-          const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const startMatch = full.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
-          if (!startMatch || startMatch.index === undefined) continue;
-          const sIdx = startMatch.index;
-          const afterHeading = full.substring(sIdx + startMatch[0].length);
-          const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
-          const eIdx = nextScene?.index !== undefined ? sIdx + startMatch[0].length + nextScene.index : full.length;
-          const sceneText = full.substring(sIdx, eIdx).trim();
-          const parsed = sceneText.split("\n").filter((l: string) => l.trim()).map((line: string) => {
-            const trimmed = line.trim();
-            if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
-            if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
-            return { type: "Action", text: trimmed };
-          });
+          const parsed = parseSceneFromPlainText(full, heading);
           parsedScenes.push({ sceneNum, heading: heading || "Unknown", paragraphs: parsed });
         }
       }

@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
+import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
@@ -2339,28 +2340,7 @@ const SceneReviewCard = ({ scene, index, storagePath, approved, rejected, onTogg
 
   const parsePlainTextScene = (fullText: string): { type: string; text: string }[] => {
     const heading = scene.scene_heading?.trim();
-    if (!heading) return [{ type: "Action", text: fullText }];
-
-    const headingPattern = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const startMatch = fullText.match(new RegExp(`^(.*${headingPattern}.*)$`, "mi"));
-    if (!startMatch || startMatch.index === undefined) return [{ type: "Action", text: fullText }];
-
-    const startIdx = startMatch.index;
-    const afterHeading = fullText.substring(startIdx + startMatch[0].length);
-    const nextScene = afterHeading.match(/\n\s*((?:INT\.|EXT\.|INT\.\/EXT\.|I\/E\.).+)/i);
-    const endIdx = nextScene?.index !== undefined
-      ? startIdx + startMatch[0].length + nextScene.index
-      : fullText.length;
-
-    const sceneText = fullText.substring(startIdx, endIdx).trim();
-    return sceneText.split("\n").filter((l) => l.trim()).map((line) => {
-      const trimmed = line.trim();
-      if (/^(INT\.|EXT\.|INT\.\/EXT\.|I\/E\.)/.test(trimmed)) return { type: "Scene Heading", text: trimmed };
-      if (/^[A-Z][A-Z\s'.()-]+$/.test(trimmed) && trimmed.length < 40) return { type: "Character", text: trimmed };
-      if (/^\(.*\)$/.test(trimmed)) return { type: "Parenthetical", text: trimmed };
-      if (/^(CUT TO:|FADE OUT|FADE IN|DISSOLVE TO:|SMASH CUT|MATCH CUT)/i.test(trimmed)) return { type: "Transition", text: trimmed };
-      return { type: "Action", text: trimmed };
-    });
+    return parseSceneFromPlainText(fullText, heading);
   };
 
   /** Parse PDF with position-aware screenplay classification */
