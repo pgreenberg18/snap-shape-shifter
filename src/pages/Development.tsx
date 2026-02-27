@@ -712,17 +712,20 @@ const Development = () => {
       return;
     }
 
-    // 2. Auto-populate characters from breakdown
-    if (analysis?.scene_breakdown && Array.isArray(analysis.scene_breakdown)) {
-      try {
-        // Extract unique character names from all scenes
+    // 2. Auto-populate characters from parsed_scenes (live enriched data, not stale JSON)
+    try {
+      const { data: parsedScenes } = await supabase
+        .from("parsed_scenes")
+        .select("characters")
+        .eq("film_id", filmId);
+
+      if (parsedScenes && parsedScenes.length > 0) {
         const nameSet = new Set<string>();
-        for (const scene of analysis.scene_breakdown as any[]) {
+        for (const scene of parsedScenes) {
           if (!Array.isArray(scene.characters)) continue;
           for (const c of scene.characters) {
-            let raw = typeof c === "string" ? c : c?.name;
+            let raw = typeof c === "string" ? c : (c as any)?.name;
             if (!raw || typeof raw !== "string") continue;
-            // Normalize: strip age hints, parentheticals, duplicates
             raw = raw.replace(/\s*\(.*?\)\s*/g, "").replace(/^"|"$/g, "").trim().toUpperCase();
             if (raw && raw.length > 1 && !raw.includes("TEAM") && !raw.includes("OFFICERS") && !raw.includes("UNSEEN") && !raw.includes("SILHOUETTE")) {
               nameSet.add(raw);
@@ -731,7 +734,6 @@ const Development = () => {
         }
 
         if (nameSet.size > 0) {
-          // Check which characters already exist
           const { data: existing } = await supabase
             .from("characters")
             .select("name")
@@ -749,9 +751,9 @@ const Development = () => {
             queryClient.invalidateQueries({ queryKey: ["characters"] });
           }
         }
-      } catch (e) {
-        console.error("Failed to auto-populate characters:", e);
       }
+    } catch (e) {
+      console.error("Failed to auto-populate characters:", e);
     }
 
     // Auto-compile the Director's Style Contract from all Development data

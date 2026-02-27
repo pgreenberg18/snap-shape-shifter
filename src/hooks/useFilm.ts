@@ -137,25 +137,22 @@ export const useIntegrations = () =>
     },
   });
 
-/** Extract unique locations, props, and wardrobe from the latest script breakdown */
+/** Extract unique locations, props, and wardrobe from parsed_scenes (live enriched data) */
 export const useBreakdownAssets = () => {
   const filmId = useFilmId();
   return useQuery({
     queryKey: ["breakdown-assets", filmId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("script_analyses")
-        .select("scene_breakdown")
+      const { data: scenes, error } = await supabase
+        .from("parsed_scenes")
+        .select("*")
         .eq("film_id", filmId!)
-        .eq("status", "complete")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order("scene_number");
       if (error) throw error;
-      if (!data?.scene_breakdown || !Array.isArray(data.scene_breakdown)) {
+      if (!scenes || scenes.length === 0) {
         return { locations: [] as string[], props: [] as string[], wardrobe: [] as { character: string; clothing: string }[], vehicles: [] as string[] };
       }
-      const scenes = data.scene_breakdown as any[];
+
       const locationSet = new Set<string>();
       const locationDescMap = new Map<string, string>();
       const propSet = new Set<string>();
@@ -172,17 +169,19 @@ export const useBreakdownAssets = () => {
       const locationMeta = new Map<string, LocMeta>();
 
       for (const s of scenes) {
-        if (s.scene_heading && typeof s.scene_heading === "string" && s.scene_heading !== "N/A") {
-          const heading = s.scene_heading.trim();
-          const cleanName = heading
+        // Location from parsed_scenes uses location_name, heading, int_ext, day_night directly
+        const locationName = s.location_name?.trim() || (() => {
+          if (!s.heading || s.heading === "N/A") return "";
+          return s.heading
             .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
             .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
             .trim();
-          const locationName = cleanName || heading;
-          locationSet.add(locationName);
+        })();
 
-          const intExt = heading.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0]?.toUpperCase() || "";
-          const timeOfDay = s.time_of_day || heading.match(/[-–—]\s*(DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|SUNSET|SUNRISE)\s*$/i)?.[1] || "";
+        if (locationName) {
+          locationSet.add(locationName);
+          const intExt = s.int_ext || s.heading?.match(/^(INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)/i)?.[0]?.toUpperCase() || "";
+          const timeOfDay = s.day_night || "";
 
           if (!locationMeta.has(locationName)) {
             locationMeta.set(locationName, { intExt, timesOfDay: new Set(), envSnippets: [], moods: new Set(), settings: new Set() });
@@ -190,20 +189,16 @@ export const useBreakdownAssets = () => {
           const meta = locationMeta.get(locationName)!;
           if (timeOfDay) meta.timesOfDay.add(timeOfDay);
           if (!meta.intExt && intExt) meta.intExt = intExt;
-          if (s.setting && s.setting !== "N/A") meta.settings.add(s.setting);
           if (s.environment_details && typeof s.environment_details === "string") meta.envSnippets.push(s.environment_details);
           if (s.mood && typeof s.mood === "string") meta.moods.add(s.mood);
         }
 
-        // Props — collect with scene context
-        const sceneLocation = s.scene_heading ? s.scene_heading.trim()
-          .replace(/^(?:INT\.?\s*\/?\s*EXT\.?|EXT\.?\s*\/?\s*INT\.?|INT\.?|EXT\.?|I\/E\.?)\s*[-–—.\s]*/i, "")
-          .replace(/\s*[-–—]\s*(?:DAY|NIGHT|MORNING|EVENING|DAWN|DUSK|AFTERNOON|LATER|CONTINUOUS|SAME TIME|MOMENTS?\s+LATER|SUNSET|SUNRISE)$/i, "")
-          .trim() : "";
+        // Scene context for props/vehicles
+        const sceneLocation = locationName;
         const sceneChars: string[] = Array.isArray(s.characters) ? s.characters : [];
         const sceneDesc: string = s.description || "";
         const sceneMood: string = s.mood || "";
-        const sceneYear = s.scene_heading?.match(/(\d{4})/)?.[1] || "";
+        const sceneYear = s.heading?.match(/(\d{4})/)?.[1] || "";
 
         const addVehicleContext = (v: string) => {
           if (!vehicleContextMap.has(v)) {
@@ -217,6 +212,7 @@ export const useBreakdownAssets = () => {
           if (sceneMood) ctx.moods.add(sceneMood);
         };
 
+        // Props from key_objects
         if (Array.isArray(s.key_objects)) {
           for (const p of s.key_objects) {
             if (typeof p === "string" && p.length > 1) {
@@ -239,18 +235,15 @@ export const useBreakdownAssets = () => {
             }
           }
         }
+        // Picture vehicles from dedicated column
         if (Array.isArray(s.picture_vehicles)) {
           for (const v of s.picture_vehicles) {
             if (typeof v === "string" && v.length > 1) { vehicleSet.add(v); addVehicleContext(v); }
           }
         }
-        if (Array.isArray(s.vehicles)) {
-          for (const v of s.vehicles) {
-            if (typeof v === "string" && v.length > 1) { vehicleSet.add(v); addVehicleContext(v); }
-          }
-        }
+        // Wardrobe from dedicated column
         if (Array.isArray(s.wardrobe)) {
-          for (const w of s.wardrobe) {
+          for (const w of s.wardrobe as any[]) {
             const char = typeof w === "string" ? "Unknown" : (w?.character || w?.name || "Unknown");
             const clothing = typeof w === "string" ? w : (w?.clothing_style || w?.condition || "");
             if (clothing) {
@@ -261,32 +254,24 @@ export const useBreakdownAssets = () => {
         }
       }
 
-      // Second pass: build descriptions, inheriting parent context for sub-locations
+      // Second pass: build descriptions
       const sortedLocations = [...locationSet].sort();
       for (const loc of sortedLocations) {
         const meta = locationMeta.get(loc);
         const parts: string[] = [];
 
         if (meta) {
-          // INT/EXT + time of day header
           const times = [...meta.timesOfDay].join(", ");
           if (meta.intExt || times) parts.push([meta.intExt, times].filter(Boolean).join(" — "));
-
-          // Best environment snippet (longest = most detailed)
           if (meta.envSnippets.length > 0) {
             const best = meta.envSnippets.sort((a, b) => b.length - a.length)[0];
             parts.push(best);
-          } else if (meta.settings.size > 0) {
-            parts.push([...meta.settings][0]);
           }
-
-          // Mood
           if (meta.moods.size > 0) {
             parts.push("Mood: " + [...meta.moods].join(", "));
           }
         }
 
-        // If still empty, try to inherit from parent location (e.g., "WELLS HOME" for "WELLS HOME - KITCHEN")
         if (parts.length <= 1 && loc.includes(" - ")) {
           const parentName = loc.split(" - ")[0].trim();
           const parentMeta = locationMeta.get(parentName);
@@ -294,8 +279,6 @@ export const useBreakdownAssets = () => {
             if (parentMeta.envSnippets.length > 0) {
               const best = parentMeta.envSnippets.sort((a, b) => b.length - a.length)[0];
               parts.push("Part of " + parentName + ". " + best);
-            } else if (parentMeta.settings.size > 0) {
-              parts.push("Part of " + parentName + ". " + [...parentMeta.settings][0]);
             }
             if (parentMeta.moods.size > 0 && !parts.some((p) => p.startsWith("Mood:"))) {
               parts.push("Mood: " + [...parentMeta.moods].join(", "));
@@ -303,21 +286,17 @@ export const useBreakdownAssets = () => {
           }
         }
 
-        // Final fallback: generate a minimal description from the name itself
         if (parts.length === 0) {
           const nameParts = loc.split(/\s*[-–—]\s*/);
-          if (nameParts.length > 1) {
-            parts.push(nameParts.join(", ") + ".");
-          } else {
-            parts.push(loc + ".");
-          }
+          if (nameParts.length > 1) parts.push(nameParts.join(", ") + ".");
+          else parts.push(loc + ".");
         }
 
         const desc = parts.join(". ").replace(/\.\./g, ".").replace(/\.\s*\./g, ".");
         locationDescMap.set(loc, desc);
       }
 
-      // Build prop descriptions from scene context
+      // Build prop descriptions
       const propDescMap: Record<string, string> = {};
       for (const prop of propSet) {
         const ctx = propContextMap.get(prop);
@@ -328,19 +307,14 @@ export const useBreakdownAssets = () => {
           const uniqueLocs = [...new Set(ctx.locations)];
           if (uniqueLocs.length > 0) parts.push("Found in " + uniqueLocs.slice(0, 2).join(", "));
           if (ctx.scenes.length > 0) {
-            // Pick shortest scene description as a concise context snippet
             const snippet = ctx.scenes.sort((a, b) => a.length - b.length)[0];
-            if (snippet.length <= 120) {
-              parts.push(snippet);
-            } else {
-              parts.push(snippet.slice(0, 117) + "…");
-            }
+            parts.push(snippet.length <= 120 ? snippet : snippet.slice(0, 117) + "…");
           }
         }
         propDescMap[prop] = parts.length > 0 ? parts.join(". ") : prop;
       }
 
-      // Build vehicle descriptions with implied period details
+      // Build vehicle descriptions
       const vehicleDescMap: Record<string, string> = {};
       const VEHICLE_STYLE_HINTS: Record<string, string> = {
         "car": "Likely a practical sedan or coupe typical of the era",
@@ -368,33 +342,19 @@ export const useBreakdownAssets = () => {
         const ctx = vehicleContextMap.get(veh);
         const parts: string[] = [];
         const lower = veh.toLowerCase();
-
-        // Implied style from vehicle type
         for (const [keyword, hint] of Object.entries(VEHICLE_STYLE_HINTS)) {
           if (lower.includes(keyword)) { parts.push(hint); break; }
         }
-
         if (ctx) {
-          // Period implication from scene year
           const years = [...ctx.years].sort();
-          if (years.length > 0) {
-            const earliest = years[0];
-            parts.push(`Period: ${earliest}s — expect era-appropriate make, model, and wear`);
-          }
-
-          // Who drives / is associated
+          if (years.length > 0) parts.push(`Period: ${years[0]}s — expect era-appropriate make, model, and wear`);
           const chars = [...ctx.characters];
           if (chars.length > 0) parts.push("Associated with " + chars.slice(0, 3).join(", "));
-
-          // Where it appears
           const uniqueLocs = [...new Set(ctx.locations)];
           if (uniqueLocs.length > 0) parts.push("Seen at " + uniqueLocs.slice(0, 2).join(", "));
-
-          // Mood implication
           const moods = [...ctx.moods];
           if (moods.length > 0) parts.push("Scene tone: " + moods.slice(0, 2).join(", "));
         }
-
         vehicleDescMap[veh] = parts.length > 0 ? parts.join(". ") : veh;
       }
 
