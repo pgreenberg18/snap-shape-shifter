@@ -2,12 +2,13 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Upload, Loader2, Eye, Film, Save, Sparkles, RotateCcw, Lock, type LucideIcon,
+  Upload, Loader2, Eye, Film, Save, Sparkles, RotateCcw, Lock, ChevronDown, ChevronRight, type LucideIcon,
 } from "lucide-react";
 import AssetAuditionPane from "./AssetAuditionPane";
 
@@ -63,6 +64,10 @@ const AssetDetailPanel = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [description, setDescription] = useState(refDescription || "");
   const queryClient = useQueryClient();
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [scenesOpen, setScenesOpen] = useState(false);
+  const [selectionOpen, setSelectionOpen] = useState(false);
+  const [fittingOpen, setFittingOpen] = useState(false);
 
   // Sync description when selected item or external description changes
   useEffect(() => {
@@ -223,183 +228,198 @@ const AssetDetailPanel = ({
         )}
 
         {/* Description / Details */}
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4">
+            <CollapsibleTrigger className="w-full flex items-center gap-2">
+              {detailsOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
               <Icon className="h-4 w-4 text-primary" />
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
                 {assetType === "wardrobe" ? "Wardrobe Details" : assetType === "vehicle" ? "Vehicle Details" : assetType === "location" ? "Location Details" : "Prop Details"}
               </h3>
-            </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="space-y-1.5 pt-2">
+                <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Description
+                </label>
+                <Textarea
+                  value={description}
+                  onChange={(e) => handleDescChange(e.target.value)}
+                  placeholder={
+                    assetType === "wardrobe"
+                      ? "Dark leather jacket, worn at the elbows, paired with faded jeans…"
+                      : assetType === "vehicle"
+                      ? "1970 Dodge Challenger, matte black, dented right fender…"
+                      : assetType === "location"
+                      ? "A dimly lit corner bar with neon signage and vinyl booths…"
+                      : "Antique pocket watch, brass, cracked glass face…"
+                  }
+                  className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
+                />
+              </div>
+            </CollapsibleContent>
           </div>
+        </Collapsible>
 
-          <div className="space-y-1.5">
-            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-              Description
-            </label>
-            <Textarea
-              value={description}
-              onChange={(e) => handleDescChange(e.target.value)}
-              placeholder={
-                assetType === "wardrobe"
-                  ? "Dark leather jacket, worn at the elbows, paired with faded jeans…"
-                  : assetType === "vehicle"
-                  ? "1970 Dodge Challenger, matte black, dented right fender…"
-                  : assetType === "location"
-                  ? "A dimly lit corner bar with neon signage and vinyl booths…"
-                  : "Antique pocket watch, brass, cracked glass face…"
-              }
-              className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
-            />
-          </div>
-        </div>
-
-        {/* ═══ SLOT 2: Scenes (read-only list — where this asset appears) ═══ */}
-        {assetType === "wardrobe" ? (
-          /* Wardrobe: show scenes where this specific item is assigned */
-          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-            <div className="flex items-center gap-2 mb-3">
-              <Film className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Scenes
-              </h3>
-              <span className="text-xs text-muted-foreground/50">
-                {wardrobeScenesDisplay.length} appearance{wardrobeScenesDisplay.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            {wardrobeScenesDisplay.length > 0 ? (
-              <>
-                <p className="text-[10px] text-muted-foreground mb-2">
-                  Scenes where this wardrobe item is worn. Manage assignments from the character overview.
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {wardrobeScenesDisplay.map((sn) => (
-                    <button
-                      key={sn}
-                      onClick={() => onOpenScene?.(sn)}
-                      className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                      title={sceneHeadings?.[sn] || `Scene ${sn}`}
-                    >
-                      {sn}
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <p className="text-[10px] text-muted-foreground/50">
-                No scene assignments yet. Assign this wardrobe to scenes from the character overview.
-              </p>
-            )}
-          </div>
-        ) : (
-          /* Non-wardrobe: standard scene list */
-          sceneNumbers && sceneNumbers.length > 0 && (
+        <Collapsible open={scenesOpen} onOpenChange={setScenesOpen}>
+          {assetType === "wardrobe" ? (
             <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-              <div className="flex items-center gap-2 mb-3">
+              <CollapsibleTrigger className="w-full flex items-center gap-2">
+                {scenesOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
                 <Film className="h-4 w-4 text-primary" />
                 <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
                   Scenes
                 </h3>
                 <span className="text-xs text-muted-foreground/50">
-                  {sceneNumbers.length} appearance{sceneNumbers.length !== 1 ? "s" : ""}
+                  {wardrobeScenesDisplay.length} appearance{wardrobeScenesDisplay.length !== 1 ? "s" : ""}
                 </span>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {sceneNumbers.map((sn) => (
-                  <button
-                    key={sn}
-                    onClick={() => onOpenScene?.(sn)}
-                    className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                    title={`View Scene ${sn}`}
-                  >
-                    {sn}
-                  </button>
-                ))}
-              </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {wardrobeScenesDisplay.length > 0 ? (
+                  <div className="pt-2 space-y-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Scenes where this wardrobe item is worn. Manage assignments from the character overview.
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {wardrobeScenesDisplay.map((sn) => (
+                        <button
+                          key={sn}
+                          onClick={() => onOpenScene?.(sn)}
+                          className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                          title={sceneHeadings?.[sn] || `Scene ${sn}`}
+                        >
+                          {sn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground/50 pt-2">
+                    No scene assignments yet. Assign this wardrobe to scenes from the character overview.
+                  </p>
+                )}
+              </CollapsibleContent>
             </div>
-          )
-        )}
+          ) : (
+            sceneNumbers && sceneNumbers.length > 0 ? (
+              <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
+                <CollapsibleTrigger className="w-full flex items-center gap-2">
+                  {scenesOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+                  <Film className="h-4 w-4 text-primary" />
+                  <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                    Scenes
+                  </h3>
+                  <span className="text-xs text-muted-foreground/50">
+                    {sceneNumbers.length} appearance{sceneNumbers.length !== 1 ? "s" : ""}
+                  </span>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="flex flex-wrap gap-1.5 pt-2">
+                    {sceneNumbers.map((sn) => (
+                      <button
+                        key={sn}
+                        onClick={() => onOpenScene?.(sn)}
+                        className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                        title={`View Scene ${sn}`}
+                      >
+                        {sn}
+                      </button>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </div>
+            ) : null
+          )}
+        </Collapsible>
 
-        {/* ═══ SLOT 3: Visual Selection / Audition ═══ */}
-        <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+        <Collapsible open={selectionOpen} onOpenChange={setSelectionOpen}>
+          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4">
+            <CollapsibleTrigger className="w-full flex items-center gap-2">
+              {selectionOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
               <Sparkles className="h-4 w-4 text-primary" />
               <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
                 {assetType === "wardrobe" ? "Wardrobe Selection" : "Visual Options"}
               </h3>
-            </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pt-2">
+                <AssetAuditionPane
+                  filmId={filmId}
+                  assetType={assetType}
+                  assetName={itemName}
+                />
+              </div>
+            </CollapsibleContent>
           </div>
-          <AssetAuditionPane
-            filmId={filmId}
-            assetType={assetType}
-            assetName={itemName}
-          />
-        </div>
+        </Collapsible>
 
         {/* ═══ SLOT 4: Wardrobe Fitting (8-view turnaround) — wardrobe only ═══ */}
         {assetType === "wardrobe" && (
-          <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-            <div className="flex items-center gap-2">
-              <RotateCcw className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                Wardrobe Fitting
-              </h3>
-              <span className="text-xs text-muted-foreground/50">8-view turnaround</span>
-            </div>
+          <Collapsible open={fittingOpen} onOpenChange={setFittingOpen}>
+            <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4">
+              <CollapsibleTrigger className="w-full flex items-center gap-2">
+                {fittingOpen ? <ChevronDown className="h-4 w-4 text-primary" /> : <ChevronRight className="h-4 w-4 text-primary" />}
+                <RotateCcw className="h-4 w-4 text-primary" />
+                <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                  Wardrobe Fitting
+                </h3>
+                <span className="text-xs text-muted-foreground/50">8-view turnaround</span>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                {!hasLockedWardrobe ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <Lock className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground/50">Lock a wardrobe option above to enable fitting</p>
+                    <p className="text-[10px] text-muted-foreground/40">
+                      The 8-view fitting generates the locked actor wearing this costume from all angles
+                    </p>
+                  </div>
+                ) : !hasApprovedCharacter ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
+                    <Lock className="h-8 w-8 text-muted-foreground/30" />
+                    <p className="text-xs text-muted-foreground/50">Character must be cast first</p>
+                    <p className="text-[10px] text-muted-foreground/40">
+                      Lock {characterName}'s casting in the Characters tab to enable wardrobe fitting
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 pt-2">
+                    <p className="text-[10px] text-muted-foreground">
+                      Generate 8 standardized views of <span className="font-semibold text-foreground">{characterName}</span> wearing this costume. These become the canonical visual reference for continuity.
+                    </p>
 
-            {!hasLockedWardrobe ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                <Lock className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground/50">Lock a wardrobe option above to enable fitting</p>
-                <p className="text-[10px] text-muted-foreground/40">
-                  The 8-view fitting generates the locked actor wearing this costume from all angles
-                </p>
-              </div>
-            ) : !hasApprovedCharacter ? (
-              <div className="flex flex-col items-center justify-center py-8 gap-2 text-center">
-                <Lock className="h-8 w-8 text-muted-foreground/30" />
-                <p className="text-xs text-muted-foreground/50">Character must be cast first</p>
-                <p className="text-[10px] text-muted-foreground/40">
-                  Lock {characterName}'s casting in the Characters tab to enable wardrobe fitting
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-[10px] text-muted-foreground">
-                  Generate 8 standardized views of <span className="font-semibold text-foreground">{characterName}</span> wearing this costume. These become the canonical visual reference for continuity.
-                </p>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {FITTING_ANGLES.map((angle) => (
-                    <div
-                      key={angle.index}
-                      className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
-                    >
-                      <div className="aspect-square flex items-center justify-center bg-secondary/50">
-                        <RotateCcw className="h-5 w-5 text-muted-foreground/20" />
-                      </div>
-                      <p className="text-[9px] font-display font-semibold text-muted-foreground text-center py-1 uppercase tracking-wider">
-                        {angle.label}
-                      </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {FITTING_ANGLES.map((angle) => (
+                        <div
+                          key={angle.index}
+                          className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
+                        >
+                          <div className="aspect-square flex items-center justify-center bg-secondary/50">
+                            <RotateCcw className="h-5 w-5 text-muted-foreground/20" />
+                          </div>
+                          <p className="text-[9px] font-display font-semibold text-muted-foreground text-center py-1 uppercase tracking-wider">
+                            {angle.label}
+                          </p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full gap-2"
-                  disabled
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Generate Fitting Views
-                </Button>
-                <p className="text-[9px] text-muted-foreground/50 text-center">
-                  Fitting generation coming soon — uses the same 8 angles as character consistency views
-                </p>
-              </div>
-            )}
-          </div>
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2"
+                      disabled
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      Generate Fitting Views
+                    </Button>
+                    <p className="text-[9px] text-muted-foreground/50 text-center">
+                      Fitting generation coming soon — uses the same 8 angles as character consistency views
+                    </p>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </div>
+          </Collapsible>
         )}
       </div>
     </ScrollArea>
