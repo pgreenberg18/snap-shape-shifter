@@ -125,6 +125,14 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     { id: "lyria", name: "Lyria (Google)", placeholder: "Enter Google API key…", variants: [
       { id: "lyria-2", label: "Lyria 2" },
     ]},
+    { id: "openai-tts", name: "OpenAI TTS", placeholder: "Enter OpenAI API key…", variants: [
+      { id: "openai-tts-hd", label: "TTS HD" },
+      { id: "openai-tts-1", label: "TTS 1" },
+    ]},
+    { id: "chirp", name: "Chirp (Google)", placeholder: "Enter Google API key…", variants: [
+      { id: "chirp-2", label: "Chirp 2" },
+      { id: "chirp-1", label: "Chirp 1" },
+    ]},
   ],
   "camera-cart": [
     { id: "seedance", name: "Seedance (ByteDance)", placeholder: "Enter Seedance API key…", variants: [
@@ -169,6 +177,12 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     ]},
     { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…", variants: [
       { id: "kapwing-pro", label: "Pro" },
+    ]},
+    { id: "kling-lipsync", name: "Kling Lip Sync", placeholder: "Enter Kling API key…", variants: [
+      { id: "kling-lipsync-1.0", label: "Lip Sync 1.0" },
+    ]},
+    { id: "kling-upscale", name: "Kling Video Upscale", placeholder: "Enter Kling API key…", variants: [
+      { id: "kling-upscale-1.0", label: "Upscale 1.0" },
     ]},
   ],
 };
@@ -221,8 +235,9 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
 
 /* ── Provider groups: services that share the same API key ── */
 const PROVIDER_GROUPS: Record<string, string[]> = {
-  google: ["gemini", "veo", "imagen-4", "lyria"],
-  openai: ["openai-chat", "dall-e", "sora"],
+  google: ["gemini", "veo", "imagen-4", "lyria", "chirp"],
+  openai: ["openai-chat", "dall-e", "sora", "openai-tts"],
+  kling: ["kling", "kling-lipsync", "kling-upscale"],
 };
 
 /* ── Usage page URLs per service ── */
