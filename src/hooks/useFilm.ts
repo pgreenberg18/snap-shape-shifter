@@ -90,6 +90,23 @@ export const useShots = () => {
   });
 };
 
+/** Fetch all parsed scenes for the current film (single source of truth for scene data) */
+export const useParsedScenes = () => {
+  const filmId = useFilmId();
+  return useQuery({
+    queryKey: ["parsed-scenes", filmId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("parsed_scenes")
+        .select("*")
+        .eq("film_id", filmId!)
+        .order("scene_number");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!filmId,
+  });
+};
 export const useTimelineClips = () => {
   const filmId = useFilmId();
   return useQuery({

@@ -25,7 +25,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useContentSafety, useFilm, useFilmId } from "@/hooks/useFilm";
+import { useContentSafety, useFilm, useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import TypewriterSceneFeed from "@/components/development/TypewriterSceneFeed";
@@ -317,6 +317,7 @@ const Development = () => {
   const { data: film } = useFilm();
   const { data: safety } = useContentSafety();
   const { data: analysis, isLoading: analysisLoading } = useLatestAnalysis(filmId);
+  const { data: devParsedScenes } = useParsedScenes();
   const { data: directorProfile } = useQuery({
     queryKey: ["director-profile", filmId],
     queryFn: async () => {
@@ -856,7 +857,7 @@ const Development = () => {
   /* Fallback: keyword-based detection if AI didn't provide temporal_analysis */
   const timeShifts = useMemo(() => {
     if (secondaryTimePeriods.length > 0) return []; // AI handled it
-    if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
+    if (!devParsedScenes || devParsedScenes.length === 0) return [];
 
     const currentYear = new Date().getFullYear();
     let baseYear = currentYear;
@@ -869,7 +870,7 @@ const Development = () => {
 
     const FLASHBACK_KEYWORDS = ["flashback", "flash back", "flash-back", "years earlier", "years ago", "years later", "years before", "months earlier", "months ago", "months later", "days earlier", "days later", "flash forward", "flashforward", "flash-forward", "time jump", "memory", "year earlier", "year later"];
     const RETURN_KEYWORDS = ["back to present", "present day", "end flashback", "end flash back", "resume present", "return to present"];
-    const allScenes = analysis.scene_breakdown as any[];
+    const allScenes = devParsedScenes as any[];
 
     // Approximate page numbers (~3000 chars per page)
     const CHARS_PER_PAGE = 3000;
@@ -888,10 +889,10 @@ const Development = () => {
     let currentTimePeriod = String(baseYear);
 
     for (const [i, scene] of allScenes.entries()) {
-      const heading = (scene.scene_heading || "").toLowerCase();
+      const heading = (scene.heading || "").toLowerCase();
       const desc = (scene.description || "").toLowerCase();
       const combined = `${heading} ${desc}`;
-      const originalHeading = scene.scene_heading || `Scene ${i + 1}`;
+      const originalHeading = scene.heading || `Scene ${i + 1}`;
 
       // Check for explicit return-to-present markers
       if (RETURN_KEYWORDS.some(kw => combined.includes(kw))) {
@@ -902,7 +903,7 @@ const Development = () => {
       // "PRESENT DAY" in heading = return to base
       if (/present\s*day/i.test(heading)) {
         currentTimePeriod = String(baseYear);
-        continue; // base time is already established
+        continue;
       }
 
       for (const kw of FLASHBACK_KEYWORDS) {
@@ -964,7 +965,7 @@ const Development = () => {
       }
     }
     return shifts;
-  }, [analysis?.scene_breakdown, secondaryTimePeriods.length, film?.time_period, timePeriod]);
+  }, [devParsedScenes, secondaryTimePeriods.length, film?.time_period, timePeriod]);
 
   /* Fetch raw script text for a scene preview popup */
   const fetchSceneText = useCallback(async (sceneNumber: number, highlight?: string) => {
@@ -1500,7 +1501,7 @@ const Development = () => {
                       {secondaryTimePeriods.map((period: any, i: number) => {
                         // Find matching scene numbers + page numbers for sluglines
                         const matchedScenes = (period.scene_sluglines || []).map((slug: string) => {
-                          const allScenes = (analysis?.scene_breakdown || []) as any[];
+                          const allScenes = (devParsedScenes || []) as any[];
                           const CHARS_PER_PAGE = 3000;
                           let cumChars = 0;
                           for (const sc of allScenes) {
@@ -1820,7 +1821,7 @@ const Development = () => {
       )}
 
       {/* ── Step 3: Content Safety Matrix ── */}
-      {analysis?.scene_breakdown && directorProfile && (
+      {devParsedScenes && devParsedScenes.length > 0 && directorProfile && (
         <section data-help-id="dev-content-safety">
           {scriptLocked ? (
             /* ── LOCKED STATE — collapsible like Global Elements ── */
@@ -1855,7 +1856,7 @@ const Development = () => {
                     </Button>
                   </div>
                   <ContentSafetyMatrix
-                    scenes={analysis?.scene_breakdown as any[] || []}
+                    scenes={devParsedScenes as any[] || []}
                     storagePath={analysis?.storage_path || ""}
                     language={language}
                     nudity={nudity}
@@ -1906,7 +1907,7 @@ const Development = () => {
                   ) : (
                     <div className="space-y-6">
                       <ContentSafetyMatrix
-                        scenes={analysis?.scene_breakdown as any[] || []}
+                        scenes={devParsedScenes as any[] || []}
                         storagePath={analysis?.storage_path || ""}
                         language={language}
                         nudity={nudity}
@@ -1943,7 +1944,7 @@ const Development = () => {
       )}
 
       {/* ── Step 4: Lock Script ── */}
-      {analysis?.scene_breakdown && !scriptLocked && ratingsApproved && (
+      {devParsedScenes && devParsedScenes.length > 0 && !scriptLocked && ratingsApproved && (
         <section>
           <Collapsible defaultOpen>
             <CollapsibleTrigger className="w-full">

@@ -1,6 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useFilmId } from "@/hooks/useFilm";
+import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { supabase } from "@/integrations/supabase/client";
 
 /* ── Types ── */
@@ -224,28 +223,12 @@ function computeRankings(scenes: any[]): CharacterRanking[] {
 /* ── Hook ── */
 export function useCharacterRanking() {
   const filmId = useFilmId();
-
-  const { data: analysis } = useQuery({
-    queryKey: ["script-analysis-ranking", filmId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("script_analyses")
-        .select("scene_breakdown")
-        .eq("film_id", filmId!)
-        .eq("status", "complete")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!filmId,
-  });
+  const { data: parsedScenes } = useParsedScenes();
 
   const rankings = useMemo(() => {
-    if (!analysis?.scene_breakdown || !Array.isArray(analysis.scene_breakdown)) return [];
-    return computeRankings(analysis.scene_breakdown as any[]);
-  }, [analysis?.scene_breakdown]);
+    if (!parsedScenes || parsedScenes.length === 0) return [];
+    return computeRankings(parsedScenes as any[]);
+  }, [parsedScenes]);
 
   return rankings;
 }

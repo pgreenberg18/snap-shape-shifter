@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useParams } from "react-router-dom";
-import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm } from "@/hooks/useFilm";
+import { useCharacters, useShots, useBreakdownAssets, useFilmId, useFilm, useParsedScenes } from "@/hooks/useFilm";
 import { useCharacterRanking } from "@/hooks/useCharacterRanking";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -126,13 +126,16 @@ const PreProduction = () => {
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
-  // Fetch script analysis for auto-deducing metadata + script viewer
+  // Fetch parsed scenes (single source of truth for scene-level data)
+  const { data: parsedScenes } = useParsedScenes();
+
+  // Fetch script analysis for global_elements + storage_path only (NOT scene_breakdown)
   const { data: scriptAnalysis } = useQuery({
     queryKey: ["script-analysis-for-chars", filmId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("script_analyses")
-        .select("scene_breakdown, global_elements, storage_path")
+        .select("global_elements, storage_path")
         .eq("film_id", filmId!)
         .eq("status", "complete")
         .order("created_at", { ascending: false })
@@ -181,9 +184,9 @@ const PreProduction = () => {
       setCharAgeMin(existing.age_min?.toString() ?? "");
       setCharAgeMax(existing.age_max?.toString() ?? "");
       setCharIsChild(existing.is_child ?? false);
-    } else if (scriptAnalysis?.scene_breakdown) {
+    } else if (parsedScenes && parsedScenes.length > 0) {
       // Always try to deduce from script when no DB values exist
-      const deduced = deduceCharacterMeta(selectedChar.name, scriptAnalysis.scene_breakdown as any[]);
+      const deduced = deduceCharacterMeta(selectedChar.name, parsedScenes as any[]);
       setCharDescription(deduced?.description ?? "");
       setCharSex(deduced?.sex ?? "Unknown");
       setCharAgeMin(deduced?.ageMin?.toString() ?? "");
@@ -196,7 +199,7 @@ const PreProduction = () => {
       setCharAgeMax("");
       setCharIsChild(false);
     }
-  }, [selectedChar?.id, scriptAnalysis]);
+  }, [selectedChar?.id, parsedScenes]);
 
   const handleSaveMeta = useCallback(async () => {
     if (!selectedChar) return;
@@ -388,12 +391,8 @@ const PreProduction = () => {
   }, [characters]);
 
   const openSceneScript = useCallback(async (sceneNumber: number) => {
-    if (!scriptAnalysis?.scene_breakdown || !Array.isArray(scriptAnalysis.scene_breakdown)) return;
-    const scenes = scriptAnalysis.scene_breakdown as any[];
-    const scene = scenes.find((s: any) => {
-      const sn = s.scene_number ? parseInt(s.scene_number, 10) : null;
-      return sn === sceneNumber;
-    }) || scenes[sceneNumber - 1];
+    if (!parsedScenes || parsedScenes.length === 0) return;
+    const scene = parsedScenes.find((s) => s.scene_number === sceneNumber) || parsedScenes[sceneNumber - 1];
     if (!scene) { toast.error("Scene not found"); return; }
 
     setScriptDialogScene(scene);
@@ -411,7 +410,7 @@ const PreProduction = () => {
       const { data, error } = await supabase.storage.from("scripts").download(scriptAnalysis.storage_path);
       if (error || !data) throw error || new Error("Download failed");
       const full = await data.text();
-      const heading = scene.scene_heading?.trim();
+      const heading = (scene as any).scene_heading?.trim() || scene.heading?.trim();
       const isFdx = full.trimStart().startsWith("<?xml") || full.includes("<FinalDraft");
 
       if (isFdx) {
@@ -1022,7 +1021,7 @@ const PreProduction = () => {
 
         {/* ═══ OTHER TABS ═══ */}
         <TabsContent value="locations" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-locations">
-          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} />
+          <DnDGroupPane items={augmentedLocations} filmId={filmId} storagePrefix="locations" icon={MapPin} title="Locations" emptyMessage="No locations extracted yet. Lock your script in Development." subtitles={breakdownAssets?.locationDescriptions} expandableSubtitles sceneBreakdown={parsedScenes as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} initialGroups={globalElementsLocationGroups} />
         </TabsContent>
         <TabsContent value="props" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-props">
           <DnDGroupPane
@@ -1030,7 +1029,7 @@ const PreProduction = () => {
             emptyMessage="No props extracted yet. Lock your script in Development."
             subtitles={breakdownAssets?.propDescriptions}
             expandableSubtitles
-            sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined}
+            sceneBreakdown={parsedScenes as any[] | undefined}
             storagePath={scriptAnalysis?.storage_path as string | undefined}
             excludeFromKeyObjects={augmentedVehicles}
             reclassifyOptions={[
@@ -1063,12 +1062,11 @@ const PreProduction = () => {
               name: char,
               children: byCharacter.get(char)!,
             }));
-            const scenes = (scriptAnalysis?.scene_breakdown as any[] | undefined) || [];
-            const allSceneNums = scenes.map((s: any) => parseInt(s.scene_number, 10)).filter((n: number) => !isNaN(n)).sort((a: number, b: number) => a - b);
+            const scenes = (parsedScenes as any[] | undefined) || [];
+            const allSceneNums = scenes.map((s: any) => s.scene_number).filter((n: number) => !isNaN(n)).sort((a: number, b: number) => a - b);
             const headings: Record<number, string> = {};
             for (const s of scenes) {
-              const sn = parseInt(s.scene_number, 10);
-              if (!isNaN(sn) && s.scene_heading) headings[sn] = s.scene_heading;
+              if (s.heading) headings[s.scene_number] = s.heading;
             }
             return (
               <DnDGroupPane
@@ -1085,7 +1083,7 @@ const PreProduction = () => {
           })()}
         </TabsContent>
         <TabsContent value="vehicles" className="flex-1 flex overflow-hidden m-0" data-help-id="preprod-vehicles">
-          <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." subtitles={breakdownAssets?.vehicleDescriptions} expandableSubtitles sceneBreakdown={scriptAnalysis?.scene_breakdown as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
+          <DnDGroupPane items={augmentedVehicles} filmId={filmId} storagePrefix="vehicles" icon={Car} title="Picture Vehicles" emptyMessage="No vehicles identified in the script breakdown yet." subtitles={breakdownAssets?.vehicleDescriptions} expandableSubtitles sceneBreakdown={parsedScenes as any[] | undefined} storagePath={scriptAnalysis?.storage_path as string | undefined} />
         </TabsContent>
       </Tabs>
 
@@ -1095,7 +1093,7 @@ const PreProduction = () => {
           <DialogHeader className="px-6 pt-5 pb-3">
             <DialogTitle className="flex items-center gap-2 text-base">
               <ScrollText className="h-4 w-4" />
-              {scriptDialogScene?.scene_heading || `Scene ${scriptDialogSceneNum}`}
+              {scriptDialogScene?.heading || scriptDialogScene?.scene_heading || `Scene ${scriptDialogSceneNum}`}
             </DialogTitle>
             <DialogDescription className="text-xs">
               Scene {scriptDialogSceneNum} · {scriptDialogScene?.int_ext} · {scriptDialogScene?.time_of_day}
