@@ -564,7 +564,7 @@ body::after {
   }
   #root {
     width: 1280px;
-    height: calc(100vh / var(--app-scale, 1));
+    height: 720px;
     transform-origin: top left;
     transform: scale(var(--app-scale, 1));
     overflow: hidden;
