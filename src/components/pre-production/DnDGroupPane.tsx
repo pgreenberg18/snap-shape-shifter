@@ -236,67 +236,136 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   }, [fetchWardrobeSceneCounts]);
 
   // Load persisted state — seed from initialGroups if no localStorage groups exist
+  // For wardrobe: reconcile group membership from DB (wardrobe_scene_assignments) to survive localStorage clears
   useEffect(() => {
     if (!filmId) return;
-    const savedGroups = loadJson<ItemGroup[]>(storagePrefix, filmId, "groups", []);
-    let loadedGroups: ItemGroup[];
-    if (savedGroups.length > 0) {
-      loadedGroups = savedGroups;
-    } else if (initialGroups && initialGroups.length > 0) {
-      loadedGroups = initialGroups;
-      saveJson(storagePrefix, filmId, "groups", initialGroups);
-    } else {
-      loadedGroups = [];
-    }
 
-    // Migration: strip "(character)" suffixes from wardrobe item keys in persisted data
-    if (storagePrefix === "wardrobe") {
-      const charSuffixRegex = /\s*\([^)]+\)\s*$/;
-      let migrated = false;
-      const keyMap = new Map<string, string>(); // old key -> new key
-
-      const migrateChildren = (children: string[]) => {
-        return children.map((c) => {
-          if (charSuffixRegex.test(c)) {
-            const cleaned = c.replace(charSuffixRegex, "").trim();
-            keyMap.set(c, cleaned);
-            migrated = true;
-            return cleaned;
-          }
-          return c;
-        });
-      };
-
-      loadedGroups = loadedGroups.map((g) => ({ ...g, children: migrateChildren(g.children) }));
-
-      if (migrated) {
-        saveJson(storagePrefix, filmId, "groups", loadedGroups);
-        // Also migrate renames, refImages, refDescs
-        const savedRenames = loadJson<Record<string, string>>(storagePrefix, filmId, "renames", {});
-        const savedRefImages = loadJson<Record<string, string>>(storagePrefix, filmId, "refImages", {});
-        const savedRefDescs = loadJson<Record<string, string>>(storagePrefix, filmId, "refDescs", {});
-        const migrateRecord = (rec: Record<string, string>) => {
-          const next: Record<string, string> = {};
-          for (const [k, v] of Object.entries(rec)) {
-            next[keyMap.get(k) || k] = v;
-          }
-          return next;
-        };
-        saveJson(storagePrefix, filmId, "renames", migrateRecord(savedRenames));
-        saveJson(storagePrefix, filmId, "refImages", migrateRecord(savedRefImages));
-        saveJson(storagePrefix, filmId, "refDescs", migrateRecord(savedRefDescs));
-        // Also migrate merged-away list
-        const savedMerged = loadJson<string[]>(storagePrefix, filmId, "merged", []);
-        saveJson(storagePrefix, filmId, "merged", savedMerged.map((m) => keyMap.get(m) || m));
+    const loadState = async () => {
+      const savedGroups = loadJson<ItemGroup[]>(storagePrefix, filmId, "groups", []);
+      let loadedGroups: ItemGroup[];
+      if (savedGroups.length > 0) {
+        loadedGroups = savedGroups;
+      } else if (initialGroups && initialGroups.length > 0) {
+        loadedGroups = initialGroups;
+        saveJson(storagePrefix, filmId, "groups", initialGroups);
+      } else {
+        loadedGroups = [];
       }
-    }
 
-    setGroups(loadedGroups);
-    setCollapsed(new Set(loadedGroups.map((g) => g.id)));
-    setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
-    setRenames(loadJson(storagePrefix, filmId, "renames", {}));
-    setRefImages(loadJson(storagePrefix, filmId, "refImages", {}));
-    setRefDescriptions(loadJson(storagePrefix, filmId, "refDescs", {}));
+      // Migration: strip "(character)" suffixes from wardrobe item keys in persisted data
+      if (storagePrefix === "wardrobe") {
+        const charSuffixRegex = /\s*\([^)]+\)\s*$/;
+        let migrated = false;
+        const keyMap = new Map<string, string>(); // old key -> new key
+
+        const migrateChildren = (children: string[]) => {
+          return children.map((c) => {
+            if (charSuffixRegex.test(c)) {
+              const cleaned = c.replace(charSuffixRegex, "").trim();
+              keyMap.set(c, cleaned);
+              migrated = true;
+              return cleaned;
+            }
+            return c;
+          });
+        };
+
+        loadedGroups = loadedGroups.map((g) => ({ ...g, children: migrateChildren(g.children) }));
+
+        if (migrated) {
+          saveJson(storagePrefix, filmId, "groups", loadedGroups);
+          const savedRenames = loadJson<Record<string, string>>(storagePrefix, filmId, "renames", {});
+          const savedRefImages = loadJson<Record<string, string>>(storagePrefix, filmId, "refImages", {});
+          const savedRefDescs = loadJson<Record<string, string>>(storagePrefix, filmId, "refDescs", {});
+          const migrateRecord = (rec: Record<string, string>) => {
+            const next: Record<string, string> = {};
+            for (const [k, v] of Object.entries(rec)) {
+              next[keyMap.get(k) || k] = v;
+            }
+            return next;
+          };
+          saveJson(storagePrefix, filmId, "renames", migrateRecord(savedRenames));
+          saveJson(storagePrefix, filmId, "refImages", migrateRecord(savedRefImages));
+          saveJson(storagePrefix, filmId, "refDescs", migrateRecord(savedRefDescs));
+          const savedMerged = loadJson<string[]>(storagePrefix, filmId, "merged", []);
+          saveJson(storagePrefix, filmId, "merged", savedMerged.map((m) => keyMap.get(m) || m));
+        }
+
+        // Reconcile wardrobe groups from DB: move items to the character recorded in wardrobe_scene_assignments
+        const { data: dbAssignments } = await supabase
+          .from("wardrobe_scene_assignments")
+          .select("clothing_item, character_name")
+          .eq("film_id", filmId);
+
+        if (dbAssignments && dbAssignments.length > 0) {
+          // Build a map: clothing_item (lowercase) -> DB character_name (most frequent)
+          const itemCharMap = new Map<string, string>();
+          const itemCharCounts = new Map<string, Map<string, number>>();
+          for (const row of dbAssignments) {
+            const item = (row.clothing_item as string).toLowerCase().trim();
+            const char = row.character_name as string;
+            if (!itemCharCounts.has(item)) itemCharCounts.set(item, new Map());
+            const counts = itemCharCounts.get(item)!;
+            counts.set(char, (counts.get(char) || 0) + 1);
+          }
+          for (const [item, counts] of itemCharCounts) {
+            let bestChar = "";
+            let bestCount = 0;
+            for (const [char, count] of counts) {
+              if (count > bestCount) { bestChar = char; bestCount = count; }
+            }
+            if (bestChar) itemCharMap.set(item, bestChar);
+          }
+
+          // Move items between groups to match DB assignments
+          let reconciled = false;
+          const nextGroups = loadedGroups.map((g) => ({ ...g, children: [...g.children] }));
+
+          for (const [itemLower, dbChar] of itemCharMap) {
+            // Find which group currently has this item
+            let currentGroup: typeof nextGroups[0] | null = null;
+            let itemKey = "";
+            for (const g of nextGroups) {
+              const found = g.children.find((c) => c.toLowerCase().trim() === itemLower);
+              if (found) { currentGroup = g; itemKey = found; break; }
+            }
+            if (!itemKey || !currentGroup) continue;
+            // Check if item is already in the correct character group
+            if (currentGroup.name.toUpperCase() === dbChar.toUpperCase()) continue;
+            // Find or create the target group
+            let targetGroup = nextGroups.find((g) => g.name.toUpperCase() === dbChar.toUpperCase());
+            if (!targetGroup) {
+              targetGroup = {
+                id: `wardrobe-char-${dbChar.toLowerCase().replace(/[^a-z0-9]/g, "-")}`,
+                name: dbChar,
+                children: [],
+              };
+              nextGroups.push(targetGroup);
+            }
+            // Move item
+            currentGroup.children = currentGroup.children.filter((c) => c !== itemKey);
+            if (!targetGroup.children.includes(itemKey)) {
+              targetGroup.children.push(itemKey);
+            }
+            reconciled = true;
+          }
+
+          if (reconciled) {
+            loadedGroups = nextGroups;
+            saveJson(storagePrefix, filmId, "groups", loadedGroups);
+          }
+        }
+      }
+
+      setGroups(loadedGroups);
+      setCollapsed(new Set(loadedGroups.map((g) => g.id)));
+      setMergedAway(new Set(loadJson<string[]>(storagePrefix, filmId, "merged", [])));
+      setRenames(loadJson(storagePrefix, filmId, "renames", {}));
+      setRefImages(loadJson(storagePrefix, filmId, "refImages", {}));
+      setRefDescriptions(loadJson(storagePrefix, filmId, "refDescs", {}));
+    };
+
+    loadState();
   }, [filmId, storagePrefix, initialGroups]);
 
   const persistGroups = useCallback((next: ItemGroup[]) => {
