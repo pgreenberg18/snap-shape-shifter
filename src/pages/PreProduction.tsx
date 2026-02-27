@@ -1095,7 +1095,7 @@ const PreProduction = () => {
 
                 {/* Turnaround view lightbox */}
                 <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
-                  <DialogContent className="max-w-2xl p-2 bg-background border-border">
+                  <DialogContent className="max-w-5xl p-4 bg-background border-border">
                     {lightboxView && (() => {
                       const views = expandedCard ? viewsByCharacter.get(expandedCard.characterId) : undefined;
                       const allViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
@@ -1897,7 +1897,7 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
             ))}
           </div>
           <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
-            <DialogContent className="max-w-2xl p-2 bg-background border-border">
+            <DialogContent className="max-w-5xl p-4 bg-background border-border">
               {lightboxView && (
                 <div className="flex flex-col items-center gap-2">
                   <img src={lightboxView.url} alt={lightboxView.label} className="w-full rounded-lg object-contain max-h-[70vh]" />
