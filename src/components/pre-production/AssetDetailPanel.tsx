@@ -161,9 +161,13 @@ const AssetDetailPanel = ({
             </div>
             <div>
               <h2 className="font-display text-lg font-bold text-foreground">{label}</h2>
-              {subtitle && (
+              {subtitle && assetType === "wardrobe" ? (
+                <p className="text-xs text-muted-foreground">
+                  Worn by <span className="font-semibold text-foreground/80">{subtitle}</span>
+                </p>
+              ) : subtitle ? (
                 <p className="text-xs text-muted-foreground">{subtitle}</p>
-              )}
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2">
