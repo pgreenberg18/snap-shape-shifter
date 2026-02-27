@@ -112,8 +112,10 @@ const ProviderConflictDialog = ({ filmId, projectId, conflicts, open, onResolved
                     <div
                       key={p.id}
                       onClick={() => setSelections((prev) => ({ ...prev, [c.section]: p.id }))}
-                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors ${
-                        isSelected ? "border-green-500/60 bg-green-500/10" : "border-border bg-secondary hover:bg-secondary/80"
+                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-all duration-200 ${
+                        isSelected
+                          ? "border-green-500/60 bg-green-500/10 shadow-[0_0_8px_hsl(142_71%_45%/0.3)]"
+                          : "border-border bg-secondary hover:border-primary/50 hover:shadow-[0_0_12px_hsl(var(--primary)/0.25)]"
                       }`}
                     >
                       {isSelected ? (
