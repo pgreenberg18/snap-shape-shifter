@@ -474,6 +474,33 @@ const PreProduction = () => {
     );
   }, [pendingConsistencyCharId, characters, startBackgroundTask, queryClient]);
 
+  const handleRegenerateViews = useCallback(async (charId: string) => {
+    if (generatingViews) return;
+    setGeneratingViews(true);
+    const charName = characters?.find(c => c.id === charId)?.name ?? "Character";
+    toast.info(`Regenerating turnaround views for ${charName}…`);
+    startBackgroundTask(
+      "consistency-views",
+      charId,
+      async (_updatePartial, updateStatus) => {
+        try {
+          const { data, error } = await supabase.functions.invoke("generate-consistency-views", {
+            body: { character_id: charId },
+          });
+          if (error) throw error;
+          updateStatus("complete", { generated: data?.generated ?? 0 });
+        } catch (e: any) {
+          console.error("Regenerate views error:", e);
+          updateStatus("error", undefined, e?.message || "Failed to regenerate views");
+        } finally {
+          setGeneratingViews(false);
+          queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
+        }
+      },
+      `${charName} turnaround views`
+    );
+  }, [characters, generatingViews, startBackgroundTask, queryClient]);
+
   const handleRate = useCallback(async (card: AuditionCard, rating: number) => {
     if (!card.characterId) return;
     setCards((prev) => prev.map((c) => c.id === card.id && c.characterId === card.characterId ? { ...c, rating } : c));
@@ -1071,6 +1098,17 @@ const PreProduction = () => {
                                 <span className="text-[10px] text-muted-foreground/50">
                                   {completedViews.length}/{allSlots.length}
                                 </span>
+                                <div className="flex-1" />
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleRegenerateViews(expandedCard.characterId)}
+                                  disabled={generatingViews}
+                                  className="h-6 px-2 gap-1 text-[10px]"
+                                >
+                                  {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                                  Regenerate
+                                </Button>
                               </div>
                               <div className="grid grid-cols-4 gap-1.5">
                                 {allSlots.map((v) => (
