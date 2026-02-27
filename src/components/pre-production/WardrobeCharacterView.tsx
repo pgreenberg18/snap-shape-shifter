@@ -290,7 +290,7 @@ const WardrobeCharacterView = ({
 
         {/* ═══ SCENE ASSIGNMENTS ═══ */}
         <Collapsible open={sceneAssignmentsOpen} onOpenChange={setSceneAssignmentsOpen}>
-          <div className="rounded-xl border border-border bg-card p-5 cinema-shadow space-y-4">
+          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow space-y-4">
             <CollapsibleTrigger className="w-full flex items-center gap-2">
               {sceneAssignmentsOpen
                 ? <ChevronDown className="h-4 w-4 text-primary" />
