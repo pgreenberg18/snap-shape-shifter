@@ -839,6 +839,7 @@ const ProjectVersions = () => {
         {conflictFilmId && conflicts.length > 0 && (
           <ProviderConflictDialog
             filmId={conflictFilmId}
+            projectId={projectId!}
             conflicts={conflicts}
             open={true}
             onResolved={() => {
