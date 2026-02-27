@@ -940,86 +940,61 @@ const PreProduction = () => {
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
-                  <DialogContent className="max-w-4xl p-0 bg-card border-border h-[80vh] overflow-hidden">
+                  <DialogContent className="max-w-5xl p-0 bg-card border-border h-[85vh] overflow-hidden">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
                     </DialogHeader>
                     <div className="flex h-full">
-                      {/* Left: headshot image fills full height */}
-                      <div className="w-[280px] shrink-0 h-full">
+                      {/* Left: main headshot — large */}
+                      <div className="flex-1 relative h-full bg-black/10 flex items-center justify-center min-w-0">
                         {expandedCard?.imageUrl && (
-                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full h-full object-contain bg-black/20" />
+                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="max-w-full max-h-full object-contain" />
                         )}
-                      </div>
-                      {/* Middle: controls + variations */}
-                      <div className="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
-                          <div className="flex items-center gap-1">
-                            {[1, 2, 3].map((star) => (
-                              <button
-                                key={star}
-                                onClick={() => expandedCard && handleRate(expandedCard, star === expandedCard.rating ? 0 : star)}
-                                className="p-0.5"
-                              >
-                                <Star className={cn("h-3.5 w-3.5 transition-colors", star <= (expandedCard?.rating ?? 0) ? "fill-primary text-primary" : "text-muted-foreground/30")} />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Modify section */}
-                        {expandedCard && (
-                          <div className="space-y-2">
-                            <Button size="sm" variant="outline" onClick={() => setModifyMode(!modifyMode)} className="h-7 text-[11px] gap-1.5 w-full justify-start">
-                              <Sparkles className="h-3 w-3" />
-                              {modifyMode ? "Cancel Modify" : "Modify Image"}
-                            </Button>
-                            {modifyMode && (
-                              <div className="space-y-2">
-                                <Textarea
-                                  placeholder="Describe changes... e.g. 'make hair darker' or 'add glasses'"
-                                  value={modifyText}
-                                  onChange={(e) => setModifyText(e.target.value)}
-                                  className="text-xs min-h-[60px] resize-none"
-                                />
-                                <Button
-                                  size="sm"
-                                  onClick={() => { /* TODO: modify image */ }}
-                                  disabled={modifyGenerating || !modifyText.trim()}
-                                  className="h-7 text-[11px] gap-1.5 w-full"
-                                >
-                                  {modifyGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                                  Generate Variations
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Modify variations */}
-                        {modifyVariations.length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Variations</p>
-                            <div className="grid grid-cols-2 gap-2">
-                              {modifyVariations.map((v, i) => (
-                                <button
-                                  key={i}
-                                  onClick={() => { /* TODO: select variation */ }}
-                                  className="relative rounded-lg overflow-hidden border border-border hover:border-primary/60 transition-colors cursor-pointer"
-                                >
-                                  <img src={v.imageUrl || ""} alt={`Variation ${i + 1}`} className="w-full aspect-[4/5] object-cover" />
-                                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-1">
-                                    <p className="text-[9px] text-white/80 text-center">Use this</p>
-                                  </div>
+                        {/* Floating toolbar at bottom of main image */}
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 flex items-end justify-between">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-display font-semibold text-white drop-shadow">{expandedCard?.label}</p>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3].map((star) => (
+                                <button key={star} onClick={() => expandedCard && handleRate(expandedCard, star === expandedCard.rating ? 0 : star)} className="p-0.5">
+                                  <Star className={cn("h-3.5 w-3.5 transition-colors drop-shadow", star <= (expandedCard?.rating ?? 0) ? "fill-primary text-primary" : "text-white/40")} />
                                 </button>
                               ))}
                             </div>
                           </div>
+                          <Button size="sm" variant="secondary" onClick={() => setModifyMode(!modifyMode)} className="h-7 text-[11px] gap-1.5 bg-white/15 hover:bg-white/25 text-white border-0">
+                            <Sparkles className="h-3 w-3" />
+                            {modifyMode ? "Cancel" : "Modify"}
+                          </Button>
+                        </div>
+                        {/* Modify panel overlay */}
+                        {modifyMode && (
+                          <div className="absolute top-0 right-0 w-[240px] bg-card/95 backdrop-blur border-l border-border p-3 h-full overflow-y-auto space-y-3">
+                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Modify Image</p>
+                            <Textarea
+                              placeholder="Describe changes... e.g. 'make hair darker'"
+                              value={modifyText}
+                              onChange={(e) => setModifyText(e.target.value)}
+                              className="text-xs min-h-[60px] resize-none"
+                            />
+                            <Button size="sm" onClick={() => { /* TODO: modify image */ }} disabled={modifyGenerating || !modifyText.trim()} className="h-7 text-[11px] gap-1.5 w-full">
+                              {modifyGenerating ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                              Generate
+                            </Button>
+                            {modifyVariations.length > 0 && (
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {modifyVariations.map((v, i) => (
+                                  <button key={i} onClick={() => { /* TODO: select variation */ }} className="relative rounded-md overflow-hidden border border-border hover:border-primary/60 transition-colors cursor-pointer">
+                                    <img src={v.imageUrl || ""} alt={`Var ${i + 1}`} className="w-full aspect-[4/5] object-cover" />
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         )}
                       </div>
-                      {/* Right: Turnaround views column */}
+                      {/* Right: turnaround views — 2-col grid filling height */}
                       {expandedCard && (() => {
                         const views = viewsByCharacter.get(expandedCard.characterId);
                         const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
@@ -1027,37 +1002,33 @@ const PreProduction = () => {
                         const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
                         if (!allSlots.length) return null;
                         return (
-                          <div className="w-[180px] shrink-0 border-l border-border p-2 flex flex-col gap-2 overflow-y-auto">
-                            <div className="flex items-center gap-1.5">
+                          <div className="w-[200px] shrink-0 border-l border-border flex flex-col h-full">
+                            <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
                               <Layers className="h-3 w-3 text-primary" />
                               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
                                 Views {completedViews.length}/{allSlots.length}
                               </p>
                               <div className="flex-1" />
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleRegenerateViews(expandedCard.characterId)}
-                                disabled={generatingViews}
-                                className="h-5 w-5 p-0"
-                              >
+                              <Button size="sm" variant="ghost" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="h-5 w-5 p-0">
                                 {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                               </Button>
                             </div>
-                            <div className="grid grid-cols-2 gap-1">
-                              {allSlots.map((v) => (
-                                v.status === "complete" && v.image_url ? (
-                                  <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                                    <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-square object-contain bg-secondary/50" loading="lazy" />
-                                    <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
-                                  </button>
-                                ) : (
-                                  <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-square cloth-shimmer flex flex-col items-center justify-center gap-1">
-                                    <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
-                                    <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
-                                  </div>
-                                )
-                              ))}
+                            <div className="flex-1 overflow-y-auto p-1.5">
+                              <div className="grid grid-cols-2 gap-1">
+                                {allSlots.map((v) => (
+                                  v.status === "complete" && v.image_url ? (
+                                    <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                                      <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
+                                      <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
+                                    </button>
+                                  ) : (
+                                    <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
+                                      <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
+                                      <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
+                                    </div>
+                                  )
+                                ))}
+                              </div>
                             </div>
                           </div>
                         );
