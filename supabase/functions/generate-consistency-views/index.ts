@@ -210,10 +210,10 @@ serve(async (req) => {
       .replace(/kill\w*/gi, "confront")
       .trim();
 
-    // Generate all 8 views
+    // Generate views in parallel batches to avoid edge function timeout
     const results: { index: number; success: boolean }[] = [];
 
-    for (const angle of ANGLE_VIEWS) {
+    const generateSingleView = async (angle: typeof ANGLE_VIEWS[number]) => {
       try {
         const prompt = `Generate a photorealistic CHARACTER TURNAROUND REFERENCE photograph.
 This is view ${angle.index + 1} of 8 for a professional character consistency/turnaround sheet.
@@ -286,16 +286,6 @@ Think of this as generating a 3D model reference — geometry preservation is ev
           });
 
           if (!response.ok) {
-            if (response.status === 429) {
-              return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
-                status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
-            if (response.status === 402) {
-              return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-                status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-              });
-            }
             console.error(`AI error (${model}) for angle ${angle.label}:`, response.status);
             continue;
           }
@@ -319,7 +309,6 @@ Think of this as generating a 3D model reference — geometry preservation is ev
         }
 
         if (imageBytes) {
-          // Deterministic file naming for AI ingestion
           const slug = character.name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
           const viewSlug = angle.label.toLowerCase().replace(/[^a-z0-9]+/g, "_");
           const padIndex = String(angle.index + 1).padStart(2, "0");
@@ -335,8 +324,7 @@ Think of this as generating a 3D model reference — geometry preservation is ev
               .update({ status: "failed" })
               .eq("character_id", character_id)
               .eq("angle_index", angle.index);
-            results.push({ index: angle.index, success: false });
-            continue;
+            return { index: angle.index, success: false };
           }
 
           const { data: urlData } = sb.storage.from("character-assets").getPublicUrl(fileName);
@@ -346,13 +334,13 @@ Think of this as generating a 3D model reference — geometry preservation is ev
             .eq("character_id", character_id)
             .eq("angle_index", angle.index);
 
-          results.push({ index: angle.index, success: true });
+          return { index: angle.index, success: true };
         } else {
           await sb.from("character_consistency_views")
             .update({ status: "failed" })
             .eq("character_id", character_id)
             .eq("angle_index", angle.index);
-          results.push({ index: angle.index, success: false });
+          return { index: angle.index, success: false };
         }
       } catch (viewError) {
         console.error(`Error generating ${angle.label}:`, viewError);
@@ -360,9 +348,19 @@ Think of this as generating a 3D model reference — geometry preservation is ev
           .update({ status: "failed" })
           .eq("character_id", character_id)
           .eq("angle_index", angle.index);
-        results.push({ index: angle.index, success: false });
+        return { index: angle.index, success: false };
       }
-    }
+    };
+
+    // Process in 2 batches of 4 in parallel to stay within timeout
+    const batch1 = ANGLE_VIEWS.slice(0, 4);
+    const batch2 = ANGLE_VIEWS.slice(4, 8);
+
+    const batch1Results = await Promise.all(batch1.map(generateSingleView));
+    results.push(...batch1Results);
+
+    const batch2Results = await Promise.all(batch2.map(generateSingleView));
+    results.push(...batch2Results);
 
     const successCount = results.filter((r) => r.success).length;
 
