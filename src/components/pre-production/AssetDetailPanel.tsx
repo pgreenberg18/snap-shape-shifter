@@ -148,7 +148,9 @@ const AssetDetailPanel = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-12 w-12 rounded-lg bg-secondary flex items-center justify-center overflow-hidden">
-              {refImageUrl ? (
+              {assetType === "wardrobe" && characterData?.image_url ? (
+                <img src={characterData.image_url} alt={characterName || label} className="h-full w-full object-cover" />
+              ) : refImageUrl ? (
                 <img src={refImageUrl} alt={label} className="h-full w-full object-cover" />
               ) : (
                 <Icon className="h-6 w-6 text-muted-foreground/40" />
