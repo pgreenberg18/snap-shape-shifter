@@ -1000,36 +1000,41 @@ const PreProduction = () => {
                         const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
                         const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
                         const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
-                        if (!allSlots.length) return null;
                         return (
                           <div className="w-[240px] shrink-0 border-l border-border flex flex-col h-full">
                             <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
                               <Layers className="h-3 w-3 text-primary" />
                               <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Views {completedViews.length}/{allSlots.length}
+                                Views {completedViews.length}/{allSlots.length || 8}
                               </p>
                             </div>
-                            <div className="flex-1 overflow-y-auto p-2">
-                              <div className="grid grid-cols-2 gap-1.5">
-                                {allSlots.map((v) => (
-                                  v.status === "complete" && v.image_url ? (
-                                    <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                                      <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
-                                      <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
-                                    </button>
-                                  ) : (
-                                    <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
-                                      <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
-                                      <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
-                                    </div>
-                                  )
-                                ))}
+                            {allSlots.length > 0 ? (
+                              <div className="flex-1 overflow-y-auto p-2">
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  {allSlots.map((v) => (
+                                    v.status === "complete" && v.image_url ? (
+                                      <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                                        <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
+                                        <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
+                                      </button>
+                                    ) : (
+                                      <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
+                                        <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
+                                        <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
+                                      </div>
+                                    )
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                            <div className="px-2 py-1.5 border-t border-border">
-                              <Button size="sm" variant="outline" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="w-full h-7 text-[10px] gap-1.5">
+                            ) : (
+                              <div className="flex-1 flex items-center justify-center p-4">
+                                <p className="text-[10px] text-muted-foreground text-center">No turnaround views yet. Generate them below.</p>
+                              </div>
+                            )}
+                            <div className="px-2 py-2 border-t border-border shrink-0">
+                              <Button size="sm" variant="outline" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="w-full h-8 text-[11px] gap-1.5">
                                 {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                                Regenerate Views
+                                {allSlots.length > 0 ? "Regenerate Views" : "Generate Views"}
                               </Button>
                             </div>
                           </div>
