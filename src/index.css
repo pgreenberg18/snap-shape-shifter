@@ -554,53 +554,22 @@ body::after {
   100% { background-position: 32px 32px; }
 }
 
-/* ── Force landscape on mobile/tablet ── */
-#portrait-blocker {
-  display: none;
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
-  background: hsl(var(--background));
-  color: hsl(var(--foreground));
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1.5rem;
-  text-align: center;
-  padding: 2rem;
-}
-
-#portrait-blocker .rotate-icon {
-  width: 64px;
-  height: 64px;
-  color: hsl(var(--primary));
-  animation: rotate-nudge 2s ease-in-out infinite;
-}
-
-#portrait-blocker h2 {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-}
-
-#portrait-blocker p {
-  font-size: 0.875rem;
-  color: hsl(var(--muted-foreground));
-  max-width: 280px;
-}
-
-@keyframes rotate-nudge {
-  0%, 100% { transform: rotate(0deg); }
-  25% { transform: rotate(-15deg); }
-  75% { transform: rotate(15deg); }
-}
-
-/* Only show on real touch devices in portrait — not desktop preview */
-@media (max-width: 1024px) and (orientation: portrait) and (hover: none) and (pointer: coarse) {
-  #portrait-blocker {
-    display: flex !important;
+/* ── Scale desktop layout to fit smaller screens ── */
+@media (max-width: 1024px) {
+  html, body {
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    background: hsl(var(--background));
   }
   #root {
-    display: none !important;
+    width: 1280px;
+    height: calc(100vh / var(--app-scale, 1));
+    transform-origin: top left;
+    transform: scale(var(--app-scale, 1));
+    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
   }
 }
