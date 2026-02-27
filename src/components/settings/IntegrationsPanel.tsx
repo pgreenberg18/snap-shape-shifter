@@ -189,25 +189,25 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     title: "Image Generation",
     description: "AI image generators for character headshots, storyboards & concept art",
     icon: <Image className="h-4 w-4" />,
-    addLabel: "Add Image Generator",
+    addLabel: "Add Service",
   },
   "sound-stage": {
     title: "Voice & Audio (ElevenLabs)",
     description: "Voice synthesis and audio generation",
     icon: <AudioLines className="h-4 w-4" />,
-    addLabel: "Add Voice Provider",
+    addLabel: "Add Service",
   },
   "camera-cart": {
     title: "Video Generation (Seedance, Kling, Veo, Sora)",
     description: "AI video generation for shot previsualization",
     icon: <Camera className="h-4 w-4" />,
-    addLabel: "Add Video Generator",
+    addLabel: "Add Service",
   },
   "post-house": {
     title: "Post-Production (SyncLabs, Topaz AI)",
     description: "Lip-sync, upscaling and post-processing tools",
     icon: <Clapperboard className="h-4 w-4" />,
-    addLabel: "Add Post Tool",
+    addLabel: "Add Service",
   },
 };
 
