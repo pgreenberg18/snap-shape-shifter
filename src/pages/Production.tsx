@@ -568,7 +568,7 @@ const Production = () => {
 
   return (
     <TooltipProvider delayDuration={300}>
-      <div className="flex h-[calc(100vh-64px)] flex-col">
+      <div className="flex h-full flex-col">
         <div className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
           <h1 className="font-display text-sm font-bold tracking-tight text-foreground whitespace-nowrap">Production</h1>
           <p className="text-[10px] text-muted-foreground truncate">Shot composition, camera direction, and visual generation — bring every scene to life.</p>

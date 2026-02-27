@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilmId, useShots } from "@/hooks/useFilm";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -99,6 +100,7 @@ const GlobalAssets = () => {
   };
 
   return (
+    <ScrollArea className="h-full">
     <div className="mx-auto max-w-4xl px-6 py-10 space-y-8">
       <div className="flex items-center justify-between">
         <div>
@@ -208,6 +210,7 @@ const GlobalAssets = () => {
         </div>
       )}
     </div>
+    </ScrollArea>
   );
 };
 
