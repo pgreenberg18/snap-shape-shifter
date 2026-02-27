@@ -940,20 +940,20 @@ const PreProduction = () => {
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
-                  <DialogContent className="max-w-4xl p-0 bg-card border-border max-h-[85vh] overflow-y-auto">
+                  <DialogContent className="max-w-4xl p-0 bg-card border-border h-[80vh] overflow-hidden">
                     <DialogHeader className="sr-only">
                       <DialogTitle>{expandedCard?.label}</DialogTitle>
                       <DialogDescription>Expanded headshot view</DialogDescription>
                     </DialogHeader>
-                    <div className="flex">
-                      {/* Left: headshot image, compact */}
-                      <div className="w-[260px] shrink-0">
+                    <div className="flex h-full">
+                      {/* Left: headshot image fills full height */}
+                      <div className="w-[280px] shrink-0 h-full">
                         {expandedCard?.imageUrl && (
-                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full object-cover" style={{ aspectRatio: "4/5" }} />
+                          <img src={expandedCard.imageUrl} alt={expandedCard.label} className="w-full h-full object-cover" />
                         )}
                       </div>
                       {/* Right: controls + variations */}
-                      <div className="flex-1 flex flex-col p-4 gap-3 min-w-0">
+                      <div className="flex-1 flex flex-col p-4 gap-3 min-w-0 overflow-y-auto">
                         <div className="flex items-center justify-between">
                           <p className="text-sm font-display font-semibold text-foreground">{expandedCard?.label}</p>
                           <div className="flex items-center gap-1">
@@ -1110,7 +1110,7 @@ const PreProduction = () => {
                                   Regenerate
                                 </Button>
                               </div>
-                              <div className="grid grid-cols-4 gap-1.5">
+                              <div className="grid grid-cols-8 gap-1">
                                 {allSlots.map((v) => (
                                   v.status === "complete" && v.image_url ? (
                                     <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
