@@ -255,34 +255,40 @@ const AssetDetailPanel = ({
         {/* ═══ SLOT 2: Scenes (read-only list — where this asset appears) ═══ */}
         {assetType === "wardrobe" ? (
           /* Wardrobe: show scenes where this specific item is assigned */
-          wardrobeScenesDisplay.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
-              <div className="flex items-center gap-2 mb-3">
-                <Film className="h-4 w-4 text-primary" />
-                <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                  Scenes
-                </h3>
-                <span className="text-xs text-muted-foreground/50">
-                  {wardrobeScenesDisplay.length} appearance{wardrobeScenesDisplay.length !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <p className="text-[10px] text-muted-foreground mb-2">
-                Scenes where this wardrobe item is worn. Manage assignments from the character overview.
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {wardrobeScenesDisplay.map((sn) => (
-                  <button
-                    key={sn}
-                    onClick={() => onOpenScene?.(sn)}
-                    className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
-                    title={sceneHeadings?.[sn] || `Scene ${sn}`}
-                  >
-                    {sn}
-                  </button>
-                ))}
-              </div>
+          <div className="rounded-xl border border-border bg-card p-4 cinema-shadow">
+            <div className="flex items-center gap-2 mb-3">
+              <Film className="h-4 w-4 text-primary" />
+              <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
+                Scenes
+              </h3>
+              <span className="text-xs text-muted-foreground/50">
+                {wardrobeScenesDisplay.length} appearance{wardrobeScenesDisplay.length !== 1 ? "s" : ""}
+              </span>
             </div>
-          )
+            {wardrobeScenesDisplay.length > 0 ? (
+              <>
+                <p className="text-[10px] text-muted-foreground mb-2">
+                  Scenes where this wardrobe item is worn. Manage assignments from the character overview.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {wardrobeScenesDisplay.map((sn) => (
+                    <button
+                      key={sn}
+                      onClick={() => onOpenScene?.(sn)}
+                      className="inline-flex items-center justify-center h-7 min-w-[28px] px-2 rounded-md border border-border bg-secondary/50 text-xs font-display font-semibold text-foreground hover:bg-primary/10 hover:border-primary/40 hover:text-primary transition-colors"
+                      title={sceneHeadings?.[sn] || `Scene ${sn}`}
+                    >
+                      {sn}
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <p className="text-[10px] text-muted-foreground/50">
+                No scene assignments yet. Assign this wardrobe to scenes from the character overview.
+              </p>
+            )}
+          </div>
         ) : (
           /* Non-wardrobe: standard scene list */
           sceneNumbers && sceneNumbers.length > 0 && (
