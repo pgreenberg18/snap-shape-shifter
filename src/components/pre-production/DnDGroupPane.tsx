@@ -450,11 +450,11 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       // Wardrobe: ensure every character group has a "Default Wardrobe" as first child
       if (storagePrefix === "wardrobe") {
         let defaultAdded = false;
-        const DEFAULT_WARDROBE = "Default Wardrobe";
         for (const g of loadedGroups) {
-          const hasDefault = g.children.some((c) => c === DEFAULT_WARDROBE);
+          const defaultLabel = `Default Wardrobe (${g.name})`;
+          const hasDefault = g.children.some((c) => c.startsWith("Default Wardrobe"));
           if (!hasDefault && g.children.length >= 0) {
-            g.children = [DEFAULT_WARDROBE, ...g.children.filter((c) => c !== DEFAULT_WARDROBE)];
+            g.children = [defaultLabel, ...g.children];
             defaultAdded = true;
           }
         }
