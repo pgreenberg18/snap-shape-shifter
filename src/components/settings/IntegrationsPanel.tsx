@@ -413,12 +413,13 @@ const IntegrationsPanel = () => {
                   {meta.title}
                   {(() => {
                     const shortenName = (name: string) => {
+                      // Extract the last parenthetical as the variant/version
                       const variantMatch = name.match(/\(([^)]+)\)$/);
                       const variant = variantMatch?.[1];
-                      const baseName = name.replace(/\s*\([^)]*\)\s*/g, "").trim();
-                      // Use short base: drop parenthetical company names, keep first word
-                      const shortBase = baseName.split(/\s+/)[0];
-                      return variant ? `${shortBase} ${variant}` : shortBase;
+                      // If there's a variant, just show that (e.g. "Gemini 2.5 Flash")
+                      // Otherwise show the base name without parentheticals
+                      if (variant) return variant;
+                      return name.replace(/\s*\([^)]*\)\s*/g, "").trim();
                     };
                     const verifiedNames = providers?.filter(p => p.is_verified).map(p => shortenName(p.provider_name)) || [];
                     const allNames = [...verifiedNames, ...added.map(s => shortenName(s.name))];
