@@ -367,12 +367,12 @@ const IntegrationsPanel = () => {
 
   return (
     <div>
-      <div className="mb-6">
-        <div className="flex items-center gap-2 mb-2">
+      <div className="mb-4">
+        <div className="flex items-center gap-2 mb-1">
           <Plug className="h-5 w-5 text-primary" />
-          <h2 className="font-display text-lg font-bold">API Keys</h2>
+          <h2 className="font-display text-sm font-bold">API Keys</h2>
         </div>
-        <p className="text-xs text-muted-foreground">Bring Your Own Keys — connect your AI service providers. All projects have access to these but you can manually change the service or model for each version.</p>
+        <p className="text-[10px] text-muted-foreground">Bring Your Own Keys — connect your AI service providers. All projects have access to these but you can manually change the service or model for each version.</p>
       </div>
 
       <Accordion type="multiple" className="space-y-3">
@@ -601,13 +601,13 @@ const IntegrationsPanel = () => {
       </Accordion>
 
       {/* ── Credit Usage & Thresholds ── */}
-      <div className="mt-10 space-y-6">
+      <div className="mt-10 space-y-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Gauge className="h-5 w-5 text-primary" />
-            <h2 className="font-display text-lg font-bold">Credit Usage</h2>
+            <h2 className="font-display text-sm font-bold">Credit Usage</h2>
           </div>
-          <p className="text-xs text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
+          <p className="text-[10px] text-muted-foreground">Monitor AI credit consumption and set warning or cutoff thresholds.</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
