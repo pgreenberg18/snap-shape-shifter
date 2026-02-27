@@ -3,10 +3,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Check } from "lucide-react";
 import { useSetVersionProvider } from "@/hooks/useVersionProviders";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -106,20 +105,27 @@ const ProviderConflictDialog = ({ filmId, projectId, conflicts, open, onResolved
           {conflicts.map((c) => (
             <div key={c.section} className="space-y-1">
               <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{SECTION_LABELS[c.section] || c.section}</p>
-              <RadioGroup
-                value={selections[c.section] || ""}
-                onValueChange={(val) => setSelections((prev) => ({ ...prev, [c.section]: val }))}
-                className="space-y-0.5"
-              >
-                {c.providers.map((p) => (
-                  <div key={p.id} className="flex items-center gap-2 rounded-md border border-border bg-secondary px-2.5 py-1.5">
-                    <RadioGroupItem value={p.id} id={`conflict-${p.id}`} className="h-3.5 w-3.5" />
-                    <Label htmlFor={`conflict-${p.id}`} className="text-xs cursor-pointer flex-1">
-                      {p.provider_name}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
+              <div className="space-y-0.5">
+                {c.providers.map((p) => {
+                  const isSelected = selections[c.section] === p.id;
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => setSelections((prev) => ({ ...prev, [c.section]: p.id }))}
+                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-colors ${
+                        isSelected ? "border-green-500/60 bg-green-500/10" : "border-border bg-secondary hover:bg-secondary/80"
+                      }`}
+                    >
+                      {isSelected ? (
+                        <Check className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                      ) : (
+                        <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40 shrink-0" />
+                      )}
+                      <span className="text-xs flex-1">{p.provider_name}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
         </div>

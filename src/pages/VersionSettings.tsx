@@ -2,8 +2,6 @@ import { useFilmId, useIntegrations } from "@/hooks/useFilm";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useVersionProviderSelections, useSetVersionProvider } from "@/hooks/useVersionProviders";
 import { Settings, Check, AlertTriangle } from "lucide-react";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
@@ -110,20 +108,27 @@ const VersionSettings = () => {
                     Using <strong>{providers[0].provider_name}</strong>
                   </p>
                 ) : (
-                  <RadioGroup
-                    value={currentSelection || ""}
-                    onValueChange={(val) => handleSelect(sectionId, val)}
-                    className="space-y-2"
-                  >
-                    {providers.map((p) => (
-                      <div key={p.id} className="flex items-center gap-3 rounded-lg border border-border bg-secondary p-3">
-                        <RadioGroupItem value={p.id} id={`prov-${p.id}`} />
-                        <Label htmlFor={`prov-${p.id}`} className="text-[11px] cursor-pointer flex-1">
-                          {p.provider_name}
-                        </Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                  <div className="space-y-2">
+                    {providers.map((p) => {
+                      const isSelected = currentSelection === p.id;
+                      return (
+                        <div
+                          key={p.id}
+                          onClick={() => handleSelect(sectionId, p.id)}
+                          className={`flex items-center gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                            isSelected ? "border-green-500/60 bg-green-500/10" : "border-border bg-secondary hover:bg-secondary/80"
+                          }`}
+                        >
+                          {isSelected ? (
+                            <Check className="h-4 w-4 text-green-500 shrink-0" />
+                          ) : (
+                            <div className="h-4 w-4 rounded-full border border-muted-foreground/40 shrink-0" />
+                          )}
+                          <span className="text-[11px] flex-1">{p.provider_name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             );
