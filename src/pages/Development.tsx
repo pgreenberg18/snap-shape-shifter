@@ -3307,11 +3307,27 @@ const ContentSafetyMatrix = ({
     }
   }, [storagePath, scenes, filmId, toast]);
 
-  // Load script text for editing (parse FDX XML to plain text)
+  // Load script text for editing (parse FDX XML to plain text, or reconstruct from parsed_scenes for PDFs)
   useEffect(() => {
     if (!storagePath || scriptText !== null) return;
+
+    const loadFromParsedScenes = () => {
+      if (!scenes || scenes.length === 0) return;
+      const reconstructed = scenes
+        .sort((a: any, b: any) => (a.scene_number ?? 0) - (b.scene_number ?? 0))
+        .map((s: any) => s.raw_text || s.text || "")
+        .filter(Boolean)
+        .join("\n\n");
+      if (reconstructed.trim()) {
+        setScriptText(reconstructed);
+      }
+    };
+
     supabase.storage.from("scripts").download(storagePath).then(({ data }) => {
-      if (!data) return;
+      if (!data) {
+        loadFromParsedScenes();
+        return;
+      }
       data.text().then((raw) => {
         const isFdx = raw.trimStart().startsWith("<?xml") || raw.includes("<FinalDraft");
         if (isFdx) {
@@ -3337,11 +3353,18 @@ const ContentSafetyMatrix = ({
             setScriptText(raw);
           }
         } else {
-          setScriptText(raw);
+          // Check if the text looks like binary garbage (PDF read as text)
+          const controlChars = (raw.slice(0, 500).match(/[\x00-\x08\x0E-\x1F]/g) || []).length;
+          if (controlChars > 10) {
+            // Binary file (likely PDF) — reconstruct from parsed scenes
+            loadFromParsedScenes();
+          } else {
+            setScriptText(raw);
+          }
         }
       });
     });
-  }, [storagePath, scriptText]);
+  }, [storagePath, scriptText, scenes]);
 
   useEffect(() => {
     if (!storagePath || scriptLoaded) return;
