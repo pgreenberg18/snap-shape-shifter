@@ -160,12 +160,38 @@ const PreProduction = () => {
   const augmentedLocations = useMemo(() => [...(breakdownAssets?.locations ?? []), ...reclassifiedToLocations].sort(), [breakdownAssets?.locations, reclassifiedToLocations]);
   const augmentedVehicles = useMemo(() => [...(breakdownAssets?.vehicles ?? []), ...reclassifiedToVehicles].sort(), [breakdownAssets?.vehicles, reclassifiedToVehicles]);
 
-
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
   const hasLockedImage = !!selectedChar?.image_url;
 
   // Fetch parsed scenes (single source of truth for scene-level data)
   const { data: parsedScenes } = useParsedScenes();
+
+  // Bulk auto-populate metadata for ALL characters that don't have it yet
+  useEffect(() => {
+    if (!characters?.length || !parsedScenes?.length) return;
+    const charsNeedingMeta = characters.filter((c: any) => 
+      !c.description && (!c.sex || c.sex === "Unknown") && !c.age_min
+    );
+    if (charsNeedingMeta.length === 0) return;
+
+    (async () => {
+      for (const char of charsNeedingMeta) {
+        const deduced = deduceCharacterMeta(char.name, parsedScenes as any[]);
+        if (deduced && (deduced.description || deduced.sex !== "Unknown" || deduced.ageMin !== null)) {
+          await supabase.from("characters").update({
+            description: deduced.description || null,
+            sex: deduced.sex,
+            age_min: deduced.ageMin,
+            age_max: deduced.ageMax,
+            is_child: deduced.isChild,
+          } as any).eq("id", char.id);
+        }
+      }
+      if (charsNeedingMeta.length > 0) {
+        queryClient.invalidateQueries({ queryKey: ["characters"] });
+      }
+    })();
+  }, [characters?.length, parsedScenes?.length]);
 
   // Fetch script analysis for global_elements + storage_path only (NOT scene_breakdown)
   const { data: scriptAnalysis } = useQuery({
@@ -230,6 +256,19 @@ const PreProduction = () => {
       setCharAgeMin(deduced?.ageMin?.toString() ?? "");
       setCharAgeMax(deduced?.ageMax?.toString() ?? "");
       setCharIsChild(deduced?.isChild ?? false);
+
+      // Auto-save deduced metadata to DB so it persists
+      if (deduced && (deduced.description || deduced.sex !== "Unknown" || deduced.ageMin !== null)) {
+        supabase.from("characters").update({
+          description: deduced.description || null,
+          sex: deduced.sex,
+          age_min: deduced.ageMin,
+          age_max: deduced.ageMax,
+          is_child: deduced.isChild,
+        } as any).eq("id", selectedChar.id).then(({ error }) => {
+          if (!error) queryClient.invalidateQueries({ queryKey: ["characters"] });
+        });
+      }
     } else {
       setCharDescription("");
       setCharSex("Unknown");
@@ -1397,9 +1436,63 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
   let ageMax: number | null = null;
   let isChild = false;
 
+  // ── 0. Scan raw_text for parenthetical character introductions ──
+  // Scripts typically introduce characters as: CHARACTER NAME (age, description)
+  // e.g. "JULES WINNFIELD (early 30s, Black.)" or "SARAH (28, redhead)"
+  for (const scene of scenes) {
+    const rawText = scene.raw_text || "";
+    // Match patterns like "CHARNAME (early 30s, Black)" near the character name
+    const escapedName = nameUpper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const introPattern = new RegExp(
+      `${escapedName}\\s*\\(([^)]{3,80})\\)`,
+      "i"
+    );
+    const introMatch = rawText.match(introPattern);
+    if (introMatch) {
+      const parenthetical = introMatch[1];
+      // Extract age from parenthetical
+      const earlyMatch = parenthetical.match(/early\s+(\d)0s/i);
+      const midMatch = parenthetical.match(/mid[- ]?(\d)0s/i);
+      const lateMatch = parenthetical.match(/late\s+(\d)0s/i);
+      const plainDecade = parenthetical.match(/\b(\d)0s\b/i);
+      const exactAge = parenthetical.match(/\b(\d{1,2})\b/);
+
+      if (earlyMatch) {
+        const d = parseInt(earlyMatch[1]);
+        ageMin = d * 10;
+        ageMax = d * 10 + 3;
+      } else if (midMatch) {
+        const d = parseInt(midMatch[1]);
+        ageMin = d * 10 + 4;
+        ageMax = d * 10 + 6;
+      } else if (lateMatch) {
+        const d = parseInt(lateMatch[1]);
+        ageMin = d * 10 + 7;
+        ageMax = d * 10 + 9;
+      } else if (plainDecade) {
+        const d = parseInt(plainDecade[1]);
+        ageMin = d * 10;
+        ageMax = d * 10 + 9;
+      } else if (exactAge) {
+        const a = parseInt(exactAge[1]);
+        if (a > 0 && a < 100) { ageMin = a; ageMax = a; }
+      }
+
+      if (ageMax !== null && ageMax <= 12) isChild = true;
+
+      // Extract sex clues from parenthetical
+      const pLower = parenthetical.toLowerCase();
+      if (/\b(female|woman|girl|she)\b/.test(pLower)) sex = "Female";
+      else if (/\b(male|man|boy|he|black|white|hispanic|latino|asian|caucasian)\b/.test(pLower) && !/\b(female|woman|girl)\b/.test(pLower)) {
+        // Ethnicity descriptors in a parenthetical after a character name strongly imply a character intro
+        // but don't directly indicate sex — rely on pronoun analysis below
+      }
+
+      break; // Found the intro, stop
+    }
+  }
+
   // ── 1. Find FIRST TWO appearances and gather introduction-level description ──
-  // Scripts typically give the most explicit character description the first
-  // or second time a character appears, so we collect intro data from both.
   let firstSceneDesc = "";
   const introFragments: string[] = [];
   const allBehavior: string[] = [];
@@ -1412,22 +1505,15 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
       const cName = (c.name || "");
       if (!matchesCharName(cName)) continue;
 
-      // First two appearances: capture introduction-level character details
       if (appearanceCount < 2) {
         appearanceCount++;
-
-        // Capture scene description only for first appearance
         if (appearanceCount === 1) {
           firstSceneDesc = scene.description || "";
         }
-
-        // Character introduction description from AI — the primary source
         if (c.character_introduction) introFragments.push(c.character_introduction);
-        // Physical behavior and key expressions supplement the intro
         if (c.physical_behavior) introFragments.push(c.physical_behavior);
         if (c.key_expressions) introFragments.push(c.key_expressions);
 
-        // Check wardrobe for physical/appearance clues
         if (Array.isArray(scene.wardrobe)) {
           for (const w of scene.wardrobe) {
             const wChar = (w.character || "").toUpperCase().trim();
@@ -1438,8 +1524,22 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
         }
       }
 
-      // Collect all physical descriptions across scenes for broader context
       if (c.physical_behavior) allBehavior.push(c.physical_behavior);
+    }
+
+    // Also extract description fragments from raw_text near the character name
+    if (appearanceCount <= 2) {
+      const rawText = scene.raw_text || "";
+      const escapedName = nameUpper.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      // Look for text immediately after "CHARNAME (parenthetical)" — the intro description
+      const introDescPattern = new RegExp(
+        `${escapedName}\\s*(?:\\([^)]*\\))?[.]?\\s*([^.]{10,200}\\.)`,
+        "i"
+      );
+      const descMatch = rawText.match(introDescPattern);
+      if (descMatch && introFragments.length === 0) {
+        introFragments.push(descMatch[1].trim());
+      }
     }
   }
 
@@ -1548,6 +1648,10 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
 
     const desc = scene.description || "";
     if (desc.toLowerCase().includes(nameLower) || desc.toLowerCase().includes(nameFirstUpper.toLowerCase())) textsToScan.push(desc);
+
+    // Also scan raw_text which contains the original screenplay text with character introductions
+    const rawText = scene.raw_text || "";
+    if (rawText.toLowerCase().includes(nameLower) || rawText.toUpperCase().includes(nameUpper)) textsToScan.push(rawText);
 
     if (Array.isArray(scene.character_details)) {
       for (const c of scene.character_details) {
