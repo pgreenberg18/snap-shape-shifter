@@ -390,11 +390,12 @@ const IntegrationsPanel = () => {
             <AccordionItem key={sectionId} value={sectionId} className="rounded-xl border border-border bg-card px-4 cinema-inset">
               <AccordionTrigger className="text-sm font-display font-semibold hover:no-underline">
                 <span className="flex items-center gap-2 flex-1">{meta.icon}{meta.title}
-                  {!isAdding && available.length > 0 && (
+                  {available.length > 0 && (
                     <Button
                       variant="ghost"
                       size="sm"
                       className="ml-auto gap-1 text-[10px] h-6 px-2 text-muted-foreground hover:text-foreground"
+                      disabled={isAdding}
                       onClick={(e) => { e.stopPropagation(); openAdd(sectionId); }}
                     >
                       <Plus className="h-3 w-3" />
