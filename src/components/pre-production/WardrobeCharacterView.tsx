@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Shirt, Film, ChevronDown, ChevronRight, Lock, AlertCircle,
+  Shirt, Film, ChevronDown, ChevronRight, Lock, AlertCircle, Plus,
 } from "lucide-react";
 
 interface WardrobeCharacterViewProps {
@@ -22,6 +22,8 @@ interface WardrobeCharacterViewProps {
   displayName: (item: string) => string;
   /** Callback when a specific wardrobe item is clicked to open detail view */
   onSelectItem: (itemName: string) => void;
+  /** Callback to create a new costume for a given scene */
+  onCreateCostume?: (sceneNumber: number) => void;
 }
 
 const WardrobeCharacterView = ({
@@ -32,6 +34,7 @@ const WardrobeCharacterView = ({
   sceneHeadings,
   displayName,
   onSelectItem,
+  onCreateCostume,
 }: WardrobeCharacterViewProps) => {
   const [unassignedOpen, setUnassignedOpen] = useState(true);
 
@@ -250,7 +253,7 @@ const WardrobeCharacterView = ({
                   {unassignedScenes.map((sn) => (
                     <button
                       key={sn}
-                      onClick={() => wardrobeItems.length > 0 && onSelectItem(wardrobeItems[0])}
+                      onClick={() => onCreateCostume ? onCreateCostume(sn) : (wardrobeItems.length > 0 && onSelectItem(wardrobeItems[0]))}
                       className="w-full flex items-center gap-3 rounded-lg px-3 py-2 bg-background/50 border border-border hover:border-primary/40 hover:bg-primary/5 transition-all group text-left"
                     >
                       <Film className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
