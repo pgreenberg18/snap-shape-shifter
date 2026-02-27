@@ -447,18 +447,28 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
         }
       }
 
-      // Wardrobe: ensure every character group has a "Default Wardrobe" as first child
+      // Wardrobe: ensure every character group has a "Default Wardrobe (CharName)" as first child
       if (storagePrefix === "wardrobe") {
-        let defaultAdded = false;
+        let defaultChanged = false;
         for (const g of loadedGroups) {
           const defaultLabel = `Default Wardrobe (${g.name})`;
-          const hasDefault = g.children.some((c) => c.startsWith("Default Wardrobe"));
-          if (!hasDefault && g.children.length >= 0) {
+          const existingIdx = g.children.findIndex((c) => c.startsWith("Default Wardrobe"));
+          if (existingIdx === -1) {
+            // No default at all — add one
             g.children = [defaultLabel, ...g.children];
-            defaultAdded = true;
+            defaultChanged = true;
+          } else if (g.children[existingIdx] === "Default Wardrobe") {
+            // Old format without character name — rename it
+            g.children[existingIdx] = defaultLabel;
+            // Move to front if not already
+            if (existingIdx !== 0) {
+              g.children.splice(existingIdx, 1);
+              g.children.unshift(defaultLabel);
+            }
+            defaultChanged = true;
           }
         }
-        if (defaultAdded) {
+        if (defaultChanged) {
           saveJson(storagePrefix, filmId, "groups", loadedGroups);
         }
       }
@@ -1375,7 +1385,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             icon={Icon}
             filmId={filmId}
             assetType={detailAssetType}
-            subtitle={subtitles?.[selectedItem]}
+            subtitle={subtitles?.[selectedItem] || (storagePrefix === "wardrobe" ? groups.find((g) => g.children.includes(selectedItem))?.name : undefined)}
             refImageUrl={refImages[selectedItem]}
             refDescription={refDescriptions[selectedItem] || subtitles?.[selectedItem]}
             sceneNumbers={selectedSceneNumbers}
