@@ -755,7 +755,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
             assetType={detailAssetType}
             subtitle={subtitles?.[selectedItem]}
             refImageUrl={refImages[selectedItem]}
-            refDescription={refDescriptions[selectedItem]}
+            refDescription={refDescriptions[selectedItem] || subtitles?.[selectedItem]}
             sceneNumbers={selectedSceneNumbers}
             onOpenScene={(sn) => openScriptForItems([selectedItem], `Scene ${sn} — ${displayName(selectedItem)}`, sn)}
             onUploadReference={(file) => handleUploadReference(selectedItem, file)}
