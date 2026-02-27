@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { parseSceneFromPlainText, classifyScreenplayLines } from "@/lib/parse-script-text";
-import { Camera, Film, ChevronRight } from "lucide-react";
+import { Camera, Film, ChevronRight, ChevronLeft } from "lucide-react";
 import { useFilmId, useParsedScenes } from "@/hooks/useFilm";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -594,12 +594,12 @@ const Production = () => {
                 {scenesCollapsed && (
                   <button
                     onClick={() => setScenesCollapsed(false)}
-                    className="flex items-center gap-1.5 text-[10px] font-display font-bold uppercase tracking-widest text-muted-foreground hover:text-primary transition-colors shrink-0 mr-1"
+                    className="flex items-center gap-2 text-sm font-display font-bold uppercase tracking-widest text-primary hover:text-primary/80 transition-colors shrink-0 mr-2"
                     title="Show scenes list"
                   >
-                    <Film className="h-3.5 w-3.5" />
+                    <ChevronLeft className="h-4 w-4" />
+                    <Film className="h-4.5 w-4.5" />
                     <span>Scenes</span>
-                    <ChevronRight className="h-3 w-3" />
                   </button>
                 )}
                 <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary text-sm font-mono font-bold">
