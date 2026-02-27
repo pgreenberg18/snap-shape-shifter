@@ -386,6 +386,11 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   );
   const initialMount = useRef(true);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
+  const categoriesRef = useRef(categories);
+  const reviewStatusRef = useRef(reviewStatus);
+  categoriesRef.current = categories;
+  reviewStatusRef.current = reviewStatus;
 
   // Notify parent when all sections are reviewed
   useEffect(() => {
@@ -404,15 +409,25 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
       return;
     }
     if (!analysisId) return;
-    const timeout = setTimeout(async () => {
-      const updatedGlobal = { ...data, _managed: { categories, reviewStatus } };
+    const save = async () => {
+      const updatedGlobal = { ...data, _managed: { categories: categoriesRef.current, reviewStatus: reviewStatusRef.current } };
       await supabase
         .from("script_analyses")
         .update({ global_elements: updatedGlobal as any })
         .eq("id", analysisId);
-    }, 500);
+      pendingSaveRef.current = null;
+    };
+    pendingSaveRef.current = save;
+    const timeout = setTimeout(save, 500);
     return () => clearTimeout(timeout);
   }, [categories, reviewStatus, analysisId]);
+
+  // Flush pending save on unmount
+  useEffect(() => {
+    return () => {
+      pendingSaveRef.current?.();
+    };
+  }, []);
 
   /* selection — first click selects, second click on same item enters edit mode */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
