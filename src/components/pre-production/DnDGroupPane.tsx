@@ -320,7 +320,12 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     });
   }, [filteredGroups, characterOrder, storagePrefix]);
 
-  const displayName = useCallback((item: string) => toTitleCase(renames[item] || item), [renames]);
+  const displayName = useCallback((item: string) => {
+    const raw = renames[item] || item;
+    // Strip trailing character-name parentheticals e.g. "Jacket (howard)" -> "Jacket"
+    const cleaned = raw.replace(/\s*\([^)]+\)\s*$/, "").trim();
+    return toTitleCase(cleaned || raw);
+  }, [renames]);
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
