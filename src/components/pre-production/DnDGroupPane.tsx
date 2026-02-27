@@ -204,9 +204,36 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   const [draftItems, setDraftItems] = useState<Set<string>>(new Set());
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [collapsedTiers, setCollapsedTiers] = useState<Set<string>>(new Set(["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"]));
+  // Wardrobe: per-character scene counts derived from wardrobe_scene_assignments
+  const [wardrobeSceneCounts, setWardrobeSceneCounts] = useState<Map<string, number>>(new Map());
   const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
+
+  // Fetch wardrobe scene counts from DB
+  const fetchWardrobeSceneCounts = useCallback(async () => {
+    if (storagePrefix !== "wardrobe" || !filmId) return;
+    const { data } = await supabase
+      .from("wardrobe_scene_assignments")
+      .select("character_name, scene_number")
+      .eq("film_id", filmId);
+    if (!data) return;
+    const counts = new Map<string, number>();
+    const charScenes = new Map<string, Set<number>>();
+    for (const row of data) {
+      const key = (row.character_name as string).toUpperCase();
+      if (!charScenes.has(key)) charScenes.set(key, new Set());
+      charScenes.get(key)!.add(row.scene_number as number);
+    }
+    for (const [char, scenes] of charScenes) {
+      counts.set(char, scenes.size);
+    }
+    setWardrobeSceneCounts(counts);
+  }, [storagePrefix, filmId]);
+
+  useEffect(() => {
+    fetchWardrobeSceneCounts();
+  }, [fetchWardrobeSceneCounts]);
 
   // Load persisted state — seed from initialGroups if no localStorage groups exist
   useEffect(() => {
@@ -426,30 +453,53 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   };
   const TIER_ORDER: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
 
+  // Derive wardrobe tier from scene counts when wardrobeSceneCounts are available
+  const getWardrobeTier = useCallback((charName: string, baseRankings: Map<string, CharacterTier>): CharacterTier => {
+    const baseTier = baseRankings.get(charName.toUpperCase());
+    if (wardrobeSceneCounts.size === 0) return baseTier ?? "BACKGROUND";
+    const count = wardrobeSceneCounts.get(charName.toUpperCase()) ?? 0;
+    // Determine tier thresholds relative to max scene count
+    const maxCount = Math.max(...wardrobeSceneCounts.values(), 1);
+    if (count === 0) return "BACKGROUND";
+    const ratio = count / maxCount;
+    if (ratio >= 0.6) return "LEAD";
+    if (ratio >= 0.35) return "STRONG_SUPPORT";
+    if (ratio >= 0.15) return "FEATURE";
+    if (ratio >= 0.05) return "UNDER_5";
+    return "BACKGROUND";
+  }, [wardrobeSceneCounts]);
+
   // Build tier-grouped structure for wardrobe sidebar
   const tierGroupedData = useMemo(() => {
     if (storagePrefix !== "wardrobe" || !characterRankings || characterRankings.length === 0) return null;
-    const rankingMap = new Map<string, CharacterTier>();
+    const baseRankingMap = new Map<string, CharacterTier>();
     for (const r of characterRankings) {
-      rankingMap.set(r.nameNormalized, r.tier);
+      baseRankingMap.set(r.nameNormalized, r.tier);
     }
+
+    // Use wardrobe scene counts to determine effective tier
+    const useWardrobeTiers = wardrobeSceneCounts.size > 0;
+
     const result: { tier: CharacterTier; groups: ItemGroup[] }[] = [];
-    const unranked = sortedFilteredGroups.filter((g) => !rankingMap.has(g.name.toUpperCase()));
-    for (const tier of TIER_ORDER) {
+    const TIER_ORDER_LOCAL: CharacterTier[] = ["LEAD", "STRONG_SUPPORT", "FEATURE", "UNDER_5", "BACKGROUND"];
+
+    for (const tier of TIER_ORDER_LOCAL) {
       const tierGroups = sortedFilteredGroups.filter((g) => {
-        const t = rankingMap.get(g.name.toUpperCase());
-        return t === tier;
+        const effectiveTier = useWardrobeTiers
+          ? getWardrobeTier(g.name, baseRankingMap)
+          : (baseRankingMap.get(g.name.toUpperCase()) ?? "BACKGROUND");
+        return effectiveTier === tier;
       });
-      // Merge unranked characters into BACKGROUND
-      if (tier === "BACKGROUND") {
-        const combined = [...tierGroups, ...unranked];
-        if (combined.length > 0) result.push({ tier, groups: combined });
-      } else {
-        if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
-      }
+      // Sort within tier by scene count (descending)
+      tierGroups.sort((a, b) => {
+        const countA = wardrobeSceneCounts.get(a.name.toUpperCase()) ?? 0;
+        const countB = wardrobeSceneCounts.get(b.name.toUpperCase()) ?? 0;
+        return countB - countA;
+      });
+      if (tierGroups.length > 0) result.push({ tier, groups: tierGroups });
     }
     return result;
-  }, [storagePrefix, characterRankings, sortedFilteredGroups]);
+  }, [storagePrefix, characterRankings, sortedFilteredGroups, wardrobeSceneCounts, getWardrobeTier]);
 
   const displayName = useCallback((item: string) => {
     const raw = renames[item] || item;
@@ -504,6 +554,21 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
       persistGroups(next);
       toast.success(itemsToMove.length > 1 ? `Moved ${itemsToMove.length} items` : "Moved to group");
       setMultiSelected(new Set());
+
+      // Update wardrobe_scene_assignments character_name in DB and refresh counts
+      if (storagePrefix === "wardrobe" && filmId && targetGroup) {
+        (async () => {
+          for (const item of itemsToMove) {
+            const cleanName = (updatedRenames[item] || item).replace(/\s*\([^)]+\)\s*$/, "").trim();
+            await supabase
+              .from("wardrobe_scene_assignments")
+              .update({ character_name: targetGroup.name })
+              .eq("film_id", filmId)
+              .eq("clothing_item", cleanName);
+          }
+          fetchWardrobeSceneCounts();
+        })();
+      }
       return;
     }
     if (ungrouped.includes(targetId) && ungrouped.includes(draggedItem)) {
