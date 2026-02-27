@@ -1862,7 +1862,7 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
       </div>
 
       {/* Consistency turnaround thumbnails beneath card */}
-      {completedViews.length > 0 && (
+      {card.locked && completedViews.length > 0 && (
         <div className="mt-1.5 grid grid-cols-4 gap-0.5">
           {completedViews.slice(0, 8).map((v) => (
             <div key={v.id} className="rounded overflow-hidden border border-border/50 bg-secondary/30">
