@@ -63,12 +63,12 @@ const WardrobeCharacterView = ({
     queryKey: ["wardrobe-scene-assignments-char", filmId, characterName],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("wardrobe_scene_assignments" as any)
+        .from("wardrobe_scene_assignments")
         .select("*")
         .eq("film_id", filmId)
         .eq("character_name", characterName);
       if (error) throw error;
-      return data as any[];
+      return data ?? [];
     },
     enabled: !!filmId && !!characterName,
   });
