@@ -209,8 +209,13 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
   // Wardrobe: manual tier overrides for character groups (persisted to localStorage)
   const [wardrobeTierOverrides, setWardrobeTierOverrides] = useState<Record<string, CharacterTier>>({});
   const [wardrobeSortOverrides, setWardrobeSortOverrides] = useState<Record<string, number>>({});
-  // Undo history for wardrobe tier/sort overrides
-  const [wardrobeUndoStack, setWardrobeUndoStack] = useState<Array<{ tierOverrides: Record<string, CharacterTier>; sortOverrides: Record<string, number> }>>([]);
+  // Undo history for wardrobe changes (tier/sort overrides + group membership + renames)
+  const [wardrobeUndoStack, setWardrobeUndoStack] = useState<Array<{
+    tierOverrides: Record<string, CharacterTier>;
+    sortOverrides: Record<string, number>;
+    groups?: ItemGroup[];
+    renames?: Record<string, string>;
+  }>>([]);
 
   // Load/save wardrobe tier overrides
   useEffect(() => {
@@ -225,27 +230,24 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     } catch {}
   }, [filmId, storagePrefix]);
 
+  const pushWardrobeUndo = useCallback(() => {
+    setWardrobeUndoStack(prev => [...prev.slice(-19), {
+      tierOverrides: { ...wardrobeTierOverrides },
+      sortOverrides: { ...wardrobeSortOverrides },
+      groups: groups.map(g => ({ ...g, children: [...g.children] })),
+      renames: { ...renames },
+    }]);
+  }, [wardrobeTierOverrides, wardrobeSortOverrides, groups, renames]);
+
   const persistWardrobeTierOverrides = useCallback((tiers: Record<string, CharacterTier>, sorts: Record<string, number>) => {
-    // Push current state onto undo stack before applying new state
-    setWardrobeUndoStack(prev => [...prev.slice(-19), { tierOverrides: { ...wardrobeTierOverrides }, sortOverrides: { ...wardrobeSortOverrides } }]);
+    pushWardrobeUndo();
     setWardrobeTierOverrides(tiers);
     setWardrobeSortOverrides(sorts);
     if (filmId) {
       localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify({ tierOverrides: tiers, sortOverrides: sorts }));
     }
-  }, [filmId, wardrobeTierOverrides, wardrobeSortOverrides]);
+  }, [filmId, pushWardrobeUndo]);
 
-  const handleWardrobeUndo = useCallback(() => {
-    if (wardrobeUndoStack.length === 0) return;
-    const prev = wardrobeUndoStack[wardrobeUndoStack.length - 1];
-    setWardrobeUndoStack(s => s.slice(0, -1));
-    setWardrobeTierOverrides(prev.tierOverrides);
-    setWardrobeSortOverrides(prev.sortOverrides);
-    if (filmId) {
-      localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify(prev));
-    }
-    toast.success("Undone");
-  }, [wardrobeUndoStack, filmId]);
   const prevSelectedItemRef = useRef<string | null>(null);
   // Script viewer — use global provider
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
@@ -270,6 +272,41 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     }
     setWardrobeSceneCounts(counts);
   }, [storagePrefix, filmId]);
+
+  const handleWardrobeUndo = useCallback(() => {
+    if (wardrobeUndoStack.length === 0) return;
+    const prev = wardrobeUndoStack[wardrobeUndoStack.length - 1];
+    setWardrobeUndoStack(s => s.slice(0, -1));
+    setWardrobeTierOverrides(prev.tierOverrides);
+    setWardrobeSortOverrides(prev.sortOverrides);
+    if (filmId) {
+      localStorage.setItem(`wardrobe-tier-overrides-${filmId}`, JSON.stringify({ tierOverrides: prev.tierOverrides, sortOverrides: prev.sortOverrides }));
+    }
+    if (prev.groups) {
+      setGroups(prev.groups);
+      if (filmId) saveJson(storagePrefix, filmId, "groups", prev.groups);
+    }
+    if (prev.renames) {
+      setRenames(prev.renames);
+      if (filmId) saveJson(storagePrefix, filmId, "renames", prev.renames);
+    }
+    if (prev.groups && filmId && storagePrefix === "wardrobe") {
+      (async () => {
+        for (const g of prev.groups!) {
+          for (const item of g.children) {
+            const cleanName = ((prev.renames?.[item]) || item).replace(/\s*\([^)]+\)\s*$/, "").trim();
+            await supabase
+              .from("wardrobe_scene_assignments")
+              .update({ character_name: g.name })
+              .eq("film_id", filmId)
+              .eq("clothing_item", cleanName);
+          }
+        }
+        fetchWardrobeSceneCounts();
+      })();
+    }
+    toast.success("Undone");
+  }, [wardrobeUndoStack, filmId, storagePrefix, fetchWardrobeSceneCounts]);
 
   useEffect(() => {
     fetchWardrobeSceneCounts();
@@ -692,6 +729,7 @@ const DnDGroupPane = ({ items, filmId, storagePrefix, icon: Icon, title, emptyMe
     }
 
     if (targetId.startsWith("group::")) {
+      if (storagePrefix === "wardrobe") pushWardrobeUndo();
       const groupId = targetId.replace("group::", "");
       const targetGroup = groups.find((g) => g.id === groupId);
 
