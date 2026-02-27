@@ -368,47 +368,13 @@ ${scene.raw_text}`;
         .eq("enriched", true);
 
       if (totalCount && enrichedCount && enrichedCount >= totalCount) {
-        // All scenes enriched — build full scene_breakdown and finalise
+        // All scenes enriched — parsed_scenes table is the source of truth.
+        // scene_breakdown JSON is deprecated and no longer written.
         const { data: allScenes } = await supabase
           .from("parsed_scenes")
           .select("*")
           .eq("film_id", analysis.film_id)
           .order("scene_number");
-
-        const sceneBreakdown = (allScenes || []).map((s: any) => ({
-          scene_number: s.scene_number,
-          scene_heading: s.heading,
-          description: s.description || "",
-          characters: s.characters || [],
-          character_details: s.character_details || [],
-          key_objects: s.key_objects || [],
-          wardrobe: s.wardrobe || [],
-          picture_vehicles: s.picture_vehicles || [],
-          environment_details: s.environment_details || "",
-          stunts: s.stunts || [],
-          sfx: s.sfx || [],
-          vfx: s.vfx || [],
-          sound_cues: s.sound_cues || [],
-          animals: s.animals || [],
-          extras: s.extras || "",
-          special_makeup: s.special_makeup || [],
-          mood: s.mood || "",
-          int_ext: s.int_ext || "",
-          day_night: s.day_night || "",
-          location_name: s.location_name || "",
-          estimated_page_count: s.estimated_page_count || 0,
-          cinematic_elements: s.cinematic_elements || {},
-          visual_design: s.visual_design || {},
-        }));
-
-        // Save scene_breakdown but keep status as "enriching" until finalization completes
-        await supabase
-          .from("script_analyses")
-          .update({
-            scene_breakdown: sceneBreakdown,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", analysis_id);
 
         // Auto-detect primary time period from scene headings
         const yearCounts: Record<string, number> = {};

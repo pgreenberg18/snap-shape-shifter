@@ -235,7 +235,7 @@ const ProjectVersions = () => {
       const [chars, shots, analyses, safety, assets, clips, templates, scenes, filmAssets, provSelections] = await Promise.all([
         supabase.from("characters").select("film_id, description, image_url, reference_image_url").in("film_id", filmIds),
         supabase.from("shots").select("film_id, prompt_text, video_url").in("film_id", filmIds),
-        supabase.from("script_analyses").select("film_id, scene_breakdown, global_elements, ai_generation_notes, visual_summary, storage_path").in("film_id", filmIds),
+        supabase.from("script_analyses").select("film_id, global_elements, ai_generation_notes, visual_summary, storage_path").in("film_id", filmIds),
         supabase.from("content_safety").select("film_id").in("film_id", filmIds),
         supabase.from("asset_identity_registry").select("film_id, description, reference_image_url").in("film_id", filmIds),
         supabase.from("post_production_clips").select("film_id, label").in("film_id", filmIds),
@@ -261,7 +261,7 @@ const ProjectVersions = () => {
       // ~200 bytes base per row + field contents
       addRows(chars.data, (r) => 200 + estimateJsonBytes(r.description) + (r.image_url?.length || 0) + (r.reference_image_url?.length || 0));
       addRows(shots.data, (r) => 150 + estimateJsonBytes(r.prompt_text) + (r.video_url?.length || 0));
-      addRows(analyses.data, (r) => 300 + estimateJsonBytes(r.scene_breakdown) + estimateJsonBytes(r.global_elements) + estimateJsonBytes(r.ai_generation_notes) + (r.visual_summary?.length || 0));
+      addRows(analyses.data, (r) => 300 + estimateJsonBytes(r.global_elements) + estimateJsonBytes(r.ai_generation_notes) + (r.visual_summary?.length || 0));
       addRows(safety.data, () => 100);
       addRows(assets.data, (r) => 200 + estimateJsonBytes(r.description) + (r.reference_image_url?.length || 0));
       addRows(clips.data, (r) => 100 + (r.label?.length || 0));

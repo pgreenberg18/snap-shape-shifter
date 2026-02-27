@@ -473,21 +473,12 @@ Deno.serve(async (req) => {
       if (insertedScene) sceneIds.push(insertedScene.id);
     }
 
-    // Build scene_breakdown JSON so the UI can render results
-    const sceneBreakdown = scenes.map((s) => ({
-      scene_number: s.scene_number,
-      scene_heading: s.heading,
-      description: "",
-      characters: [] as string[],
-      key_objects: [] as string[],
-      wardrobe: [] as string[],
-    }));
-
     // Mark as "enriching" — the enrich-scene function will set "complete"
     // after all scenes have been processed by Gemini.
+    // NOTE: scene_breakdown JSON is deprecated — parsed_scenes table is the source of truth.
     await supabase
       .from("script_analyses")
-      .update({ status: "enriching", scene_breakdown: sceneBreakdown })
+      .update({ status: "enriching" })
       .eq("id", analysis_id);
 
     await logCreditUsage({

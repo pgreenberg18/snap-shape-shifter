@@ -163,7 +163,7 @@ serve(async (req) => {
 
     // ── Parallel fetches: script context, film, style contract, character ──
     const [scriptRes, filmRes, contractRes] = await Promise.all([
-      sb.from("script_analyses").select("visual_summary, scene_breakdown").eq("film_id", film_id).eq("status", "complete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      sb.from("script_analyses").select("visual_summary").eq("film_id", film_id).eq("status", "complete").order("created_at", { ascending: false }).limit(1).maybeSingle(),
       sb.from("films").select("title, time_period, genres").eq("id", film_id).single(),
       sb.from("film_style_contracts").select("*").eq("film_id", film_id).maybeSingle(),
     ]);
