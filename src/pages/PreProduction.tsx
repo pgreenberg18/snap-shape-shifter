@@ -84,6 +84,8 @@ const PreProduction = () => {
   const [charAgeMin, setCharAgeMin] = useState("");
   const [charAgeMax, setCharAgeMax] = useState("");
   const [charIsChild, setCharIsChild] = useState(false);
+  const [charHeight, setCharHeight] = useState("");
+  const [charBuild, setCharBuild] = useState("");
   const [savingMeta, setSavingMeta] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [uploadingRef, setUploadingRef] = useState(false);
@@ -226,6 +228,8 @@ const PreProduction = () => {
             age_min: deduced.ageMin,
             age_max: deduced.ageMax,
             is_child: deduced.isChild,
+            height: deduced.height || null,
+            build: deduced.build || null,
           } as any).eq("id", char.id);
         }
       }
@@ -290,16 +294,18 @@ const PreProduction = () => {
       setCharAgeMin(existing.age_min?.toString() ?? "");
       setCharAgeMax(existing.age_max?.toString() ?? "");
       setCharIsChild(existing.is_child ?? false);
+      setCharHeight(existing.height ?? "");
+      setCharBuild(existing.build ?? "");
     } else if (parsedScenes && parsedScenes.length > 0) {
-      // Always try to deduce from script when no DB values exist
       const deduced = deduceCharacterMeta(selectedChar.name, parsedScenes as any[]);
       setCharDescription(deduced?.description ?? "");
       setCharSex(deduced?.sex ?? "Unknown");
       setCharAgeMin(deduced?.ageMin?.toString() ?? "");
       setCharAgeMax(deduced?.ageMax?.toString() ?? "");
       setCharIsChild(deduced?.isChild ?? false);
+      setCharHeight(deduced?.height ?? "");
+      setCharBuild(deduced?.build ?? "");
 
-      // Auto-save deduced metadata to DB so it persists
       if (deduced && (deduced.description || deduced.sex !== "Unknown" || deduced.ageMin !== null)) {
         supabase.from("characters").update({
           description: deduced.description || null,
@@ -307,6 +313,8 @@ const PreProduction = () => {
           age_min: deduced.ageMin,
           age_max: deduced.ageMax,
           is_child: deduced.isChild,
+          height: deduced.height || null,
+          build: deduced.build || null,
         } as any).eq("id", selectedChar.id).then(({ error }) => {
           if (!error) queryClient.invalidateQueries({ queryKey: ["characters"] });
         });
@@ -317,6 +325,8 @@ const PreProduction = () => {
       setCharAgeMin("");
       setCharAgeMax("");
       setCharIsChild(false);
+      setCharHeight("");
+      setCharBuild("");
     }
   }, [selectedChar?.id, parsedScenes]);
 
@@ -329,12 +339,14 @@ const PreProduction = () => {
       age_min: charAgeMin ? parseInt(charAgeMin) : null,
       age_max: charAgeMax ? parseInt(charAgeMax) : null,
       is_child: charIsChild,
+      height: charHeight || null,
+      build: charBuild || null,
     } as any).eq("id", selectedChar.id);
     setSavingMeta(false);
     if (error) { toast.error("Failed to save character details"); return; }
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     toast.success(`Details saved for ${selectedChar.name}`);
-  }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, queryClient]);
+  }, [selectedChar, charDescription, charSex, charAgeMin, charAgeMax, charIsChild, charHeight, charBuild, queryClient]);
 
   const handleGenerate = useCallback(async () => {
     if (!selectedChar) return;
@@ -355,6 +367,8 @@ const PreProduction = () => {
       ageMin: charAgeMin ? parseInt(charAgeMin) : (selectedChar as any)?.age_min,
       ageMax: charAgeMax ? parseInt(charAgeMax) : (selectedChar as any)?.age_max,
       isChild: charIsChild,
+      height: charHeight || (selectedChar as any)?.height || "",
+      build: charBuild || (selectedChar as any)?.build || "",
       filmTitle: film?.title ?? "",
       timePeriod: film?.time_period ?? "",
       genre: "",
@@ -866,6 +880,45 @@ const PreProduction = () => {
                               <SelectContent>
                                 <SelectItem value="adult">Adult</SelectItem>
                                 <SelectItem value="child">Child</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+
+                        {/* Height / Build row */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Height</label>
+                            <Select value={charHeight || "unset"} onValueChange={(v) => setCharHeight(v === "unset" ? "" : v)}>
+                              <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
+                                <SelectValue placeholder="Not set" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unset">Not set</SelectItem>
+                                <SelectItem value="Short">Short</SelectItem>
+                                <SelectItem value="Average">Average</SelectItem>
+                                <SelectItem value="Tall">Tall</SelectItem>
+                                <SelectItem value="Other">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Build</label>
+                            <Select value={charBuild || "unset"} onValueChange={(v) => setCharBuild(v === "unset" ? "" : v)}>
+                              <SelectTrigger className="h-9 bg-secondary/50 border-border text-sm">
+                                <SelectValue placeholder="Not set" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="unset">Not set</SelectItem>
+                                <SelectItem value="Slim">Slim</SelectItem>
+                                <SelectItem value="Skinny">Skinny</SelectItem>
+                                <SelectItem value="Average">Average</SelectItem>
+                                <SelectItem value="Athletic">Athletic</SelectItem>
+                                <SelectItem value="Muscular">Muscular</SelectItem>
+                                <SelectItem value="Heavyset">Heavyset</SelectItem>
+                                <SelectItem value="Overweight">Overweight</SelectItem>
+                                <SelectItem value="Obese">Obese</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -1554,7 +1607,7 @@ const PreProduction = () => {
 
 /* ── Deduce character metadata from script analysis ── */
 function deduceCharacterMeta(charName: string, scenes: any[]): {
-  description: string; sex: string; ageMin: number | null; ageMax: number | null; isChild: boolean;
+  description: string; sex: string; ageMin: number | null; ageMax: number | null; isChild: boolean; height: string; build: string;
 } | null {
   const nameUpper = charName.toUpperCase().replace(/\s*\(.*?\)\s*/g, "").trim();
   const nameTokens = nameUpper.split(/\s+/);
@@ -1898,9 +1951,74 @@ function deduceCharacterMeta(charName: string, scenes: any[]): {
     if (description && !description.endsWith(".")) description += ".";
   }
 
-  if (!description && sex === "Unknown" && ageMin === null) return null;
+  // ── 6. Deduce height from script text ──
+  let height = "";
+  const HEIGHT_PATTERNS: [RegExp, string][] = [
+    [/\b(towering|very tall|imposing height|looming)\b/i, "Tall"],
+    [/\b(tall|lanky|long-legged|statuesque)\b/i, "Tall"],
+    [/\b(short|petite|compact|diminutive|small-framed|squat)\b/i, "Short"],
+    [/\b(average height|medium height|average build.*height|of medium stature)\b/i, "Average"],
+  ];
+  for (const scene of scenes) {
+    if (height) break;
+    const textsToScan: string[] = [];
+    const desc = (scene.description || "").toLowerCase();
+    if (desc.includes(nameLower)) textsToScan.push(desc);
+    if (Array.isArray(scene.character_details)) {
+      for (const c of scene.character_details) {
+        if (typeof c === "string" || !c?.name) continue;
+        if (!matchesCharName(c.name)) continue;
+        if (c.character_introduction) textsToScan.push(c.character_introduction.toLowerCase());
+        if (c.physical_behavior) textsToScan.push(c.physical_behavior.toLowerCase());
+      }
+    }
+    const rawText = (scene.raw_text || "").toLowerCase();
+    if (rawText.includes(nameLower)) textsToScan.push(rawText);
+    for (const text of textsToScan) {
+      if (height) break;
+      for (const [re, val] of HEIGHT_PATTERNS) {
+        if (re.test(text)) { height = val; break; }
+      }
+    }
+  }
 
-  return { description: description || "", sex, ageMin, ageMax, isChild };
+  // ── 7. Deduce build from script text ──
+  let build = "";
+  const BUILD_PATTERNS: [RegExp, string][] = [
+    [/\b(obese|morbidly overweight|enormously fat)\b/i, "Obese"],
+    [/\b(overweight|heavy|fat|portly|rotund|corpulent|plump|pudgy|chubby)\b/i, "Overweight"],
+    [/\b(heavyset|stocky|burly|brawny|thick|stout|barrel-chested)\b/i, "Heavyset"],
+    [/\b(muscular|ripped|jacked|buff|bodybuilder|muscle-bound|powerful build)\b/i, "Muscular"],
+    [/\b(athletic|fit|toned|well-built|trim|sinewy|wiry)\b/i, "Athletic"],
+    [/\b(skinny|bony|emaciated|gaunt|scrawny|rail-thin|skeletal|skin and bones)\b/i, "Skinny"],
+    [/\b(slim|slender|lean|lithe|slight|thin|svelte|willowy)\b/i, "Slim"],
+  ];
+  for (const scene of scenes) {
+    if (build) break;
+    const textsToScan: string[] = [];
+    const desc = (scene.description || "").toLowerCase();
+    if (desc.includes(nameLower)) textsToScan.push(desc);
+    if (Array.isArray(scene.character_details)) {
+      for (const c of scene.character_details) {
+        if (typeof c === "string" || !c?.name) continue;
+        if (!matchesCharName(c.name)) continue;
+        if (c.character_introduction) textsToScan.push(c.character_introduction.toLowerCase());
+        if (c.physical_behavior) textsToScan.push(c.physical_behavior.toLowerCase());
+      }
+    }
+    const rawText = (scene.raw_text || "").toLowerCase();
+    if (rawText.includes(nameLower)) textsToScan.push(rawText);
+    for (const text of textsToScan) {
+      if (build) break;
+      for (const [re, val] of BUILD_PATTERNS) {
+        if (re.test(text)) { build = val; break; }
+      }
+    }
+  }
+
+  if (!description && sex === "Unknown" && ageMin === null && !height && !build) return null;
+
+  return { description: description || "", sex, ageMin, ageMax, isChild, height, build };
 }
 
 /* ── Audition Card ── */

@@ -272,9 +272,11 @@ export type Database = {
           age_max: number | null
           age_min: number | null
           approved: boolean
+          build: string | null
           created_at: string
           description: string | null
           film_id: string
+          height: string | null
           id: string
           image_url: string | null
           is_child: boolean | null
@@ -288,9 +290,11 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           approved?: boolean
+          build?: string | null
           created_at?: string
           description?: string | null
           film_id: string
+          height?: string | null
           id?: string
           image_url?: string | null
           is_child?: boolean | null
@@ -304,9 +308,11 @@ export type Database = {
           age_max?: number | null
           age_min?: number | null
           approved?: boolean
+          build?: string | null
           created_at?: string
           description?: string | null
           film_id?: string
+          height?: string | null
           id?: string
           image_url?: string | null
           is_child?: boolean | null
