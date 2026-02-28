@@ -1981,41 +1981,6 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
         )}
       </div>
 
-      {/* Consistency turnaround thumbnails beneath card */}
-      {card.locked && allSlots.length > 0 && (
-        <>
-          <div className="mt-1.5 grid grid-cols-4 gap-0.5">
-            {allSlots.map((v) => (
-              v.status === "complete" && v.image_url ? (
-                <button key={v.id} onClick={(e) => { e.stopPropagation(); setLightboxView({ url: v.image_url!, label: v.angle_label }); }} className="rounded overflow-hidden border border-border/50 bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                  <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-square object-contain bg-secondary/50" loading="lazy" />
-                </button>
-              ) : (
-                <div key={v.id} className="rounded overflow-hidden border border-border/50 aspect-square cloth-shimmer flex items-center justify-center">
-                  <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
-                </div>
-              )
-            ))}
-          </div>
-          <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
-            <DialogContent className="max-w-5xl p-4 bg-background border-border">
-              {lightboxView && (
-                <div className="flex flex-col items-center gap-2">
-                  <img src={lightboxView.url} alt={lightboxView.label} className="w-full rounded-lg object-contain max-h-[70vh]" />
-                  <p className="text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground">{lightboxView.label}</p>
-                  <div className="flex gap-1 flex-wrap justify-center">
-                    {completedViews.map((v) => (
-                      <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className={cn("rounded overflow-hidden border w-12 h-12 transition-colors", lightboxView.url === v.image_url ? "border-primary" : "border-border/50 hover:border-primary/60")}>
-                        <img src={v.image_url!} alt={v.angle_label} className="w-full h-full object-contain bg-secondary/50" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </DialogContent>
-          </Dialog>
-        </>
-      )}
     </div>
   );
 };
