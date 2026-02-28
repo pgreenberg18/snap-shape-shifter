@@ -694,7 +694,7 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-12 bg-transparent gap-1 p-0">
-            <PreProductionTab value="casting" icon={Users} label="Auditions" />
+            <PreProductionTab value="casting" icon={Users} label="Cast" />
             <PreProductionTab value="locations" icon={MapPin} label="Locations" />
             <PreProductionTab value="props" icon={Package} label="Props" />
             <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" />
@@ -894,7 +894,7 @@ const PreProduction = () => {
                       <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
                         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Auditions</h3>
+                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Cast</h3>
                         <span className="text-xs text-muted-foreground/50">{cards.length} candidates</span>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -1361,7 +1361,7 @@ const PreProduction = () => {
                   <div className="mx-auto h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
                     <Users className="h-8 w-8 text-muted-foreground/40" />
                   </div>
-                  <h2 className="font-display text-xl font-bold text-foreground">Auditions</h2>
+                  <h2 className="font-display text-xl font-bold text-foreground">Cast</h2>
                   <p className="text-sm text-muted-foreground max-w-sm">Select a character to lock their visual identity and vocal profile.</p>
                 </div>
               </div>
