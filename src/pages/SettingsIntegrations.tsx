@@ -168,6 +168,11 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…", variants: [
       { id: "kapwing-pro", label: "Pro" },
     ]},
+    { id: "elevenlabs-post", name: "ElevenLabs (Dubbing & ADR)", placeholder: "Enter ElevenLabs API key…", variants: [
+      { id: "eleven-dubbing", label: "Dubbing" },
+      { id: "eleven-voice-isolator", label: "Voice Isolator" },
+      { id: "eleven-sound-effects", label: "Sound Effects" },
+    ]},
   ],
 };
 
@@ -220,6 +225,7 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
 const PROVIDER_GROUPS: Record<string, string[]> = {
   google: ["gemini", "veo", "imagen-4"],
   openai: ["openai-chat", "dall-e", "sora"],
+  elevenlabs: ["elevenlabs", "elevenlabs-post"],
 };
 
 /* ── Component ── */
