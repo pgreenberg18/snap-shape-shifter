@@ -223,6 +223,50 @@ export type Database = {
           },
         ]
       }
+      character_voice_auditions: {
+        Row: {
+          audio_url: string | null
+          character_id: string
+          created_at: string
+          id: string
+          sample_text: string | null
+          selected: boolean
+          voice_id: string
+          voice_index: number
+          voice_name: string
+        }
+        Insert: {
+          audio_url?: string | null
+          character_id: string
+          created_at?: string
+          id?: string
+          sample_text?: string | null
+          selected?: boolean
+          voice_id: string
+          voice_index: number
+          voice_name: string
+        }
+        Update: {
+          audio_url?: string | null
+          character_id?: string
+          created_at?: string
+          id?: string
+          sample_text?: string | null
+          selected?: boolean
+          voice_id?: string
+          voice_index?: number
+          voice_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "character_voice_auditions_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       characters: {
         Row: {
           age_max: number | null

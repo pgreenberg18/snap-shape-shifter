@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Mic, Save, Loader2, Lock, AudioWaveform } from "lucide-react";
+import { Mic, Save, Loader2, Lock, AudioWaveform, Sparkles } from "lucide-react";
 import CharacterSidebar from "./CharacterSidebar";
+import VoiceAuditionPlayer from "./VoiceAuditionPlayer";
+import { useParsedScenes } from "@/hooks/useFilm";
 
 interface Character {
   id: string;
@@ -13,6 +15,9 @@ interface Character {
   image_url: string | null;
   voice_description: string | null;
   voice_generation_seed: number | null;
+  sex?: string | null;
+  description?: string | null;
+  film_id?: string;
 }
 
 interface VoiceCastingPanelProps {
@@ -25,9 +30,26 @@ const VoiceCastingPanel = ({ characters, isLoading }: VoiceCastingPanelProps) =>
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null);
   const [voiceDesc, setVoiceDesc] = useState("");
   const [saving, setSaving] = useState(false);
-  const [synthesizing, setSynthesizing] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
   const selectedChar = characters?.find((c) => c.id === selectedCharId) ?? null;
+  const { data: parsedScenes } = useParsedScenes();
+
+  // Fetch existing voice auditions for selected character
+  const { data: auditions, refetch: refetchAuditions } = useQuery({
+    queryKey: ["voice-auditions", selectedCharId],
+    queryFn: async () => {
+      if (!selectedCharId) return [];
+      const { data, error } = await supabase
+        .from("character_voice_auditions")
+        .select("*")
+        .eq("character_id", selectedCharId)
+        .order("voice_index");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!selectedCharId,
+  });
 
   // Sync textarea when character changes
   useEffect(() => {
@@ -50,24 +72,77 @@ const VoiceCastingPanel = ({ characters, isLoading }: VoiceCastingPanelProps) =>
     toast.success(`Voice description saved for ${selectedChar.name}`);
   }, [selectedChar, voiceDesc, queryClient]);
 
-  const handleSynthesizeSeed = useCallback(async () => {
-    if (!selectedChar) return;
-    setSynthesizing(true);
-    // Simulate AI synthesis delay
-    await new Promise((r) => setTimeout(r, 2400));
-    const seed = Math.floor(100000 + Math.random() * 900000);
-    const { error } = await supabase
-      .from("characters")
-      .update({ voice_generation_seed: seed })
-      .eq("id", selectedChar.id);
-    setSynthesizing(false);
-    if (error) {
-      toast.error("Failed to synthesize voice seed");
-      return;
+  // Build sample text from character's first dialogue line in script
+  const getSampleText = useCallback(() => {
+    if (!selectedChar || !parsedScenes?.length) {
+      return `Hello, my name is ${selectedChar?.name ?? "unknown"}. I'm here to tell you a story that will change everything you thought you knew.`;
     }
+    // Find first scene with this character's dialogue
+    for (const scene of parsedScenes) {
+      const rawText = (scene as any).raw_text as string;
+      if (!rawText) continue;
+      const lines = rawText.split("\n");
+      const charNameUpper = selectedChar.name.toUpperCase();
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
+        if (trimmed === charNameUpper || trimmed.startsWith(`${charNameUpper} (`)) {
+          // Next non-empty, non-parenthetical line is dialogue
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const dl = lines[j].trim();
+            if (!dl || dl.startsWith("(")) continue;
+            if (dl === dl.toUpperCase() && dl.length > 3) break; // next character cue
+            if (dl.length > 15) return dl;
+          }
+        }
+      }
+    }
+    return `Hello, my name is ${selectedChar.name}. I'm here to tell you a story that will change everything you thought you knew.`;
+  }, [selectedChar, parsedScenes]);
+
+  const handleGenerateAuditions = useCallback(async () => {
+    if (!selectedChar) return;
+    setGenerating(true);
+    try {
+      const sampleText = getSampleText();
+      const { data, error } = await supabase.functions.invoke("elevenlabs-voice-audition", {
+        body: {
+          character_id: selectedChar.id,
+          character_name: selectedChar.name,
+          sex: selectedChar.sex ?? null,
+          sample_text: sampleText,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      await refetchAuditions();
+      toast.success(`5 voice samples generated for ${selectedChar.name}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast.error("Voice generation failed", { description: msg });
+    } finally {
+      setGenerating(false);
+    }
+  }, [selectedChar, getSampleText, refetchAuditions]);
+
+  const handleSelectVoice = useCallback(async (auditionId: string) => {
+    if (!selectedChar || !auditions) return;
+    // Deselect all, then select the chosen one
+    for (const a of auditions) {
+      if (a.id === auditionId) {
+        await supabase.from("character_voice_auditions").update({ selected: true }).eq("id", a.id);
+        // Also store voice_id as the voice_generation_seed (encoded) on the character
+        await supabase.from("characters").update({
+          voice_generation_seed: a.voice_index + 1,
+          voice_description: voiceDesc || selectedChar.voice_description || null,
+        }).eq("id", selectedChar.id);
+      } else if (a.selected) {
+        await supabase.from("character_voice_auditions").update({ selected: false }).eq("id", a.id);
+      }
+    }
+    queryClient.invalidateQueries({ queryKey: ["voice-auditions", selectedChar.id] });
     queryClient.invalidateQueries({ queryKey: ["characters"] });
-    toast.success(`Voice seed locked for ${selectedChar.name}`);
-  }, [selectedChar, queryClient]);
+    toast.success(`Voice selected for ${selectedChar.name}`);
+  }, [selectedChar, auditions, voiceDesc, queryClient]);
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -93,7 +168,7 @@ const VoiceCastingPanel = ({ characters, isLoading }: VoiceCastingPanelProps) =>
               </div>
               <div>
                 <h2 className="font-display text-lg font-bold text-foreground">{selectedChar.name}</h2>
-                <p className="text-xs text-muted-foreground">Zero-Shot Voice Synthesizer</p>
+                <p className="text-xs text-muted-foreground">Voice Casting — ElevenLabs</p>
               </div>
             </div>
 
@@ -125,85 +200,61 @@ const VoiceCastingPanel = ({ characters, isLoading }: VoiceCastingPanelProps) =>
               </Button>
             </div>
 
-            {/* Voice Seed Synthesizer */}
+            {/* Voice Auditions */}
             <div className="rounded-xl border border-border bg-card p-5 space-y-5 cinema-shadow">
               <div className="flex items-center gap-2">
                 <AudioWaveform className="h-4 w-4 text-primary" />
                 <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">
-                  Voice Seed
+                  Voice Auditions
                 </h3>
               </div>
 
-              {selectedChar.voice_generation_seed ? (
-                <div className="space-y-4">
-                  {/* Locked seed display */}
-                  <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
-                        Locked Seed
-                      </p>
-                      <p className="font-display text-2xl font-bold tracking-wider text-primary tabular-nums">
-                        {selectedChar.voice_generation_seed}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
-                      <Lock className="h-3 w-3" />
-                      Locked
-                    </div>
-                  </div>
-
-                  {/* Waveform animation */}
-                  <div className="rounded-lg bg-secondary/50 border border-border p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">
-                      Voice Profile — Ready for Production
-                    </p>
-                    <div className="flex items-end justify-center gap-[3px] h-10">
-                      {Array.from({ length: 32 }).map((_, i) => (
-                        <div
-                          key={i}
-                          className="w-[3px] rounded-full bg-primary/70"
-                          style={{
-                            height: `${12 + Math.sin(i * 0.6) * 18 + Math.cos(i * 1.1) * 10}px`,
-                            animation: `waveform-bar ${0.8 + (i % 5) * 0.15}s ease-in-out ${i * 0.04}s infinite alternate`,
-                          }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Re-synthesize */}
-                  <Button
-                    onClick={handleSynthesizeSeed}
-                    disabled={synthesizing}
-                    variant="outline"
-                    className="gap-2 w-full"
-                  >
-                    {synthesizing ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" />Re-synthesizing…</>
-                    ) : (
-                      <><AudioWaveform className="h-4 w-4" />Re-synthesize Voice Seed</>
-                    )}
-                  </Button>
-                </div>
+              {auditions && auditions.length > 0 ? (
+                <VoiceAuditionPlayer
+                  auditions={auditions}
+                  onSelect={handleSelectVoice}
+                  onRecast={handleGenerateAuditions}
+                  recasting={generating}
+                />
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-muted-foreground leading-relaxed">
-                    Generate a unique voice seed for <span className="text-primary font-semibold">{selectedChar.name}</span> based on the description above. This seed will lock the vocal identity for production.
+                    Generate <span className="text-primary font-semibold">5 unique voice samples</span> for{" "}
+                    <span className="text-primary font-semibold">{selectedChar.name}</span> using ElevenLabs.
+                    Each sample uses a different voice actor matched to the character's profile.
                   </p>
                   <Button
-                    onClick={handleSynthesizeSeed}
-                    disabled={synthesizing}
+                    onClick={handleGenerateAuditions}
+                    disabled={generating}
                     className="gap-2 w-full"
                   >
-                    {synthesizing ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" />Synthesizing Voice Seed…</>
+                    {generating ? (
+                      <><Loader2 className="h-4 w-4 animate-spin" />Generating Voice Samples…</>
                     ) : (
-                      <><AudioWaveform className="h-4 w-4" />Synthesize Voice Seed</>
+                      <><Sparkles className="h-4 w-4" />Generate Voice Auditions</>
                     )}
                   </Button>
                 </div>
               )}
             </div>
+
+            {/* Locked Voice Indicator */}
+            {selectedChar.voice_generation_seed && auditions?.some((a) => a.selected) && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">
+                    Selected Voice
+                  </p>
+                  <p className="font-display text-lg font-bold text-primary">
+                    {auditions.find((a) => a.selected)?.voice_name ?? "—"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
+                  <Lock className="h-3 w-3" />
+                  Locked
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center p-8 h-full">
@@ -213,7 +264,7 @@ const VoiceCastingPanel = ({ characters, isLoading }: VoiceCastingPanelProps) =>
               </div>
               <h2 className="font-display text-xl font-bold text-foreground">Voice Casting</h2>
               <p className="text-sm text-muted-foreground max-w-sm">
-                Select a character from the sidebar to define their vocal identity.
+                Select a character from the sidebar to audition voices with ElevenLabs.
               </p>
             </div>
           </div>

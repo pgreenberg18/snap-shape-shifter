@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.orchestrate-generation]
 verify_jwt = false
+
+[functions.elevenlabs-voice-audition]
+verify_jwt = false
