@@ -991,76 +991,7 @@ const PreProduction = () => {
                           </div>
                         )}
                       </div>
-                      {/* Right: turnaround views — 2-col grid filling height */}
-                      {expandedCard && (() => {
-                        const views = viewsByCharacter.get(expandedCard.characterId);
-                        const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
-                        const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
-                        const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
-                        return (
-                          <div className="w-[240px] shrink-0 border-l border-border flex flex-col h-full min-h-0">
-                            <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
-                              <Layers className="h-3 w-3 text-primary" />
-                              <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
-                                Views {completedViews.length}/{allSlots.length || 8}
-                              </p>
-                            </div>
-                            {allSlots.length > 0 ? (
-                              <div className="flex-1 overflow-y-auto p-2">
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  {allSlots.map((v) => (
-                                    v.status === "complete" && v.image_url ? (
-                                      <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-md overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                                        <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
-                                        <p className="text-[7px] text-center text-muted-foreground py-0.5 bg-background/80 truncate">{v.angle_label}</p>
-                                      </button>
-                                    ) : (
-                                      <div key={v.id} className="relative rounded-md overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
-                                        <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
-                                        <p className="text-[7px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
-                                      </div>
-                                    )
-                                  ))}
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="flex-1 flex items-center justify-center p-4">
-                                <p className="text-[10px] text-muted-foreground text-center">No turnaround views yet. Generate them below.</p>
-                              </div>
-                            )}
-                            <div className="px-2 py-2 border-t border-border shrink-0">
-                              <Button size="sm" variant="outline" onClick={() => handleRegenerateViews(expandedCard.characterId)} disabled={generatingViews} className="w-full h-8 text-[11px] gap-1.5">
-                                {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
-                                {allSlots.length > 0 ? "Regenerate Views" : "Generate Views"}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })()}
                     </div>
-                  </DialogContent>
-                </Dialog>
-
-                {/* Turnaround view lightbox */}
-                <Dialog open={!!lightboxView} onOpenChange={(open) => { if (!open) setLightboxView(null); }}>
-                  <DialogContent className="max-w-5xl p-4 bg-background border-border">
-                    {lightboxView && (() => {
-                      const views = expandedCard ? viewsByCharacter.get(expandedCard.characterId) : undefined;
-                      const allViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
-                      return (
-                        <div className="flex flex-col items-center gap-2">
-                          <img src={lightboxView.url} alt={lightboxView.label} className="w-full rounded-lg object-contain max-h-[70vh]" />
-                          <p className="text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground">{lightboxView.label}</p>
-                          <div className="flex gap-1 flex-wrap justify-center">
-                            {allViews.map((v) => (
-                              <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className={cn("rounded overflow-hidden border w-12 h-12 transition-colors", lightboxView.url === v.image_url ? "border-primary" : "border-border/50 hover:border-primary/60")}>
-                                <img src={v.image_url!} alt={v.angle_label} className="w-full h-full object-contain bg-secondary/50" />
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })()}
                   </DialogContent>
                 </Dialog>
 
