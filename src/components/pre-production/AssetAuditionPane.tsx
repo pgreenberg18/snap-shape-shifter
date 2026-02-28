@@ -24,7 +24,7 @@ interface AssetAuditionPaneProps {
 
 /* ── Cloth Reveal Skeleton ── */
 const ClothSkeleton = () => (
-  <div className="aspect-square rounded-xl overflow-hidden relative bg-secondary">
+  <div className="aspect-[4/5] rounded-xl overflow-hidden relative bg-secondary">
     {/* Cloth fabric layers */}
     <div className="absolute inset-0 cloth-shimmer" />
     <div className="absolute inset-0 cloth-wave" />
@@ -124,7 +124,7 @@ const AssetAuditionPane = ({ filmId, assetType, assetName, characterId }: AssetA
 
       {/* Loading state — cloth animation */}
       {loading && (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className={cn("grid gap-3", assetType === "wardrobe" ? "grid-cols-5" : "grid-cols-2 lg:grid-cols-3")}>
           {[0, 1, 2, 3, 4].map((i) => (
             <ClothSkeleton key={i} />
           ))}
@@ -134,7 +134,7 @@ const AssetAuditionPane = ({ filmId, assetType, assetName, characterId }: AssetA
       {/* Options grid */}
       {!loading && (
         <ScrollArea className="max-h-[500px]">
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className={cn("grid gap-3", assetType === "wardrobe" ? "grid-cols-5" : "grid-cols-2 lg:grid-cols-3")}>
             {options.map((opt) => {
               const isLocked = lockedIndex === opt.option_index;
               const isLocking = lockingIndex === opt.option_index;
@@ -152,7 +152,7 @@ const AssetAuditionPane = ({ filmId, assetType, assetName, characterId }: AssetA
                   )}
                 >
                   {/* Image with cloth reveal */}
-                  <div className="aspect-square overflow-hidden bg-secondary relative">
+                  <div className={cn("overflow-hidden bg-secondary relative", assetType === "wardrobe" ? "aspect-[4/5]" : "aspect-square")}>
                     {!loaded && (
                       <div className="absolute inset-0 cloth-shimmer z-10" />
                     )}
