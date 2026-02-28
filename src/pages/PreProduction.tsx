@@ -1050,7 +1050,7 @@ const PreProduction = () => {
                                     <img
                                       src={v.image_url!}
                                       alt={v.angle_label}
-                                      className="w-full aspect-square object-cover"
+                                      className="w-full aspect-[4/5] object-cover"
                                       loading="lazy"
                                     />
                                     <p className="text-[10px] text-center text-muted-foreground py-1 bg-background/80 font-mono">
@@ -1151,11 +1151,11 @@ const PreProduction = () => {
                                   {allSlots.map((v) => (
                                     v.status === "complete" && v.image_url ? (
                                       <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
-                                        <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
+                                        <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[4/5] object-contain bg-secondary/50" loading="lazy" />
                                         <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80 truncate font-mono">{v.angle_label}</p>
                                       </button>
                                     ) : (
-                                      <div key={v.id} className="relative rounded-lg overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
+                                      <div key={v.id} className="relative rounded-lg overflow-hidden border border-border aspect-[4/5] cloth-shimmer flex flex-col items-center justify-center gap-1">
                                         <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
                                         <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
                                       </div>
