@@ -20,78 +20,85 @@ const ANGLE_VIEWS = [
   {
     index: 0,
     label: "Front Full",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet, with small margin above and below. Do NOT crop at the knees or waist",
+    framing: "Headshot, framed from mid-chest upward — head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "facing directly toward the camera, straight-on front view",
-    purpose: "Primary identity anchor — the base mesh reference",
-    camera: "Eye level, no tilt, pulled back enough to show full body head to toe",
+    purpose: "Primary identity anchor — the base face reference",
+    camera: "Eye level, no tilt, 8:10 portrait crop",
     expression: "Neutral — no smile, no emotion",
   },
   {
     index: 1,
     label: "Back Full",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet, with small margin above and below. Do NOT crop at the knees or waist",
+    framing: "Headshot from behind, framed from mid-shoulders upward — back of head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "turned fully away from camera, back-of-head view",
-    purpose: "Hair shape, coat drape, silhouette consistency",
-    camera: "Same height as front, pulled back enough to show full body head to toe",
+    purpose: "Hair shape, neckline, silhouette consistency",
+    camera: "Same height as front, 8:10 portrait crop",
     expression: "N/A — back view, posture identical to front",
   },
   {
     index: 2,
     label: "Left Profile",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet, with small margin above and below. Do NOT crop at the knees or waist",
+    framing: "Headshot, framed from mid-chest upward — head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "turned exactly 90 degrees to camera-left, true left profile view",
-    purpose: "Nose projection, jaw depth, shoulder width",
-    camera: "Eye level, true 90° — no three-quarter rotation, pulled back enough to show full body head to toe",
+    purpose: "Nose projection, jaw depth, ear shape",
+    camera: "Eye level, true 90° — no three-quarter rotation, 8:10 portrait crop",
     expression: "Neutral",
   },
   {
     index: 3,
     label: "Right Profile",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet, with small margin above and below. Do NOT crop at the knees or waist",
+    framing: "Headshot, framed from mid-chest upward — head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "turned exactly 90 degrees to camera-right, true right profile view, mirror of left profile",
     purpose: "Asymmetrical face/hair detection — mirror of left profile",
-    camera: "Eye level, true 90°, pulled back enough to show full body head to toe",
+    camera: "Eye level, true 90°, 8:10 portrait crop",
     expression: "Neutral",
   },
   {
     index: 4,
     label: "3/4 Left",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
+    framing: "Headshot, framed from mid-chest upward — head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "the character has turned their head and body slightly to the RIGHT so that the camera sees the LEFT side of their face. The character's LEFT cheek, LEFT ear, and LEFT jawline are closest to the camera. Their nose points to the RIGHT side of the frame. This is a three-quarter LEFT view",
     purpose: "Most cinematic angle — AI learns depth + cheekbone structure",
-    camera: "Eye level, pulled back enough to show full body head to toe",
+    camera: "Eye level, 8:10 portrait crop",
     expression: "Neutral",
   },
   {
     index: 5,
     label: "3/4 Right",
-    framing: "Full body, HEAD TO TOE — the entire figure must be visible from top of head to bottom of feet. Do NOT crop at the knees or waist",
+    framing: "Headshot, framed from mid-chest upward — head fills the upper 60% of the frame in an 8:10 portrait composition",
     direction: "the character has turned their head and body slightly to the LEFT so that the camera sees the RIGHT side of their face. The character's RIGHT cheek, RIGHT ear, and RIGHT jawline are closest to the camera. Their nose points to the LEFT side of the frame. This is the OPPOSITE of the 3/4 Left view — it is a three-quarter RIGHT view showing the RIGHT side of the face",
     purpose: "Mirror of 3/4 left — cinematic depth from opposite side",
-    camera: "Eye level, pulled back enough to show full body head to toe",
+    camera: "Eye level, 8:10 portrait crop",
     expression: "Neutral",
   },
   {
     index: 6,
     label: "MCU Front",
-    framing: "Medium close-up — chest up",
+    framing: "Medium close-up — chest up, 8:10 portrait composition",
     direction: "facing directly toward the camera, straight-on front view",
     purpose: "Facial detail capture — eyes, skin texture, brow, mouth",
-    camera: "Eye level, same lighting as body shots",
+    camera: "Eye level, same lighting as other headshots, 8:10 portrait crop",
     expression: "Neutral",
   },
   {
     index: 7,
     label: "ECU Face",
-    framing: "Extreme close-up — top of head to chin only",
+    framing: "Extreme close-up — top of head to chin only, 8:10 portrait composition",
     direction: "facing directly toward the camera, straight-on front view",
     purpose: "Micro features — iris color, lip shape, skin pores, wrinkles",
-    camera: "Eye level, no beauty lighting, no filters, no depth blur",
+    camera: "Eye level, no beauty lighting, no filters, no depth blur, 8:10 portrait crop",
     expression: "Neutral",
   },
 ];
 
 const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
+
+📷 ASPECT RATIO & FRAMING:
+- All images MUST be 8:10 portrait aspect ratio (e.g. 800x1000, 1024x1280)
+- This is a HEADSHOT reference sheet — frame from mid-chest upward
+- The head should occupy the upper 60% of the frame
+- Do NOT show full body, legs, or feet
+- Do NOT crop tighter than mid-chest
 
 📷 LENS:
 - 50mm equivalent (full-frame sensor)
@@ -113,23 +120,18 @@ const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
 - NO environment
 - NO props in background
 
-🧍 POSE (for full body views):
-- Neutral stance
-- Arms relaxed at sides
-- NO contrapposto
-- NO weight shift
-- Feet shoulder width apart
-- Hands visible
-- NO overlap blocking torso shape
+🧍 POSE:
+- Shoulders relaxed, natural posture
+- Hands NOT visible (framed out below chest)
+- NO action poses
 
 👔 CLOTHING (CRITICAL):
 - The character MUST wear the EXACT SAME clothing in EVERY view
-- Same shirt/jacket/dress, same pants/skirt, same shoes, same accessories
-- Do NOT change, add, or remove any clothing items between views
+- Same shirt/jacket collar visible at chest level
 - Match fabric color, pattern, and texture exactly
-- If the reference shows partial clothing, extrapolate logically but keep consistent
 
 🚫 DO NOT INCLUDE:
+- NO full body shots
 - NO emotion or expression variation
 - NO action poses
 - NO wind effects
@@ -142,21 +144,22 @@ const GLOBAL_RULES = `CRITICAL TECHNICAL REQUIREMENTS — APPLY TO ALL VIEWS:
 
 This is DATA CAPTURE, not art. Accuracy and consistency are paramount.`;
 
-const SYSTEM_PROMPT = `You are a character turnaround reference generator for film production.
+const SYSTEM_PROMPT = `You are a character headshot turnaround reference generator for film production.
 
-Your ONLY job is to produce clean, controlled, multi-angle reference images of a character for AI consistency purposes.
+Your ONLY job is to produce clean, controlled, multi-angle HEADSHOT reference images of a character for AI consistency purposes.
 
 You receive reference images of a cast actor and must generate the SAME person from a specified angle.
 
 ABSOLUTE RULES:
-1. IDENTITY CONSISTENCY is paramount — same face, features, hair, skin, build, clothing
-2. CLOTHING CONSISTENCY is critical — every view must show the EXACT same outfit, shoes, accessories, colors, patterns
-3. This is DATA CAPTURE, not art — no creative interpretation
-4. Studio-flat lighting, neutral gray background, 50mm lens equivalent
-5. Neutral expression, neutral pose (unless close-up views)
-6. The output must look like it belongs on a professional character turnaround sheet
+1. ALL outputs must be 8:10 portrait aspect ratio HEADSHOTS — framed from mid-chest upward
+2. IDENTITY CONSISTENCY is paramount — same face, features, hair, skin, build
+3. CLOTHING CONSISTENCY at the visible chest/collar level — every view must show the EXACT same outfit
+4. This is DATA CAPTURE, not art — no creative interpretation
+5. Studio-flat lighting, neutral gray background, 50mm lens equivalent
+6. Neutral expression
+7. The output must look like it belongs on a professional character headshot turnaround sheet
 
-Think of this as generating a 3D model reference — geometry AND wardrobe preservation is everything.`;
+Think of this as generating a 3D head/bust reference — facial geometry and identity preservation is everything.`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -230,8 +233,9 @@ serve(async (req) => {
     let frontFullUrl: string | null = null;
 
     const buildPrompt = (angle: typeof ANGLE_VIEWS[number], hasFrontRef: boolean) => {
-      return `Generate a photorealistic CHARACTER TURNAROUND REFERENCE photograph.
+      return `Generate a photorealistic CHARACTER HEADSHOT TURNAROUND REFERENCE photograph in 8:10 portrait aspect ratio.
 This is view ${angle.index + 1} of 8 for a professional character consistency/turnaround sheet.
+ALL views are HEADSHOTS framed from mid-chest upward — NOT full body.
 
 CHARACTER: "${character.name}" from the film "${film?.title || "Untitled"}". ${periodStr} ${genreStr}
 
@@ -253,16 +257,15 @@ EXPRESSION: ${angle.expression}
 IDENTITY LOCK:
 - This MUST be the EXACT SAME PERSON as the reference headshot
 - Same face, bone structure, skin tone, hair color/style, ethnicity, build
-- The clothing/costume MUST be EXACTLY IDENTICAL across all 8 views — same fabric, color, style, accessories, shoes
-- Do NOT change, add, or remove any clothing item from what is shown in the reference images
+- The clothing visible at chest level MUST be EXACTLY IDENTICAL across all 8 views
+- Do NOT change any clothing from what is shown in the reference images
 - Proportionally consistent with all other views in this turnaround set
 ${hasFrontRef ? `
 CLOTHING ANCHOR (CRITICAL):
 Two reference images are provided:
   IMAGE 1: The original cast headshot — use for FACE identity
-  IMAGE 2: The already-generated Front Full body view — use for CLOTHING and BODY PROPORTIONS
-You MUST match the clothing, shoes, proportions, and overall silhouette from IMAGE 2 EXACTLY.
-Do NOT invent new clothing. Copy the outfit pixel-for-pixel from the front full reference.` : ""}
+  IMAGE 2: The already-generated Front headshot — use for CLOTHING and FACIAL PROPORTIONS
+You MUST match the visible clothing and proportions from IMAGE 2 EXACTLY.` : ""}
 
 ${GLOBAL_RULES}`;
     };
