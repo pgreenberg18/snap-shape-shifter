@@ -43,7 +43,7 @@ const VARIATION_PROFILES: Record<string, string[]> = {
 const ASPECT_RATIOS: Record<string, string> = {
   location: "16:9 wide cinematic",
   prop: "16:9 wide cinematic",
-  wardrobe: "16:9 wide cinematic",
+  wardrobe: "8:10 portrait",
   vehicle: "16:9 wide cinematic",
 };
 
@@ -323,10 +323,10 @@ REQUIREMENTS:
       } else if (asset_type === "wardrobe") {
         const hasCharRef = characterReferenceUrl || consistencyViewUrls.length > 0;
         if (hasCharRef) {
-          // Show character WEARING the wardrobe in a wide shot
-          prompt = `Generate a single photorealistic cinematic wardrobe reference photograph showing the character wearing "${asset_name}" for the film "${filmTitle}".
+          // Show garment on headless mannequin — 8:10 portrait
+          prompt = `Generate a single photorealistic wardrobe reference photograph showing "${asset_name}" displayed on a headless mannequin form for the film "${filmTitle}".
 
-${characterContext ? `CHARACTER CONTEXT: ${characterContext}` : ""}
+${characterContext ? `CHARACTER CONTEXT (for sizing/fit reference only): ${characterContext}` : ""}
 ${styleBlock}
 
 VISUAL CONTEXT:
@@ -337,19 +337,20 @@ VARIATION STYLE: ${variationStyle}
 This is option ${index + 1} of 5. Apply the "${variationStyle}" approach to this wardrobe piece.
 
 CRITICAL REQUIREMENTS:
-- The character MUST match the reference image(s) exactly — same face, build, skin tone, hair
-- Show the character wearing "${asset_name}" in a medium-wide shot (head to knees visible)
-- 3:4 vertical composition, soft studio or contextual background
-- Costume department photography quality — fabric, fit, and silhouette clearly visible
+- Display the garment on a headless dress form / mannequin torso — NO head, NO face
+- 8:10 portrait composition, centered on the mannequin
+- Good flat even studio lighting — no dramatic shadows, clean white or neutral gray backdrop
+- Costume department photography quality — fabric texture, fit, silhouette, and construction clearly visible
 - Period-accurate for ${timePeriod || "contemporary"} setting
-- Show fabric texture, construction detail, drape, and color accuracy on the body
+- Show fabric drape, color accuracy, and detail
 - Photorealistic, production-quality wardrobe fitting photograph
+- No people, no faces, no hands visible
 - No text. No watermark.${negativeBlock}`;
         } else {
-          // Fallback: mannequin/flat lay (no character reference available)
-          prompt = `Generate a single photorealistic wardrobe photograph showing the costume piece "${asset_name}" for the film "${filmTitle}".
+          // Fallback: headless mannequin (no character reference available)
+          prompt = `Generate a single photorealistic wardrobe photograph showing the costume piece "${asset_name}" displayed on a headless mannequin form for the film "${filmTitle}".
 
-${characterContext ? `CHARACTER CONTEXT: ${characterContext}` : ""}
+${characterContext ? `CHARACTER CONTEXT (for sizing/fit reference only): ${characterContext}` : ""}
 ${styleBlock}
 
 VISUAL CONTEXT:
@@ -360,11 +361,12 @@ VARIATION STYLE: ${variationStyle}
 This is option ${index + 1} of 5. Apply the "${variationStyle}" approach to this wardrobe piece.
 
 REQUIREMENTS:
-- ${aspect} composition — garment displayed on mannequin or styled layout
+- ${aspect} composition — garment displayed on headless dress form / mannequin torso
+- Good flat even studio lighting — clean white or neutral gray backdrop
 - Costume department photography quality
 - Period-accurate for ${timePeriod || "contemporary"} setting
 - Show fabric texture, construction detail, and color accuracy
-- No people visible (mannequin form only if needed)
+- No people, no faces, no hands visible (mannequin form only)
 - No text. No watermark.${negativeBlock}`;
         }
       } else {
@@ -409,8 +411,8 @@ REQUIREMENTS:
                 messages: [
                   {
                     role: "system",
-                    content: asset_type === "wardrobe" && (characterReferenceUrl || consistencyViewUrls.length > 0)
-                      ? `You are a cinematic wardrobe fitting visualization engine. You receive reference images of an actor/character and must generate that SAME person wearing a specified costume. Maintain absolute identity consistency — same face, features, hair, skin, build. Show the full wardrobe clearly in a medium-wide framing.`
+                    content: asset_type === "wardrobe"
+                      ? `You are a cinematic wardrobe visualization engine. Generate photorealistic photographs of costume pieces displayed on headless mannequin forms. Use flat, even studio lighting with a clean neutral backdrop. 8:10 portrait framing. No faces, no heads, no hands.`
                       : `You are a cinematic production design visualization engine. Generate photorealistic ${asset_type} reference images for film pre-production. Match the film's established visual identity, color palette, and genre aesthetic precisely.`,
                   },
                   {
