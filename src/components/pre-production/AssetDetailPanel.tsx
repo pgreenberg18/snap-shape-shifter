@@ -68,6 +68,7 @@ const AssetDetailPanel = ({
   const [scenesOpen, setScenesOpen] = useState(false);
   const [selectionOpen, setSelectionOpen] = useState(false);
   const [fittingOpen, setFittingOpen] = useState(false);
+  const [fittingGenerating, setFittingGenerating] = useState(false);
 
   // Sync description when selected item or external description changes
   useEffect(() => {
@@ -140,11 +141,51 @@ const AssetDetailPanel = ({
     enabled: assetType === "wardrobe" && !!filmId && !!characterName,
   });
 
-  // Fetch existing wardrobe fitting views (if any)
-  // These would be stored similar to character_consistency_views but for wardrobe
-  // For now, show placeholders until the fitting generation system is built
+  // Fetch existing wardrobe fitting views
+  const { data: fittingViews = [] } = useQuery({
+    queryKey: ["wardrobe-fitting-views", filmId, characterData?.id, itemName],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wardrobe_fitting_views")
+        .select("*")
+        .eq("film_id", filmId)
+        .eq("character_id", characterData!.id)
+        .eq("asset_name", itemName)
+        .order("angle_index");
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: assetType === "wardrobe" && !!characterData?.id && !!filmId,
+    refetchInterval: fittingGenerating ? 5000 : false,
+  });
+
   const hasLockedWardrobe = !!lockedAssetForItem;
   const hasApprovedCharacter = !!characterData?.approved;
+
+  // Auto-trigger wardrobe fitting generation
+  const triggerFittingGeneration = useCallback(async () => {
+    if (!characterData?.id || !characterData.approved) return;
+    setFittingGenerating(true);
+    setFittingOpen(true);
+    try {
+      const { error } = await supabase.functions.invoke("generate-wardrobe-fitting", {
+        body: { character_id: characterData.id, film_id: filmId, asset_name: itemName },
+      });
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["wardrobe-fitting-views"] });
+      toast.success("Wardrobe fitting views generated!");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to generate fitting views");
+    } finally {
+      setFittingGenerating(false);
+    }
+  }, [characterData, filmId, itemName, queryClient]);
+
+  const handleWardrobeLock = useCallback(() => {
+    if (assetType === "wardrobe" && characterData?.approved) {
+      triggerFittingGeneration();
+    }
+  }, [assetType, characterData, triggerFittingGeneration]);
 
   return (
     <ScrollArea className="flex-1">
@@ -347,6 +388,7 @@ const AssetDetailPanel = ({
                   filmId={filmId}
                   assetType={assetType}
                   assetName={itemName}
+                  onLock={handleWardrobeLock}
                 />
               </div>
             </CollapsibleContent>
@@ -385,36 +427,45 @@ const AssetDetailPanel = ({
                 ) : (
                   <div className="space-y-3 pt-2">
                     <p className="text-[10px] text-muted-foreground">
-                      Generate 8 standardized views of <span className="font-semibold text-foreground">{characterName}</span> wearing this costume. These become the canonical visual reference for continuity.
+                      8 standardized views of <span className="font-semibold text-foreground">{characterName}</span> wearing this costume — the canonical visual reference for continuity.
                     </p>
 
                     <div className="grid grid-cols-4 gap-2">
-                      {FITTING_ANGLES.map((angle) => (
-                        <div
-                          key={angle.index}
-                          className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
-                        >
-                          <div className="aspect-square flex items-center justify-center bg-secondary/50">
-                            <RotateCcw className="h-5 w-5 text-muted-foreground/20" />
+                      {FITTING_ANGLES.map((angle) => {
+                        const view = fittingViews.find((v: any) => v.angle_index === angle.index);
+                        const isComplete = view?.status === "complete" && view?.image_url;
+                        const isGenerating = view?.status === "generating";
+                        return (
+                          <div
+                            key={angle.index}
+                            className="rounded-lg border border-border bg-secondary/30 overflow-hidden"
+                          >
+                            <div className="aspect-[4/5] flex items-center justify-center bg-secondary/50 overflow-hidden relative">
+                              {isComplete ? (
+                                <img src={view.image_url} alt={angle.label} className="h-full w-full object-cover" />
+                              ) : isGenerating ? (
+                                <Loader2 className="h-5 w-5 text-primary/40 animate-spin" />
+                              ) : (
+                                <RotateCcw className="h-5 w-5 text-muted-foreground/20" />
+                              )}
+                            </div>
+                            <p className="text-[9px] font-display font-semibold text-muted-foreground text-center py-1 uppercase tracking-wider">
+                              {angle.label}
+                            </p>
                           </div>
-                          <p className="text-[9px] font-display font-semibold text-muted-foreground text-center py-1 uppercase tracking-wider">
-                            {angle.label}
-                          </p>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <Button
                       variant="outline"
                       className="w-full gap-2"
-                      disabled
+                      onClick={triggerFittingGeneration}
+                      disabled={fittingGenerating}
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      Generate Fitting Views
+                      {fittingGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />}
+                      {fittingViews.length > 0 ? "Regenerate Fitting Views" : "Generate Fitting Views"}
                     </Button>
-                    <p className="text-[9px] text-muted-foreground/50 text-center">
-                      Fitting generation coming soon — uses the same 8 angles as character consistency views
-                    </p>
                   </div>
                 )}
               </CollapsibleContent>

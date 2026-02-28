@@ -20,6 +20,7 @@ interface AssetAuditionPaneProps {
   assetType: "location" | "prop" | "wardrobe" | "vehicle";
   assetName: string;
   characterId?: string;
+  onLock?: (option: AssetOption) => void;
 }
 
 /* ── Cloth Reveal Skeleton ── */
@@ -39,7 +40,7 @@ const ClothSkeleton = () => (
   </div>
 );
 
-const AssetAuditionPane = ({ filmId, assetType, assetName, characterId }: AssetAuditionPaneProps) => {
+const AssetAuditionPane = ({ filmId, assetType, assetName, characterId, onLock }: AssetAuditionPaneProps) => {
   const [options, setOptions] = useState<AssetOption[]>([]);
   const [lockedIndex, setLockedIndex] = useState<number | null>(null);
   const [lockingIndex, setLockingIndex] = useState<number | null>(null);
@@ -88,6 +89,7 @@ const AssetAuditionPane = ({ filmId, assetType, assetName, characterId }: AssetA
       if (error) throw error;
       setLockedIndex(option.option_index);
       toast.success(`"${option.description}" locked for ${assetName}`);
+      onLock?.(option);
     } catch (e: any) {
       toast.error(e.message || "Failed to lock option");
     } finally {
