@@ -86,8 +86,9 @@ serve(async (req) => {
       audio_url: string | null;
     }> = [];
 
-    // Generate TTS for each voice in parallel
-    const promises = voices.map(async (voice, index) => {
+    // Generate TTS sequentially to respect ElevenLabs concurrency limits
+    for (let index = 0; index < voices.length; index++) {
+      const voice = voices[index];
       try {
         const ttsResponse = await fetch(
           `https://api.elevenlabs.io/v1/text-to-speech/${voice.id}?output_format=mp3_44100_128`,
@@ -99,7 +100,7 @@ serve(async (req) => {
             },
             body: JSON.stringify({
               text: sample_text,
-              model_id: "eleven_multilingual_v2",
+              model_id: "eleven_turbo_v2_5",
               voice_settings: {
                 stability: 0.5,
                 similarity_boost: 0.75,
@@ -113,7 +114,8 @@ serve(async (req) => {
         if (!ttsResponse.ok) {
           const errText = await ttsResponse.text();
           console.error(`TTS failed for ${voice.name}: ${ttsResponse.status} ${errText}`);
-          return { voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null };
+          results.push({ voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null });
+          continue;
         }
 
         const audioBuffer = await ttsResponse.arrayBuffer();
@@ -128,14 +130,14 @@ serve(async (req) => {
 
         if (uploadError) {
           console.error(`Upload failed for ${voice.name}:`, uploadError);
-          return { voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null };
+          results.push({ voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null });
+          continue;
         }
 
         const { data: publicUrl } = adminClient.storage
           .from("voice-samples")
           .getPublicUrl(fileName);
 
-        // Persist to DB
         await adminClient.from("character_voice_auditions").insert({
           character_id,
           voice_index: index,
@@ -146,20 +148,17 @@ serve(async (req) => {
           selected: false,
         });
 
-        return {
+        results.push({
           voice_index: index,
           voice_id: voice.id,
           voice_name: voice.name,
           audio_url: publicUrl.publicUrl,
-        };
+        });
       } catch (e) {
         console.error(`Voice ${voice.name} generation error:`, e);
-        return { voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null };
+        results.push({ voice_index: index, voice_id: voice.id, voice_name: voice.name, audio_url: null });
       }
-    });
-
-    const settled = await Promise.all(promises);
-    results.push(...settled);
+    }
 
     return new Response(
       JSON.stringify({ auditions: results.sort((a, b) => a.voice_index - b.voice_index) }),
