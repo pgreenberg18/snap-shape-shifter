@@ -2,36 +2,123 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 
-/** Deduplicate vehicle names that clearly refer to the same vehicle */
-function deduplicateVehicles(vehicles: string[]): string[] {
-  if (vehicles.length <= 1) return vehicles.sort();
-  const normalize = (s: string) =>
-    s.toLowerCase().replace(/['']s\b/g, "").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
-  const groups = new Map<string, string>();
-  for (const v of vehicles) {
-    const key = normalize(v);
-    const existing = groups.get(key);
-    if (!existing || v.length > existing.length) groups.set(key, v);
+/**
+ * Smart deduplication: merges items that refer to the same thing by understanding
+ * ownership (possessives), synonym families, case, plurals, and compound words.
+ */
+function smartMergeItems(
+  items: Set<string>,
+  ctxMap: Map<string, any>,
+  options: { families?: string[][] } = {}
+): { items: Set<string>; ctxMap: Map<string, any> } {
+  if (items.size <= 1) return { items: new Set(items), ctxMap: new Map(ctxMap) };
+
+  const allFamilyMembers = new Set<string>();
+  (options.families || []).forEach(fam => fam.forEach(f => allFamilyMembers.add(f.toLowerCase())));
+
+  const parseOwnership = (s: string): { owner: string; noun: string } => {
+    const lower = s.toLowerCase().replace(/['']/g, "'").replace(/\s+/g, " ").trim();
+    if (allFamilyMembers.has(lower)) return { owner: "", noun: lower };
+    const possMatch = lower.match(/^(.+?)'s?\s+(.+)$/);
+    if (possMatch) return { owner: possMatch[1].trim(), noun: possMatch[2].trim() };
+    const parenMatch = lower.match(/^(.+?)\s*\((.+?)'s?\)$/);
+    if (parenMatch) return { owner: parenMatch[2].trim(), noun: parenMatch[1].trim() };
+    return { owner: "", noun: lower };
+  };
+
+  const familyOf = new Map<string, number>();
+  (options.families || []).forEach((fam, i) => {
+    for (const noun of fam) familyOf.set(noun.toLowerCase(), i);
+  });
+
+  const getFamilyId = (noun: string): string => {
+    const lower = noun.toLowerCase().replace(/\s+/g, " ").trim();
+    const fid = familyOf.get(lower);
+    if (fid !== undefined) return `F${fid}`;
+    if (lower.endsWith("s") && lower.length > 3) {
+      const fid2 = familyOf.get(lower.slice(0, -1));
+      if (fid2 !== undefined) return `F${fid2}`;
+    }
+    const spaceless = lower.replace(/\s/g, "");
+    const fid3 = familyOf.get(spaceless);
+    if (fid3 !== undefined) return `F${fid3}`;
+    const normalized = spaceless.endsWith("s") && spaceless.length > 3 ? spaceless.slice(0, -1) : spaceless;
+    return `N_${normalized}`;
+  };
+
+  type Parsed = { owner: string; noun: string; familyId: string; original: string };
+  const parsed: Parsed[] = [...items].map(s => {
+    const { owner, noun } = parseOwnership(s);
+    return { owner, noun, familyId: getFamilyId(noun), original: s };
+  });
+
+  const groups = new Map<string, Parsed[]>();
+  for (const p of parsed) {
+    const key = `${p.owner}|||${p.familyId}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(p);
   }
-  // Merge entries where one normalized key is a substring of another
-  const keys = [...groups.keys()].sort((a, b) => a.length - b.length);
-  const merged = new Map<string, string>();
-  const consumed = new Set<string>();
-  for (const key of keys) {
-    if (consumed.has(key)) continue;
-    let bestName = groups.get(key)!;
-    for (const other of keys) {
-      if (other === key || consumed.has(other)) continue;
-      if (other.includes(key) || key.includes(other)) {
-        consumed.add(other);
-        const otherName = groups.get(other)!;
-        if (otherName.length > bestName.length) bestName = otherName;
+
+  // Cross-merge: ownerless → owned if exactly 1 owned match in same family
+  const groupKeys = [...groups.keys()];
+  for (const key of groupKeys) {
+    if (!key.startsWith("|||")) continue;
+    if (!groups.has(key)) continue;
+    const familyId = key.slice(3);
+    const ownedMatches = groupKeys.filter(k => k !== key && groups.has(k) && k.endsWith(`|||${familyId}`) && !k.startsWith("|||"));
+    if (ownedMatches.length === 1) {
+      groups.get(ownedMatches[0])!.push(...groups.get(key)!);
+      groups.delete(key);
+    }
+  }
+
+  const newItems = new Set<string>();
+  const newCtxMap = new Map<string, any>();
+
+  for (const [, group] of groups) {
+    group.sort((a, b) => {
+      if (a.owner && !b.owner) return -1;
+      if (!a.owner && b.owner) return 1;
+      if (a.noun.length !== b.noun.length) return b.noun.length - a.noun.length;
+      const aUpper = a.original === a.original.toUpperCase();
+      const bUpper = b.original === b.original.toUpperCase();
+      if (!aUpper && bUpper) return -1;
+      if (aUpper && !bUpper) return 1;
+      return b.original.length - a.original.length;
+    });
+    const canonical = group[0].original;
+    newItems.add(canonical);
+
+    let merged: any = null;
+    for (const p of group) {
+      const ctx = ctxMap.get(p.original);
+      if (!ctx) continue;
+      if (!merged) {
+        merged = { ...ctx, scenes: [...(ctx.scenes || [])], locations: [...(ctx.locations || [])], characters: new Set(ctx.characters || []) };
+        for (const k of Object.keys(ctx)) {
+          if (!["scenes", "locations", "characters"].includes(k)) {
+            const v = ctx[k];
+            if (v instanceof Set) merged[k] = new Set(v);
+            else if (Array.isArray(v)) merged[k] = [...v];
+          }
+        }
+      } else {
+        if (ctx.scenes) merged.scenes.push(...ctx.scenes);
+        if (ctx.locations) merged.locations.push(...ctx.locations);
+        if (ctx.characters) for (const c of ctx.characters) merged.characters.add(c);
+        for (const k of Object.keys(ctx)) {
+          if (!["scenes", "locations", "characters"].includes(k)) {
+            const v = ctx[k];
+            if (v instanceof Set && merged[k] instanceof Set) for (const x of v) merged[k].add(x);
+            else if (Array.isArray(v) && Array.isArray(merged[k])) merged[k].push(...v);
+          }
+        }
       }
     }
-    consumed.add(key);
-    merged.set(key, bestName);
+    if (merged) newCtxMap.set(canonical, merged);
   }
-  return [...merged.values()].sort();
+
+  return { items: newItems, ctxMap: newCtxMap };
 }
 /** Returns the current film (version) ID from the URL */
 export const useFilmId = (): string | undefined => {
@@ -290,6 +377,44 @@ export const useBreakdownAssets = () => {
         }
       }
 
+      // ── Smart deduplication: merge items that refer to the same thing ──
+      const VEHICLE_FAMILIES: string[][] = [
+        ["car", "sedan", "coupe", "vehicle", "auto", "automobile", "corvette", "classic corvette", "tesla", "mustang", "camaro"],
+        ["cop car", "police car", "cop's car", "cruiser", "patrol car", "patrol"],
+        ["surveillance car"],
+        ["van", "cargo van", "passenger van", "cargo van with no windows", "white van", "minivan"],
+        ["truck", "pickup"],
+        ["bus", "school bus"],
+        ["ambulance"],
+        ["motorcycle", "bike", "bicycle"],
+        ["helicopter", "chopper"],
+        ["limo", "limousine"],
+        ["on-coming vehicle"],
+      ];
+      const PROP_FAMILIES: string[][] = [
+        ["chalkboard", "chalk board", "blackboard"],
+        ["phone", "cell phone", "mobile phone", "cellphone", "telephone"],
+        ["gun", "handgun", "pistol", "firearm"],
+        ["notebook", "notepad"],
+        ["heart monitor", "heart beat monitor"],
+        ["collider", "collider chamber", "collision chamber", "collision chamber (tube)"],
+        ["electron gun"],
+        ["coffee cup", "coffee mug"],
+        ["display screen", "display screens"],
+        ["computer screen", "computer monitor", "computer monitors"],
+        ["framed photo", "double photo frame", "photo frame"],
+      ];
+
+      // Deduplicate vehicles
+      const vehMerged = smartMergeItems(vehicleSet, vehicleContextMap, { families: VEHICLE_FAMILIES });
+      vehicleSet.clear(); for (const v of vehMerged.items) vehicleSet.add(v);
+      vehicleContextMap.clear(); for (const [k, v] of vehMerged.ctxMap) vehicleContextMap.set(k, v);
+
+      // Deduplicate props
+      const propMerged = smartMergeItems(propSet, propContextMap, { families: PROP_FAMILIES });
+      propSet.clear(); for (const p of propMerged.items) propSet.add(p);
+      propContextMap.clear(); for (const [k, v] of propMerged.ctxMap) propContextMap.set(k, v);
+
       // Second pass: build descriptions — enriched with raw script prose
       const sortedLocations = [...locationSet].sort((a, b) => (locationSceneCount.get(b) || 0) - (locationSceneCount.get(a) || 0));
       for (const loc of sortedLocations) {
@@ -537,7 +662,7 @@ export const useBreakdownAssets = () => {
           const [character, clothing] = k.split("::");
           return { character, clothing };
         }),
-        vehicles: deduplicateVehicles([...vehicleSet]),
+        vehicles: [...vehicleSet].sort(),
         vehicleDescriptions: vehicleDescMap,
       };
     },
