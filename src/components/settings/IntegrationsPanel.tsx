@@ -184,6 +184,11 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     { id: "kling-upscale", name: "Kling Video Upscale", placeholder: "Enter Kling API key…", variants: [
       { id: "kling-upscale-1.0", label: "Upscale 1.0" },
     ]},
+    { id: "elevenlabs-post", name: "ElevenLabs (Dubbing & ADR)", placeholder: "Enter ElevenLabs API key…", variants: [
+      { id: "eleven-dubbing", label: "Dubbing" },
+      { id: "eleven-voice-isolator", label: "Voice Isolator" },
+      { id: "eleven-sound-effects", label: "Sound Effects" },
+    ]},
   ],
 };
 
@@ -236,6 +241,7 @@ const LEGACY_SECTION_MAP: Record<string, string> = {
 /* ── Provider groups: services that share the same API key ── */
 const PROVIDER_GROUPS: Record<string, string[]> = {
   google: ["gemini", "veo", "imagen-4", "lyria", "chirp"],
+  elevenlabs: ["elevenlabs", "elevenlabs-post"],
   openai: ["openai-chat", "dall-e", "sora", "openai-tts"],
   kling: ["kling", "kling-lipsync", "kling-upscale"],
 };
@@ -257,6 +263,7 @@ const SERVICE_USAGE_URLS: Record<string, string> = {
   "leonardo": "https://app.leonardo.ai/settings",
   "recraft": "https://www.recraft.ai/dashboard",
   "elevenlabs": "https://elevenlabs.io/subscription",
+  "elevenlabs-post": "https://elevenlabs.io/subscription",
   "playht": "https://play.ht/studio/billing",
   "murf": "https://murf.ai/dashboard/billing",
   "wellsaid": "https://wellsaidlabs.com/account",
