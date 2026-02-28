@@ -437,8 +437,30 @@ const PreProduction = () => {
     await supabase.from("character_auditions").update({ locked: true }).eq("character_id", targetCharId).eq("card_index", card.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     const charName = characters?.find(c => c.id === targetCharId)?.name ?? "Character";
-    toast.success(`${charName} selected — finalize in Casting below`);
-  }, [characters, queryClient]);
+    toast.success(`${charName} selected — generating turnaround views…`);
+    // Auto-trigger consistency views generation
+    setGeneratingViews(true);
+    startBackgroundTask(
+      "consistency-views",
+      targetCharId,
+      async (_updatePartial, updateStatus) => {
+        try {
+          const { data, error: viewsErr } = await supabase.functions.invoke("generate-consistency-views", {
+            body: { character_id: targetCharId },
+          });
+          if (viewsErr) throw viewsErr;
+          updateStatus("complete", { generated: data?.generated ?? 0 });
+        } catch (e: any) {
+          console.error("Auto consistency views error:", e);
+          updateStatus("error", undefined, e?.message || "Failed to generate consistency views");
+        } finally {
+          setGeneratingViews(false);
+          queryClient.invalidateQueries({ queryKey: ["consistency-views"] });
+        }
+      },
+      `${charName} turnaround views`
+    );
+  }, [characters, queryClient, startBackgroundTask]);
 
   const handleGenerateConsistencyViews = useCallback(async () => {
     if (!pendingConsistencyCharId) return;
@@ -887,17 +909,17 @@ const PreProduction = () => {
                   );
                 })()}
 
-                {/* ═══ CASTING — Audition cards grid ═══ */}
-                {(cards.length > 0 || generating) && (
-                  <Collapsible>
-                    <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
-                      <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
-                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Cast</h3>
-                        <span className="text-xs text-muted-foreground/50">{cards.length} candidates</span>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent>
+                {/* ═══ SLOT 3: AUDITIONS — 10-card headshot exploration ═══ */}
+                <Collapsible>
+                  <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
+                    <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+                      <Sparkles className="h-4 w-4 text-primary" />
+                      <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Auditions</h3>
+                      <span className="text-xs text-muted-foreground/50">{cards.length > 0 ? `${cards.length} candidates` : "no candidates yet"}</span>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      {cards.length > 0 || generating ? (
                         <div className="px-4 pb-4 space-y-6">
                           {/* Row 1: Archetypes */}
                           {(() => {
@@ -930,10 +952,19 @@ const PreProduction = () => {
                             );
                           })()}
                         </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                )}
+                      ) : (
+                        <div className="px-4 pb-4">
+                          <div className="flex flex-col items-center justify-center py-8 gap-2 text-center rounded-lg border border-dashed border-border bg-secondary/20">
+                            <Sparkles className="h-6 w-6 text-muted-foreground/30" />
+                            <p className="text-xs text-muted-foreground/60">
+                              Click <span className="font-semibold text-foreground/70">Casting Call</span> above to generate 10 headshot candidates
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
 
                 {/* Expanded headshot dialog */}
                 <Dialog open={!!expandedCard} onOpenChange={(open) => { if (!open) { setExpandedCard(null); setModifyMode(false); setModifyText(""); setModifyVariations([]); setModifyGenerating(false); } }}>
@@ -1068,8 +1099,7 @@ const PreProduction = () => {
                 )}
 
                 {/* ═══ SLOT 4: CASTING — Final headshot, 8-view turnaround, voice, lock ═══ */}
-                {hasLockedImage && (
-                  <Collapsible>
+                <Collapsible>
                     <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
                       <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
                         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
@@ -1082,6 +1112,7 @@ const PreProduction = () => {
                         )}
                       </CollapsibleTrigger>
                       <CollapsibleContent>
+                        {hasLockedImage ? (
                         <div className="px-5 pb-5 space-y-5">
                           {/* Final Actor Headshot */}
                           <div className="flex items-start gap-4">
@@ -1281,10 +1312,20 @@ const PreProduction = () => {
                             </div>
                           )}
                         </div>
+                        ) : (
+                        <div className="px-4 pb-4">
+                          <div className="flex flex-col items-center justify-center py-8 gap-2 text-center rounded-lg border border-dashed border-border bg-secondary/20">
+                            <Lock className="h-6 w-6 text-muted-foreground/30" />
+                            <p className="text-xs text-muted-foreground/60">
+                              Select a candidate from <span className="font-semibold text-foreground/70">Auditions</span> above to populate this section
+                            </p>
+                          </div>
+                        </div>
+                        )}
                       </CollapsibleContent>
                     </div>
                   </Collapsible>
-                )}
+                
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center p-8 h-full">
