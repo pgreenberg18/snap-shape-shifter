@@ -1525,6 +1525,57 @@ export type Database = {
           },
         ]
       }
+      wardrobe_fitting_views: {
+        Row: {
+          angle_index: number
+          angle_label: string
+          asset_name: string
+          character_id: string
+          created_at: string
+          film_id: string
+          id: string
+          image_url: string | null
+          status: string
+        }
+        Insert: {
+          angle_index: number
+          angle_label: string
+          asset_name: string
+          character_id: string
+          created_at?: string
+          film_id: string
+          id?: string
+          image_url?: string | null
+          status?: string
+        }
+        Update: {
+          angle_index?: number
+          angle_label?: string
+          asset_name?: string
+          character_id?: string
+          created_at?: string
+          film_id?: string
+          id?: string
+          image_url?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wardrobe_fitting_views_character_id_fkey"
+            columns: ["character_id"]
+            isOneToOne: false
+            referencedRelation: "characters"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wardrobe_fitting_views_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wardrobe_scene_assignments: {
         Row: {
           character_name: string
