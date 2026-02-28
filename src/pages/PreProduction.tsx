@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import {
   Users, MapPin, Shirt, Mic, Film, Lock, Sparkles, Loader2, Check, User, Pencil,
   Save, AudioWaveform, Package, Car, ChevronDown, ChevronRight, Upload, Eye, ScrollText, Star,
-  RotateCcw, Layers,
+  RotateCcw, Layers, UserCheck,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
@@ -1145,6 +1145,23 @@ const PreProduction = () => {
                           </div>
                         )}
                       </div>
+                    </div>
+                    {/* Cast This Actor button */}
+                    <div className="flex justify-center py-3 border-t border-border bg-card">
+                      <Button
+                        size="lg"
+                        onClick={() => {
+                          if (expandedCard) {
+                            handleLockIdentity(expandedCard);
+                            setExpandedCard(null);
+                            setModifyMode(false);
+                          }
+                        }}
+                        className="gap-2 px-8"
+                      >
+                        <UserCheck className="h-4 w-4" />
+                        Cast This Actor
+                      </Button>
                     </div>
                   </DialogContent>
                 </Dialog>
