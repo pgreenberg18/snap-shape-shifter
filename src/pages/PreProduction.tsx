@@ -437,10 +437,7 @@ const PreProduction = () => {
     await supabase.from("character_auditions").update({ locked: true }).eq("character_id", targetCharId).eq("card_index", card.id);
     queryClient.invalidateQueries({ queryKey: ["characters"] });
     const charName = characters?.find(c => c.id === targetCharId)?.name ?? "Character";
-    toast.success(`${charName} has been cast`);
-    // Prompt for consistency views
-    setPendingConsistencyCharId(targetCharId);
-    setConsistencyDialogOpen(true);
+    toast.success(`${charName} selected — finalize in Casting below`);
   }, [characters, queryClient]);
 
   const handleGenerateConsistencyViews = useCallback(async () => {
@@ -897,7 +894,7 @@ const PreProduction = () => {
                       <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
                         <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
                         <Sparkles className="h-4 w-4 text-primary" />
-                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Casting</h3>
+                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Auditions</h3>
                         <span className="text-xs text-muted-foreground/50">{cards.length} candidates</span>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
@@ -1139,83 +1136,224 @@ const PreProduction = () => {
                   </Dialog>
                 )}
 
-                {/* ═══ VOICE IDENTITY SECTION — Gated behind image lock ═══ */}
-                <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen} disabled={!hasLockedImage}>
-                  <div className={cn("border-t border-border pt-4 mt-6", !hasLockedImage && "opacity-50")}>
-                    <CollapsibleTrigger className="w-full flex items-center gap-2 group" disabled={!hasLockedImage}>
-                      {voiceOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                      <Mic className="h-4 w-4 text-primary" />
-                      <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Voice Identity</h3>
-                      {!hasLockedImage && (
-                        <span className="text-[10px] text-muted-foreground ml-2 flex items-center gap-1">
-                          <Lock className="h-3 w-3" /> Lock a face first
-                        </span>
-                      )}
-                    </CollapsibleTrigger>
-                  </div>
-                  <CollapsibleContent>
-                    <div className="space-y-4 mt-4">
-                      <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Mic className="h-3.5 w-3.5 text-muted-foreground" />
-                            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Description</p>
-                          </div>
-                          <Button onClick={handleSaveVoiceDesc} disabled={savingVoice} variant="secondary" size="sm" className="gap-1.5 text-xs h-7">
-                            {savingVoice ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Save className="h-3.5 w-3.5" />Save</>}
-                          </Button>
-                        </div>
-                        <Textarea
-                          value={voiceDesc}
-                          onChange={(e) => setVoiceDesc(e.target.value)}
-                          placeholder="Gravelly, mid-40s, slight transatlantic accent…"
-                          className="min-h-[80px] bg-secondary/50 border-border text-sm resize-none"
-                        />
-                      </div>
-
-                      <div className="rounded-xl border border-border bg-card p-5 space-y-4 cinema-shadow">
-                        <div className="flex items-center gap-2">
-                          <AudioWaveform className="h-3.5 w-3.5 text-muted-foreground" />
-                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Seed</p>
-                        </div>
-                        {selectedChar.voice_generation_seed ? (
-                          <div className="space-y-4">
-                            <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center justify-between">
-                              <div>
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Locked Seed</p>
-                                <p className="font-display text-2xl font-bold tracking-wider text-primary tabular-nums">{selectedChar.voice_generation_seed}</p>
-                              </div>
-                              <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md">
-                                <Lock className="h-3 w-3" /> Locked
-                              </div>
-                            </div>
-                            <div className="rounded-lg bg-secondary/50 border border-border p-4">
-                              <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Voice Profile — Ready for Production</p>
-                              <div className="flex items-end justify-center gap-[3px] h-10">
-                                {Array.from({ length: 32 }).map((_, i) => (
-                                  <div key={i} className="w-[3px] rounded-full bg-primary/70"
-                                    style={{ height: `${12 + Math.sin(i * 0.6) * 18 + Math.cos(i * 1.1) * 10}px`, animation: `waveform-bar ${0.8 + (i % 5) * 0.15}s ease-in-out ${i * 0.04}s infinite alternate` }} />
-                                ))}
-                              </div>
-                            </div>
-                            <Button onClick={handleSynthesizeSeed} disabled={synthesizing} variant="outline" className="gap-2 w-full">
-                              {synthesizing ? <><Loader2 className="h-4 w-4 animate-spin" />Re-synthesizing…</> : <><AudioWaveform className="h-4 w-4" />Re-synthesize Voice Seed</>}
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                              Generate a unique voice seed for <span className="text-primary font-semibold">{selectedChar.name}</span>. This locks the vocal identity for production.
-                            </p>
-                            <Button onClick={handleSynthesizeSeed} disabled={synthesizing} className="gap-2 w-full">
-                              {synthesizing ? <><Loader2 className="h-4 w-4 animate-spin" />Synthesizing…</> : <><AudioWaveform className="h-4 w-4" />Synthesize Voice Seed</>}
-                            </Button>
-                          </div>
+                {/* ═══ SLOT 4: CASTING — Final headshot, 8-view turnaround, voice, lock ═══ */}
+                {hasLockedImage && (
+                  <Collapsible>
+                    <div className="rounded-xl border border-border bg-card cinema-shadow overflow-hidden">
+                      <CollapsibleTrigger className="w-full flex items-center gap-2 p-4 hover:bg-secondary/30 transition-colors">
+                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-90" />
+                        <Lock className="h-4 w-4 text-primary" />
+                        <h3 className="font-display text-sm font-bold uppercase tracking-wider text-foreground">Casting</h3>
+                        {(selectedChar as any).approved && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 flex items-center gap-1">
+                            <Lock className="h-2.5 w-2.5" /> Locked
+                          </span>
                         )}
-                      </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="px-5 pb-5 space-y-5">
+                          {/* Final Actor Headshot */}
+                          <div className="flex items-start gap-4">
+                            <div className="w-[120px] shrink-0 rounded-lg overflow-hidden border border-border">
+                              <img
+                                src={selectedChar.image_url!}
+                                alt={selectedChar.name}
+                                className="w-full aspect-[4/5] object-cover"
+                              />
+                            </div>
+                            <div className="flex-1 space-y-2">
+                              <h4 className="font-display text-base font-bold text-foreground">{selectedChar.name}</h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                {selectedChar.description || "Selected actor headshot. Generate turnaround views and voice below, then lock the character identity."}
+                              </p>
+                              <div className="flex items-center gap-3 text-[10px] text-muted-foreground/60">
+                                {selectedChar.sex && selectedChar.sex !== "Unknown" && <span>{selectedChar.sex}</span>}
+                                {(selectedChar.age_min || selectedChar.age_max) && (
+                                  <span>Age: {selectedChar.age_min ?? "?"}-{selectedChar.age_max ?? "?"}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 8-View Turnaround Grid */}
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Layers className="h-4 w-4 text-primary" />
+                                <h4 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                                  8-View Turnaround
+                                </h4>
+                                {(() => {
+                                  const views = viewsByCharacter.get(selectedChar.id);
+                                  const completedCount = views?.filter(v => v.status === "complete" && v.image_url)?.length ?? 0;
+                                  return <span className="text-[10px] text-muted-foreground/50">{completedCount}/8</span>;
+                                })()}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleRegenerateViews(selectedChar.id)}
+                                disabled={generatingViews}
+                                className="h-7 text-[11px] gap-1.5"
+                              >
+                                {generatingViews ? <Loader2 className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
+                                {charsWithViews.has(selectedChar.id) ? "Regenerate Views" : "Generate Views"}
+                              </Button>
+                            </div>
+                            {(() => {
+                              const views = viewsByCharacter.get(selectedChar.id);
+                              const completedViews = views?.filter(v => v.status === "complete" && v.image_url) ?? [];
+                              const pendingViews = views?.filter(v => v.status !== "complete") ?? [];
+                              const allSlots = [...completedViews, ...pendingViews].slice(0, 8);
+                              if (allSlots.length === 0) {
+                                return (
+                                  <div className="flex flex-col items-center justify-center py-6 gap-2 text-center rounded-lg border border-dashed border-border bg-secondary/20">
+                                    <Layers className="h-6 w-6 text-muted-foreground/30" />
+                                    <p className="text-xs text-muted-foreground/50">
+                                      Generate 8 canonical turnaround views for the consistency engine
+                                    </p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="grid grid-cols-4 gap-2">
+                                  {allSlots.map((v) => (
+                                    v.status === "complete" && v.image_url ? (
+                                      <button key={v.id} onClick={() => setLightboxView({ url: v.image_url!, label: v.angle_label })} className="relative rounded-lg overflow-hidden border border-border bg-secondary/30 hover:border-primary/60 transition-colors cursor-pointer">
+                                        <img src={v.image_url!} alt={v.angle_label} className="w-full aspect-[3/4] object-contain bg-secondary/50" loading="lazy" />
+                                        <p className="text-[9px] text-center text-muted-foreground py-0.5 bg-background/80 truncate font-mono">{v.angle_label}</p>
+                                      </button>
+                                    ) : (
+                                      <div key={v.id} className="relative rounded-lg overflow-hidden border border-border aspect-[3/4] cloth-shimmer flex flex-col items-center justify-center gap-1">
+                                        <Loader2 className="h-3 w-3 text-primary/40 animate-spin" />
+                                        <p className="text-[8px] text-muted-foreground/50 uppercase tracking-wider">{v.angle_label}</p>
+                                      </div>
+                                    )
+                                  ))}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Voice Subsection — Collapsible */}
+                          <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen}>
+                            <div className="rounded-lg border border-border bg-secondary/20 overflow-hidden">
+                              <CollapsibleTrigger className="w-full flex items-center gap-2 p-3 hover:bg-secondary/30 transition-colors">
+                                {voiceOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                                <Mic className="h-3.5 w-3.5 text-primary" />
+                                <h4 className="font-display text-xs font-bold uppercase tracking-widest text-foreground">Voice</h4>
+                                {selectedChar.voice_generation_seed && (
+                                  <span className="text-[9px] font-bold uppercase tracking-wider text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 flex items-center gap-1 ml-auto">
+                                    <Lock className="h-2.5 w-2.5" /> Seed {selectedChar.voice_generation_seed}
+                                  </span>
+                                )}
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="px-3 pb-3 space-y-3">
+                                  {/* Voice Description */}
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Voice Description</p>
+                                      <Button onClick={handleSaveVoiceDesc} disabled={savingVoice} variant="secondary" size="sm" className="gap-1.5 text-xs h-6">
+                                        {savingVoice ? <><Loader2 className="h-3 w-3 animate-spin" />Saving…</> : <><Save className="h-3 w-3" />Save</>}
+                                      </Button>
+                                    </div>
+                                    <Textarea
+                                      value={voiceDesc}
+                                      onChange={(e) => setVoiceDesc(e.target.value)}
+                                      placeholder="Gravelly, mid-40s, slight transatlantic accent…"
+                                      className="min-h-[60px] bg-background/50 border-border text-sm resize-none"
+                                    />
+                                  </div>
+                                  {/* Voice Seed */}
+                                  {selectedChar.voice_generation_seed ? (
+                                    <div className="space-y-3">
+                                      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+                                        <div>
+                                          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-1">Locked Seed</p>
+                                          <p className="font-display text-xl font-bold tracking-wider text-primary tabular-nums">{selectedChar.voice_generation_seed}</p>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 bg-primary text-primary-foreground text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded-md">
+                                          <Lock className="h-3 w-3" /> Locked
+                                        </div>
+                                      </div>
+                                      <div className="rounded-lg bg-secondary/50 border border-border p-3">
+                                        <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Voice Profile</p>
+                                        <div className="flex items-end justify-center gap-[3px] h-8">
+                                          {Array.from({ length: 32 }).map((_, i) => (
+                                            <div key={i} className="w-[2px] rounded-full bg-primary/70"
+                                              style={{ height: `${10 + Math.sin(i * 0.6) * 14 + Math.cos(i * 1.1) * 8}px`, animation: `waveform-bar ${0.8 + (i % 5) * 0.15}s ease-in-out ${i * 0.04}s infinite alternate` }} />
+                                          ))}
+                                        </div>
+                                      </div>
+                                      <Button onClick={handleSynthesizeSeed} disabled={synthesizing} variant="outline" className="gap-2 w-full h-8 text-xs">
+                                        {synthesizing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Re-synthesizing…</> : <><AudioWaveform className="h-3.5 w-3.5" />Re-synthesize Voice Seed</>}
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-2">
+                                      <p className="text-xs text-muted-foreground leading-relaxed">
+                                        Generate a unique voice seed for <span className="text-primary font-semibold">{selectedChar.name}</span>.
+                                      </p>
+                                      <Button onClick={handleSynthesizeSeed} disabled={synthesizing} className="gap-2 w-full h-8 text-xs">
+                                        {synthesizing ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Synthesizing…</> : <><AudioWaveform className="h-3.5 w-3.5" />Synthesize Voice Seed</>}
+                                      </Button>
+                                    </div>
+                                  )}
+                                </div>
+                              </CollapsibleContent>
+                            </div>
+                          </Collapsible>
+
+                          {/* Lock Character Button */}
+                          {!(selectedChar as any).approved ? (
+                            <Button
+                              onClick={async () => {
+                                const { error } = await supabase.from("characters").update({ approved: true } as any).eq("id", selectedChar.id);
+                                if (error) { toast.error("Failed to lock character"); return; }
+                                queryClient.invalidateQueries({ queryKey: ["characters"] });
+                                toast.success(`${selectedChar.name} identity locked — propagating to all systems`);
+                                // Trigger VICE propagation
+                                try {
+                                  await supabase.functions.invoke("propagate-intent-change", {
+                                    body: { film_id: filmId, source_token: `char:${selectedChar.id}`, trigger_type: "identity_lock" },
+                                  });
+                                } catch {}
+                              }}
+                              className="w-full gap-2"
+                            >
+                              <Lock className="h-4 w-4" />
+                              Lock Character
+                            </Button>
+                          ) : (
+                            <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Lock className="h-4 w-4 text-primary" />
+                                <div>
+                                  <p className="text-xs font-bold text-foreground">Character Locked</p>
+                                  <p className="text-[10px] text-muted-foreground">Identity propagated to wardrobe, scenes, and audio systems</p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[11px]"
+                                onClick={async () => {
+                                  const { error } = await supabase.from("characters").update({ approved: false } as any).eq("id", selectedChar.id);
+                                  if (error) { toast.error("Failed to unlock"); return; }
+                                  queryClient.invalidateQueries({ queryKey: ["characters"] });
+                                  toast.success(`${selectedChar.name} unlocked`);
+                                }}
+                              >
+                                Unlock
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </CollapsibleContent>
                     </div>
-                  </CollapsibleContent>
-                </Collapsible>
+                  </Collapsible>
+                )}
               </div>
             ) : (
               <div className="flex-1 flex items-center justify-center p-8 h-full">
