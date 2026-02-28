@@ -82,11 +82,11 @@ const ANGLE_VIEWS = [
   },
   {
     index: 7,
-    label: "ECU Face",
-    framing: "Extreme close-up — top of head to chin only",
+    label: "Portrait 8×10",
+    framing: "8×10 portrait format — head and upper shoulders, cropped just below the collarbone. Classic headshot framing with space above the head",
     direction: "facing directly toward the camera, straight-on front view",
-    purpose: "Micro features — iris color, lip shape, skin pores, wrinkles",
-    camera: "Eye level, no beauty lighting, no filters, no depth blur",
+    purpose: "Definitive portrait reference — the canonical 8×10 actor headshot for identification",
+    camera: "Eye level, soft studio lighting, shallow depth of field on background only, 85mm equivalent portrait lens",
     expression: "Neutral",
   },
 ];
