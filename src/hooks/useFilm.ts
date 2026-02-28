@@ -502,7 +502,7 @@ export const useBreakdownAssets = () => {
         locationDescMap.set(loc, desc);
       }
 
-      // Build prop descriptions + rename props with character ownership + build groups
+      // Build prop descriptions + groups (NO character prefix on item names)
       const propDescMap: Record<string, string> = {};
       const renamedProps: string[] = [];
       const propGroupsByChar = new Map<string, string[]>();
@@ -511,19 +511,62 @@ export const useBreakdownAssets = () => {
       // Helper: capitalize first letter of each word
       const titleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
-      // Helper: check if already has possessive
-      const hasPossessive = (s: string) => /\b[A-Za-z]+'s\b/i.test(s) || /\([A-Za-z]+'s\)/i.test(s);
+      // Helper: strip possessive prefix if present (e.g. "Howard's Watch" → "Watch")
+      const stripPossessive = (s: string) => s.replace(/^[A-Za-z]+'s?\s+/i, "");
 
-      // Helper: format character name for possessive
-      const possessive = (name: string) => {
-        const formatted = titleCase(name.toLowerCase());
-        return formatted.endsWith("s") ? `${formatted}'` : `${formatted}'s`;
+      // Helper: normalise character name for grouping (merge variants like
+      // "Howard Wells", "Professor Howard Wells", "HOWARD", "PROF. HOWARD WELLS")
+      const TITLE_PREFIXES = /^(?:professor|prof\.?|doctor|dr\.?|mr\.?|mrs\.?|ms\.?|miss|sir|lady|lord|detective|det\.?|officer|agent|captain|capt\.?|sergeant|sgt\.?|lieutenant|lt\.?|reverend|rev\.?|father|mother|sister|brother|judge|king|queen|prince|princess)\s+/i;
+      const normalizeCharName = (raw: string): string => {
+        let n = raw.trim().toLowerCase().replace(TITLE_PREFIXES, "").trim();
+        // Remove trailing parenthetical: "Howard (V.O.)" → "Howard"
+        n = n.replace(/\s*\(.*?\)\s*$/, "").trim();
+        return n;
+      };
+
+      // Build a map of normalised-name → canonical display name (longest original wins)
+      const charCanonical = new Map<string, string>();
+      const allCharNames = new Set<string>();
+      for (const [, ctx] of propContextMap) {
+        if (ctx.characters) for (const c of ctx.characters) allCharNames.add(c);
+      }
+      for (const raw of allCharNames) {
+        const norm = normalizeCharName(raw);
+        const existing = charCanonical.get(norm);
+        if (!existing || raw.length > existing.length) {
+          charCanonical.set(norm, raw);
+        }
+      }
+      // Also check if a short name is a substring of a longer one (e.g. "HOWARD" matches "HOWARD WELLS")
+      const normKeys = [...charCanonical.keys()];
+      const mergeNormMap = new Map<string, string>(); // short-norm → long-norm
+      for (const a of normKeys) {
+        for (const b of normKeys) {
+          if (a === b) continue;
+          // If a is a prefix/part of b (first or last name match)
+          const aParts = a.split(/\s+/);
+          const bParts = b.split(/\s+/);
+          if (aParts.length < bParts.length && aParts.every(p => bParts.includes(p))) {
+            mergeNormMap.set(a, b);
+          }
+        }
+      }
+      const resolveNorm = (norm: string): string => {
+        let resolved = norm;
+        const visited = new Set<string>();
+        while (mergeNormMap.has(resolved) && !visited.has(resolved)) {
+          visited.add(resolved);
+          resolved = mergeNormMap.get(resolved)!;
+        }
+        return resolved;
       };
 
       for (const prop of propSet) {
         const ctx = propContextMap.get(prop);
         const parts: string[] = [];
-        let displayName = prop;
+        // Display name: just title-case the prop, NO character prefix
+        const cleanProp = stripPossessive(prop);
+        const displayName = titleCase(cleanProp);
         let primaryChar = "";
         let primaryLoc = "";
 
@@ -531,28 +574,12 @@ export const useBreakdownAssets = () => {
           const chars = [...ctx.characters];
           const uniqueLocs = [...new Set(ctx.locations)];
 
-          // Determine primary owner: if used by exactly 1 character, that's the owner
-          // If used by 2-3 characters, pick the first (most relevant from script order)
           if (chars.length === 1) {
             primaryChar = chars[0];
           } else if (chars.length >= 2) {
-            // If used in only 1 scene, the character list is specific enough
             if (ctx.scenes.length <= 2) primaryChar = chars[0];
           }
 
-          // Rename: add character possessive if not already present
-          if (primaryChar && !hasPossessive(prop)) {
-            const propLower = prop.toLowerCase();
-            // Don't add possessive to generic/shared items
-            const isGeneric = /^(door|wall|window|floor|ceiling|table|chair|desk|bed|light|lamp|sign|screen|monitor)$/i.test(propLower);
-            if (!isGeneric) {
-              displayName = `${possessive(primaryChar)} ${titleCase(prop)}`;
-            }
-          } else {
-            displayName = titleCase(prop);
-          }
-
-          // If no clear character owner, check for a primary location
           if (!primaryChar && uniqueLocs.length === 1) {
             primaryLoc = uniqueLocs[0];
           }
@@ -563,20 +590,19 @@ export const useBreakdownAssets = () => {
             const snippet = ctx.scenes.sort((a, b) => a.length - b.length)[0];
             parts.push(snippet.length <= 120 ? snippet : snippet.slice(0, 117) + "…");
           }
-        } else {
-          displayName = titleCase(prop);
         }
 
         renamedProps.push(displayName);
         propDescMap[displayName] = parts.length > 0 ? parts.join(". ") : displayName;
 
-        // Group by character
+        // Group by character (merging name variants)
         if (primaryChar) {
-          const charKey = titleCase(primaryChar.toLowerCase());
+          const norm = resolveNorm(normalizeCharName(primaryChar));
+          const canonical = charCanonical.get(norm) || primaryChar;
+          const charKey = titleCase(canonical.toLowerCase());
           if (!propGroupsByChar.has(charKey)) propGroupsByChar.set(charKey, []);
           propGroupsByChar.get(charKey)!.push(displayName);
         } else if (primaryLoc) {
-          // Group by location (use shorter name)
           const locKey = primaryLoc.split(" - ")[0].trim();
           const locDisplay = titleCase(locKey.toLowerCase());
           if (!propGroupsByLoc.has(locDisplay)) propGroupsByLoc.set(locDisplay, []);
