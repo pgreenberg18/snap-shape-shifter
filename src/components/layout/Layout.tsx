@@ -223,8 +223,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           {/* Active generations indicator */}
           <GenerationIndicator expanded={expanded} />
 
-          {/* Credit Meter */}
-          <CreditMeter expanded={expanded} />
+
 
           {/* Expand/Collapse toggle */}
           <FlareTooltip label={expanded ? "Collapse" : "Expand"}>
