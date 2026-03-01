@@ -548,6 +548,7 @@ const Development = () => {
   const [frameHeight, setFrameHeight] = useState<number | null>(null);
   const [frameRate, setFrameRate] = useState<number | null>(null);
   const [formatSaving, setFormatSaving] = useState(false);
+  const [formatSaved, setFormatSaved] = useState(false);
   const [formatOverride, setFormatOverride] = useState(false);
   const [fourKEnabled, setFourKEnabled] = useState(false);
   const [genres, setGenres] = useState<string[]>([]);
@@ -1137,6 +1138,7 @@ const Development = () => {
     if (error) {
       toast({ title: "Save failed", description: error.message, variant: "destructive" });
     } else {
+      setFormatSaved(true);
       queryClient.invalidateQueries({ queryKey: ["film", filmId] });
       toast({ title: "Format saved" });
     }
@@ -1800,11 +1802,12 @@ const Development = () => {
                                   <Button
                                     onClick={handleSaveFormat}
                                     disabled={formatSaving || scriptLocked}
+                                    variant={formatSaved ? "success" : "default"}
                                     className="gap-1.5"
                                     size="sm"
                                   >
-                                    {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                                    Save Format
+                                    {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : formatSaved ? <CheckCircle className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+                                    {formatSaved ? "Saved" : "Save Format"}
                                   </Button>
                                 </div>
                               </>
