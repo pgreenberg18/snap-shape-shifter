@@ -1174,7 +1174,7 @@ const Development = () => {
                 <div data-help-id="dev-script-breakdown" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                   <div className="flex items-center gap-2">
                     <ScrollText className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Script Breakdown</h3>
+                    <h3 className="font-display text-lg font-bold">Script Analysis</h3>
                     {isAnalyzing && (
                       <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
                         <Loader2 className="h-3 w-3 animate-spin text-primary" /> Processing
