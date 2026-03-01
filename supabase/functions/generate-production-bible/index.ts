@@ -203,6 +203,21 @@ CRITICAL RULES:
 - The document must feel like it was written by a veteran production designer
 - CRITICAL AUDIO RULE: All audio generated for scenes must be PRODUCTION SOUND ONLY — meaning only sounds that would be physically recorded on set by a production sound mixer. This means: dialogue, ambient environment sounds, practical sound effects from on-screen actions, and room tone. NO musical score, NO non-diegetic music, NO synthesized sound design, NO sounds from sources not physically present in the scene. This rule must be reflected in the Sound & Score department doctrine and in the CIC engine compiler instructions for all engines.
 
+VISUAL CONSISTENCY PIPELINE — MULTI-VIEW GENERATION SYSTEM:
+The production pipeline generates multi-view reference sheets to ensure visual consistency across all AI-generated scenes. This must be documented in the Character Consistency and CIC sections:
+
+1. CHARACTER TURNAROUND (8 Views): For each cast character, 8 identity reference views are generated — Front, Back, Left Profile, Right Profile, Left 3/4, Right 3/4, Medium Close-Up, and Portrait 8×10 (85mm equivalent, classic headshot framing). These serve as the Visual Continuity Anchor for all downstream generation.
+
+2. WARDROBE FITTING TURNAROUND (8 Views per Costume): For each character in each locked wardrobe item, a separate 8-view turnaround grid is generated using the character's cast headshot and the selected garment as references. This ensures costume continuity across scenes.
+
+3. ASSET AUDITION SYSTEM (5 Variations per Asset): For non-character assets, 5 visual variations are generated for selection:
+   - LOCATIONS: 5 cinematic 16:9 wide-angle environment reference images per location
+   - PROPS: 5 cinematic 16:9 product-style reference images per prop, grouped by character or location ownership
+   - PICTURE VEHICLES: 5 cinematic 16:9 reference images per vehicle
+   - WARDROBE OPTIONS: 5 portrait-framed (8:10) images on headless mannequins with flat studio lighting per wardrobe item
+
+Once an asset variation is locked/selected, it becomes the canonical visual reference injected into the prompt compiler for all scene generation involving that asset.
+
 Return ONLY valid JSON matching this exact structure (no markdown, no code fences):
 {
   "core_identity": {
