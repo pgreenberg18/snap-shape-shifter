@@ -215,13 +215,13 @@ ${scene.raw_text}`;
                     visual_design: {
                     type: "object",
                     properties: {
-                      color_palette: { type: "string", description: "REQUIRED — Always infer the dominant color palette from the scene's location, time of day, mood, and action. Describe specific hues, tones, and contrast. E.g. 'Desaturated blues and grays, cold fluorescent whites' for a night office scene, or 'Warm amber and honey tones with golden hour highlights' for a sunset exterior. NEVER return 'not specified'." },
-                      lighting_style: { type: "string", description: "REQUIRED — Always infer the lighting approach from INT/EXT, time of day, and mood. Describe quality, direction, and emotional effect. E.g. 'Low-key side lighting with deep shadows' for a tense interior, 'Harsh overhead noon sun with minimal shadows' for an exterior day scene. NEVER return 'not specified'." },
-                      visual_references: { type: "string", description: "Suggest 1-2 film or photography references this scene's tone and visual style evoke. E.g. 'Fincher-esque clinical precision', 'Malick-style natural light'. If no strong reference, suggest a general cinematic school like 'Classical Hollywood three-point lighting' or 'French New Wave naturalism'. NEVER return 'not specified'." },
-                      atmosphere: { type: "string", description: "REQUIRED — Always infer the overall visual atmosphere from the scene's mood, action, and setting. E.g. 'Claustrophobic and suffocating', 'Expansive and desolate', 'Warm and intimate'. NEVER return 'not specified'." },
+                      color_palette: { type: "string", description: "ONLY extract colors, hues, tones, or palette descriptions that are explicitly mentioned in the script text (e.g. 'red neon glow', 'white walls', 'golden light'). If none are mentioned, return an empty string." },
+                      lighting_style: { type: "string", description: "ONLY extract lighting descriptions that are explicitly written in the script text (e.g. 'fluorescent lights flicker', 'candlelight', 'harsh sunlight'). If none are mentioned, return an empty string." },
+                      visual_references: { type: "string", description: "ONLY extract visual or cinematic references that are explicitly mentioned in the script text. If none are mentioned, return an empty string. Do NOT infer or suggest references." },
+                      atmosphere: { type: "string", description: "ONLY extract atmosphere or mood descriptions that are explicitly written in the script text (e.g. 'eerie silence', 'chaotic', 'smoke fills the room'). If none are mentioned, return an empty string." },
                     },
                     required: ["color_palette", "lighting_style", "visual_references", "atmosphere"],
-                    description: "Visual design direction MUST always be inferred from the scene's content, setting, mood, time of day, and action. Every field is mandatory — never default to 'not specified'.",
+                    description: "CRITICAL: Only populate these fields with visual elements that are EXPLICITLY written in the script text. Do NOT infer, interpret, or create visual design elements. If the script does not mention a specific visual element, return an empty string for that field.",
                   },
                 },
                 required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements", "visual_design"],
