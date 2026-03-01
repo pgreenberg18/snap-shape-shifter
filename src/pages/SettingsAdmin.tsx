@@ -521,10 +521,9 @@ const SettingsAdmin = () => {
 
   const adminSections = [
     { id: "admin-dashboard", label: "Admin Dashboard", icon: Activity },
-    { id: "all-ndas", label: "All Signed NDAs", icon: Users },
     { id: "access-control", label: "Access Control", icon: Shield },
-    
     { id: "login-records", label: "Login Records", icon: Activity },
+    { id: "all-ndas", label: "All Signed NDAs", icon: Users },
   ];
 
   return (
