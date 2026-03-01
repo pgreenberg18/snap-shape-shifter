@@ -102,7 +102,7 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "imagen-3", label: "Imagen 3" },
     ]},
   ],
-  "sound-stage": [
+  "voice-stage": [
     { id: "elevenlabs", name: "ElevenLabs", placeholder: "Enter ElevenLabs API key…", variants: [
       { id: "eleven-multilingual-v2", label: "Multilingual V2" },
       { id: "eleven-turbo-v2.5", label: "Turbo V2.5" },
@@ -122,9 +122,6 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "resemble-v2", label: "V2" },
       { id: "resemble-v1", label: "V1" },
     ]},
-    { id: "lyria", name: "Lyria (Google)", placeholder: "Enter Google API key…", variants: [
-      { id: "lyria-2", label: "Lyria 2" },
-    ]},
     { id: "openai-tts", name: "OpenAI TTS", placeholder: "Enter OpenAI API key…", variants: [
       { id: "openai-tts-hd", label: "TTS HD" },
       { id: "openai-tts-1", label: "TTS 1" },
@@ -132,6 +129,33 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
     { id: "chirp", name: "Chirp (Google)", placeholder: "Enter Google API key…", variants: [
       { id: "chirp-2", label: "Chirp 2" },
       { id: "chirp-1", label: "Chirp 1" },
+    ]},
+  ],
+  "music-stage": [
+    { id: "lyria", name: "Lyria (Google)", placeholder: "Enter Google API key…", variants: [
+      { id: "lyria-2", label: "Lyria 2" },
+    ]},
+    { id: "suno", name: "Suno", placeholder: "Enter Suno API key…", variants: [
+      { id: "suno-v3.5", label: "V3.5" },
+      { id: "suno-v3", label: "V3" },
+    ]},
+    { id: "udio", name: "Udio", placeholder: "Enter Udio API key…", variants: [
+      { id: "udio-v1.5", label: "V1.5" },
+      { id: "udio-v1", label: "V1" },
+    ]},
+    { id: "elevenlabs-music", name: "ElevenLabs Music", placeholder: "Enter ElevenLabs API key…", variants: [
+      { id: "eleven-music-v1", label: "Music V1" },
+    ]},
+  ],
+  "sfx-stage": [
+    { id: "elevenlabs-sfx", name: "ElevenLabs SFX", placeholder: "Enter ElevenLabs API key…", variants: [
+      { id: "eleven-sfx-v1", label: "Sound Effects V1" },
+    ]},
+    { id: "epidemic-sound", name: "Epidemic Sound", placeholder: "Enter Epidemic Sound API key…", variants: [
+      { id: "epidemic-pro", label: "Pro" },
+    ]},
+    { id: "artlist", name: "Artlist", placeholder: "Enter Artlist API key…", variants: [
+      { id: "artlist-sfx", label: "SFX Library" },
     ]},
   ],
   "camera-cart": [
@@ -196,7 +220,9 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
 const sectionOrder = [
   "script-analysis",
   "image-generation",
-  "sound-stage",
+  "voice-stage",
+  "music-stage",
+  "sfx-stage",
   "camera-cart",
   "post-house",
 ] as const;
@@ -214,9 +240,21 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     icon: <Image className="h-4 w-4" />,
     addLabel: "Add Service",
   },
-  "sound-stage": {
-    title: "Voice & Audio",
-    description: "Voice synthesis and audio generation",
+  "voice-stage": {
+    title: "Voice",
+    description: "Voice synthesis and text-to-speech providers",
+    icon: <AudioLines className="h-4 w-4" />,
+    addLabel: "Add Service",
+  },
+  "music-stage": {
+    title: "Music",
+    description: "AI music generation and scoring",
+    icon: <AudioLines className="h-4 w-4" />,
+    addLabel: "Add Service",
+  },
+  "sfx-stage": {
+    title: "Sound Effects",
+    description: "Sound effects and ambient audio generation",
     icon: <AudioLines className="h-4 w-4" />,
     addLabel: "Add Service",
   },
@@ -236,12 +274,13 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
 
 const LEGACY_SECTION_MAP: Record<string, string> = {
   "writers-room": "script-analysis",
+  "sound-stage": "voice-stage",
 };
 
 /* ── Provider groups: services that share the same API key ── */
 const PROVIDER_GROUPS: Record<string, string[]> = {
   google: ["gemini", "veo", "imagen-4", "lyria", "chirp"],
-  elevenlabs: ["elevenlabs", "elevenlabs-post"],
+  elevenlabs: ["elevenlabs", "elevenlabs-post", "elevenlabs-music", "elevenlabs-sfx"],
   openai: ["openai-chat", "dall-e", "sora", "openai-tts"],
   kling: ["kling", "kling-lipsync", "kling-upscale"],
 };
@@ -264,6 +303,12 @@ const SERVICE_USAGE_URLS: Record<string, string> = {
   "recraft": "https://www.recraft.ai/dashboard",
   "elevenlabs": "https://elevenlabs.io/subscription",
   "elevenlabs-post": "https://elevenlabs.io/subscription",
+  "elevenlabs-music": "https://elevenlabs.io/subscription",
+  "elevenlabs-sfx": "https://elevenlabs.io/subscription",
+  "suno": "https://suno.com/account",
+  "udio": "https://www.udio.com/account",
+  "epidemic-sound": "https://www.epidemicsound.com/account",
+  "artlist": "https://artlist.io/account",
   "playht": "https://play.ht/studio/billing",
   "murf": "https://murf.ai/dashboard/billing",
   "wellsaid": "https://wellsaidlabs.com/account",
