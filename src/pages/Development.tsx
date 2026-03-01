@@ -1484,7 +1484,7 @@ const Development = () => {
                             {formatType && (() => {
                               const preset = FORMAT_PRESETS.find(p => p.value === formatType);
                               return preset ? (
-                                <p className="text-[11px] text-muted-foreground text-left truncate">{preset.label} ({preset.aspect})</p>
+                                <p className="text-xs text-muted-foreground text-left truncate">{preset.label} ({preset.aspect})</p>
                               ) : null;
                             })()}
                           </div>
@@ -1673,7 +1673,7 @@ const Development = () => {
                               </div>
                             </div>
                             {film?.time_period && (
-                              <p className="text-[11px] text-muted-foreground text-left truncate">
+                              <p className="text-xs text-muted-foreground text-left truncate">
                                 {film.time_period}{secondaryTimePeriods.length > 0 ? `, +${secondaryTimePeriods.length} secondary` : ""}
                               </p>
                             )}
@@ -1943,7 +1943,7 @@ const Development = () => {
                                   </div>
                                 </div>
                                 {genres.length > 0 && (
-                                  <p className="text-[11px] text-muted-foreground text-left truncate">{genres.join(", ")}</p>
+                                  <p className="text-xs text-muted-foreground text-left truncate">{genres.join(", ")}</p>
                                 )}
                               </div>
                             </CollapsibleTrigger>
