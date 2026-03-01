@@ -492,19 +492,19 @@ const Projects = () => {
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader><DialogTitle>Create New Film Project</DialogTitle></DialogHeader>
-                  <div className="space-y-4 pt-2">
+                  <form onSubmit={(e) => { e.preventDefault(); if (title.trim() && !createProject.isPending) createProject.mutate(); }} className="space-y-4 pt-2">
                     <div>
                       <label className="text-sm font-medium text-foreground">Title</label>
-                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Film title…" className="mt-1" />
+                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Film title…" className="mt-1" autoFocus />
                     </div>
                     <div>
                       <label className="text-sm font-medium text-foreground">Description</label>
                       <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description…" className="mt-1" />
                     </div>
-                    <Button onClick={() => createProject.mutate()} disabled={!title.trim() || createProject.isPending} className="w-full">
+                    <Button type="submit" disabled={!title.trim() || createProject.isPending} className="w-full">
                       {createProject.isPending ? "Creating…" : "Create Project"}
                     </Button>
-                  </div>
+                  </form>
                 </DialogContent>
               </Dialog>
             </div>
