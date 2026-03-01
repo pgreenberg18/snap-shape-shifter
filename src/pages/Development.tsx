@@ -464,10 +464,9 @@ const Development = () => {
     })();
   }, [filmId, queryClient, runPostEnrichment]);
 
-  // Resume enrichment on page load if there are unenriched scenes
+  // Resume enrichment on page load only if vision is locked and there are unenriched scenes
   useEffect(() => {
-    if (!analysis || !filmId) return;
-    if (analysis.status !== "enriching" && analysis.status !== "analyzing") return;
+    if (!analysis || !filmId || !visionComplete) return;
     if (enrichingRef.current) return;
 
     (async () => {
@@ -486,7 +485,7 @@ const Development = () => {
         );
       }
     })();
-  }, [analysis?.id, analysis?.status, filmId, runEnrichmentBatches]);
+  }, [analysis?.id, filmId, visionComplete, runEnrichmentBatches]);
 
   /* Sync section approval states from DB */
   useEffect(() => {
@@ -686,8 +685,10 @@ const Development = () => {
     }
 
     const sceneIds: string[] = parseResult?.scene_ids || [];
-    if (sceneIds.length > 0) {
-      runEnrichmentBatches(sceneIds, analysisId);
+    // Skip enrichment — it runs after Vision is locked
+    // Just run finalize + director fit
+    if (analysisId) {
+      runPostEnrichment(analysisId);
     }
 
     setAnalyzing(false);
@@ -2005,7 +2006,21 @@ const Development = () => {
                     <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
                       <Button
                         size="lg"
-                        onClick={() => { setVisionComplete(true); setActiveTab("breakdown"); }}
+                        onClick={async () => {
+                          setVisionComplete(true);
+                          setActiveTab("breakdown");
+                          // Trigger scene enrichment now that vision is locked
+                          if (filmId && analysis?.id) {
+                            const { data: unenriched } = await supabase
+                              .from("parsed_scenes")
+                              .select("id")
+                              .eq("film_id", filmId)
+                              .eq("enriched", false);
+                            if (unenriched && unenriched.length > 0) {
+                              runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
+                            }
+                          }
+                        }}
                         className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
                       >
                         <Lock className="h-4 w-4" /> Lock Vision
