@@ -920,9 +920,13 @@ export type Database = {
           character_details: Json | null
           characters: string[] | null
           cinematic_elements: Json | null
+          continuity_marker: string | null
           created_at: string
           day_night: string | null
           description: string | null
+          dialogue_density: number | null
+          dialogue_line_count: number | null
+          dialogue_word_count: number | null
           enriched: boolean
           environment_details: string | null
           estimated_page_count: number | null
@@ -931,9 +935,14 @@ export type Database = {
           heading: string
           id: string
           int_ext: string | null
+          is_dream: boolean
+          is_flashback: boolean
+          is_montage: boolean
           key_objects: string[] | null
+          line_count: number | null
           location_name: string | null
           mood: string | null
+          phase1_locked: boolean
           picture_vehicles: string[] | null
           raw_text: string
           scene_number: number
@@ -941,6 +950,7 @@ export type Database = {
           sound_cues: string[] | null
           special_makeup: string[] | null
           stunts: string[] | null
+          sublocation: string | null
           vfx: string[] | null
           visual_design: Json | null
           wardrobe: Json | null
@@ -950,9 +960,13 @@ export type Database = {
           character_details?: Json | null
           characters?: string[] | null
           cinematic_elements?: Json | null
+          continuity_marker?: string | null
           created_at?: string
           day_night?: string | null
           description?: string | null
+          dialogue_density?: number | null
+          dialogue_line_count?: number | null
+          dialogue_word_count?: number | null
           enriched?: boolean
           environment_details?: string | null
           estimated_page_count?: number | null
@@ -961,9 +975,14 @@ export type Database = {
           heading: string
           id?: string
           int_ext?: string | null
+          is_dream?: boolean
+          is_flashback?: boolean
+          is_montage?: boolean
           key_objects?: string[] | null
+          line_count?: number | null
           location_name?: string | null
           mood?: string | null
+          phase1_locked?: boolean
           picture_vehicles?: string[] | null
           raw_text: string
           scene_number: number
@@ -971,6 +990,7 @@ export type Database = {
           sound_cues?: string[] | null
           special_makeup?: string[] | null
           stunts?: string[] | null
+          sublocation?: string | null
           vfx?: string[] | null
           visual_design?: Json | null
           wardrobe?: Json | null
@@ -980,9 +1000,13 @@ export type Database = {
           character_details?: Json | null
           characters?: string[] | null
           cinematic_elements?: Json | null
+          continuity_marker?: string | null
           created_at?: string
           day_night?: string | null
           description?: string | null
+          dialogue_density?: number | null
+          dialogue_line_count?: number | null
+          dialogue_word_count?: number | null
           enriched?: boolean
           environment_details?: string | null
           estimated_page_count?: number | null
@@ -991,9 +1015,14 @@ export type Database = {
           heading?: string
           id?: string
           int_ext?: string | null
+          is_dream?: boolean
+          is_flashback?: boolean
+          is_montage?: boolean
           key_objects?: string[] | null
+          line_count?: number | null
           location_name?: string | null
           mood?: string | null
+          phase1_locked?: boolean
           picture_vehicles?: string[] | null
           raw_text?: string
           scene_number?: number
@@ -1001,6 +1030,7 @@ export type Database = {
           sound_cues?: string[] | null
           special_makeup?: string[] | null
           stunts?: string[] | null
+          sublocation?: string | null
           vfx?: string[] | null
           visual_design?: Json | null
           wardrobe?: Json | null
@@ -1162,6 +1192,55 @@ export type Database = {
         }
         Relationships: []
       }
+      scene_entity_links: {
+        Row: {
+          context: Json
+          created_at: string
+          entity_id: string
+          film_id: string
+          id: string
+          scene_id: string
+        }
+        Insert: {
+          context?: Json
+          created_at?: string
+          entity_id: string
+          film_id: string
+          id?: string
+          scene_id: string
+        }
+        Update: {
+          context?: Json
+          created_at?: string
+          entity_id?: string
+          film_id?: string
+          id?: string
+          scene_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scene_entity_links_entity_id_fkey"
+            columns: ["entity_id"]
+            isOneToOne: false
+            referencedRelation: "script_entities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scene_entity_links_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scene_entity_links_scene_id_fkey"
+            columns: ["scene_id"]
+            isOneToOne: false
+            referencedRelation: "parsed_scenes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scene_style_overrides: {
         Row: {
           camera_feel: string | null
@@ -1276,6 +1355,59 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "script_analyses_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: false
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      script_entities: {
+        Row: {
+          aliases: string[]
+          canonical_name: string
+          confidence: number
+          created_at: string
+          entity_type: string
+          film_id: string
+          first_appearance_scene: number | null
+          id: string
+          metadata: Json
+          needs_review: boolean
+          review_note: string | null
+          updated_at: string
+        }
+        Insert: {
+          aliases?: string[]
+          canonical_name: string
+          confidence?: number
+          created_at?: string
+          entity_type: string
+          film_id: string
+          first_appearance_scene?: number | null
+          id?: string
+          metadata?: Json
+          needs_review?: boolean
+          review_note?: string | null
+          updated_at?: string
+        }
+        Update: {
+          aliases?: string[]
+          canonical_name?: string
+          confidence?: number
+          created_at?: string
+          entity_type?: string
+          film_id?: string
+          first_appearance_scene?: number | null
+          id?: string
+          metadata?: Json
+          needs_review?: boolean
+          review_note?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "script_entities_film_id_fkey"
             columns: ["film_id"]
             isOneToOne: false
             referencedRelation: "films"
