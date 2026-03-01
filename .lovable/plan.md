@@ -26,16 +26,18 @@ Phase 2 (Post-Vision Lock): Style enrichment — apply Director DNA, Production 
 ### Database Schema
 - `script_entities`: master entity registry with canonical names, aliases, metadata per type
 - `scene_entity_links`: per-scene entity associations with contextual data
-- `scene_flags`: per-scene structural metadata (flashback, dream, montage, continuity)
+- `parsed_scenes`: structural columns for sublocation, continuity_marker, is_flashback, is_dream, is_montage, dialogue metrics, phase1_locked
 
 ### Implementation Order
-1. [x] Database migration: script_entities + scene_entity_links tables
-2. [ ] Rewrite parse-script: split scenes + deterministic heading parse (no AI enrichment trigger)
-3. [ ] New extract-entities edge function: AI-assisted entity extraction into 13 categories (no style)
-4. [ ] Entity normalization logic in _shared/entity-normalization.ts
-5. [ ] Update finalize-analysis for Phase 1 output schema
-6. [ ] Update Development.tsx: remove auto-enrichment during upload, add entity extraction step
-7. [ ] Update GlobalElementsManager to use entity registry
+1. [x] Database migration: script_entities + scene_entity_links + parsed_scenes structural columns
+2. [x] Rewrite parse-script: split scenes + deterministic heading parse + dialogue metrics (NO enrichment trigger)
+3. [x] extract-entities edge function: AI-assisted entity extraction into 13 categories (no style)
+4. [x] Entity normalization logic in _shared/entity-normalization.ts
+5. [x] Stop auto-enrichment in Development.tsx during upload
+6. [x] Lock Vision handler: persist ai_notes_approved, compile style contract, run Phase 2 enrichment
+7. [ ] Wire extract-entities call into Development.tsx as explicit Phase 1 step (after Lock Fundamentals)
+8. [ ] Update finalize-analysis for Phase 1 output schema
+9. [ ] Update GlobalElementsManager to use entity registry
 
 ## Phase 2 — Style Enrichment Engine (Post-Vision Lock)
 1. [ ] Scene style overlay computation from Style Contract + Director DNA
