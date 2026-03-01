@@ -187,8 +187,20 @@ const VEHICLE_KEYWORDS = new Set([
   "RV", "MOTORHOME", "MINIVAN", "HATCHBACK", "WAGON",
 ]);
 
+/** Items that contain vehicle keywords but aren't vehicles */
+const VEHICLE_EXCLUSIONS = [
+  /\bCAR\s+DOOR\b/i, /\bCAR\s+SEAT\b/i, /\bCAR\s+KEY/i,
+  /\bCAR\s+ALARM/i, /\bCAR\s+RADIO/i, /\bCAR\s+SPEAKER/i,
+  /\bCAR\s+PHONE/i, /\bCAR\s+JACK/i, /\bCAR\s+BATTERY/i,
+  /\bCAR\s+WINDOW/i, /\bCAR\s+TRUNK/i, /\bCAR\s+HOOD/i,
+  /\bTRAIN\s+TRACK/i, /\bTRAIN\s+STATION/i,
+  /\bBUS\s+STOP/i, /\bBUS\s+STATION/i,
+  /\bBIKE\s+RACK/i, /\bBIKE\s+LOCK/i,
+];
+
 export function isVehicleEntity(name: string): boolean {
   const upper = normalizeApostrophes(name).toUpperCase();
+  if (VEHICLE_EXCLUSIONS.some((p) => p.test(upper))) return false;
   // Strip possessive prefix
   const stripped = upper.replace(/^[A-Z0-9'\-]+['']S\s+/, "").trim();
   const words = stripped.split(/\s+/);
@@ -205,8 +217,16 @@ const WEAPON_KEYWORDS = new Set([
   "SNIPER", "ASSAULT RIFLE", "MACHINE GUN", "SUBMACHINE",
 ]);
 
+/** Items containing weapon keywords but aren't weapons */
+const WEAPON_EXCLUSIONS = [
+  /\bELECTRON\s+GUN/i, /\bSTAPLE\s*GUN/i, /\bGLUE\s*GUN/i,
+  /\bSPRAY\s*GUN/i, /\bHEAT\s*GUN/i, /\bNAIL\s*GUN/i,
+  /\bRADAR\s*GUN/i, /\bCATHODE/i,
+];
+
 export function isWeaponEntity(name: string): boolean {
   const upper = normalizeApostrophes(name).toUpperCase();
+  if (WEAPON_EXCLUSIONS.some((p) => p.test(upper))) return false;
   const words = upper.split(/\s+/);
   return words.some((w) => WEAPON_KEYWORDS.has(w));
 }
@@ -229,15 +249,29 @@ export function isLightEntity(name: string): boolean {
 
 const DOCUMENT_KEYWORDS = new Set([
   "LETTER", "NOTE", "JOURNAL", "DIARY", "NEWSPAPER", "MAGAZINE",
-  "BOOK", "FILE", "FOLDER", "ENVELOPE", "MAP", "PHOTOGRAPH", "PHOTO",
+  "BOOK", "FOLDER", "ENVELOPE", "MAP", "PHOTOGRAPH", "PHOTO",
   "CONTRACT", "WILL", "TESTAMENT", "CERTIFICATE", "LICENSE", "PASSPORT",
-  "ID", "BADGE", "WARRANT", "SUBPOENA", "REPORT", "MANUSCRIPT",
-  "SCRIPT", "NOTEBOOK", "POSTCARD", "TELEGRAM", "RECEIPT",
+  "BADGE", "WARRANT", "SUBPOENA", "REPORT", "MANUSCRIPT",
+  "NOTEBOOK", "POSTCARD", "TELEGRAM", "RECEIPT",
 ]);
+
+/** Items with document keywords that aren't really documents */
+const DOCUMENT_EXCLUSIONS = [
+  /\bCALLER\s+ID\b/i, /\bSOUND\s+FILE\b/i, /\bPOLICE\s+BADGE\b/i,
+  /\bPICTURE\s+BOOK/i, /\bNOTE\s*PAD\b/i,
+];
 
 export function isDocumentEntity(name: string): boolean {
   const upper = normalizeApostrophes(name).toUpperCase();
+  if (DOCUMENT_EXCLUSIONS.some((p) => p.test(upper))) return false;
   const words = upper.split(/\s+/);
+  // Don't match single ambiguous words like "ID", "FILE", "NOTE" when they're modifiers
+  const AMBIGUOUS_DOC_WORDS = new Set(["ID", "FILE", "NOTE", "SCRIPT"]);
+  if (words.length >= 2 && words.some((w) => AMBIGUOUS_DOC_WORDS.has(w))) {
+    // Only match if the ambiguous word is the LAST word (the noun), not a modifier
+    const lastWord = words[words.length - 1];
+    if (!AMBIGUOUS_DOC_WORDS.has(lastWord) && !DOCUMENT_KEYWORDS.has(lastWord)) return false;
+  }
   return words.some((w) => DOCUMENT_KEYWORDS.has(w));
 }
 
@@ -259,25 +293,77 @@ export function isDeviceEntity(name: string): boolean {
 // ─── Food/Drink detection ────────────────────────────────────────
 
 const FOOD_KEYWORDS = new Set([
-  "COFFEE", "TEA", "BEER", "WINE", "WHISKEY", "BOURBON", "SCOTCH",
-  "VODKA", "COCKTAIL", "DRINK", "GLASS", "BOTTLE", "SANDWICH",
-  "PIZZA", "BURGER", "FOOD", "MEAL", "PLATE", "CUP", "MUG",
-  "WATER", "JUICE", "SODA", "CHAMPAGNE", "MARTINI", "CIGARETTE",
+  "BEER", "WINE", "WHISKEY", "BOURBON", "SCOTCH",
+  "VODKA", "COCKTAIL", "DRINK", "SANDWICH",
+  "PIZZA", "BURGER", "FOOD", "MEAL", "MUG",
+  "JUICE", "SODA", "CHAMPAGNE", "MARTINI", "CIGARETTE",
+  "MUFFIN", "HOT DOG", "HASH BROWNS", "TAKEOUT",
 ]);
+
+/** Full-phrase food patterns (avoids matching "coffee table", "ocean water", etc.) */
+const FOOD_PHRASE_PATTERNS = [
+  /\bCOFFEE\b(?!\s+TABLE|\s+SHOP|\s+HOUSE)/i,
+  /\bTEA\b(?!\s+SET|\s+PARTY|\s+ROOM)/i,
+  /\bWATER\b(?!\s+HEATER|\s+TANK|\s+PIPE|\s+MAIN|\s+DAMAGE)/i,
+  /\bGLASS\s+OF\b/i,
+  /\bBOTTLE\s+OF\b/i,
+  /\bCUP\s+OF\b/i,
+  /\bPLATE\s+OF\b/i,
+];
+
+/** Items that look like food keywords but aren't food */
+const FOOD_EXCLUSION_PATTERNS = [
+  /\bTABLE\b/i, /\bBREWER\b/i, /\bMACHINE\b/i, /\bMAKER\b/i,
+  /\bSMASHING\b/i, /\bFRAMED?\b/i, /\bOCEAN\b/i, /\bSEA\b/i,
+  /\bCOLLECTION\b/i, /\bVIAL/i, /\bCARTON/i,
+];
 
 export function isFoodEntity(name: string): boolean {
   const upper = normalizeApostrophes(name).toUpperCase();
+
+  // Check exclusion patterns first — if any match, NOT food
+  if (FOOD_EXCLUSION_PATTERNS.some((p) => p.test(upper))) return false;
+
   const words = upper.split(/\s+/);
-  return words.some((w) => FOOD_KEYWORDS.has(w));
+  // Direct keyword match (only unambiguous food words)
+  if (words.some((w) => FOOD_KEYWORDS.has(w))) return true;
+  // Phrase-level patterns for ambiguous words
+  if (FOOD_PHRASE_PATTERNS.some((p) => p.test(upper))) return true;
+  return false;
 }
 
 // ─── Cross-category classification ──────────────────────────────
 
 /**
+ * Types where the AI classification should be trusted unless we have
+ * high-confidence keyword evidence to the contrary.
+ * For these types, keyword reclassification only happens if the
+ * keyword match is unambiguous (not blocked by exclusions).
+ */
+const AI_TRUSTED_TYPES = new Set<string>([
+  "SOUND_EVENT", "ENVIRONMENTAL_CONDITION", "WARDROBE", "ANIMAL",
+  "CHARACTER", "LOCATION",
+]);
+
+/**
  * Classify a raw entity name into the correct category.
+ * Respects AI suggestion for trusted types unless keyword evidence is strong.
  * Enforces strict separation: vehicles never props, weapons never props, etc.
  */
 export function classifyEntity(name: string, aiSuggestedType?: string): EntityType {
+  // If AI gave a trusted type, only override for very clear misclassifications
+  if (aiSuggestedType && AI_TRUSTED_TYPES.has(aiSuggestedType)) {
+    // Only override trusted AI types for vehicle/weapon (most safety-critical)
+    if (isVehicleEntity(name) && aiSuggestedType !== "LOCATION") return "VEHICLE";
+    if (isWeaponEntity(name)) return "WEAPON";
+    // Otherwise trust the AI
+    if (ENTITY_TYPES.includes(aiSuggestedType as EntityType)) {
+      return aiSuggestedType as EntityType;
+    }
+  }
+
+  // For non-trusted AI types (PROP, DEVICE, DOCUMENT, FOOD_OR_DRINK, etc.),
+  // apply keyword reclassification
   if (isVehicleEntity(name)) return "VEHICLE";
   if (isWeaponEntity(name)) return "WEAPON";
   if (isLightEntity(name)) return "PRACTICAL_LIGHT_SOURCE";
