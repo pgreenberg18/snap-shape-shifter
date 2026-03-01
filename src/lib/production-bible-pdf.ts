@@ -300,8 +300,6 @@ class BiblePdfBuilder {
 
   private renderCover(bible: ProductionBibleContent) {
     this.y = 80;
-    this.doc.setFillColor(...C_PRIMARY);
-    this.doc.rect(PAGE_W / 2 - 30, this.y, 60, 1.5, "F");
     this.y += 12;
 
     this.doc.setFont("helvetica", "bold");
@@ -332,8 +330,6 @@ class BiblePdfBuilder {
     }
 
     this.y += 20;
-    this.doc.setFillColor(...C_PRIMARY);
-    this.doc.rect(PAGE_W / 2 - 30, this.y, 60, 1.5, "F");
 
     this.y = PAGE_H - 45;
     this.doc.setFontSize(7);
