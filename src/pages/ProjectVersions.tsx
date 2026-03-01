@@ -736,11 +736,11 @@ const ProjectVersions = () => {
           <SidebarTooltip label="Project Services">
             <button onClick={() => setServicesOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
               <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-                <PrecisionGearIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+                <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
               </span>
             </button>
           </SidebarTooltip>
-          <SidebarTooltip label="Global Settings">
+          <SidebarTooltip label="Settings">
             <button onClick={() => navigate("/settings/admin")} className="flex h-10 w-10 items-center justify-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200">
               <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
                 <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
