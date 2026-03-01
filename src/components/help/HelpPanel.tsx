@@ -163,7 +163,7 @@ interface HelpArticle {
   category: string;
 }
 
-const HELP_ARTICLES: HelpArticle[] = [
+export const HELP_ARTICLES: HelpArticle[] = [
   /* ═══════════════════════════════════════════
      GENERAL / PROJECTS
      ═══════════════════════════════════════════ */
@@ -928,7 +928,7 @@ export const HelpProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-export { HELP_ARTICLES };
+
 export type { HelpArticle };
 
 /* ── Help Panel Component ── */
