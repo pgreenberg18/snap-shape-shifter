@@ -86,7 +86,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const { signOut } = useAuth();
   const { toggle: toggleHelp } = useHelp();
   const { hasPhaseAccess } = useAccessControl();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   // Check if script is currently being analyzed
   const { data: latestAnalysis } = useQuery({
