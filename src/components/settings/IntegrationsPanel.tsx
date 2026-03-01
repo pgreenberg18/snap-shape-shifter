@@ -309,11 +309,8 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
   },
 };
 
-const LEGACY_SECTION_MAP: Record<string, string> = {
-  "writers-room": "script-analysis",
-  "sound-stage": "voice-stage",
-  "post-house": "post-lipsync",
-};
+// Re-export from shared utility
+import { mapLegacySection } from "@/lib/map-legacy-section";
 
 /* ── Provider groups: services that share the same API key ── */
 const PROVIDER_GROUPS: Record<string, string[]> = {
@@ -489,7 +486,7 @@ const IntegrationsPanel = () => {
   if (isLoading) return <div className="flex items-center justify-center h-full text-muted-foreground">Loading…</div>;
 
   const grouped = integrations?.reduce((acc, int) => {
-    const mappedSection = LEGACY_SECTION_MAP[int.section_id] || int.section_id;
+    const mappedSection = mapLegacySection(int.section_id, int.provider_name);
     (acc[mappedSection] ??= []).push(int);
     return acc;
   }, {} as Record<string, typeof integrations>) ?? {};
@@ -679,7 +676,7 @@ const IntegrationsPanel = () => {
                           const providerGroup = Object.values(PROVIDER_GROUPS).find((ids) => ids.includes(val));
                           if (providerGroup && integrations) {
                             const existingInt = integrations.find((int) => {
-                              const mappedSection = LEGACY_SECTION_MAP[int.section_id] || int.section_id;
+                              const mappedSection = mapLegacySection(int.section_id, int.provider_name);
                               const cat = SERVICE_CATALOGS[mappedSection] || [];
                               const matchedSvc = cat.find((s) => int.provider_name.startsWith(s.name));
                               return matchedSvc && providerGroup.includes(matchedSvc.id) && int.is_verified && int.api_key_encrypted;

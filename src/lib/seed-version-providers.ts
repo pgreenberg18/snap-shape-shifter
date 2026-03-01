@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { mapLegacySection } from "@/lib/map-legacy-section";
 
 /**
  * Seeds version_provider_selections for a new film from the user's
@@ -8,17 +9,15 @@ import { supabase } from "@/integrations/supabase/client";
 export async function seedVersionProviders(filmId: string) {
   const { data: integrations } = await supabase
     .from("integrations")
-    .select("id, section_id, is_verified")
+    .select("id, section_id, is_verified, provider_name")
     .eq("is_verified", true);
 
   if (!integrations?.length) return;
 
-  const LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
-
   // Group by section, pick first verified per section
   const bySection: Record<string, string> = {};
   for (const int of integrations) {
-    const section = LEGACY_MAP[int.section_id] || int.section_id;
+    const section = mapLegacySection(int.section_id, (int as any).provider_name ?? "");
     if (!bySection[section]) {
       bySection[section] = int.id;
     }
