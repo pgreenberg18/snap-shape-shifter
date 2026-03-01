@@ -384,6 +384,14 @@ const Development = () => {
   const [contentSafetyRun, setContentSafetyRun] = useState(false);
   const [locking, setLocking] = useState(false);
   const [allElementsReviewed, setAllElementsReviewed] = useState(false);
+  const [scriptSectionOpen, setScriptSectionOpen] = useState(true);
+
+  // Collapse the script section once we know analysis is complete
+  useEffect(() => {
+    if (!analysisLoading && analysis?.status === "complete") {
+      setScriptSectionOpen(false);
+    }
+  }, [analysisLoading, analysis?.status]);
   const [reviewStats, setReviewStats] = useState<{ approved: number; rejected: number; pending: number } | null>(null);
   const [timePeriod, setTimePeriod] = useState("");
   const [timePeriodSaving, setTimePeriodSaving] = useState(false);
@@ -1043,7 +1051,7 @@ const Development = () => {
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
               {/* ── Script Details ── */}
-              <Collapsible defaultOpen={analysis?.status !== "complete"}>
+              <Collapsible open={scriptSectionOpen} onOpenChange={setScriptSectionOpen}>
                 <CollapsibleTrigger className="w-full">
                   <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
