@@ -41,7 +41,7 @@ const ACCEPTED_LABEL = ".fdx only (more formats coming soon)";
 
 const FORMAT_PRESETS: { value: string; label: string; width: number; height: number; fps: number; aspect: string; fourK?: { width: number; height: number }; category: string }[] = [
   // Live-Action
-  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", category: "Live-Action" },
   { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
