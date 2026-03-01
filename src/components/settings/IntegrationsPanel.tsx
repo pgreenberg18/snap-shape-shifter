@@ -187,27 +187,33 @@ const SERVICE_CATALOGS: Record<string, ServiceDef[]> = {
       { id: "luma-1.0", label: "Dream Machine 1.0" },
     ]},
   ],
-  "post-house": [
+  "post-lipsync": [
     { id: "synclabs", name: "SyncLabs", placeholder: "Enter SyncLabs API key…", variants: [
       { id: "synclabs-v2", label: "SyncLabs V2" },
       { id: "synclabs-v1", label: "SyncLabs V1" },
     ]},
+    { id: "kling-lipsync", name: "Kling Lip Sync", placeholder: "Enter Kling API key…", variants: [
+      { id: "kling-lipsync-1.0", label: "Lip Sync 1.0" },
+    ]},
+  ],
+  "post-upscale": [
     { id: "topaz", name: "Topaz AI", placeholder: "Enter Topaz API key…", variants: [
       { id: "topaz-video-4", label: "Video AI 4" },
       { id: "topaz-video-3", label: "Video AI 3" },
     ]},
+    { id: "kling-upscale", name: "Kling Video Upscale", placeholder: "Enter Kling API key…", variants: [
+      { id: "kling-upscale-1.0", label: "Upscale 1.0" },
+    ]},
+  ],
+  "post-editing": [
     { id: "descript", name: "Descript", placeholder: "Enter Descript API key…", variants: [
       { id: "descript-studio", label: "Studio" },
     ]},
     { id: "kapwing", name: "Kapwing", placeholder: "Enter Kapwing API key…", variants: [
       { id: "kapwing-pro", label: "Pro" },
     ]},
-    { id: "kling-lipsync", name: "Kling Lip Sync", placeholder: "Enter Kling API key…", variants: [
-      { id: "kling-lipsync-1.0", label: "Lip Sync 1.0" },
-    ]},
-    { id: "kling-upscale", name: "Kling Video Upscale", placeholder: "Enter Kling API key…", variants: [
-      { id: "kling-upscale-1.0", label: "Upscale 1.0" },
-    ]},
+  ],
+  "post-dubbing": [
     { id: "elevenlabs-post", name: "ElevenLabs (Dubbing & ADR)", placeholder: "Enter ElevenLabs API key…", variants: [
       { id: "eleven-dubbing", label: "Dubbing" },
       { id: "eleven-voice-isolator", label: "Voice Isolator" },
@@ -224,7 +230,10 @@ const sectionOrder = [
   "music-stage",
   "sfx-stage",
   "camera-cart",
-  "post-house",
+  "post-lipsync",
+  "post-upscale",
+  "post-editing",
+  "post-dubbing",
 ] as const;
 
 const sectionMeta: Record<string, { title: string; description: string; icon: React.ReactNode; addLabel: string }> = {
@@ -264,9 +273,27 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
     icon: <Camera className="h-4 w-4" />,
     addLabel: "Add Service",
   },
-  "post-house": {
-    title: "Post-Production",
-    description: "Lip-sync, upscaling and post-processing tools",
+  "post-lipsync": {
+    title: "Lip Sync",
+    description: "Automated lip-sync and facial animation",
+    icon: <Clapperboard className="h-4 w-4" />,
+    addLabel: "Add Service",
+  },
+  "post-upscale": {
+    title: "Upscaling",
+    description: "Video upscaling, denoising and enhancement",
+    icon: <Clapperboard className="h-4 w-4" />,
+    addLabel: "Add Service",
+  },
+  "post-editing": {
+    title: "Editing Tools",
+    description: "AI-assisted video editing and processing",
+    icon: <Clapperboard className="h-4 w-4" />,
+    addLabel: "Add Service",
+  },
+  "post-dubbing": {
+    title: "Dubbing & ADR",
+    description: "Automated dubbing, ADR and voice isolation",
     icon: <Clapperboard className="h-4 w-4" />,
     addLabel: "Add Service",
   },
@@ -275,6 +302,7 @@ const sectionMeta: Record<string, { title: string; description: string; icon: Re
 const LEGACY_SECTION_MAP: Record<string, string> = {
   "writers-room": "script-analysis",
   "sound-stage": "voice-stage",
+  "post-house": "post-lipsync",
 };
 
 /* ── Provider groups: services that share the same API key ── */
