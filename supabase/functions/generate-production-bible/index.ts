@@ -103,6 +103,9 @@ Deno.serve(async (req) => {
     const contextPayload = {
       film: {
         title: film.title,
+        version_name: film.version_name || null,
+        version_number: film.version_number,
+        script_file_name: analysis?.file_name || null,
         genres,
         format_type: film.format_type,
         time_period: film.time_period,

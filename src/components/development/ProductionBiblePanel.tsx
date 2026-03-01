@@ -327,21 +327,35 @@ const ProductionBiblePanel = () => {
   const [bible, setBible] = useState<ProductionBibleContent | null>(null);
   const [status, setStatus] = useState<string>("idle");
   const [loading, setLoading] = useState(false);
+  const [scriptFileName, setScriptFileName] = useState<string | null>(null);
 
-  // Load existing bible from DB
+  // Load existing bible + script file name from DB
   useEffect(() => {
     if (!filmId) return;
     (async () => {
-      const { data } = await supabase
-        .from("production_bibles")
-        .select("*")
-        .eq("film_id", filmId)
-        .maybeSingle() as any;
-      if (data) {
-        setStatus(data.status);
-        if (data.status === "complete" && data.content) {
-          setBible(data.content as any);
+      const [bibleRes, analysisRes] = await Promise.all([
+        supabase
+          .from("production_bibles")
+          .select("*")
+          .eq("film_id", filmId)
+          .maybeSingle() as any,
+        supabase
+          .from("script_analyses")
+          .select("file_name")
+          .eq("film_id", filmId)
+          .eq("status", "complete")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      if (bibleRes.data) {
+        setStatus(bibleRes.data.status);
+        if (bibleRes.data.status === "complete" && bibleRes.data.content) {
+          setBible(bibleRes.data.content as any);
         }
+      }
+      if (analysisRes.data?.file_name) {
+        setScriptFileName(analysisRes.data.file_name);
       }
     })();
   }, [filmId]);
@@ -426,7 +440,7 @@ const ProductionBiblePanel = () => {
           <Button
             size="sm"
             variant="outline"
-            onClick={() => downloadProductionBiblePdf(bible, film?.title || "Untitled Film")}
+            onClick={() => downloadProductionBiblePdf({ ...bible, version_name: film?.version_name || undefined, script_file_name: scriptFileName || undefined }, film?.title || "Untitled Film")}
             className="gap-1.5 h-7 text-xs"
           >
             <Download className="h-3 w-3" />
