@@ -1,54 +1,14 @@
-import { useState } from "react";
-import { Link, useNavigate, Navigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Film, Mail, Lock, ArrowRight } from "lucide-react";
+import { Film } from "lucide-react";
 import { lovable } from "@/integrations/lovable";
 
 const Login = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [resetLoading, setResetLoading] = useState(false);
   const { session, loading: authLoading } = useAuth();
-  const navigate = useNavigate();
-  const { toast } = useToast();
 
   if (authLoading) return null;
   if (session) return <Navigate to="/projects" replace />;
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (error) {
-      toast({ title: "Sign in failed", description: error.message, variant: "destructive" });
-    } else {
-      navigate("/projects");
-    }
-  };
-
-  const handleResetPassword = async () => {
-    if (!email) {
-      toast({ title: "Enter your email", description: "Please enter your email address first.", variant: "destructive" });
-      return;
-    }
-    setResetLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: window.location.origin + "/login",
-    });
-    setResetLoading(false);
-    if (error) {
-      toast({ title: "Reset failed", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Check your email", description: "A password reset link has been sent to your inbox." });
-    }
-  };
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -93,70 +53,10 @@ const Login = () => {
             <p className="text-sm text-muted-foreground mt-1 font-body">Sign in to your studio workspace</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm hw-label">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="director@studio.ai"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm hw-label">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={handleResetPassword}
-                disabled={resetLoading}
-                className="text-xs text-primary hover:underline font-medium font-mono tracking-wide disabled:opacity-50"
-              >
-                {resetLoading ? "Sending…" : "Forgot password?"}
-              </button>
-            </div>
-
-            <Button type="submit" className="w-full gap-2" disabled={loading}>
-              {loading ? "Signing in…" : (
-                <>Sign In <ArrowRight className="h-4 w-4" /></>
-              )}
-            </Button>
-          </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full rack-groove" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-3 text-muted-foreground font-mono tracking-[0.2em]">or</span>
-            </div>
-          </div>
-
           <Button
             type="button"
             variant="outline"
-            className="w-full gap-3"
+            className="w-full gap-3 h-12 text-base"
             onClick={async () => {
               await lovable.auth.signInWithOAuth("google", {
                 redirect_uri: window.location.origin,
@@ -169,15 +69,8 @@ const Login = () => {
               <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
             </svg>
-            Sign in with Google
+            Continue with Google
           </Button>
-
-          <p className="text-center text-sm text-muted-foreground font-body">
-            Don't have an account?{" "}
-            <Link to="/signup" className="text-primary hover:underline font-medium">
-              Create one
-            </Link>
-          </p>
         </div>
       </div>
     </div>
