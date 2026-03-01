@@ -696,10 +696,16 @@ const Development = () => {
     })();
   }, [filmId, queryClient, runPostEnrichment]);
 
-  // Resume enrichment on page load only if vision is locked and there are unenriched scenes
+  // Resume enrichment on page load if there are unenriched scenes
+  // This handles both: initial parse enrichment (status === "enriching") and
+  // vision-lock propagation (visionComplete === true)
   useEffect(() => {
-    if (!analysis || !filmId || !visionComplete) return;
+    if (!analysis || !filmId) return;
     if (enrichingRef.current) return;
+
+    // Only resume if analysis is in enriching state OR vision is complete (propagation)
+    const shouldResume = analysis.status === "enriching" || visionComplete;
+    if (!shouldResume) return;
 
     (async () => {
       // Find unenriched scene IDs
@@ -716,11 +722,11 @@ const Development = () => {
           unenriched.map((s) => s.id),
           analysis.id,
           undefined,
-          { includeDirectorFit: false }, // Don't overwrite saved director profile on resume
+          { includeDirectorFit: false },
         );
       }
     })();
-  }, [analysis?.id, filmId, visionComplete, runEnrichmentBatches]);
+  }, [analysis?.id, analysis?.status, filmId, visionComplete, runEnrichmentBatches]);
 
   /* Sync section approval states from DB */
   useEffect(() => {
@@ -979,9 +985,13 @@ const Development = () => {
     }
 
     const sceneIds: string[] = parseResult?.scene_ids || [];
-    // Skip enrichment — it runs after Vision is locked
-    // Just run finalize + director fit
-    if (analysisId) {
+
+    // Run enrichment immediately after parsing so scenes get full breakdown data
+    // (characters, wardrobe, props, locations, visual design, etc.)
+    if (sceneIds.length > 0 && analysisId) {
+      runEnrichmentBatches(sceneIds, analysisId, undefined, { includeDirectorFit: false });
+    } else if (analysisId) {
+      // No scene IDs returned — finalize with whatever we have
       runPostEnrichment(analysisId);
     }
 
@@ -1587,9 +1597,8 @@ const Development = () => {
                                     setAnalyzing(false);
                                     toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
                                   } else {
-                                    // Run finalize + director fit (same as main analyze flow)
-                                    runPostEnrichment(analysis.id);
-                                    setAnalyzing(false);
+                                    // Enrichment will resume automatically via the useEffect
+                                    // that watches analysis.status === "enriching"
                                     queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
                                   }
                                 }}
