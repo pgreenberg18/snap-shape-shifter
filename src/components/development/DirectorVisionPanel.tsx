@@ -336,9 +336,14 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
       )}
 
       {analyzing && (
-        <div className="flex items-center gap-3 py-6 justify-center">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">Analyzing directorial fit…</span>
+        <div className="flex flex-col items-center gap-4 py-8 px-4">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="text-center space-y-2 max-w-md">
+            <p className="text-sm font-medium text-foreground">Analyzing Directorial Fit</p>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              The neural style engine is reading your script's tone, pacing, visual density, and emotional temperature — then matching it against 35 iconic director profiles across 8 cinematic axes. This finds the directorial DNA that best fits your story.
+            </p>
+          </div>
         </div>
       )}
 
