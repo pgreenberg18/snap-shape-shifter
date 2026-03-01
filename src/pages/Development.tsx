@@ -1306,22 +1306,32 @@ const Development = () => {
                   {/* Complete results — Fundamentals sections */}
                   {analysis?.status === "complete" && (
                     <div className="space-y-6">
+                      {/* ── Format / Time Period / Genre — side-by-side ── */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {/* ── Format ── */}
                       <Collapsible>
                         <CollapsibleTrigger className="w-full">
-                          <div data-help-id="dev-format-specs" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                            <div className="flex items-center gap-2">
-                              <Monitor className="h-5 w-5 text-primary" />
-                              <h3 className="font-display text-lg font-bold">Format</h3>
+                          <div data-help-id="dev-format-specs" className="rounded-xl border border-border bg-card p-4 flex flex-col gap-1 hover:bg-accent/30 transition-colors cursor-pointer h-full">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Monitor className="h-5 w-5 text-primary" />
+                                <h3 className="font-display text-sm font-bold">Format</h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {formatType ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                )}
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {formatType ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                              )}
-                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                            </div>
+                            {formatType && (() => {
+                              const preset = FORMAT_PRESETS.find(p => p.value === formatType);
+                              return preset ? (
+                                <p className="text-[11px] text-muted-foreground text-left truncate">{preset.label} ({preset.aspect})</p>
+                              ) : null;
+                            })()}
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
@@ -1492,19 +1502,26 @@ const Development = () => {
                       {/* ── Time Period ── */}
                       <Collapsible>
                         <CollapsibleTrigger className="w-full">
-                          <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-5 w-5 text-primary" />
-                              <h3 className="font-display text-lg font-bold">Time Period</h3>
+                          <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-1 hover:bg-accent/30 transition-colors cursor-pointer h-full">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-5 w-5 text-primary" />
+                                <h3 className="font-display text-sm font-bold">Time Period</h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {film?.time_period ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                )}
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              {film?.time_period ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                              )}
-                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                            </div>
+                            {film?.time_period && (
+                              <p className="text-[11px] text-muted-foreground text-left truncate">
+                                {film.time_period}{secondaryTimePeriods.length > 0 ? `, +${secondaryTimePeriods.length} secondary` : ""}
+                              </p>
+                            )}
                           </div>
                         </CollapsibleTrigger>
                         <CollapsibleContent>
@@ -1755,22 +1772,24 @@ const Development = () => {
                         return (
                           <Collapsible>
                             <CollapsibleTrigger className="w-full">
-                              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                                <div className="flex items-center gap-2">
-                                  <Clapperboard className="h-5 w-5 text-primary" />
-                                  <h3 className="font-display text-lg font-bold">Genre</h3>
-                                  {genres.length > 0 && (
-                                    <span className="text-xs text-muted-foreground">{genres.length} selected</span>
-                                  )}
+                              <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-1 hover:bg-accent/30 transition-colors cursor-pointer h-full">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Clapperboard className="h-5 w-5 text-primary" />
+                                    <h3 className="font-display text-sm font-bold">Genre</h3>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {genres.length > 0 ? (
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                    )}
+                                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2">
-                                  {genres.length > 0 ? (
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                  ) : (
-                                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                                  )}
-                                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                                </div>
+                                {genres.length > 0 && (
+                                  <p className="text-[11px] text-muted-foreground text-left truncate">{genres.join(", ")}</p>
+                                )}
                               </div>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
@@ -1818,6 +1837,7 @@ const Development = () => {
                           </Collapsible>
                         );
                       })()}
+                      </div>
 
                       {/* ── Ratings Classification (Content Safety) ── */}
                       {devParsedScenes && devParsedScenes.length > 0 && (
@@ -2058,7 +2078,6 @@ const Development = () => {
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
-
 
                   {/* AI Generation Notes */}
                   {directorProfile && <EditableAIGenerationNotes
