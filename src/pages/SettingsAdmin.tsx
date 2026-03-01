@@ -512,10 +512,10 @@ const SettingsAdmin = () => {
   };
 
   const userSections = [
-    { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
     { id: "integrations", label: "Integrations", icon: Plug },
     { id: "credit-usage", label: "Credit Usage", icon: Gauge },
     { id: "media-library", label: "Media Library", icon: Image },
+    { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
     { id: "reset-app", label: "Reset App", icon: RotateCcw },
   ];
 
