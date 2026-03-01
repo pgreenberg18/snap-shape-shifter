@@ -1056,6 +1056,47 @@ export type Database = {
           },
         ]
       }
+      production_bibles: {
+        Row: {
+          content: Json
+          created_at: string
+          error_message: string | null
+          film_id: string
+          id: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          content?: Json
+          created_at?: string
+          error_message?: string | null
+          film_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          error_message?: string | null
+          film_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "production_bibles_film_id_fkey"
+            columns: ["film_id"]
+            isOneToOne: true
+            referencedRelation: "films"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       production_presets: {
         Row: {
           category: string

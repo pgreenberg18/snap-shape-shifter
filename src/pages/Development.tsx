@@ -6,7 +6,7 @@ import {
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
   Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw, Trash2,
-  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard, Monitor,
+  Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard, Monitor, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -31,6 +31,7 @@ import { supabase } from "@/integrations/supabase/client";
 import GlobalElementsManager from "@/components/development/GlobalElementsManager";
 import TypewriterSceneFeed from "@/components/development/TypewriterSceneFeed";
 import DirectorVisionPanel from "@/components/development/DirectorVisionPanel";
+import ProductionBiblePanel from "@/components/development/ProductionBiblePanel";
 import DraggableScriptPopup from "@/components/DraggableScriptPopup";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2093,6 +2094,27 @@ const Development = () => {
                       persistApproval("ai_notes_approved", v);
                     }}
                   />}
+
+                  {/* Production Bible */}
+                  {directorProfile && aiNotesApproved && (
+                    <Collapsible defaultOpen>
+                      <CollapsibleTrigger className="w-full">
+                        <div data-help-id="dev-production-bible" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <BookOpen className="h-5 w-5 text-primary" />
+                            <h3 className="font-display text-lg font-bold">Production Bible</h3>
+                          </div>
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                          <ProductionBiblePanel />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
                   {/* Lock Vision */}
                   {!visionComplete && directorProfile && aiNotesApproved && (
                     <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
