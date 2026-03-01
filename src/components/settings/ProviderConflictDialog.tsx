@@ -11,11 +11,19 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 const SECTION_LABELS: Record<string, string> = {
-  "script-analysis": "Script Analysis (LLM)",
+  "script-analysis": "Script Analysis",
   "image-generation": "Image Generation",
-  "sound-stage": "Voice & Audio",
+  "voice-stage": "Voice",
+  "music-stage": "Music",
+  "sfx-stage": "Sound Effects",
   "camera-cart": "Video Generation",
-  "post-house": "Post-Production",
+  "post-lipsync": "Lip Sync",
+  "post-upscale": "Upscaling",
+  "post-editing": "Editing Tools",
+  "post-dubbing": "Dubbing & ADR",
+  // Legacy aliases
+  "sound-stage": "Voice",
+  "post-house": "Lip Sync",
 };
 
 type Conflict = {
