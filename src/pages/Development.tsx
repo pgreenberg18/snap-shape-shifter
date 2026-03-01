@@ -41,7 +41,7 @@ const ACCEPTED_LABEL = ".fdx only (more formats coming soon)";
 
 const FORMAT_PRESETS = [
   { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "feature_film_scope", label: "Widescreen (2.39:1)", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 } },
+  { value: "feature_film_scope", label: "Feature Film — Widescreen", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 } },
   { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
   { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
   { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
