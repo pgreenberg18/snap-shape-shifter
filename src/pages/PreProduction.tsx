@@ -798,14 +798,13 @@ const PreProduction = () => {
       </header>
 
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 border-b border-border bg-card/60 backdrop-blur-sm px-6">
-          <TabsList className="h-12 bg-transparent gap-1 p-0">
+        <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
+          <TabsList className="h-auto bg-transparent gap-0 p-0 border-b border-border items-end">
             <PreProductionTab value="casting" icon={Users} label="Cast" />
             <PreProductionTab value="locations" icon={MapPin} label="Locations" />
             <PreProductionTab value="props" icon={Package} label="Props" />
             <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" />
             <PreProductionTab value="vehicles" icon={Car} label="Picture Vehicles" />
-            
           </TabsList>
         </div>
 
@@ -2150,7 +2149,7 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
 const PreProductionTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
   <TabsTrigger
     value={value}
-    className="gap-2 px-4 py-2.5 text-xs font-display font-semibold uppercase tracking-wider rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:text-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none bg-transparent text-muted-foreground hover:text-foreground transition-colors"
+    className="relative gap-2 px-5 py-2 text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all rounded-t-lg rounded-b-none border border-border/60 border-b-0 -mb-px bg-secondary/40 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:border-border data-[state=active]:shadow-[0_-2px_8px_-2px_rgba(47,125,255,0.15)] data-[state=active]:z-10 data-[state=inactive]:hover:bg-secondary/70"
   >
     <Icon className="h-3.5 w-3.5" />
     {label}
