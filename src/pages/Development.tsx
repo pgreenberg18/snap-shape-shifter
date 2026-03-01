@@ -354,13 +354,16 @@ const Development = () => {
     queryFn: async () => {
       const { data } = await supabase
         .from("parsed_scenes")
-        .select("characters, key_objects, location_name")
+        .select("scene_number, characters, key_objects, location_name, wardrobe, picture_vehicles")
         .eq("film_id", filmId!)
         .eq("enriched", true);
       return (data || []).map(d => ({
+        scene_number: d.scene_number as number,
         characters: (d.characters || []) as string[],
         key_objects: (d.key_objects || []) as string[],
         location_name: (d.location_name || "") as string,
+        wardrobe: (d.wardrobe || []) as any[],
+        picture_vehicles: (d.picture_vehicles || []) as string[],
       }));
     },
     enabled: !!filmId,
