@@ -175,15 +175,15 @@ const MARGIN_B = 20;
 const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
 const FOOTER_Y = PAGE_H - 12;
 
-// ── Colors ──
-const C_BG = [10, 15, 28] as const;
-const C_CARD = [16, 22, 38] as const;
-const C_PRIMARY = [47, 125, 255] as const;
-const C_TEXT = [230, 235, 245] as const;
-const C_MUTED = [140, 150, 170] as const;
-const C_BORDER = [35, 42, 58] as const;
-const C_DANGER = [255, 70, 100] as const;
-const C_SUCCESS = [34, 197, 94] as const;
+// ── Colors (print-friendly white background) ──
+const C_BG = [255, 255, 255] as const;
+const C_CARD = [245, 247, 250] as const;
+const C_PRIMARY = [25, 80, 180] as const;
+const C_TEXT = [20, 25, 35] as const;
+const C_MUTED = [100, 110, 130] as const;
+const C_BORDER = [200, 205, 215] as const;
+const C_DANGER = [180, 30, 50] as const;
+const C_SUCCESS = [20, 140, 60] as const;
 
 class BiblePdfBuilder {
   private doc: jsPDF;
@@ -365,7 +365,7 @@ class BiblePdfBuilder {
         this.subHeading(axis.axis);
 
         // Score bar
-        this.doc.setFillColor(30, 35, 50);
+        this.doc.setFillColor(225, 228, 235);
         this.doc.roundedRect(MARGIN_L + 4, this.y, 60, 4, 1, 1, "F");
         this.doc.setFillColor(...C_PRIMARY);
         this.doc.roundedRect(MARGIN_L + 4, this.y, (axis.score / 10) * 60, 4, 1, 1, "F");
