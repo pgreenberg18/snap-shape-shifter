@@ -161,13 +161,24 @@ export const InfoBeaconIcon = ({ className }: IconProps) => (
 );
 
 /* ── Back Arrow: Cinematic return ── */
-export const CineBackIcon = ({ className }: IconProps) => (
-  <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <path d="M10 6L4 12l6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M4 12h12a4 4 0 010 8h-2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
-    <circle cx="4" cy="12" r="1.2" fill="hsl(12 90% 62%)" opacity="0.7" />
-  </svg>
-);
+export const CineBackIcon = ({ className }: IconProps) => {
+  const uid = useId();
+  const gid = `g-back-${uid}`;
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
+      <defs>
+        <linearGradient id={gid} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="currentColor" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="currentColor" stopOpacity="0.3" />
+        </linearGradient>
+      </defs>
+      <circle cx="12" cy="12" r="9" fill={`url(#${gid})`} opacity="0.1" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M14 8L9 12l5 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.85" />
+      <line x1="9.5" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
+      <circle cx="9" cy="12" r="1" fill="hsl(210 95% 60%)" opacity="0.8" />
+    </svg>
+  );
+};
 
 /* ── Film/Studio: Film strip ── */
 export const FilmStripIcon = ({ className }: IconProps) => (
