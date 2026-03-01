@@ -284,6 +284,13 @@ const Projects = () => {
                   </div>
                 )}
               </div>
+              <button
+                onClick={() => setOpen(true)}
+                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-primary hover:bg-accent transition-colors"
+              >
+                <AddProjectIcon className="h-3 w-3" />
+                <span>New Film Project</span>
+              </button>
             </div>
           </div>
 
