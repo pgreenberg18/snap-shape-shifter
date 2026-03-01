@@ -91,9 +91,15 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
 
   const toTitleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
 
+  // Vehicle pattern to filter from locations
+  const VEHICLE_RE = /\b(CAR|TRUCK|VAN|BUS|SUV|SEDAN|CORVETTE|TESLA|MIATA|MUSTANG|AMBULANCE|TAXI|CAB|LIMO|MOTORCYCLE|HELICOPTER|BOAT|YACHT|JET|PLANE)\b/i;
+
   for (const entity of entities) {
     const category = ENTITY_TYPE_TO_CATEGORY[entity.entity_type];
     if (!category) continue;
+
+    // Filter vehicles out of locations
+    if (category === "locations" && VEHICLE_RE.test(entity.canonical_name)) continue;
 
     const cat = catMap[category];
     const displayName = toTitleCase(entity.canonical_name.toLowerCase());
@@ -103,8 +109,23 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
       (a) => a.toLowerCase().trim() !== entity.canonical_name.toLowerCase().trim()
     );
 
-    if (meaningfulAliases.length > 0) {
-      const variants = [displayName, ...meaningfulAliases.map((a) => toTitleCase(a.toLowerCase()))];
+    // For locations, check metadata for sublocations too
+    const sublocations: string[] = [];
+    if (entity.entity_type === "LOCATION" && entity.metadata?.sublocations) {
+      const subs = entity.metadata.sublocations as string[];
+      if (Array.isArray(subs)) sublocations.push(...subs.filter(Boolean));
+    }
+
+    const hasVariants = meaningfulAliases.length > 0 || sublocations.length > 0;
+
+    if (hasVariants) {
+      const variants = [displayName];
+      if (meaningfulAliases.length > 0) {
+        variants.push(...meaningfulAliases.map((a) => toTitleCase(a.toLowerCase())));
+      }
+      if (sublocations.length > 0) {
+        variants.push(...sublocations.map((s) => `${displayName} - ${toTitleCase(s.toLowerCase())}`));
+      }
       // Deduplicate variants
       const uniqueVariants = [...new Set(variants)];
       cat.groups.push({
@@ -117,9 +138,16 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
     }
   }
 
-  // Sort all categories
+  // Deduplicate ungrouped items (case-insensitive)
   for (const key of Object.keys(catMap) as CategoryKey[]) {
-    catMap[key].ungrouped.sort((a, b) => a.localeCompare(b));
+    const seen = new Map<string, string>();
+    for (const item of catMap[key].ungrouped) {
+      const norm = item.toLowerCase();
+      if (!seen.has(norm) || item.length > seen.get(norm)!.length) {
+        seen.set(norm, item);
+      }
+    }
+    catMap[key].ungrouped = [...seen.values()].sort((a, b) => a.localeCompare(b));
     catMap[key].groups.sort((a, b) => a.parentName.localeCompare(b.parentName));
   }
 
