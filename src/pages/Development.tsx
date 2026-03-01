@@ -614,7 +614,7 @@ const Development = () => {
   }, [filmId, queryClient]);
 
   // Parallel batch enrichment helper (5 concurrent)
-  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void) => {
+  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void, { includeDirectorFit = true }: { includeDirectorFit?: boolean } = {}) => {
     if (enrichingRef.current || !analysisId) return; // prevent duplicate loops
     enrichingRef.current = true;
 
@@ -689,8 +689,8 @@ const Development = () => {
         onComplete?.();
         queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
 
-        // Chain: finalize → director fit (only after fundamentals locked + enrichment done)
-        await runPostEnrichment(analysisId, { includeDirectorFit: true });
+        // Chain: finalize → optionally director fit (only on first lock, not on resume)
+        await runPostEnrichment(analysisId, { includeDirectorFit });
       } finally {
         enrichingRef.current = false;
       }
@@ -715,7 +715,9 @@ const Development = () => {
         console.log(`Resuming enrichment for ${unenriched.length} remaining scenes`);
         runEnrichmentBatches(
           unenriched.map((s) => s.id),
-          analysis.id
+          analysis.id,
+          undefined,
+          { includeDirectorFit: false }, // Don't overwrite saved director profile on resume
         );
       }
     })();
