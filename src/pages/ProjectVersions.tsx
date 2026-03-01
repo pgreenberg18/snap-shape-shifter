@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   Plus, Copy, ArrowLeft, Film, Calendar, Trash2, Pencil, Check, X,
   HelpCircle, Settings, Archive, ArchiveRestore, HardDrive, ChevronDown, ChevronRight,
-  SlidersHorizontal, ImagePlus, ArrowUpDown,
+  SlidersHorizontal, ImagePlus, ArrowUpDown, LayoutGrid, List,
   ScrollText, Image, AudioLines, Camera, Clapperboard, Minus, ExternalLink, Plug,
 } from "lucide-react";
 import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
@@ -194,6 +194,7 @@ const ProjectVersions = () => {
   const [renameValue, setRenameValue] = useState("");
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest" | "alpha">("newest");
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [servicesOpen, setServicesOpen] = useState(false);
   const [conflictFilmId, setConflictFilmId] = useState<string | null>(null);
   const [conflicts, setConflicts] = useState<Array<{ section: string; providers: Array<{ id: string; provider_name: string }> }>>([]);
@@ -504,6 +505,83 @@ const ProjectVersions = () => {
   /* ── Reusable version card ── */
   const renderVersionCard = (v: NonNullable<typeof versions>[number], isArchived: boolean) => {
     const versionSize = sizeData?.[v.id] || 0;
+
+    if (viewMode === "list") {
+      return (
+        <div
+          key={v.id}
+          className={`group flex items-center gap-4 rounded-xl border bg-card p-3 transition-all duration-200 ${
+            isArchived ? "border-border/50 opacity-75" : "border-border hover:border-primary/40"
+          }`}
+        >
+          <button
+            onClick={() => renamingId !== v.id && handleVersionClick(v.id)}
+            className="flex flex-1 items-center gap-4 text-left min-w-0"
+          >
+            <div className="h-12 w-20 shrink-0 overflow-hidden rounded-lg bg-secondary">
+              <img
+                src={v.poster_url || clapperboardTemplate}
+                alt={v.version_name || `Version ${v.version_number}`}
+                className="h-full w-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              {renamingId === v.id ? (
+                <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <Input
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    className="h-7 text-sm"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") renameVersion.mutate({ id: v.id, name: renameValue });
+                      if (e.key === "Escape") setRenamingId(null);
+                    }}
+                  />
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => renameVersion.mutate({ id: v.id, name: renameValue })}>
+                    <Check className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => setRenamingId(null)}>
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              ) : (
+                <h3 className="font-display text-sm font-semibold text-foreground truncate">
+                  {v.version_name || `Version ${v.version_number}`}
+                </h3>
+              )}
+              <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(v.created_at).toLocaleDateString()}
+                </span>
+                <span className="flex items-center gap-1">
+                  <HardDrive className="h-3 w-3" />
+                  {formatBytes(versionSize)}
+                </span>
+              </div>
+            </div>
+          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); setRenamingId(v.id); setRenameValue(v.version_name || `Version ${v.version_number}`); }}>
+              <Pencil className="h-3 w-3" />
+            </Button>
+            {!isArchived && (
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => copyVersion.mutate(v.id)} disabled={copyVersion.isPending}>
+                <Copy className="h-3 w-3" />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => { e.stopPropagation(); archiveVersion.mutate({ id: v.id, archive: !isArchived }); }}>
+              {isArchived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: v.id, name: v.version_name || `Version ${v.version_number}` }); }}>
+              <Trash2 className="h-3 w-3" />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div
         key={v.id}
@@ -753,6 +831,20 @@ const ProjectVersions = () => {
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex items-center rounded-lg border border-border p-0.5">
+                  <button
+                    onClick={() => setViewMode("grid")}
+                    className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${viewMode === "grid" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode("list")}
+                    className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${viewMode === "list" ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </button>
+                </div>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -784,14 +876,14 @@ const ProjectVersions = () => {
               </div>
             </div>
 
-            {/* Version Grid */}
+            {/* Version Grid/List */}
             {isLoading ? (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {[1, 2].map((i) => <div key={i} className="h-48 animate-pulse rounded-xl bg-card" />)}
+              <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
+                {[1, 2].map((i) => <div key={i} className={viewMode === "grid" ? "h-48 animate-pulse rounded-xl bg-card" : "h-16 animate-pulse rounded-xl bg-card"} />)}
               </div>
             ) : (
               <div className="space-y-8">
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
                   {activeVersions.map((v) => renderVersionCard(v, false))}
                 </div>
 
@@ -806,7 +898,7 @@ const ProjectVersions = () => {
                       Archived ({archivedVersions.length})
                     </button>
                     {archiveOpen && (
-                      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
                         {archivedVersions.map((v) => renderVersionCard(v, true))}
                       </div>
                     )}
