@@ -115,6 +115,43 @@ const PreProduction = () => {
     enabled: !!selectedCharId,
   });
 
+  // Fetch film_assets for tab status indicators
+  const { data: allFilmAssets } = useQuery({
+    queryKey: ["film-assets-status", filmId],
+    queryFn: async () => {
+      if (!filmId) return [];
+      const { data, error } = await supabase
+        .from("film_assets")
+        .select("asset_type, image_url, locked")
+        .eq("film_id", filmId);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!filmId,
+  });
+
+  const tabStatusMap = useMemo(() => {
+    const map: Record<string, "red" | "amber" | "green"> = {
+      casting: "red", locations: "red", props: "red", wardrobe: "red", vehicles: "red",
+    };
+    // Casting: check characters
+    if (characters?.length) {
+      const hasApproved = characters.some(c => c.approved);
+      const hasImage = characters.some(c => c.image_url);
+      if (hasApproved) map.casting = "green";
+      else if (hasImage) map.casting = "amber";
+    }
+    // Asset tabs
+    const typeToTab: Record<string, string> = { location: "locations", prop: "props", wardrobe: "wardrobe", vehicle: "vehicles" };
+    for (const asset of allFilmAssets ?? []) {
+      const tab = typeToTab[asset.asset_type];
+      if (!tab) continue;
+      if (asset.locked && map[tab] !== "green") map[tab] = "green";
+      else if (asset.image_url && map[tab] === "red") map[tab] = "amber";
+    }
+    return map;
+  }, [characters, allFilmAssets]);
+
   // Fetch consistency views for all characters in this film
   const { data: consistencyViews } = useQuery({
     queryKey: ["consistency-views", filmId],
@@ -800,11 +837,11 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-auto bg-transparent gap-0 p-0 border-b border-border items-end">
-            <PreProductionTab value="casting" icon={Users} label="Cast" />
-            <PreProductionTab value="locations" icon={MapPin} label="Locations" />
-            <PreProductionTab value="props" icon={Package} label="Props" />
-            <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" />
-            <PreProductionTab value="vehicles" icon={Car} label="Picture Vehicles" />
+            <PreProductionTab value="casting" icon={Users} label="Cast" status={tabStatusMap.casting} />
+            <PreProductionTab value="locations" icon={MapPin} label="Locations" status={tabStatusMap.locations} />
+            <PreProductionTab value="props" icon={Package} label="Props" status={tabStatusMap.props} />
+            <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" status={tabStatusMap.wardrobe} />
+            <PreProductionTab value="vehicles" icon={Car} label="Picture Vehicles" status={tabStatusMap.vehicles} />
           </TabsList>
         </div>
 
@@ -2145,14 +2182,22 @@ const AuditionCardComponent = ({ card, locking, onLock, onExpand, onRate, hasCon
   );
 };
 
-/* ── Tab trigger with icon ── */
-const PreProductionTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
+/* ── Tab trigger with icon + status dot ── */
+const statusColors = {
+  red: "bg-red-500",
+  amber: "bg-amber-500",
+  green: "bg-green-500",
+};
+const PreProductionTab = ({ value, icon: Icon, label, status }: { value: string; icon: any; label: string; status?: "red" | "amber" | "green" }) => (
   <TabsTrigger
     value={value}
     className="relative gap-2 px-5 py-2 text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all rounded-t-lg rounded-b-none border border-border/60 border-b-0 -mb-px bg-secondary/40 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:border-border data-[state=active]:shadow-[0_-2px_8px_-2px_rgba(47,125,255,0.15)] data-[state=active]:z-10 data-[state=inactive]:hover:bg-secondary/70"
   >
     <Icon className="h-3.5 w-3.5" />
     {label}
+    {status && (
+      <span className={cn("h-2 w-2 rounded-full shrink-0", statusColors[status])} />
+    )}
   </TabsTrigger>
 );
 
