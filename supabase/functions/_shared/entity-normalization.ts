@@ -70,7 +70,8 @@ const NON_PERSON_INDICATORS = new Set([
   "PHONE", "COMPUTER", "VOICE", "SCREEN", "MONITOR", "SIGN",
   "ALARM", "SYSTEM", "RECORDING", "MESSAGE", "ANNOUNCEMENT",
   "INTERCOM", "LOUDSPEAKER", "PA", "NARRATOR", "NEWS",
-  "DISPATCHER", "OPERATOR", "911",
+  "DISPATCHER", "OPERATOR", "911", "CAR", "TRUCK", "VAN",
+  "HOST", "ANCHOR", "GUIDE", "DRIVER", "BARTENDER",
 ]);
 
 function isLikelyPersonName(name: string): boolean {
@@ -78,6 +79,8 @@ function isLikelyPersonName(name: string): boolean {
   const words = clean.split(/\s+/);
   // If any word is a non-person indicator, it's not a person
   if (words.some((w) => NON_PERSON_INDICATORS.has(w))) return false;
+  // Compound descriptors like "FUTURE CLARK", "YOUNG HOWARD" — allow if first word is a modifier
+  const MODIFIER_WORDS = new Set(["FUTURE", "YOUNG", "OLD", "OLDER", "YOUNGER", "LITTLE", "BIG", "BABY", "TEEN", "TEENAGE", "ADULT", "CHILD"]);
   // Likely a person if 1-3 words, all alpha (possibly with apostrophe/hyphen)
   if (words.length > 3) return false;
   return words.every((w) => /^[A-Z][A-Z'\-]*$/i.test(w));
@@ -478,7 +481,19 @@ function stripTimeSuffixes(value: string): string {
  * No AI involved — pure regex extraction.
  */
 export function parseSceneHeading(heading: string): ParsedHeading {
-  const normalized = normalizeApostrophes(heading).trim();
+  // Pre-clean: normalize period-separated compound headings 
+  // e.g., "WELLS' HOME. BEDROOM. LATER" → "WELLS' HOME - BEDROOM - LATER"
+  let normalized = normalizeApostrophes(heading).trim();
+  
+  // Replace period-separated parts (but not INT./EXT. prefixes)
+  // First, protect INT./EXT. prefixes
+  const prefixMatch = normalized.match(/^(INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*/i);
+  const prefix = prefixMatch ? prefixMatch[0] : "";
+  let body = prefixMatch ? normalized.slice(prefix.length) : normalized;
+  
+  // Convert period separators to dash separators for uniform parsing
+  body = body.replace(/\.\s+/g, " - ").replace(/\.\s*$/, "");
+  normalized = prefix + body;
 
   // Extract INT/EXT
   const intExtMatch = normalized.match(/^(INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)/i);
@@ -514,6 +529,8 @@ export function parseSceneHeading(heading: string): ParsedHeading {
       if (/^\d{4}$/.test(upper)) return false; // Year only
       if (/^\d+\s+(?:DAYS?|YEARS?|MONTHS?|WEEKS?)\s+(?:EARLIER|LATER|AGO|BEFORE|AFTER)$/i.test(upper)) return false;
       if (/^(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|SEVERAL|A FEW|MANY)\s+(?:DAYS?|YEARS?|MONTHS?|WEEKS?)\s+(?:EARLIER|LATER|AGO|BEFORE|AFTER)$/i.test(upper)) return false;
+      // Filter out INT./EXT. fragments that leaked into sublocations
+      if (/^(?:INT|EXT)\.?\s*/i.test(upper)) return false;
       return true;
     });
 
@@ -552,11 +569,28 @@ function normalizeLocationKey(value: string): string {
   return normalizeKey(value)
     .replace(/\bHOUSE\b/g, "HOME")
     .replace(/\bLAB\b/g, "LABORATORY")
+    .replace(/\bSTAIR\s*WELL\b/g, "STAIRWELL")
     // Strip trailing periods
     .replace(/\.\s*$/, "")
-    // Normalize possessive forms
-    .replace(/['']S\b/g, "'S")
+    // Normalize possessive forms (strip 'S entirely for matching)
+    .replace(/['']S\b/g, "")
+    // Strip "THE " prefix
+    .replace(/^THE\s+/, "")
+    .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * Compute a "base key" from a location for fuzzy grouping.
+ * Strips common suffixes like ROOM, CORRIDOR, HALLWAY, PARKING LOT, etc.
+ */
+function locationBaseKey(value: string): string {
+  let key = normalizeLocationKey(value);
+  // Strip common sub-area suffixes to find the parent location
+  key = key
+    .replace(/\s+(ROOM|CORRIDOR|HALLWAY|STAIRWELL|LOBBY|PARKING LOT|PARKING GARAGE|SIDE STREET|FRONT ENTRANCE|SIDE ENTRANCE|BACK ENTRANCE|DRIVEWAY|DECK|FLOOR|OFFICE|BEDROOM|KITCHEN|BATHROOM|LOUNGE|GUEST HOME|STUDIO)\s*$/, "")
+    .trim();
+  return key;
 }
 
 /**
@@ -580,13 +614,67 @@ export function canonicalizeLocations(headings: { heading: string; scene: number
     if (isVehicleEntity(parsed.location)) continue;
 
     const key = normalizeLocationKey(parsed.location);
+    const baseKey = locationBaseKey(parsed.location);
 
-    const existing = locationGroups.get(key);
-    if (existing) {
+    // Try exact key match first
+    let matchedKey: string | null = null;
+    if (locationGroups.has(key)) {
+      matchedKey = key;
+    } else {
+      // Try fuzzy base-key match: if this location's base matches an existing group's base
+      for (const [existingKey, existingGroup] of locationGroups) {
+        const existingBaseKey = locationBaseKey(existingGroup.canonical);
+        
+        // Base key exact match
+        if (baseKey === existingBaseKey && baseKey.length >= 3) {
+          matchedKey = existingKey;
+          break;
+        }
+        
+        // One contains the other (e.g., "HOSPITAL" matches "HOSPITAL ROOM")
+        if (existingBaseKey.startsWith(baseKey + " ") || baseKey.startsWith(existingBaseKey + " ")) {
+          matchedKey = existingKey;
+          break;
+        }
+      }
+    }
+
+    if (matchedKey) {
+      const existing = locationGroups.get(matchedKey)!;
       existing.aliases.add(parsed.location);
       if (parsed.sublocation) existing.sublocations.add(parsed.sublocation);
-      // Promote longer name as canonical
-      if (parsed.location.length > existing.canonical.length) {
+      
+      // If the full location differs from canonical, add the suffix as a sublocation
+      const existingNormBase = locationBaseKey(existing.canonical);
+      const thisNormBase = locationBaseKey(parsed.location);
+      if (thisNormBase !== existingNormBase || key !== matchedKey) {
+        // The differing part is a sublocation
+        const diffPart = parsed.location.replace(new RegExp("^" + existing.canonical.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*[-–—]?\\s*", "i"), "").trim();
+        if (diffPart && diffPart !== parsed.location) {
+          existing.sublocations.add(diffPart);
+        } else {
+          // The whole name is a variant (e.g., HOSPITAL CORRIDOR vs HOSPITAL)
+          // Extract the suffix after the base as a sublocation
+          const normalizedThis = normalizeLocationKey(parsed.location);
+          const normalizedBase = locationBaseKey(parsed.location);
+          const suffix = normalizedThis.replace(normalizedBase, "").trim();
+          if (suffix) {
+            existing.sublocations.add(suffix);
+          }
+        }
+      }
+      
+      // Promote shorter base name as canonical (WELLS' HOUSE over WELLS' HOUSE BEDROOM)
+      const existingParts = existing.canonical.split(/\s+/);
+      const thisParts = parsed.location.split(/\s+/);
+      if (thisParts.length < existingParts.length) {
+        // Shorter name is more likely the parent
+        existing.aliases.add(existing.canonical);
+        // Add existing canonical's suffix as sublocation
+        const oldSuffix = normalizeLocationKey(existing.canonical).replace(locationBaseKey(existing.canonical), "").trim();
+        if (oldSuffix) existing.sublocations.add(oldSuffix);
+        existing.canonical = parsed.location;
+      } else if (thisParts.length === existingParts.length && parsed.location.length > existing.canonical.length) {
         existing.aliases.add(existing.canonical);
         existing.canonical = parsed.location;
       }
@@ -701,7 +789,7 @@ export function extractCharacterCues(rawText: string, sceneNumber: number): { na
 
   for (const line of lines) {
     const trimmed = line.trim();
-    if (!trimmed || trimmed.length < 2 || trimmed.length > 40) continue;
+    if (!trimmed || trimmed.length < 2 || trimmed.length > 45) continue;
 
     // Remove parenthetical extensions
     const withoutExt = trimmed.replace(/\s*\(.*?\)\s*/g, "").trim();
@@ -716,6 +804,9 @@ export function extractCharacterCues(rawText: string, sceneNumber: number): { na
     if (upper.startsWith("INT") || upper.startsWith("EXT")) continue;
     if (NON_CHARACTER_CUES.has(upper) || upper.endsWith(":")) continue;
     if (!withoutExt.includes(" ") && withoutExt.length <= 3) continue;
+
+    // Filter out non-person names (CAR SPEAKER, ANSWERING MACHINE, etc.)
+    if (!isLikelyPersonName(withoutExt)) continue;
 
     results.push({ name: withoutExt, scene: sceneNumber });
   }
