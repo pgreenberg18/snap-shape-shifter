@@ -8,6 +8,16 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,7 +30,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   Plug, ScrollText, Image, AudioLines, Camera, Clapperboard, Check, Plus, X, Pencil,
-  Gauge, Zap, Save, Loader2, ExternalLink,
+  Gauge, Zap, Save, Loader2, ExternalLink, Trash2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -366,6 +376,8 @@ const IntegrationsPanel = () => {
   const [serviceKey, setServiceKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [addedServices] = useState<Record<string, Array<{ id: string; name: string }>>>({});
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deletingName, setDeletingName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -437,6 +449,19 @@ const IntegrationsPanel = () => {
     setSelectedService("");
     setSelectedVariant("");
     setServiceKey("");
+  };
+
+  const handleDeleteIntegration = async () => {
+    if (!deletingId) return;
+    const { error } = await supabase.from("integrations").delete().eq("id", deletingId);
+    setDeletingId(null);
+    setDeletingName("");
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete integration.", variant: "destructive" });
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ["integrations"] });
+    toast({ title: "Deleted", description: "Integration removed." });
   };
 
   const handleSaveCreditSettings = async () => {
@@ -596,8 +621,11 @@ const IntegrationsPanel = () => {
                                   </SelectContent>
                                 </Select>
                               )}
-                              <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
+                               <Button size="sm" variant="ghost" className="gap-1.5 text-xs" onClick={() => { setEditingId(provider.id); setKeys((p) => ({ ...p, [provider.id]: "" })); }}>
                                 <Pencil className="h-3 w-3" /> Change
+                              </Button>
+                              <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-destructive hover:text-destructive" onClick={() => { setDeletingId(provider.id); setDeletingName(provider.provider_name); }}>
+                                <Trash2 className="h-3 w-3" /> Delete
                               </Button>
                             </div>
                           </div>
@@ -810,6 +838,24 @@ const IntegrationsPanel = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={!!deletingId} onOpenChange={(open) => { if (!open) { setDeletingId(null); setDeletingName(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove <span className="font-semibold">{deletingName}</span> and its API key. You can re-add it later.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteIntegration} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
