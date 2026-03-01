@@ -372,31 +372,6 @@ const Projects = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {/* New Film Project card */}
-              <Dialog open={open} onOpenChange={setOpen}>
-                <DialogTrigger asChild>
-                  <button className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card/50 hover:border-primary/40 hover:bg-accent transition-all duration-300 aspect-[4/3] cursor-pointer">
-                    <AddProjectIcon className="h-8 w-8 text-primary icon-glow" />
-                    <span className="text-sm font-medium text-foreground">New Film Project</span>
-                  </button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>Create New Film Project</DialogTitle></DialogHeader>
-                  <div className="space-y-4 pt-2">
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Title</label>
-                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Film title…" className="mt-1" />
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-foreground">Description</label>
-                      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description…" className="mt-1" />
-                    </div>
-                    <Button onClick={() => createProject.mutate()} disabled={!title.trim() || createProject.isPending} className="w-full">
-                      {createProject.isPending ? "Creating…" : "Create Project"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
               {projects.map((project) => (
                 <div
                   key={project.id}
@@ -489,6 +464,31 @@ const Projects = () => {
                   </div>
                 </div>
               ))}
+              {/* New Film Project card */}
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <button className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-card/50 hover:border-primary/40 hover:bg-accent transition-all duration-300 aspect-[4/3] cursor-pointer">
+                    <AddProjectIcon className="h-8 w-8 text-primary icon-glow" />
+                    <span className="text-sm font-medium text-foreground">New Film Project</span>
+                  </button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader><DialogTitle>Create New Film Project</DialogTitle></DialogHeader>
+                  <div className="space-y-4 pt-2">
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Title</label>
+                      <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Film title…" className="mt-1" />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-foreground">Description</label>
+                      <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Brief description…" className="mt-1" />
+                    </div>
+                    <Button onClick={() => createProject.mutate()} disabled={!title.trim() || createProject.isPending} className="w-full">
+                      {createProject.isPending ? "Creating…" : "Create Project"}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           )}
         </main>
