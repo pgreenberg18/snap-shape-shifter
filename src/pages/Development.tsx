@@ -1015,7 +1015,7 @@ const Development = () => {
                   <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
                       <Film className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Script Details</h3>
+                      <h3 className="font-display text-lg font-bold">Script</h3>
                       {analysis && (
                         <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
                           <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
