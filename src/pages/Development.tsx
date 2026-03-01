@@ -1129,7 +1129,7 @@ const Development = () => {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
                         <Input
@@ -1148,15 +1148,15 @@ const Development = () => {
                           disabled={scriptLocked}
                         />
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
-                      <Input
-                        value={writers}
-                        onChange={(e) => setWriters(e.target.value)}
-                        placeholder="e.g. Jane Doe & John Smith"
-                        disabled={scriptLocked}
-                      />
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
+                        <Input
+                          value={writers}
+                          onChange={(e) => setWriters(e.target.value)}
+                          placeholder="e.g. Jane Doe & John Smith"
+                          disabled={scriptLocked}
+                        />
+                      </div>
                     </div>
                     {!scriptLocked && !analysis && (
                       <div className="flex justify-end">
