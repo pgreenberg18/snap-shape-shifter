@@ -241,6 +241,26 @@ const Layout = ({ children }: { children: ReactNode }) => {
             </button>
           </FlareTooltip>
 
+          <div className={expanded ? "w-full" : ""}>
+            {renderNavItem("settings", PrecisionGearIcon, "Integrations")}
+          </div>
+
+          <FlareTooltip label="Settings">
+            <button
+              onClick={() => navigate("/settings/admin")}
+              data-help-id="nav-global-settings"
+              className={cn(
+                "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
+                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
+              )}
+            >
+              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
+                <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
+              </span>
+              {expanded && <span className="text-xs font-medium truncate">Settings</span>}
+            </button>
+          </FlareTooltip>
+
           <FlareTooltip label="Help">
             <button
               onClick={toggleHelp}
@@ -254,26 +274,6 @@ const Layout = ({ children }: { children: ReactNode }) => {
                 <InfoBeaconIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
               </span>
               {expanded && <span className="text-xs font-medium truncate">Help</span>}
-            </button>
-          </FlareTooltip>
-
-          <div className={expanded ? "w-full" : ""}>
-            {renderNavItem("settings", PrecisionGearIcon, "Integrations")}
-          </div>
-
-          <FlareTooltip label="Global Settings">
-            <button
-              onClick={() => navigate("/settings/admin")}
-              data-help-id="nav-global-settings"
-              className={cn(
-                "flex items-center rounded-xl text-muted-foreground hover:bg-accent hover:text-foreground hover:[box-shadow:0_0_12px_-3px_rgba(47,125,255,0.2)] transition-all duration-200",
-                expanded ? "h-10 gap-3 px-3 w-full" : "h-10 w-10 justify-center"
-              )}
-            >
-              <span className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted/30">
-                <MixingConsoleIcon className="h-4.5 w-4.5 shrink-0 icon-glow" />
-              </span>
-              {expanded && <span className="text-xs font-medium truncate">Global Settings</span>}
             </button>
           </FlareTooltip>
 
