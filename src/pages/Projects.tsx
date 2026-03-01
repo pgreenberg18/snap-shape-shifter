@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useHelp } from "@/components/help/HelpPanel";
 import { useAuth } from "@/hooks/useAuth";
 import { isAdminUser } from "@/components/admin/AdminPanel";
@@ -324,20 +325,28 @@ const Projects = () => {
 
         {/* Bottom icons: Help + Settings */}
         <div className="border-t border-border p-3 flex items-center gap-1">
-          <button
-            onClick={toggleHelp}
-            title="Help"
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
-          >
-            <InfoBeaconIcon className="h-5 w-5 icon-glow" />
-          </button>
-          <button
-            onClick={() => navigate("/settings/admin")}
-            title="Settings & Admin"
-            className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
-          >
-            <PrecisionGearIcon className="h-5 w-5 icon-glow" />
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggleHelp}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+              >
+                <InfoBeaconIcon className="h-5 w-5 icon-glow" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Help</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => navigate("/settings/admin")}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+              >
+                <PrecisionGearIcon className="h-5 w-5 icon-glow" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Settings & Admin</p></TooltipContent>
+          </Tooltip>
         </div>
       </aside>
 
