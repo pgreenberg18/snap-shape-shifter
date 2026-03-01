@@ -350,28 +350,37 @@ export type Database = {
       content_safety: {
         Row: {
           film_id: string
+          flags: Json | null
           id: string
           language: boolean
           mode: string
           nudity: boolean
+          rating_justification: string | null
+          suggested_rating: string | null
           updated_at: string
           violence: boolean
         }
         Insert: {
           film_id: string
+          flags?: Json | null
           id?: string
           language?: boolean
           mode?: string
           nudity?: boolean
+          rating_justification?: string | null
+          suggested_rating?: string | null
           updated_at?: string
           violence?: boolean
         }
         Update: {
           film_id?: string
+          flags?: Json | null
           id?: string
           language?: boolean
           mode?: string
           nudity?: boolean
+          rating_justification?: string | null
+          suggested_rating?: string | null
           updated_at?: string
           violence?: boolean
         }

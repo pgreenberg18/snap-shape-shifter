@@ -3490,10 +3490,57 @@ const ContentSafetyMatrix = ({
   const [flags, setFlags] = useState<ContentFlag[]>([]);
   const [suggestedRating, setSuggestedRating] = useState<MPAARating>("G");
   const [loading, setLoading] = useState(false);
+  const [persistedLoaded, setPersistedLoaded] = useState(false);
 
   const [ratingJustification, setRatingJustification] = useState("");
   const [scriptText, setScriptText] = useState<string | null>(null);
   const { toast } = useToast();
+
+  // Load persisted analysis results from content_safety table
+  useEffect(() => {
+    if (!filmId || persistedLoaded) return;
+    (async () => {
+      const { data } = await supabase
+        .from("content_safety")
+        .select("*")
+        .eq("film_id", filmId)
+        .maybeSingle() as any;
+      if (data) {
+        if (data.suggested_rating) {
+          setSuggestedRating(data.suggested_rating as MPAARating);
+        }
+        if (data.rating_justification) {
+          setRatingJustification(data.rating_justification);
+        }
+        if (data.flags && Array.isArray(data.flags) && (data.flags as any[]).length > 0) {
+          setFlags((data.flags as any[]).map((f: any) => ({
+            sceneIndex: f.sceneIndex ?? 0,
+            sceneHeading: f.sceneHeading || "",
+            category: f.category || "thematic",
+            type: f.type || "description",
+            excerpt: f.excerpt || "",
+            severity: f.severity || "PG",
+            reason: f.reason || "",
+          })));
+          setScriptLoaded(true);
+        }
+      }
+      setPersistedLoaded(true);
+    })();
+  }, [filmId, persistedLoaded]);
+
+  // Persist analysis results to content_safety table
+  const persistResults = useCallback(async (rating: string, justification: string, contentFlags: ContentFlag[]) => {
+    if (!filmId) return;
+    await supabase
+      .from("content_safety")
+      .update({
+        suggested_rating: rating,
+        rating_justification: justification,
+        flags: contentFlags as any,
+      } as any)
+      .eq("film_id", filmId);
+  }, [filmId]);
 
   const runAnalysis = useCallback(async () => {
     if (!storagePath) return;
@@ -3512,10 +3559,14 @@ const ContentSafetyMatrix = ({
         severity: f.severity || "PG",
         reason: f.reason || "",
       }));
+      const rating = data.suggested_rating || "G";
+      const justification = data.rating_justification || "";
       setFlags(aiFlags);
-      setSuggestedRating(data.suggested_rating || "G");
-      setRatingJustification(data.rating_justification || "");
+      setSuggestedRating(rating);
+      setRatingJustification(justification);
       setScriptLoaded(true);
+      // Persist to DB
+      persistResults(rating, justification, aiFlags);
     } catch (e: any) {
       console.error("Content safety analysis failed:", e);
       toast({ title: "Analysis failed", description: e?.message || "Could not analyze script", variant: "destructive" });
@@ -3525,7 +3576,7 @@ const ContentSafetyMatrix = ({
     } finally {
       setLoading(false);
     }
-  }, [storagePath, scenes, filmId, toast]);
+  }, [storagePath, scenes, filmId, toast, persistResults]);
 
   // Load script text for editing (parse FDX XML to plain text, or reconstruct from parsed_scenes for PDFs)
   useEffect(() => {
