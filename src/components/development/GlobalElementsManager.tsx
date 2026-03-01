@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
-  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp,
+  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp, GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,10 @@ import { cn } from "@/lib/utils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DndContext, DragOverlay, useDraggable, useDroppable,
+  PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent,
+} from "@dnd-kit/core";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -392,6 +396,10 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   categoriesRef.current = categories;
   reviewStatusRef.current = reviewStatus;
 
+  /* DnD state */
+  const [activeDrag, setActiveDrag] = useState<{ item: string; sourceGroupId: string | null; category: CategoryKey } | null>(null);
+  const dndSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
   // Notify parent when all sections are reviewed
   useEffect(() => {
     const allCompleted = CATEGORIES.every(({ key }) => {
@@ -729,6 +737,49 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
   const hasItems = (cat: CategoryData) => cat.ungrouped.length > 0 || cat.groups.length > 0;
 
+  /* DnD handlers */
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as { item: string; sourceGroupId: string | null; category: CategoryKey } | undefined;
+    if (data) setActiveDrag(data);
+  }, []);
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDrag(null);
+    if (!over) return;
+    const source = active.data.current as { item: string; sourceGroupId: string | null; category: CategoryKey };
+    const target = over.data.current as { groupId: string | null; category: CategoryKey } | undefined;
+    if (!source || !target) return;
+    if (source.category !== target.category) return; // only within same category
+    const targetGroupId = target.groupId;
+    if (source.sourceGroupId === targetGroupId) return; // same container
+
+    setCategories((prev) => {
+      const cat = { ...prev[source.category] };
+      // Remove from source
+      if (source.sourceGroupId) {
+        cat.groups = cat.groups.map((g) =>
+          g.id === source.sourceGroupId
+            ? { ...g, variants: g.variants.filter((v) => v !== source.item) }
+            : g
+        ).filter((g) => g.variants.length > 0);
+      } else {
+        cat.ungrouped = cat.ungrouped.filter((u) => u !== source.item);
+      }
+      // Add to target
+      if (targetGroupId) {
+        cat.groups = cat.groups.map((g) =>
+          g.id === targetGroupId
+            ? { ...g, variants: [...g.variants, source.item] }
+            : g
+        );
+      } else {
+        cat.ungrouped = [...cat.ungrouped, source.item];
+      }
+      return { ...prev, [source.category]: cat };
+    });
+  }, []);
+
   return (
     <div className="space-y-3">
       {CATEGORIES.map(({ key, label, icon }) => {
@@ -765,6 +816,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
             </button>
 
             {isExpanded && (
+              <DndContext sensors={dndSensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
               <div className="px-4 pb-4 space-y-3">
                 {/* Merge action bar */}
                 {selected.size >= 2 && activeCategory === key && (
@@ -788,7 +840,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                 {[...cat.groups].sort((a, b) => a.parentName.localeCompare(b.parentName)).map((group) => {
                   const isOpen = expandedGroups.has(group.id);
                   return (
-                    <div key={group.id} className="rounded-md border border-primary/20 bg-primary/5 overflow-hidden">
+                    <DroppableGroup key={group.id} groupId={group.id} category={key}>
                       <div className="flex items-center gap-2 px-3 py-2">
                         <button onClick={() => toggleGroupExpand(group.id)} className="flex items-center gap-1.5 flex-1 text-left">
                           {isOpen ? <ChevronDown className="h-3.5 w-3.5 text-primary" /> : <ChevronRight className="h-3.5 w-3.5 text-primary" />}
@@ -808,112 +860,50 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                       </div>
                       {isOpen && (
                         <div className="px-3 pb-2 flex flex-wrap gap-1.5 border-t border-primary/10 pt-2">
-                          {[...group.variants].sort((a, b) => a.localeCompare(b)).map((v, i) => {
-                            const isSelected = selected.has(v) && activeCategory === key;
-                            const isDisabled = activeCategory !== null && activeCategory !== key;
-                            const isEditing = editingItem === v;
-                            return (
-                              <span
-                                key={i}
-                                className={cn(
-                                  "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-start gap-1 cursor-pointer text-left",
-                                  isSelected
-                                    ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_rgba(47,125,255,0.4)]"
-                                    : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
-                                  isDisabled && "opacity-40",
-                                  isEditing && "ring-2 ring-primary/50",
-                                )}
-                              >
-                                {isEditing ? (
-                                  <input
-                                    ref={editInputRef}
-                                    value={editText}
-                                    onChange={(e) => setEditText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === "Enter") renameItem(v, editText, key);
-                                      if (e.key === "Escape") setEditingItem(null);
-                                    }}
-                                    onBlur={() => renameItem(v, editText, key)}
-                                    className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
-                                    style={{ width: `${Math.max(editText.length, 3)}ch` }}
-                                    autoFocus
-                                  />
-                                ) : (
-                                  <button
-                                    disabled={isDisabled}
-                                    onClick={() => toggleSelect(v, key)}
-                                    className="cursor-pointer"
-                                  >
-                                    {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-                                    {v}
-                                  </button>
-                                )}
-                              </span>
-                            );
-                          })}
+                          {[...group.variants].sort((a, b) => a.localeCompare(b)).map((v) => (
+                            <DraggableChip
+                              key={v}
+                              item={v}
+                              sourceGroupId={group.id}
+                              category={key}
+                              isSelected={selected.has(v) && activeCategory === key}
+                              isDisabled={activeCategory !== null && activeCategory !== key}
+                              isEditing={editingItem === v}
+                              editText={editText}
+                              editInputRef={editInputRef}
+                              onEditChange={setEditText}
+                              onRename={(old, newN) => renameItem(old, newN, key)}
+                              onEditCancel={() => setEditingItem(null)}
+                              onToggleSelect={() => toggleSelect(v, key)}
+                            />
+                          ))}
                         </div>
                       )}
-                    </div>
+                    </DroppableGroup>
                   );
                 })}
 
-                {/* Ungrouped items – selectable & deletable chips */}
-                {cat.ungrouped.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...cat.ungrouped].sort((a, b) => a.localeCompare(b)).map((item, i) => {
-                      const isSelected = selected.has(item) && activeCategory === key;
-                      const isDisabled = activeCategory !== null && activeCategory !== key;
-                      const isEditing = editingItem === item;
-                      return (
-                        <span
-                          key={i}
-                          className={cn(
-                            "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
-                            isSelected
-                              ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_rgba(47,125,255,0.4)]"
-                              : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
-                            isDisabled && "opacity-40",
-                            isEditing && "ring-2 ring-primary/50",
-                          )}
-                        >
-                          {isEditing ? (
-                            <input
-                              ref={editInputRef}
-                              value={editText}
-                              onChange={(e) => setEditText(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") renameItem(item, editText, key);
-                                if (e.key === "Escape") setEditingItem(null);
-                              }}
-                              onBlur={() => renameItem(item, editText, key)}
-                              className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
-                              style={{ width: `${Math.max(editText.length, 3)}ch` }}
-                              autoFocus
-                            />
-                          ) : (
-                            <button
-                              disabled={isDisabled}
-                              onClick={() => toggleSelect(item, key)}
-                              className="cursor-pointer"
-                            >
-                              {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-                              {item}
-                            </button>
-                          )}
-                          {!isEditing && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); deleteItem(key, item); }}
-                              className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
-                              title="Remove"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          )}
-                        </span>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Ungrouped items – droppable zone */}
+                <DroppableGroup groupId={null} category={key} isUngrouped>
+                  {[...cat.ungrouped].sort((a, b) => a.localeCompare(b)).map((item) => (
+                    <DraggableChip
+                      key={item}
+                      item={item}
+                      sourceGroupId={null}
+                      category={key}
+                      isSelected={selected.has(item) && activeCategory === key}
+                      isDisabled={activeCategory !== null && activeCategory !== key}
+                      isEditing={editingItem === item}
+                      editText={editText}
+                      editInputRef={editInputRef}
+                      onEditChange={setEditText}
+                      onRename={(old, newN) => renameItem(old, newN, key)}
+                      onEditCancel={() => setEditingItem(null)}
+                      onToggleSelect={() => toggleSelect(item, key)}
+                      onDelete={() => deleteItem(key, item)}
+                    />
+                  ))}
+                </DroppableGroup>
 
                 {/* Add item */}
                 {addingTo === key ? (
@@ -950,7 +940,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
                 {cat.ungrouped.length > 1 && selected.size === 0 && addingTo !== key && (
                   <p className="text-xs text-muted-foreground italic">
-                    Click to select, click again to edit name, press Enter to save
+                    Drag to reorder · Click to select · Click again to edit name
                   </p>
                 )}
 
@@ -977,6 +967,17 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                   </Button>
                 </div>
               </div>
+
+              {/* Drag overlay */}
+              <DragOverlay>
+                {activeDrag && (
+                  <span className="text-xs rounded-full px-2.5 py-1 border bg-primary text-primary-foreground border-primary shadow-lg cursor-grabbing">
+                    <GripVertical className="inline h-3 w-3 mr-0.5 opacity-70" />
+                    {activeDrag.item}
+                  </span>
+                )}
+              </DragOverlay>
+              </DndContext>
             )}
           </div>
         );
@@ -1034,5 +1035,143 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/* ── Droppable Group Zone ───────────────────────────────── */
+
+function DroppableGroup({
+  groupId,
+  category,
+  isUngrouped,
+  children,
+}: {
+  groupId: string | null;
+  category: CategoryKey;
+  isUngrouped?: boolean;
+  children: React.ReactNode;
+}) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: groupId ?? `ungrouped-${category}`,
+    data: { groupId, category },
+  });
+
+  if (isUngrouped) {
+    return (
+      <div
+        ref={setNodeRef}
+        className={cn(
+          "flex flex-wrap gap-1.5 min-h-[32px] rounded-md p-1 transition-colors",
+          isOver && "bg-primary/10 ring-1 ring-primary/30"
+        )}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "rounded-md border border-primary/20 bg-primary/5 overflow-hidden transition-colors",
+        isOver && "ring-2 ring-primary/40 bg-primary/10"
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ── Draggable Chip ─────────────────────────────────────── */
+
+function DraggableChip({
+  item,
+  sourceGroupId,
+  category,
+  isSelected,
+  isDisabled,
+  isEditing,
+  editText,
+  editInputRef,
+  onEditChange,
+  onRename,
+  onEditCancel,
+  onToggleSelect,
+  onDelete,
+}: {
+  item: string;
+  sourceGroupId: string | null;
+  category: CategoryKey;
+  isSelected: boolean;
+  isDisabled: boolean;
+  isEditing: boolean;
+  editText: string;
+  editInputRef: React.RefObject<HTMLInputElement>;
+  onEditChange: (v: string) => void;
+  onRename: (old: string, newN: string) => void;
+  onEditCancel: () => void;
+  onToggleSelect: () => void;
+  onDelete?: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `${category}-${sourceGroupId ?? "ungrouped"}-${item}`,
+    data: { item, sourceGroupId, category },
+    disabled: isEditing,
+  });
+
+  return (
+    <span
+      ref={setNodeRef}
+      className={cn(
+        "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
+        isSelected
+          ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_hsl(var(--primary)/0.4)]"
+          : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
+        isDisabled && "opacity-40",
+        isEditing && "ring-2 ring-primary/50",
+        isDragging && "opacity-30",
+      )}
+    >
+      {/* Drag handle */}
+      {!isEditing && (
+        <span {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
+          <GripVertical className="h-3 w-3 opacity-40 hover:opacity-100 transition-opacity" />
+        </span>
+      )}
+      {isEditing ? (
+        <input
+          ref={editInputRef}
+          value={editText}
+          onChange={(e) => onEditChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onRename(item, editText);
+            if (e.key === "Escape") onEditCancel();
+          }}
+          onBlur={() => onRename(item, editText)}
+          className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
+          style={{ width: `${Math.max(editText.length, 3)}ch` }}
+          autoFocus
+        />
+      ) : (
+        <button
+          disabled={isDisabled}
+          onClick={onToggleSelect}
+          className="cursor-pointer"
+        >
+          {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+          {item}
+        </button>
+      )}
+      {!isEditing && onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+          title="Remove"
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </span>
   );
 }
