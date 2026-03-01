@@ -17,10 +17,41 @@ function smartMergeItems(
   (options.families || []).forEach(fam => fam.forEach(f => allFamilyMembers.add(f.toLowerCase())));
 
   const parseOwnership = (s: string): { owner: string; noun: string } => {
-    const lower = s.toLowerCase().replace(/['']/g, "'").replace(/\s+/g, " ").trim();
+    const lower = s.toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").trim();
     if (allFamilyMembers.has(lower)) return { owner: "", noun: lower };
-    const possMatch = lower.match(/^(.+?)'s?\s+(.+)$/);
+
+    // Standard possessive forms: "Howard's car", "boss' sedan"
+    const possMatch = lower.match(/^(.+?)(?:'s|s')\s+(.+)$/);
     if (possMatch) return { owner: possMatch[1].trim(), noun: possMatch[2].trim() };
+
+    // Loose possessive fallback: "howards tesla" (missing apostrophe)
+    const loosePossMatch = lower.match(/^([a-z][a-z\-]{2,24})s\s+(.+)$/);
+    if (loosePossMatch) {
+      const ownerCandidate = loosePossMatch[1].trim();
+      const nounCandidate = loosePossMatch[2].trim();
+      const firstNounToken = nounCandidate.split(/\s+/)[0] || "";
+      const ownerStopWords = new Set([
+        "sport",
+        "classic",
+        "vintage",
+        "police",
+        "patrol",
+        "surveillance",
+        "cargo",
+        "passenger",
+        "school",
+        "city",
+        "county",
+        "state",
+        "federal",
+        "civilian",
+      ]);
+      const looksLikeKnownVehicle = allFamilyMembers.has(nounCandidate) || allFamilyMembers.has(firstNounToken);
+      if (looksLikeKnownVehicle && !ownerStopWords.has(ownerCandidate)) {
+        return { owner: ownerCandidate, noun: nounCandidate };
+      }
+    }
+
     const parenMatch = lower.match(/^(.+?)\s*\((.+?)'s?\)$/);
     if (parenMatch) return { owner: parenMatch[2].trim(), noun: parenMatch[1].trim() };
     return { owner: "", noun: lower };
@@ -268,6 +299,30 @@ export const useBreakdownAssets = () => {
 
       const VEHICLE_KEYWORDS = ["car", "truck", "van", "bus", "suv", "sedan", "taxi", "cab", "limo", "limousine", "motorcycle", "bike", "bicycle", "helicopter", "chopper", "plane", "jet", "boat", "ship", "ambulance", "cruiser", "patrol", "vehicle", "pickup", "jeep", "hummer", "convertible", "coupe", "wagon", "minivan", "corvette", "mustang", "camaro", "tesla", "porsche", "ferrari", "bmw", "mercedes", "audi", "honda", "toyota", "ford", "chevy", "chevrolet", "dodge", "nissan", "subaru", "lexus", "cadillac", "lincoln", "buick", "pontiac", "oldsmobile"];
       const NON_PROP_KEYWORDS = ["rain", "snow", "fog", "wind", "lightning", "thunder", "fire", "smoke", "explosion", "flames", "mist", "haze", "storm", "sunlight", "moonlight", "shadow", "shadows", "darkness", "light", "glow", "flicker", "house", "building", "cabin", "mansion", "apartment", "warehouse", "barn", "church", "school", "hospital", "hotel", "motel", "office", "restaurant", "bar", "club", "store", "shop", "beach house", "cottage", "shack", "tower", "castle", "palace", "temple"];
+      const CHARACTER_PRONOUNS = new Set(["he", "she", "him", "her", "his", "hers", "they", "them", "their", "theirs"]);
+      const CHARACTER_NOISE = new Set(["man", "woman", "boy", "girl", "person", "people", "someone", "everyone", "nobody", "driver", "passenger", "voice", "crowd", "officers", "team", "silhouette", "figure"]);
+      const CHAR_TITLE_PREFIXES = /^(?:professor|prof\.?|doctor|dr\.?|mr\.?|mrs\.?|ms\.?|miss|sir|lady|lord|detective|det\.?|officer|agent|captain|capt\.?|sergeant|sgt\.?|lieutenant|lt\.?|reverend|rev\.?)\s+/i;
+
+      const normalizeCharacterForKey = (raw: string): string => {
+        let n = raw
+          .replace(/\s*\(.*?\)\s*/g, " ")
+          .replace(/^"+|"+$/g, "")
+          .replace(/[’`]/g, "'")
+          .replace(/[.,:;!?]/g, " ")
+          .trim()
+          .toLowerCase();
+        n = n.replace(CHAR_TITLE_PREFIXES, "").replace(/\s+/g, " ").trim();
+        return n;
+      };
+
+      const toDisplayCharacterName = (name: string): string =>
+        name
+          .split(/\s+/)
+          .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+          .join(" ");
+
+      const knownCharacterKeys = new Set<string>();
+      let lastNamedCharacterKey = "";
 
       // First pass: collect all scene data per location (aggregate across scenes)
       type LocMeta = { intExt: string; timesOfDay: Set<string>; envSnippets: string[]; moods: Set<string>; settings: Set<string> };
@@ -318,7 +373,47 @@ export const useBreakdownAssets = () => {
 
         // Scene context for props/vehicles
         const sceneLocation = locationName;
-        const sceneChars: string[] = Array.isArray(s.characters) ? s.characters : [];
+        const rawSceneChars = Array.isArray(s.characters) ? s.characters : [];
+        const resolvedNamedKeys = new Set<string>();
+        let sceneHasPronoun = false;
+
+        for (const entry of rawSceneChars) {
+          const raw = typeof entry === "string" ? entry : (entry as any)?.name;
+          if (!raw || typeof raw !== "string") continue;
+
+          let key = normalizeCharacterForKey(raw);
+          if (!key) continue;
+
+          if (CHARACTER_PRONOUNS.has(key)) {
+            sceneHasPronoun = true;
+            continue;
+          }
+          if (CHARACTER_NOISE.has(key)) continue;
+
+          const parts = key.split(/\s+/);
+          if (parts.length === 1) {
+            const token = parts[0];
+            const matches = [...knownCharacterKeys].filter((k) => k.split(/\s+/).includes(token));
+            if (matches.length === 1) key = matches[0];
+            else if (matches.length > 1 && lastNamedCharacterKey && matches.includes(lastNamedCharacterKey)) key = lastNamedCharacterKey;
+          }
+
+          resolvedNamedKeys.add(key);
+          if (key.split(/\s+/).length > 1) knownCharacterKeys.add(key);
+        }
+
+        const preferredKey =
+          resolvedNamedKeys.size === 1
+            ? [...resolvedNamedKeys][0]
+            : [...resolvedNamedKeys].sort((a, b) => b.split(/\s+/).length - a.split(/\s+/).length)[0] || lastNamedCharacterKey;
+
+        if (sceneHasPronoun && preferredKey) resolvedNamedKeys.add(preferredKey);
+        if (preferredKey) {
+          lastNamedCharacterKey = preferredKey;
+          knownCharacterKeys.add(preferredKey);
+        }
+
+        const sceneChars = [...resolvedNamedKeys].map(toDisplayCharacterName);
         const sceneDesc: string = s.description || "";
         const sceneMood: string = s.mood || "";
         const sceneYear = s.heading?.match(/(\d{4})/)?.[1] || "";
