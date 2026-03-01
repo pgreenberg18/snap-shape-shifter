@@ -4044,18 +4044,19 @@ const ContentSafetyMatrix = ({
             </p>
           </div>
         </div>
-        <div className="space-y-2">
-          {scenes?.slice(0, 8).map((s: any, i: number) => (
-            <div key={i} className="flex items-center gap-2 text-xs animate-pulse" style={{ animationDelay: `${i * 150}ms` }}>
-              <Loader2 className="h-3 w-3 animate-spin text-primary" />
-              <span className="text-muted-foreground truncate">
-                Scene {s.scene_number ?? i + 1}: {s.heading || `Scene ${i + 1}`}
-              </span>
-            </div>
-          ))}
-          {sceneCount > 8 && (
-            <p className="text-xs text-muted-foreground pl-5">…and {sceneCount - 8} more</p>
-          )}
+        <div className="h-40 overflow-hidden relative">
+          <div className="animate-scene-scroll space-y-2">
+            {scenes?.map((s: any, i: number) => (
+              <div key={i} className="flex items-center gap-2 text-xs" style={{ animationDelay: `${i * 80}ms` }}>
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                <span className="text-muted-foreground truncate">
+                  Scene {s.scene_number ?? i + 1}: {s.heading || `Scene ${i + 1}`}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-x-0 top-0 h-8 bg-gradient-to-b from-card to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-card to-transparent pointer-events-none" />
         </div>
         <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden">
           <div className="h-full w-1/3 rounded-full bg-primary animate-pulse" />
