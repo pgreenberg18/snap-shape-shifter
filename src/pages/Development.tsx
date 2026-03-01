@@ -1243,8 +1243,8 @@ const Development = () => {
                                 </>
                               ) : uploadedFile ? (
                                 <>
-                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-                                    <CheckCircle className="h-6 w-6 text-primary" />
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-500/20">
+                                    <CheckCircle className="h-6 w-6 text-green-500" />
                                   </div>
                                   <div className="text-center">
                                     <p className="text-sm font-display font-semibold text-foreground flex items-center gap-2 justify-center">
