@@ -323,14 +323,25 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
 
   return (
     <div className="space-y-4">
-      {/* Analyze button if no profile */}
-      {!profile && !analyzing && (
+      {/* Analyze button — hidden once profile exists and vision is locked */}
+      {!analyzing && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
-            Run the neural style engine to match your script to directorial visions.
+            {profile
+              ? disabled
+                ? "Director vision has been approved."
+                : "Re-run the neural style engine if needed."
+              : "Run the neural style engine to match your script to directorial visions."}
           </p>
-          <Button onClick={handleAnalyze} disabled={disabled || analyzing} className="gap-2" size="sm">
-            <Sparkles className="h-4 w-4" /> Analyze Style
+          <Button
+            onClick={handleAnalyze}
+            disabled={disabled || analyzing}
+            className="gap-2"
+            size="sm"
+            variant={disabled ? "outline" : "default"}
+          >
+            <Sparkles className="h-4 w-4" />
+            {disabled ? "Locked" : profile ? "Re-Analyze" : "Analyze Style"}
           </Button>
         </div>
       )}
