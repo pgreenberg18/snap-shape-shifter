@@ -338,6 +338,19 @@ const Development = () => {
     },
     enabled: !!filmId,
   });
+  const { data: productionBible } = useQuery({
+    queryKey: ["production-bible-status", filmId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("production_bibles")
+        .select("status")
+        .eq("film_id", filmId!)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!filmId,
+  });
+  const bibleComplete = productionBible?.status === "complete";
   const { data: sceneLocations } = useQuery({
     queryKey: ["scene-locations", filmId],
     queryFn: async () => {
@@ -2255,33 +2268,48 @@ const Development = () => {
                   )}
 
                   {/* Lock Vision */}
-                  {!visionComplete && directorProfile && (
-                    <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
-                      <Button
-                        size="lg"
-                        onClick={async () => {
-                          setVisionComplete(true);
-                          setActiveTab("breakdown");
-                          // Trigger scene enrichment now that vision is locked
-                          if (filmId && analysis?.id) {
-                            const { data: unenriched } = await supabase
-                              .from("parsed_scenes")
-                              .select("id")
-                              .eq("film_id", filmId)
-                              .eq("enriched", false)
-                              .order("scene_number", { ascending: true });
-                            if (unenriched && unenriched.length > 0) {
-                              runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
+                  {!visionComplete && directorProfile && (() => {
+                    const canLockVision = allElementsReviewed && ratingsApproved && !!directorProfile && bibleComplete;
+                    const missingItems: string[] = [];
+                    if (!allElementsReviewed) missingItems.push("Global Elements");
+                    if (!ratingsApproved) missingItems.push("Ratings Classification");
+                    if (!directorProfile) missingItems.push("Director's Vision");
+                    if (!bibleComplete) missingItems.push("Production Bible");
+                    return (
+                      <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
+                        <Button
+                          size="lg"
+                          disabled={!canLockVision}
+                          onClick={async () => {
+                            setVisionComplete(true);
+                            setActiveTab("breakdown");
+                            if (filmId && analysis?.id) {
+                              const { data: unenriched } = await supabase
+                                .from("parsed_scenes")
+                                .select("id")
+                                .eq("film_id", filmId)
+                                .eq("enriched", false)
+                                .order("scene_number", { ascending: true });
+                              if (unenriched && unenriched.length > 0) {
+                                runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
+                              }
                             }
-                          }
-                        }}
-                        className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
-                      >
-                        <Lock className="h-4 w-4" /> Lock Vision
-                      </Button>
-                      <p className="text-xs text-muted-foreground">Lock vision to proceed to Scene Breakdown.</p>
-                    </div>
-                  )}
+                          }}
+                          className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
+                        >
+                          <Lock className="h-4 w-4" /> Lock Vision
+                        </Button>
+                        {!canLockVision && missingItems.length > 0 ? (
+                          <p className="text-xs text-yellow-500 flex items-center gap-1.5">
+                            <AlertCircle className="h-3.5 w-3.5" />
+                            Approve all sections first: {missingItems.join(", ")}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Lock vision to proceed to Scene Breakdown.</p>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {visionComplete && (
                     <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 flex items-center justify-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-500" />
