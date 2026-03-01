@@ -413,7 +413,7 @@ const Development = () => {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [visualSummaryApproved, setVisualSummaryApproved] = useState(false);
   const [ratingsApproved, setRatingsApproved] = useState(false);
-  const [aiNotesApproved, setAiNotesApproved] = useState(false);
+  
   const enrichingRef = useRef(false);
   const [devComplete, setDevComplete] = useState(false);
   const [fundamentalsLocked, setFundamentalsLocked] = useState(false);
@@ -577,7 +577,7 @@ const Development = () => {
     if (!analysis) return;
     setVisualSummaryApproved(!!(analysis as any).visual_summary_approved);
     setRatingsApproved(!!(analysis as any).ratings_approved);
-    setAiNotesApproved(!!(analysis as any).ai_notes_approved);
+    
     // If ratings were previously approved, the content safety analysis was already run
     if ((analysis as any).ratings_approved) setContentSafetyRun(true);
   }, [analysis?.id]);
@@ -2234,23 +2234,8 @@ const Development = () => {
                     </CollapsibleContent>
                   </Collapsible>
 
-                  {/* AI Generation Notes */}
-                  {directorProfile && <EditableAIGenerationNotes
-                    initialValue={analysis.ai_generation_notes as any}
-                    visualSummary={(analysis.visual_summary as string) || ""}
-                    timePeriod={film?.time_period || timePeriod}
-                    signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
-                    visualDesign={(analysis.global_elements as any)?.visual_design || null}
-                    analysisId={analysis.id}
-                    approved={aiNotesApproved}
-                    onApprovedChange={(v: boolean) => {
-                      setAiNotesApproved(v);
-                      persistApproval("ai_notes_approved", v);
-                    }}
-                  />}
-
                   {/* Production Bible */}
-                  {directorProfile && aiNotesApproved && (
+                  {directorProfile && (
                     <Collapsible defaultOpen>
                       <CollapsibleTrigger className="w-full">
                         <div data-help-id="dev-production-bible" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
@@ -2270,7 +2255,7 @@ const Development = () => {
                   )}
 
                   {/* Lock Vision */}
-                  {!visionComplete && directorProfile && aiNotesApproved && (
+                  {!visionComplete && directorProfile && (
                     <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
                       <Button
                         size="lg"
@@ -4042,92 +4027,6 @@ const ContentSafetyMatrix = ({
   );
 };
 
-const EditableAIGenerationNotes = ({ initialValue, visualSummary, timePeriod, signatureStyle, visualDesign, analysisId, approved, onApprovedChange }: { initialValue: any; visualSummary?: string; timePeriod?: string; signatureStyle?: string; visualDesign?: { color_palette?: string[]; lighting_language?: string[]; atmospheric_motifs?: string[]; symbolic_elements?: string[] } | null; analysisId: string; approved: boolean; onApprovedChange: (v: boolean) => void }) => {
-  // Convert structured array format to display string
-  const formatNotes = (raw: any): string => {
-    if (!raw) return "";
-    if (Array.isArray(raw)) {
-      return raw.map((item: any) => {
-        if (typeof item === "object" && item.topic && item.body) {
-          return `**${item.topic}:**\n${item.body}`;
-        }
-        return typeof item === "string" ? item : JSON.stringify(item);
-      }).join("\n\n");
-    }
-    if (typeof raw === "string") return raw;
-    return JSON.stringify(raw);
-  };
-
-  const [value, setValue] = useState(() => {
-    const formatted = formatNotes(initialValue);
-    if (formatted) return formatted;
-    const parts: string[] = [];
-    if (timePeriod) parts.push(`**Time Period:**\n${timePeriod}. Ensure all generated visuals reflect this era accurately — architecture, clothing, vehicles, signage, and technology should be period-appropriate.`);
-    if (signatureStyle) parts.push(`**Signature Style:**\n${signatureStyle}`);
-    if (visualSummary) parts.push(`**Visual Direction:**\n${visualSummary}`);
-    if (visualDesign) {
-      const refs: string[] = [];
-      if (visualDesign.color_palette?.length) refs.push(`Color palette: ${visualDesign.color_palette.join(", ")}`);
-      if (visualDesign.lighting_language?.length) refs.push(`Lighting: ${visualDesign.lighting_language.join(", ")}`);
-      if (refs.length) parts.push(`**Visual Design References:**\n${refs.join(". ")}.`);
-    }
-    if (parts.length === 0) return "";
-    return parts.join("\n\n");
-  });
-  const initialMountRef = useRef(true);
-  useEffect(() => {
-    if (initialMountRef.current) { initialMountRef.current = false; return; }
-    const timeout = setTimeout(() => {
-      supabase.from("script_analyses").update({ ai_generation_notes: value } as any).eq("id", analysisId);
-    }, 800);
-    return () => clearTimeout(timeout);
-  }, [value, analysisId]);
-
-  return (
-    <Collapsible>
-      <CollapsibleTrigger className="w-full">
-        <div data-help-id="dev-ai-notes" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h3 className="font-display text-lg font-bold">AI Generation Notes</h3>
-          </div>
-          <div className="flex items-center gap-2">
-            {approved ? (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            ) : (
-              <AlertCircle className="h-4 w-4 text-yellow-500" />
-            )}
-            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-          <Textarea
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder="Add notes about overall visual approach, consistency requirements, or special considerations..."
-            className="min-h-[100px] text-sm bg-background resize-y"
-            style={{ fieldSizing: 'content' } as React.CSSProperties}
-          />
-          <div className="flex justify-end pt-2 border-t border-border">
-            <Button
-              size="sm"
-              variant={approved ? "default" : "outline"}
-              className={cn("gap-1.5", approved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-              onClick={() => onApprovedChange(!approved)}
-            >
-              <ThumbsUp className="h-3 w-3" />
-              {approved ? "Approved" : "Approve"}
-            </Button>
-          </div>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
-  );
-};
-
-/* ── Editable Visual Summary ── */
 const EditableVisualSummary = ({ analysisId, initialSummary, initialStyle, globalElements, approved, onApprovedChange }: {
   analysisId: string; initialSummary: string; initialStyle: string; globalElements: any;
   approved: boolean; onApprovedChange: (v: boolean) => void;
