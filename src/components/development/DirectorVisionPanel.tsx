@@ -726,11 +726,11 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               <Button
                 onClick={() => saveMutation.mutate()}
                 disabled={disabled || !primaryDirector || saveMutation.isPending}
-                className="gap-1.5 flex-1"
+                className={cn("gap-1.5 flex-1", saveMutation.isSuccess && "bg-green-600 hover:bg-green-600 text-white border-green-500")}
                 size="sm"
               >
                 {saveMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                Confirm Vision
+                {saveMutation.isSuccess ? "Vision Confirmed" : "Confirm Vision"}
               </Button>
               <Button
                 onClick={handleAnalyze}
