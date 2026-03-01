@@ -2530,7 +2530,7 @@ const SceneBreakdownSection = ({ scenes, storagePath, onAllApprovedChange, onRev
         <p className="text-sm text-muted-foreground">
           Expand each scene to review the AI-generated visual intelligence. Approve scenes to lock them in for production.
         </p>
-        <Button variant={allApproved ? "secondary" : "default"} size="sm" className="gap-1.5 shrink-0" onClick={toggleAll}>
+        <Button variant={allApproved ? "default" : "default"} size="sm" className={cn("gap-1.5 shrink-0", allApproved && "bg-green-600 hover:bg-green-700 text-white")} onClick={toggleAll}>
           <ThumbsUp className="h-3.5 w-3.5" />
           {allApproved ? "Unapprove All" : "Approve All"}
         </Button>
@@ -3136,11 +3136,11 @@ const EditableSceneContent = ({
           <Button
             variant="outline"
             size="sm"
-            className={cn("gap-1.5", approved && "bg-primary text-primary-foreground border-primary hover:bg-primary/90")}
+            className={cn("gap-1.5", approved && "bg-green-600 text-white border-green-600 hover:bg-green-700")}
             onClick={onToggleApproved}
           >
             <ThumbsUp className="h-3.5 w-3.5" />
-            {approved ? "Approved ✓" : "Approve Scene"}
+            {approved ? "Approved" : "Approve"}
           </Button>
         </div>
       </div>
