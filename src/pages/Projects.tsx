@@ -6,7 +6,7 @@ import {
   Trash2, Pencil, Check, X, ChevronRight, ChevronDown,
 } from "lucide-react";
 import {
-  AddProjectIcon, FilmStripIcon, PrecisionGearIcon, InfoBeaconIcon, ProfileIcon,
+  AddProjectIcon, FilmStripIcon, PrecisionGearIcon, InfoBeaconIcon, ProfileIcon, MixingConsoleIcon, PowerIcon,
 } from "@/components/ui/cinema-icons";
 import clapperboardTemplate from "@/assets/clapperboard-template.jpg";
 import { Button } from "@/components/ui/button";
@@ -299,7 +299,7 @@ const Projects = () => {
         </div>
 
 
-        {/* Bottom icons: Help + Settings */}
+        {/* Bottom icons */}
         <div className="border-t border-border p-3 flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -322,6 +322,28 @@ const Projects = () => {
               </button>
             </TooltipTrigger>
             <TooltipContent side="top"><p>Settings & Admin</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => navigate("/settings/admin")}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
+              >
+                <MixingConsoleIcon className="h-5 w-5 icon-glow" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Global Settings</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={async () => { await signOut(); navigate("/login"); }}
+                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+              >
+                <PowerIcon className="h-4 w-4 icon-glow" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top"><p>Sign Out</p></TooltipContent>
           </Tooltip>
         </div>
       </aside>
