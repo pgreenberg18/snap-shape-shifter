@@ -852,17 +852,17 @@ const ProjectVersions = () => {
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>Create New Version</DialogTitle></DialogHeader>
-                    <div className="space-y-4 pt-2">
+                    <form onSubmit={(e) => { e.preventDefault(); const name = versionName.trim() || `Version ${(versions?.length || 0) + 1}`; if (isDuplicateName(name)) { setVersionNameError(`A version named "${name}" already exists`); return; } createVersion.mutate(); }} className="space-y-4 pt-2">
                       <div>
                         <label className="text-sm font-medium text-foreground">Version Name</label>
-                        <Input value={versionName} onChange={(e) => { setVersionName(e.target.value); if (versionNameError) setVersionNameError(""); }} placeholder={`Version ${(versions?.length || 0) + 1}`} className="mt-1" />
+                        <Input value={versionName} onChange={(e) => { setVersionName(e.target.value); if (versionNameError) setVersionNameError(""); }} placeholder={`Version ${(versions?.length || 0) + 1}`} className="mt-1" autoFocus />
                         {versionNameError && <p className="text-xs text-destructive mt-1">{versionNameError}</p>}
                       </div>
                       <p className="text-xs text-muted-foreground">This creates a blank version. Upload a new script in the Development phase.</p>
-                      <Button onClick={() => { const name = versionName.trim() || `Version ${(versions?.length || 0) + 1}`; if (isDuplicateName(name)) { setVersionNameError(`A version named "${name}" already exists`); return; } createVersion.mutate(); }} disabled={createVersion.isPending} className="w-full">
+                      <Button type="submit" disabled={createVersion.isPending} className="w-full">
                         {createVersion.isPending ? "Creating…" : "Create Version"}
                       </Button>
-                    </div>
+                    </form>
                   </DialogContent>
                 </Dialog>
               </div>
