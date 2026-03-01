@@ -1907,7 +1907,33 @@ const Development = () => {
                         </section>
                       )}
 
-                      {/* Visual Story Summary */}
+                      {/* Global Elements */}
+                      {analysis.global_elements && (
+                        <Collapsible>
+                          <CollapsibleTrigger className="w-full">
+                            <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-5 w-5 text-primary" />
+                                <h3 className="font-display text-lg font-bold">Global Elements</h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {allElementsReviewed ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                )}
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent forceMount className="data-[state=closed]:hidden">
+                            <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                              <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+
                       {analysis.visual_summary && directorProfile && (
                         <Collapsible>
                           <CollapsibleTrigger className="w-full">
@@ -1999,32 +2025,6 @@ const Development = () => {
                     </CollapsibleContent>
                   </Collapsible>
 
-                  {/* Global Elements */}
-                  {analysis.global_elements && (
-                    <Collapsible>
-                      <CollapsibleTrigger className="w-full">
-                        <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-5 w-5 text-primary" />
-                            <h3 className="font-display text-lg font-bold">Global Elements</h3>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {allElementsReviewed ? (
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <AlertCircle className="h-4 w-4 text-yellow-500" />
-                            )}
-                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        </div>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                          <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  )}
 
                   {/* AI Generation Notes */}
                   {directorProfile && <EditableAIGenerationNotes
