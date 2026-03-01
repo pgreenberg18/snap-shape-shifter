@@ -1063,7 +1063,12 @@ const Development = () => {
                         </span>
                       )}
                     </div>
-                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    <div className="flex items-center gap-2">
+                      {analysis?.status === "complete" && (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      )}
+                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                    </div>
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
