@@ -39,26 +39,36 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 const ACCEPTED_EXTENSIONS = [".fdx"];
 const ACCEPTED_LABEL = ".fdx only (more formats coming soon)";
 
-const FORMAT_PRESETS = [
-  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "feature_film_scope", label: "Feature Film — Widescreen", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 } },
-  { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "tiktok", label: "TikTok", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "instagram_reel", label: "Instagram Reel", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "instagram_post", label: "Instagram Post", width: 1080, height: 1080, fps: 30, aspect: "1:1" },
-  { value: "instagram_story", label: "Instagram Story", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "youtube", label: "YouTube", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "youtube_short", label: "YouTube Short", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "facebook", label: "Facebook Video", width: 1280, height: 720, fps: 30, aspect: "16:9" },
-  { value: "snapchat", label: "Snapchat", width: 1080, height: 1920, fps: 30, aspect: "9:16" },
-  { value: "linkedin", label: "LinkedIn Video", width: 1920, height: 1080, fps: 30, aspect: "16:9" },
-  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 } },
-  { value: "imax", label: "IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1" },
-  { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1" },
+const FORMAT_PRESETS: { value: string; label: string; width: number; height: number; fps: number; aspect: string; fourK?: { width: number; height: number }; category: string }[] = [
+  // Live-Action
+  { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "feature_film_scope", label: "Feature Film — Widescreen", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 }, category: "Live-Action" },
+  { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  // Animated Feature
+  { value: "animated_feature", label: "Animated Feature", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animated Feature" },
+  { value: "animated_feature_scope", label: "Animated Feature — Widescreen", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 }, category: "Animated Feature" },
+  // Animation
+  { value: "animation_series", label: "Animation Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
+  { value: "animation_short", label: "Animation Short", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
+  { value: "animation_web", label: "Animation — Web Series", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
+  // Social & Digital
+  { value: "tiktok", label: "TikTok", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
+  { value: "instagram_reel", label: "Instagram Reel", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
+  { value: "instagram_post", label: "Instagram Post", width: 1080, height: 1080, fps: 30, aspect: "1:1", category: "Social & Digital" },
+  { value: "instagram_story", label: "Instagram Story", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
+  { value: "youtube", label: "YouTube", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Social & Digital" },
+  { value: "youtube_short", label: "YouTube Short", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
+  { value: "facebook", label: "Facebook Video", width: 1280, height: 720, fps: 30, aspect: "16:9", category: "Social & Digital" },
+  { value: "snapchat", label: "Snapchat", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
+  { value: "linkedin", label: "LinkedIn Video", width: 1920, height: 1080, fps: 30, aspect: "16:9", category: "Social & Digital" },
+  // Commercial & Specialty
+  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Commercial & Specialty" },
+  { value: "imax", label: "IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1", category: "Commercial & Specialty" },
+  { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1", category: "Commercial & Specialty" },
 ];
 
 /* ── Hooks ── */
@@ -1273,9 +1283,23 @@ const Development = () => {
                           <SelectValue placeholder="Select a format…" />
                         </SelectTrigger>
                         <SelectContent className="bg-popover border border-border z-[9999]">
-                          {FORMAT_PRESETS.map(p => (
-                            <SelectItem key={p.value} value={p.value}>{p.label} ({p.aspect})</SelectItem>
-                          ))}
+                          {(() => {
+                            let lastCat = "";
+                            return FORMAT_PRESETS.map((p) => {
+                              const showLabel = p.category !== lastCat;
+                              lastCat = p.category;
+                              return (
+                                <span key={p.value}>
+                                  {showLabel && (
+                                    <div className="px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground select-none">
+                                      {p.category}
+                                    </div>
+                                  )}
+                                  <SelectItem value={p.value}>{p.label} ({p.aspect})</SelectItem>
+                                </span>
+                              );
+                            });
+                          })()}
                         </SelectContent>
                       </Select>
                     </div>
