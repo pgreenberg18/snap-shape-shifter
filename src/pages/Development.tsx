@@ -989,693 +989,934 @@ const Development = () => {
 
   return (
     <div className="flex h-full flex-col overflow-hidden">
-      <ScrollArea className="flex-1">
-      <div className="mx-auto max-w-5xl px-6 pt-0 pb-10 space-y-10">
       {/* Phase header */}
-      <div className="border-b border-border bg-card -mx-6 px-6 py-3 flex items-baseline gap-3">
+      <header className="shrink-0 border-b border-border bg-card px-6 py-3 flex items-baseline gap-3">
         <h1 className="font-display text-xl font-bold tracking-tight text-foreground whitespace-nowrap">Development</h1>
         <p className="text-xs text-muted-foreground truncate">Script analysis, visual DNA, and content safety — the creative blueprint for your film.</p>
-      </div>
-      {/* ── Script Details ── */}
-      <Collapsible defaultOpen>
-        <CollapsibleTrigger className="w-full">
-          <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-            <div className="flex items-center gap-2">
-              <Film className="h-5 w-5 text-primary" />
-              <h3 className="font-display text-lg font-bold">Script Details</h3>
-              {analysis && (
-                <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
-                  <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
-                </span>
-              )}
-            </div>
-            <ChevronDown className="h-5 w-5 text-muted-foreground" />
-          </div>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
-                <Input
-                  value={filmTitle}
-                  onChange={(e) => setFilmTitle(e.target.value)}
-                  placeholder="Film title"
-                  disabled={scriptLocked}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Version</Label>
-                <Input
-                  value={versionName}
-                  onChange={(e) => setVersionName(e.target.value)}
-                  placeholder="e.g. Draft 1, Final Cut"
-                  disabled={scriptLocked}
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
-              <Input
-                value={writers}
-                onChange={(e) => setWriters(e.target.value)}
-                placeholder="e.g. Jane Doe & John Smith"
-                disabled={scriptLocked}
-              />
-            </div>
-            {!scriptLocked && !analysis && (
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveMeta}
-                  disabled={metaSaving || (!metaDirty && metaSaved)}
-                  className="gap-1.5"
-                  size="sm"
-                >
-                  {metaSaving ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
-                  ) : metaSaved && !metaDirty ? (
-                    <><CheckCircle className="h-4 w-4" /> Saved</>
-                  ) : (
-                    <><Save className="h-4 w-4" /> Save Details</>
-                  )}
-                </Button>
-              </div>
-            )}
+      </header>
 
-            {/* Script file info or upload — shown after details are saved */}
-            {(metaSaved || analysis) && (
-              <>
-                <div className="border-t border-border my-2" />
-                {analysis ? (
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <FileText className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-display font-semibold text-foreground truncate">{analysis.file_name}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
-                      </p>
-                    </div>
-                    {analysis.status === "complete" && !scriptLocked && (
-                      <Button
-                        onClick={handleAnalyze}
-                        disabled={isAnalyzing}
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 shrink-0"
-                      >
-                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        Reanalyze
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <>
-                    <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
-                    <div
-                      onClick={() => !uploading && fileInputRef.current?.click()}
-                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-                      onDragLeave={() => setDragOver(false)}
-                      onDrop={handleDrop}
-                      className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-5 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
-                        dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      {uploading ? (
-                        <>
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-                            <Loader2 className="h-6 w-6 text-primary animate-spin" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-xs font-display font-semibold text-foreground">Uploading…</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">Please wait while your file uploads</p>
-                          </div>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            className="gap-1.5 text-[10px]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              uploadAbortRef.current?.abort();
-                              setUploading(false);
-                              toast({ title: "Upload cancelled" });
-                            }}
-                          >
-                            <X className="h-3 w-3" />
-                            Quit Uploading
-                          </Button>
-                        </>
-                      ) : uploadedFile ? (
-                        <>
-                          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
-                            <CheckCircle className="h-6 w-6 text-primary" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm font-display font-semibold text-foreground flex items-center gap-2 justify-center">
-                              <FileText className="h-4 w-4" /> {uploadedFile}
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">Click or drop to replace</p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="text-center">
-                            <p className="text-xs font-display font-semibold text-foreground">
-                              Drop your screenplay here
-                            </p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">{ACCEPTED_LABEL} — or click to browse</p>
-                          </div>
-                          <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
-                            <Upload className="h-3 w-3" />
-                            Upload Script
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    {uploadedFile && !analysis && (
-                      <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-2 gap-2" size="lg">
-                        {isAnalyzing ? (
-                          <><Loader2 className="h-4 w-4 animate-spin" />Analyzing Script…</>
-                        ) : (
-                          <><Sparkles className="h-4 w-4" />Analyze Script — Visual Breakdown</>
-                        )}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
+      <Tabs defaultValue="fundamentals" className="flex-1 flex flex-col overflow-hidden">
+        <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
+          <TabsList className="h-auto bg-transparent gap-0 p-0 border-b border-border items-end">
+            <DevelopmentTab value="fundamentals" icon={Film} label="Fundamentals" />
+            <DevelopmentTab value="vision" icon={Camera} label="Vision" />
+            <DevelopmentTab value="breakdown" icon={ScrollText} label="Scene Breakdown" />
+          </TabsList>
+        </div>
 
-
-      {/* ── Step 2: Analysis Results / Review Section ── */}
-      {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
-        <section>
-          {analysis?.status !== "complete" && (
-            <Collapsible defaultOpen>
-              <CollapsibleTrigger className="w-full">
-                <div data-help-id="dev-script-breakdown" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <ScrollText className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Script Analysis</h3>
-                    {isAnalyzing && (
-                      <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
-                        <Loader2 className="h-3 w-3 animate-spin text-primary" /> Processing
-                      </span>
-                    )}
-                    {analysis?.status === "error" && (
-                      <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded flex items-center gap-1">
-                        <AlertTriangle className="h-3 w-3" /> Error
-                      </span>
-                    )}
-                  </div>
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                  {/* Loading state with progress */}
-                  {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} onCancel={async () => {
-                    setAnalyzing(false);
-                    if (analysis?.id) {
-                      await supabase.from("script_analyses").update({ status: "error", error_message: "Cancelled by user" }).eq("id", analysis.id);
-                      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-                    }
-                    toast({ title: "Processing cancelled" });
-                  }} />}
-
-                  {/* Error state */}
-                  {analysis?.status === "error" && (
-                    <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
-                      <div className="flex items-center gap-3">
-                        <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
-                        <div>
-                          <p className="font-display font-semibold text-sm">Analysis Failed</p>
-                          <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
-                        </div>
-                      </div>
-                      <Button
-                        onClick={async () => {
-                          setAnalyzing(true);
-                          const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
-                            body: { analysis_id: analysis.id },
-                          });
-                          setAnalyzing(false);
-                          if (invokeErr) {
-                            toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
-                          } else {
-                            queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-                            toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
-                          }
-                        }}
-                        disabled={isAnalyzing}
-                        className="gap-2"
-                        variant="outline"
-                      >
-                        {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                        Analyze Again
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          )}
-
-          {/* Complete results */}
-          {analysis?.status === "complete" && (
-            <div className="space-y-6">
-              {/* ── Format ── */}
-              <Collapsible>
+        {/* ═══ FUNDAMENTALS TAB ═══ */}
+        <TabsContent value="fundamentals" className="flex-1 overflow-hidden m-0">
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
+              {/* ── Script Details ── */}
+              <Collapsible defaultOpen>
                 <CollapsibleTrigger className="w-full">
-                  <div data-help-id="dev-format-specs" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                  <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
-                      <Monitor className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Format</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {formatType ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
+                      <Film className="h-5 w-5 text-primary" />
+                      <h3 className="font-display text-lg font-bold">Script Details</h3>
+                      {analysis && (
+                        <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-primary" /> Uploaded
+                        </span>
                       )}
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
                     </div>
+                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
                   </div>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      Select the output format. This determines frame size, aspect ratio, and frame rate for all generated images and clips.
-                    </p>
-
-                    <div className="space-y-1.5">
-                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
-                      <Select value={formatType || undefined} onValueChange={handleFormatChange}>
-                        <SelectTrigger className="bg-background">
-                          <SelectValue placeholder="Select a format…" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-popover border border-border z-[9999]">
-                          {(() => {
-                            let lastCat = "";
-                            return FORMAT_PRESETS.map((p) => {
-                              const showLabel = p.category !== lastCat;
-                              lastCat = p.category;
-                              return (
-                                <span key={p.value}>
-                                  {showLabel && (
-                                    <div className="px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground select-none">
-                                      {p.category}
-                                    </div>
-                                  )}
-                                  <SelectItem value={p.value}>{p.label} ({p.aspect})</SelectItem>
-                                </span>
-                              );
-                            });
-                          })()}
-                        </SelectContent>
-                      </Select>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Title</Label>
+                        <Input
+                          value={filmTitle}
+                          onChange={(e) => setFilmTitle(e.target.value)}
+                          placeholder="Film title"
+                          disabled={scriptLocked}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Version</Label>
+                        <Input
+                          value={versionName}
+                          onChange={(e) => setVersionName(e.target.value)}
+                          placeholder="e.g. Draft 1, Final Cut"
+                          disabled={scriptLocked}
+                        />
+                      </div>
                     </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Writers</Label>
+                      <Input
+                        value={writers}
+                        onChange={(e) => setWriters(e.target.value)}
+                        placeholder="e.g. Jane Doe & John Smith"
+                        disabled={scriptLocked}
+                      />
+                    </div>
+                    {!scriptLocked && !analysis && (
+                      <div className="flex justify-end">
+                        <Button
+                          onClick={handleSaveMeta}
+                          disabled={metaSaving || (!metaDirty && metaSaved)}
+                          className="gap-1.5"
+                          size="sm"
+                        >
+                          {metaSaving ? (
+                            <><Loader2 className="h-4 w-4 animate-spin" /> Saving…</>
+                          ) : metaSaved && !metaDirty ? (
+                            <><CheckCircle className="h-4 w-4" /> Saved</>
+                          ) : (
+                            <><Save className="h-4 w-4" /> Save Details</>
+                          )}
+                        </Button>
+                      </div>
+                    )}
 
-                    {formatType && (
+                    {/* Script file info or upload — shown after details are saved */}
+                    {(metaSaved || analysis) && (
                       <>
-                        {(() => {
-                          const preset = FORMAT_PRESETS.find(p => p.value === formatType);
-                          if (!preset) return null;
-                          const displayWidth = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
-                          const displayHeight = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
-                          return (
-                            <div className="rounded-lg bg-secondary/50 border border-border p-3 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Industry Standard</span>
-                                <span className="text-xs text-muted-foreground">{preset.aspect}</span>
-                              </div>
-                              <div className="grid grid-cols-3 gap-3 text-sm">
-                                <div>
-                                  <span className="text-[10px] text-muted-foreground uppercase">Width</span>
-                                  <p className="font-display font-bold text-foreground">{displayWidth}px</p>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-muted-foreground uppercase">Height</span>
-                                  <p className="font-display font-bold text-foreground">{displayHeight}px</p>
-                                </div>
-                                <div>
-                                  <span className="text-[10px] text-muted-foreground uppercase">Frame Rate</span>
-                                  <p className="font-display font-bold text-foreground">{preset.fps} fps</p>
-                                </div>
-                              </div>
-
-                              {preset.fourK && (
-                                <div className="space-y-2 pt-1">
-                                  <div className="flex items-center gap-2">
-                                    <Switch
-                                      checked={fourKEnabled}
-                                      onCheckedChange={(val) => {
-                                        setFourKEnabled(val);
-                                        if (!formatOverride) {
-                                          const dims = val ? preset.fourK! : { width: preset.width, height: preset.height };
-                                          setFrameWidth(dims.width);
-                                          setFrameHeight(dims.height);
-                                          setFrameRate(preset.fps);
-                                        }
-                                      }}
-                                    />
-                                    <Label className="text-xs text-muted-foreground">4K Resolution</Label>
+                        <div className="border-t border-border my-2" />
+                        {analysis ? (
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                              <FileText className="h-5 w-5 text-primary" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-display font-semibold text-foreground truncate">{analysis.file_name}</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {analysis.status === "complete" ? "Analysis complete" : analysis.status === "error" ? "Analysis failed" : "Analyzing…"}
+                              </p>
+                            </div>
+                            {analysis.status === "complete" && !scriptLocked && (
+                              <Button
+                                onClick={handleAnalyze}
+                                disabled={isAnalyzing}
+                                variant="outline"
+                                size="sm"
+                                className="gap-1.5 shrink-0"
+                              >
+                                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                Reanalyze
+                              </Button>
+                            )}
+                          </div>
+                        ) : (
+                          <>
+                            <input ref={fileInputRef} type="file" accept={ACCEPTED_EXTENSIONS.join(",")} className="hidden" onChange={handleFileChange} />
+                            <div
+                              onClick={() => !uploading && fileInputRef.current?.click()}
+                              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                              onDragLeave={() => setDragOver(false)}
+                              onDrop={handleDrop}
+                              className={`flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-5 transition-colors cursor-pointer backdrop-blur-md bg-card/50 ${
+                                dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                              }`}
+                            >
+                              {uploading ? (
+                                <>
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+                                    <Loader2 className="h-6 w-6 text-primary animate-spin" />
                                   </div>
-                                  {fourKEnabled && (
-                                    <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 p-2">
-                                      <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                                      <p className="text-xs text-destructive">
-                                        4K video generation uses significantly more credits and takes longer to render. Use only when high-resolution output is essential.
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
+                                  <div className="text-center">
+                                    <p className="text-xs font-display font-semibold text-foreground">Uploading…</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">Please wait while your file uploads</p>
+                                  </div>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    className="gap-1.5 text-[10px]"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      uploadAbortRef.current?.abort();
+                                      setUploading(false);
+                                      toast({ title: "Upload cancelled" });
+                                    }}
+                                  >
+                                    <X className="h-3 w-3" />
+                                    Quit Uploading
+                                  </Button>
+                                </>
+                              ) : uploadedFile ? (
+                                <>
+                                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+                                    <CheckCircle className="h-6 w-6 text-primary" />
+                                  </div>
+                                  <div className="text-center">
+                                    <p className="text-sm font-display font-semibold text-foreground flex items-center gap-2 justify-center">
+                                      <FileText className="h-4 w-4" /> {uploadedFile}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-1">Click or drop to replace</p>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-center">
+                                    <p className="text-xs font-display font-semibold text-foreground">
+                                      Drop your screenplay here
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{ACCEPTED_LABEL} — or click to browse</p>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 rounded-md bg-secondary px-3 py-1.5 text-[10px] text-muted-foreground">
+                                    <Upload className="h-3 w-3" />
+                                    Upload Script
+                                  </div>
+                                </>
                               )}
                             </div>
-                          );
-                        })()}
-
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={formatOverride}
-                            onCheckedChange={(val) => {
-                              setFormatOverride(val);
-                              if (!val) {
-                                const preset = FORMAT_PRESETS.find(p => p.value === formatType);
-                                if (preset) {
-                                  const w = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
-                                  const h = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
-                                  setFrameWidth(w);
-                                  setFrameHeight(h);
-                                  setFrameRate(preset.fps);
-                                }
-                              }
-                            }}
-                            disabled={false}
-                          />
-                          <Label className="text-xs text-muted-foreground">Override defaults</Label>
-                        </div>
-
-                        {formatOverride && (
-                          <div className="grid grid-cols-3 gap-3">
-                            <div className="space-y-1.5">
-                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Width (px)</Label>
-                              <Input
-                                type="number"
-                                value={frameWidth ?? ""}
-                                onChange={(e) => setFrameWidth(e.target.value ? parseInt(e.target.value) : null)}
-                                disabled={false}
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Height (px)</Label>
-                              <Input
-                                type="number"
-                                value={frameHeight ?? ""}
-                                onChange={(e) => setFrameHeight(e.target.value ? parseInt(e.target.value) : null)}
-                                disabled={false}
-                              />
-                            </div>
-                            <div className="space-y-1.5">
-                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FPS</Label>
-                              <Input
-                                type="number"
-                                value={frameRate ?? ""}
-                                onChange={(e) => setFrameRate(e.target.value ? parseFloat(e.target.value) : null)}
-                                disabled={false}
-                              />
-                            </div>
-                          </div>
+                            {uploadedFile && !analysis && (
+                              <Button onClick={handleAnalyze} disabled={isAnalyzing} className="w-full mt-2 gap-2" size="lg">
+                                {isAnalyzing ? (
+                                  <><Loader2 className="h-4 w-4 animate-spin" />Analyzing Script…</>
+                                ) : (
+                                  <><Sparkles className="h-4 w-4" />Analyze Script — Visual Breakdown</>
+                                )}
+                              </Button>
+                            )}
+                          </>
                         )}
-
-                        <div className="flex justify-end">
-                          <Button
-                            onClick={handleSaveFormat}
-                            disabled={formatSaving}
-                            className="gap-1.5"
-                            size="sm"
-                          >
-                            {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                            Save Format
-                          </Button>
-                        </div>
                       </>
                     )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
 
-              {/* ── Time Period ── */}
-              <Collapsible>
-                <CollapsibleTrigger className="w-full">
-                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Time Period</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {film?.time_period ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
-                      )}
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Set when most of this film takes place. This anchors the visual language for all downstream phases.
-                </p>
-
-                {/* AI-detected primary time period with confidence */}
-                {temporalAnalysis?.primary_time_period && (
-                  <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="h-4 w-4 text-primary" />
-                        <span className="text-sm font-semibold text-foreground">AI Detection</span>
-                      </div>
-                      <span className={cn(
-                        "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
-                        temporalAnalysis.primary_time_period.confidence === "High" && "bg-green-500/20 text-green-400",
-                        temporalAnalysis.primary_time_period.confidence === "Medium" && "bg-yellow-500/20 text-yellow-400",
-                        temporalAnalysis.primary_time_period.confidence === "Low" && "bg-red-500/20 text-red-400",
-                      )}>
-                        {temporalAnalysis.primary_time_period.confidence} confidence
-                      </span>
-                    </div>
-                    <p className="text-sm font-display font-bold text-foreground">
-                      {temporalAnalysis.primary_time_period.estimated_year_or_era}
-                    </p>
-                    {Array.isArray(temporalAnalysis.primary_time_period.evidence) && temporalAnalysis.primary_time_period.evidence.length > 0 && (
-                      <ul className="text-[11px] text-muted-foreground space-y-0.5 pl-4 list-disc">
-                        {temporalAnalysis.primary_time_period.evidence.map((e: string, i: number) => (
-                          <li key={i}>{e}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-3">
-                  <Input
-                    placeholder="e.g. 1970s, Near-future 2084, Victorian Era, Present Day"
-                    value={timePeriod}
-                    onChange={(e) => setTimePeriod(e.target.value)}
-                    disabled={scriptLocked}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleSaveTimePeriod}
-                    disabled={timePeriodSaving || scriptLocked || timePeriod === (film?.time_period ?? "")}
-                    className="gap-1.5 shrink-0"
-                  >
-                    {timePeriodSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                    Save
-                  </Button>
-                </div>
-                {film?.time_period && (
-                  <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> Current: <span className="font-semibold text-foreground">{film.time_period}</span>
-                  </p>
-                )}
-
-                {/* AI-detected secondary time periods */}
-                {secondaryTimePeriods.length > 0 && (
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Rewind className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Secondary Time Periods ({secondaryTimePeriods.length})
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Additional time periods detected in the script — flashbacks, flashforwards, dream sequences, and more.
-                    </p>
-                    <div className="space-y-2">
-                      {secondaryTimePeriods.map((period: any, i: number) => {
-                        // Find matching scene numbers + page numbers for sluglines
-                        const matchedScenes = (period.scene_sluglines || []).map((slug: string) => {
-                          const allScenes = (devParsedScenes || []) as any[];
-                          const CHARS_PER_PAGE = 3000;
-                          let cumChars = 0;
-                          for (const sc of allScenes) {
-                            const rawLen = (sc.raw_text || sc.description || "").length || 200;
-                            const page = Math.floor(cumChars / CHARS_PER_PAGE) + 1;
-                            cumChars += rawLen;
-                            if ((sc.scene_heading || sc.heading || "").toLowerCase().includes(slug.toLowerCase()) ||
-                                slug.toLowerCase().includes((sc.scene_heading || sc.heading || "").toLowerCase())) {
-                              return { slug, sceneNumber: sc.scene_number || 0, page };
-                            }
-                          }
-                          return { slug, sceneNumber: 0, page: 0 };
-                        });
-
-                        return (
-                          <div key={i} className="rounded-lg bg-secondary p-3 space-y-2">
-                            <div className="flex items-center gap-3">
-                              <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
-                                {(period.type || "").toLowerCase().includes("forward") || (period.type || "").toLowerCase().includes("epilogue") ? (
-                                  <FastForward className="h-3.5 w-3.5 text-primary" />
-                                ) : (
-                                  <Rewind className="h-3.5 w-3.5 text-primary" />
-                                )}
+              {/* ── Step 2: Analysis Results / Review Section ── */}
+              {(isAnalyzing || analysis?.status === "complete" || analysis?.status === "error") && (
+                <section>
+                  {analysis?.status !== "complete" && (
+                    <Collapsible defaultOpen>
+                      <CollapsibleTrigger className="w-full">
+                        <div data-help-id="dev-script-breakdown" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <ScrollText className="h-5 w-5 text-primary" />
+                            <h3 className="font-display text-lg font-bold">Script Analysis</h3>
+                            {isAnalyzing && (
+                              <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                                <Loader2 className="h-3 w-3 animate-spin text-primary" /> Processing
                               </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-foreground">{period.label}</p>
-                                <p className="text-[10px] text-muted-foreground">
-                                  {period.type}
-                                  {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
-                                  {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
-                                </p>
-                              </div>
-                              <SecondaryTimePeriodInput
-                                initialValue={period.estimated_year_or_range}
-                                placeholder="e.g. 1955"
-                                disabled={!!scriptLocked}
-                                analysisId={analysis.id}
-                                periodIndex={i}
-                                globalElements={analysis.global_elements as any}
-                              />
-                            </div>
-                            {/* Scene sluglines with page badges and yellow year */}
-                            {matchedScenes.length > 0 && (
-                              <div className="space-y-1 pl-9">
-                                {matchedScenes.map((ms: any, j: number) => (
-                                  <div key={j} className="flex items-center gap-2">
-                                    <button
-                                      onClick={() => fetchSceneText(ms.sceneNumber, ms.slug)}
-                                      className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
-                                      title="View scene in script"
-                                    >
-                                      <FileText className="h-3 w-3" />
-                                      Sc.{ms.sceneNumber}
-                                    </button>
-                                    <span className="text-[11px] text-muted-foreground truncate flex-1">{ms.slug}</span>
-                                  </div>
-                                ))}
-                              </div>
                             )}
-                            {Array.isArray(period.evidence) && period.evidence.length > 0 && (
-                              <ul className="text-[10px] text-muted-foreground space-y-0.5 pl-9 list-disc">
-                                {period.evidence.map((e: string, j: number) => (
-                                  <li key={j}>{e}</li>
-                                ))}
-                              </ul>
+                            {analysis?.status === "error" && (
+                              <span className="text-xs text-destructive bg-destructive/10 px-2 py-0.5 rounded flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> Error
+                              </span>
                             )}
                           </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Legacy fallback: keyword-detected time shifts */}
-                {timeShifts.length > 0 && (
-                  <div className="border-t border-border pt-4 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <Rewind className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Detected Time Shifts ({timeShifts.length})
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      The script references flashbacks, flash forwards, or other time periods.
-                    </p>
-                    <div className="space-y-2">
-                      {timeShifts.map((shift, i) => (
-                        <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary p-3">
-                          <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
-                            {shift.type.includes("Forward") ? (
-                              <FastForward className="h-3.5 w-3.5 text-primary" />
-                            ) : (
-                              <Rewind className="h-3.5 w-3.5 text-primary" />
-                            )}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase">{shift.type} · Scene {shift.sceneNumber}</p>
-                          </div>
-                          <button
-                            onClick={() => fetchSceneText(shift.sceneNumber)}
-                            className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
-                            title="View script page"
-                          >
-                            <FileText className="h-3 w-3" />
-                            p.{shift.pageNumber}
-                          </button>
-                          <Input
-                            defaultValue={shift.calculatedYear}
-                            placeholder="e.g. 1955"
-                            className="w-40 h-8 text-xs"
-                            disabled={scriptLocked}
-                          />
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
                         </div>
-                      ))}
-                    </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                          {/* Loading state with progress */}
+                          {isAnalyzing && <AnalysisProgress status={analysis?.status} filmId={filmId} onCancel={async () => {
+                            setAnalyzing(false);
+                            if (analysis?.id) {
+                              await supabase.from("script_analyses").update({ status: "error", error_message: "Cancelled by user" }).eq("id", analysis.id);
+                              queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+                            }
+                            toast({ title: "Processing cancelled" });
+                          }} />}
 
-
-                  </div>
-                )}
-              </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* ── Genre ── */}
-              {(() => {
-                const GENRE_OPTIONS = ["Action", "Comedy", "Docu-drama", "Drama", "Horror", "Sci-Fi", "Fantasy", "Animation", "Thriller", "Romance", "Documentary", "Musical", "Western", "Mystery", "Crime", "Adventure", "War", "Biographical", "Historical", "Noir", "Satire", "Supernatural"];
-                const availableGenres = GENRE_OPTIONS.filter((g) => !genres.includes(g));
-                const removeGenre = (g: string) => {
-                  const next = genres.filter((x) => x !== g);
-                  setGenres(next);
-                  supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
-                };
-                const addGenre = (g: string) => {
-                  if (genres.includes(g)) return;
-                  const next = [...genres, g];
-                  setGenres(next);
-                  setGenreDropdownOpen(false);
-                  supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
-                };
-                return (
-                  <Collapsible>
-                    <CollapsibleTrigger className="w-full">
-                      <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                        <div className="flex items-center gap-2">
-                          <Clapperboard className="h-5 w-5 text-primary" />
-                          <h3 className="font-display text-lg font-bold">Genre</h3>
-                          {genres.length > 0 && (
-                            <span className="text-xs text-muted-foreground">{genres.length} selected</span>
+                          {/* Error state */}
+                          {analysis?.status === "error" && (
+                            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 space-y-4">
+                              <div className="flex items-center gap-3">
+                                <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                                <div>
+                                  <p className="font-display font-semibold text-sm">Analysis Failed</p>
+                                  <p className="text-sm text-muted-foreground">{analysis.error_message || "Unknown error"}</p>
+                                </div>
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  setAnalyzing(true);
+                                  const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
+                                    body: { analysis_id: analysis.id },
+                                  });
+                                  setAnalyzing(false);
+                                  if (invokeErr) {
+                                    toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
+                                  } else {
+                                    queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+                                    toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
+                                  }
+                                }}
+                                disabled={isAnalyzing}
+                                className="gap-2"
+                                variant="outline"
+                              >
+                                {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                                Analyze Again
+                              </Button>
+                            </div>
                           )}
                         </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
+
+                  {/* Complete results — Fundamentals sections */}
+                  {analysis?.status === "complete" && (
+                    <div className="space-y-6">
+                      {/* ── Format ── */}
+                      <Collapsible>
+                        <CollapsibleTrigger className="w-full">
+                          <div data-help-id="dev-format-specs" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <Monitor className="h-5 w-5 text-primary" />
+                              <h3 className="font-display text-lg font-bold">Format</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {formatType ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                              )}
+                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                              Select the output format. This determines frame size, aspect ratio, and frame rate for all generated images and clips.
+                            </p>
+
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
+                              <Select value={formatType || undefined} onValueChange={handleFormatChange}>
+                                <SelectTrigger className="bg-background">
+                                  <SelectValue placeholder="Select a format…" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-popover border border-border z-[9999]">
+                                  {(() => {
+                                    let lastCat = "";
+                                    return FORMAT_PRESETS.map((p) => {
+                                      const showLabel = p.category !== lastCat;
+                                      lastCat = p.category;
+                                      return (
+                                        <span key={p.value}>
+                                          {showLabel && (
+                                            <div className="px-2 pt-2 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground select-none">
+                                              {p.category}
+                                            </div>
+                                          )}
+                                          <SelectItem value={p.value}>{p.label} ({p.aspect})</SelectItem>
+                                        </span>
+                                      );
+                                    });
+                                  })()}
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {formatType && (
+                              <>
+                                {(() => {
+                                  const preset = FORMAT_PRESETS.find(p => p.value === formatType);
+                                  if (!preset) return null;
+                                  const displayWidth = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
+                                  const displayHeight = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
+                                  return (
+                                    <div className="rounded-lg bg-secondary/50 border border-border p-3 space-y-2">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Industry Standard</span>
+                                        <span className="text-xs text-muted-foreground">{preset.aspect}</span>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-3 text-sm">
+                                        <div>
+                                          <span className="text-[10px] text-muted-foreground uppercase">Width</span>
+                                          <p className="font-display font-bold text-foreground">{displayWidth}px</p>
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] text-muted-foreground uppercase">Height</span>
+                                          <p className="font-display font-bold text-foreground">{displayHeight}px</p>
+                                        </div>
+                                        <div>
+                                          <span className="text-[10px] text-muted-foreground uppercase">Frame Rate</span>
+                                          <p className="font-display font-bold text-foreground">{preset.fps} fps</p>
+                                        </div>
+                                      </div>
+
+                                      {preset.fourK && (
+                                        <div className="space-y-2 pt-1">
+                                          <div className="flex items-center gap-2">
+                                            <Switch
+                                              checked={fourKEnabled}
+                                              onCheckedChange={(val) => {
+                                                setFourKEnabled(val);
+                                                if (!formatOverride) {
+                                                  const dims = val ? preset.fourK! : { width: preset.width, height: preset.height };
+                                                  setFrameWidth(dims.width);
+                                                  setFrameHeight(dims.height);
+                                                  setFrameRate(preset.fps);
+                                                }
+                                              }}
+                                            />
+                                            <Label className="text-xs text-muted-foreground">4K Resolution</Label>
+                                          </div>
+                                          {fourKEnabled && (
+                                            <div className="flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 p-2">
+                                              <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                                              <p className="text-xs text-destructive">
+                                                4K video generation uses significantly more credits and takes longer to render. Use only when high-resolution output is essential.
+                                              </p>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={formatOverride}
+                                    onCheckedChange={(val) => {
+                                      setFormatOverride(val);
+                                      if (!val) {
+                                        const preset = FORMAT_PRESETS.find(p => p.value === formatType);
+                                        if (preset) {
+                                          const w = fourKEnabled && preset.fourK ? preset.fourK.width : preset.width;
+                                          const h = fourKEnabled && preset.fourK ? preset.fourK.height : preset.height;
+                                          setFrameWidth(w);
+                                          setFrameHeight(h);
+                                          setFrameRate(preset.fps);
+                                        }
+                                      }
+                                    }}
+                                    disabled={false}
+                                  />
+                                  <Label className="text-xs text-muted-foreground">Override defaults</Label>
+                                </div>
+
+                                {formatOverride && (
+                                  <div className="grid grid-cols-3 gap-3">
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Width (px)</Label>
+                                      <Input
+                                        type="number"
+                                        value={frameWidth ?? ""}
+                                        onChange={(e) => setFrameWidth(e.target.value ? parseInt(e.target.value) : null)}
+                                        disabled={false}
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Height (px)</Label>
+                                      <Input
+                                        type="number"
+                                        value={frameHeight ?? ""}
+                                        onChange={(e) => setFrameHeight(e.target.value ? parseInt(e.target.value) : null)}
+                                        disabled={false}
+                                      />
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">FPS</Label>
+                                      <Input
+                                        type="number"
+                                        value={frameRate ?? ""}
+                                        onChange={(e) => setFrameRate(e.target.value ? parseFloat(e.target.value) : null)}
+                                        disabled={false}
+                                      />
+                                    </div>
+                                  </div>
+                                )}
+
+                                <div className="flex justify-end">
+                                  <Button
+                                    onClick={handleSaveFormat}
+                                    disabled={formatSaving}
+                                    className="gap-1.5"
+                                    size="sm"
+                                  >
+                                    {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                    Save Format
+                                  </Button>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      {/* ── Time Period ── */}
+                      <Collapsible>
+                        <CollapsibleTrigger className="w-full">
+                          <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <Clock className="h-5 w-5 text-primary" />
+                              <h3 className="font-display text-lg font-bold">Time Period</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {film?.time_period ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                              )}
+                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                              Set when most of this film takes place. This anchors the visual language for all downstream phases.
+                            </p>
+
+                            {/* AI-detected primary time period with confidence */}
+                            {temporalAnalysis?.primary_time_period && (
+                              <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Sparkles className="h-4 w-4 text-primary" />
+                                    <span className="text-sm font-semibold text-foreground">AI Detection</span>
+                                  </div>
+                                  <span className={cn(
+                                    "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full",
+                                    temporalAnalysis.primary_time_period.confidence === "High" && "bg-green-500/20 text-green-400",
+                                    temporalAnalysis.primary_time_period.confidence === "Medium" && "bg-yellow-500/20 text-yellow-400",
+                                    temporalAnalysis.primary_time_period.confidence === "Low" && "bg-red-500/20 text-red-400",
+                                  )}>
+                                    {temporalAnalysis.primary_time_period.confidence} confidence
+                                  </span>
+                                </div>
+                                <p className="text-sm font-display font-bold text-foreground">
+                                  {temporalAnalysis.primary_time_period.estimated_year_or_era}
+                                </p>
+                                {Array.isArray(temporalAnalysis.primary_time_period.evidence) && temporalAnalysis.primary_time_period.evidence.length > 0 && (
+                                  <ul className="text-[11px] text-muted-foreground space-y-0.5 pl-4 list-disc">
+                                    {temporalAnalysis.primary_time_period.evidence.map((e: string, i: number) => (
+                                      <li key={i}>{e}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                            )}
+
+                            <div className="flex gap-3">
+                              <Input
+                                placeholder="e.g. 1970s, Near-future 2084, Victorian Era, Present Day"
+                                value={timePeriod}
+                                onChange={(e) => setTimePeriod(e.target.value)}
+                                disabled={scriptLocked}
+                                className="flex-1"
+                              />
+                              <Button
+                                onClick={handleSaveTimePeriod}
+                                disabled={timePeriodSaving || scriptLocked || timePeriod === (film?.time_period ?? "")}
+                                className="gap-1.5 shrink-0"
+                              >
+                                {timePeriodSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                Save
+                              </Button>
+                            </div>
+                            {film?.time_period && (
+                              <p className="text-xs text-muted-foreground/70 flex items-center gap-1.5">
+                                <Clock className="h-3 w-3" /> Current: <span className="font-semibold text-foreground">{film.time_period}</span>
+                              </p>
+                            )}
+
+                            {/* AI-detected secondary time periods */}
+                            {secondaryTimePeriods.length > 0 && (
+                              <div className="border-t border-border pt-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <Rewind className="h-4 w-4 text-primary" />
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Secondary Time Periods ({secondaryTimePeriods.length})
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Additional time periods detected in the script — flashbacks, flashforwards, dream sequences, and more.
+                                </p>
+                                <div className="space-y-2">
+                                  {secondaryTimePeriods.map((period: any, i: number) => {
+                                    const matchedScenes = (period.scene_sluglines || []).map((slug: string) => {
+                                      const allScenes = (devParsedScenes || []) as any[];
+                                      const CHARS_PER_PAGE = 3000;
+                                      let cumChars = 0;
+                                      for (const sc of allScenes) {
+                                        const rawLen = (sc.raw_text || sc.description || "").length || 200;
+                                        const page = Math.floor(cumChars / CHARS_PER_PAGE) + 1;
+                                        cumChars += rawLen;
+                                        if ((sc.scene_heading || sc.heading || "").toLowerCase().includes(slug.toLowerCase()) ||
+                                            slug.toLowerCase().includes((sc.scene_heading || sc.heading || "").toLowerCase())) {
+                                          return { slug, sceneNumber: sc.scene_number || 0, page };
+                                        }
+                                      }
+                                      return { slug, sceneNumber: 0, page: 0 };
+                                    });
+
+                                    return (
+                                      <div key={i} className="rounded-lg bg-secondary p-3 space-y-2">
+                                        <div className="flex items-center gap-3">
+                                          <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                                            {(period.type || "").toLowerCase().includes("forward") || (period.type || "").toLowerCase().includes("epilogue") ? (
+                                              <FastForward className="h-3.5 w-3.5 text-primary" />
+                                            ) : (
+                                              <Rewind className="h-3.5 w-3.5 text-primary" />
+                                            )}
+                                          </span>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold text-foreground">{period.label}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                              {period.type}
+                                              {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
+                                              {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
+                                            </p>
+                                          </div>
+                                          <SecondaryTimePeriodInput
+                                            initialValue={period.estimated_year_or_range}
+                                            placeholder="e.g. 1955"
+                                            disabled={!!scriptLocked}
+                                            analysisId={analysis.id}
+                                            periodIndex={i}
+                                            globalElements={analysis.global_elements as any}
+                                          />
+                                        </div>
+                                        {matchedScenes.length > 0 && (
+                                          <div className="space-y-1 pl-9">
+                                            {matchedScenes.map((ms: any, j: number) => (
+                                              <div key={j} className="flex items-center gap-2">
+                                                <button
+                                                  onClick={() => fetchSceneText(ms.sceneNumber, ms.slug)}
+                                                  className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                                  title="View scene in script"
+                                                >
+                                                  <FileText className="h-3 w-3" />
+                                                  Sc.{ms.sceneNumber}
+                                                </button>
+                                                <span className="text-[11px] text-muted-foreground truncate flex-1">{ms.slug}</span>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {Array.isArray(period.evidence) && period.evidence.length > 0 && (
+                                          <ul className="text-[10px] text-muted-foreground space-y-0.5 pl-9 list-disc">
+                                            {period.evidence.map((e: string, j: number) => (
+                                              <li key={j}>{e}</li>
+                                            ))}
+                                          </ul>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Legacy fallback: keyword-detected time shifts */}
+                            {timeShifts.length > 0 && (
+                              <div className="border-t border-border pt-4 space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <Rewind className="h-4 w-4 text-primary" />
+                                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    Detected Time Shifts ({timeShifts.length})
+                                  </span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  The script references flashbacks, flash forwards, or other time periods.
+                                </p>
+                                <div className="space-y-2">
+                                  {timeShifts.map((shift, i) => (
+                                    <div key={i} className="flex items-center gap-3 rounded-lg bg-secondary p-3">
+                                      <span className="flex h-6 w-6 items-center justify-center rounded bg-primary/10 shrink-0">
+                                        {shift.type.includes("Forward") ? (
+                                          <FastForward className="h-3.5 w-3.5 text-primary" />
+                                        ) : (
+                                          <Rewind className="h-3.5 w-3.5 text-primary" />
+                                        )}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-xs font-semibold text-foreground truncate">{shift.sceneHeading}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase">{shift.type} · Scene {shift.sceneNumber}</p>
+                                      </div>
+                                      <button
+                                        onClick={() => fetchSceneText(shift.sceneNumber)}
+                                        className="shrink-0 flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary hover:bg-primary/20 transition-colors"
+                                        title="View script page"
+                                      >
+                                        <FileText className="h-3 w-3" />
+                                        p.{shift.pageNumber}
+                                      </button>
+                                      <Input
+                                        defaultValue={shift.calculatedYear}
+                                        placeholder="e.g. 1955"
+                                        className="w-40 h-8 text-xs"
+                                        disabled={scriptLocked}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+
+                      {/* ── Genre ── */}
+                      {(() => {
+                        const GENRE_OPTIONS = ["Action", "Comedy", "Docu-drama", "Drama", "Horror", "Sci-Fi", "Fantasy", "Animation", "Thriller", "Romance", "Documentary", "Musical", "Western", "Mystery", "Crime", "Adventure", "War", "Biographical", "Historical", "Noir", "Satire", "Supernatural"];
+                        const availableGenres = GENRE_OPTIONS.filter((g) => !genres.includes(g));
+                        const removeGenre = (g: string) => {
+                          const next = genres.filter((x) => x !== g);
+                          setGenres(next);
+                          supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
+                        };
+                        const addGenre = (g: string) => {
+                          if (genres.includes(g)) return;
+                          const next = [...genres, g];
+                          setGenres(next);
+                          setGenreDropdownOpen(false);
+                          supabase.from("films").update({ genres: next } as any).eq("id", filmId!);
+                        };
+                        return (
+                          <Collapsible>
+                            <CollapsibleTrigger className="w-full">
+                              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                                <div className="flex items-center gap-2">
+                                  <Clapperboard className="h-5 w-5 text-primary" />
+                                  <h3 className="font-display text-lg font-bold">Genre</h3>
+                                  {genres.length > 0 && (
+                                    <span className="text-xs text-muted-foreground">{genres.length} selected</span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  {genres.length > 0 ? (
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                  ) : (
+                                    <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                  )}
+                                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              </div>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-3">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {genres.map((g) => (
+                                    <span key={g} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
+                                      {g}
+                                      <button onClick={() => removeGenre(g)} className="hover:text-destructive transition-colors" disabled={scriptLocked}>
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </span>
+                                  ))}
+                                  {/* Add genre dropdown */}
+                                  {availableGenres.length > 0 && !scriptLocked && (
+                                    <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGenreDropdownOpen(false); }}>
+                                      <button
+                                        onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
+                                        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
+                                      >
+                                        <Plus className="h-3 w-3" />
+                                        Add
+                                      </button>
+                                      {genreDropdownOpen && (
+                                        <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44 max-h-60 overflow-y-auto">
+                                          {availableGenres.map((g) => (
+                                            <button
+                                              key={g}
+                                              onClick={() => addGenre(g)}
+                                              className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground"
+                                            >
+                                              {g}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                                {genres.length === 0 && (
+                                  <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        );
+                      })()}
+
+                      {/* ── Ratings Classification (Content Safety) ── */}
+                      {devParsedScenes && devParsedScenes.length > 0 && (
+                        <section data-help-id="dev-content-safety">
+                          {scriptLocked ? (
+                            <Collapsible>
+                              <CollapsibleTrigger className="w-full">
+                                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                                  <div className="flex items-center gap-2">
+                                    <Shield className="h-5 w-5 text-primary" />
+                                    <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                                      <Lock className="h-3 w-3" /> Locked
+                                    </span>
+                                  </div>
+                                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                </div>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
+                                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm text-muted-foreground">
+                                      Script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
+                                    </p>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 ml-4"
+                                      onClick={handleUnlockScript}
+                                      disabled={locking}
+                                    >
+                                      {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+                                      Unlock
+                                    </Button>
+                                  </div>
+                                  <ContentSafetyMatrix
+                                    scenes={devParsedScenes as any[] || []}
+                                    storagePath={analysis?.storage_path || ""}
+                                    filmId={filmId}
+                                    language={language}
+                                    nudity={nudity}
+                                    violence={violence}
+                                    handleToggle={handleToggle}
+                                    setLanguage={setLanguage}
+                                    setNudity={setNudity}
+                                    setViolence={setViolence}
+                                    alreadyAnalyzed={ratingsApproved}
+                                  />
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          ) : (
+                            <Collapsible>
+                              <CollapsibleTrigger className="w-full">
+                                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                                  <div className="flex items-center gap-2">
+                                    <Film className="h-5 w-5 text-primary" />
+                                    <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {ratingsApproved ? (
+                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                    ) : (
+                                      <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                    )}
+                                    <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                                  </div>
+                                </div>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
+                                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                                  {!contentSafetyRun ? (
+                                    <div className="flex flex-col items-center gap-4 text-center py-4">
+                                      <p className="text-sm text-muted-foreground max-w-md">
+                                        Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
+                                      </p>
+                                      <Button
+                                        onClick={() => setContentSafetyRun(true)}
+                                        size="lg"
+                                        className="gap-2"
+                                      >
+                                        Run Content Safety Analysis
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="space-y-6">
+                                      <ContentSafetyMatrix
+                                        scenes={devParsedScenes as any[] || []}
+                                        storagePath={analysis?.storage_path || ""}
+                                        filmId={filmId}
+                                        language={language}
+                                        nudity={nudity}
+                                        violence={violence}
+                                        handleToggle={handleToggle}
+                                        setLanguage={setLanguage}
+                                        setNudity={setNudity}
+                                        setViolence={setViolence}
+                                        alreadyAnalyzed={ratingsApproved}
+                                      />
+                                    </div>
+                                  )}
+                                  <div className="flex justify-end pt-4 border-t border-border mt-4">
+                                    <Button
+                                      size="sm"
+                                      variant={ratingsApproved ? "default" : "outline"}
+                                      className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                      onClick={() => {
+                                        const next = !ratingsApproved;
+                                        setRatingsApproved(next);
+                                        persistApproval("ratings_approved", next);
+                                      }}
+                                    >
+                                      <ThumbsUp className="h-3 w-3" />
+                                      {ratingsApproved ? "Approved" : "Approve"}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          )}
+                        </section>
+                      )}
+
+                      {/* Visual Story Summary */}
+                      {analysis.visual_summary && directorProfile && (
+                        <Collapsible>
+                          <CollapsibleTrigger className="w-full">
+                            <div data-help-id="dev-visual-summary" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                              <div className="flex items-center gap-2">
+                                <Film className="h-5 w-5 text-primary" />
+                                <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {visualSummaryApproved ? (
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <AlertCircle className="h-4 w-4 text-yellow-500" />
+                                )}
+                                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <EditableVisualSummary
+                              analysisId={analysis.id}
+                              initialSummary={analysis.visual_summary as string || ""}
+                              initialStyle={(analysis.global_elements as any)?.signature_style || ""}
+                              globalElements={analysis.global_elements as any}
+                              approved={visualSummaryApproved}
+                              onApprovedChange={(v: boolean) => {
+                                setVisualSummaryApproved(v);
+                                persistApproval("visual_summary_approved", v);
+                              }}
+                            />
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        {/* ═══ VISION TAB ═══ */}
+        <TabsContent value="vision" className="flex-1 overflow-hidden m-0">
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
+              {analysis?.status === "complete" ? (
+                <>
+                  {/* ── Director's Vision ── */}
+                  <Collapsible defaultOpen>
+                    <CollapsibleTrigger className="w-full">
+                      <div data-help-id="dev-director-vision" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                         <div className="flex items-center gap-2">
-                          {genres.length > 0 ? (
+                          <Camera className="h-5 w-5 text-primary" />
+                          <h3 className="font-display text-lg font-bold">Director's Vision</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {directorProfile ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
                           ) : (
                             <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -1685,113 +1926,92 @@ const Development = () => {
                       </div>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {genres.map((g) => (
-                            <span key={g} className="inline-flex items-center gap-1 text-xs bg-primary/10 text-primary border border-primary/20 rounded-full px-2.5 py-1 font-medium">
-                              {g}
-                              <button onClick={() => removeGenre(g)} className="hover:text-destructive transition-colors" disabled={scriptLocked}>
-                                <X className="h-3 w-3" />
-                              </button>
-                            </span>
-                          ))}
-                          {/* Add genre dropdown */}
-                          {availableGenres.length > 0 && !scriptLocked && (
-                            <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setGenreDropdownOpen(false); }}>
-                              <button
-                                onClick={() => setGenreDropdownOpen(!genreDropdownOpen)}
-                                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-dashed border-border rounded-full px-2.5 py-1 hover:border-primary/40 transition-colors"
-                              >
-                                <Plus className="h-3 w-3" />
-                                Add
-                              </button>
-                              {genreDropdownOpen && (
-                                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-lg shadow-lg py-1 w-44 max-h-60 overflow-y-auto">
-                                  {availableGenres.map((g) => (
-                                    <button
-                                      key={g}
-                                      onClick={() => addGenre(g)}
-                                      className="w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors text-foreground"
-                                    >
-                                      {g}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        {genres.length === 0 && (
-                          <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
-                        )}
+                      <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                        <DirectorVisionPanel disabled={scriptLocked} />
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
-                );
-              })()}
 
-              {/* ── Ratings Classification (Content Safety) ── */}
-              {devParsedScenes && devParsedScenes.length > 0 && (
-                <section data-help-id="dev-content-safety">
-                  {scriptLocked ? (
-                    /* ── LOCKED STATE — collapsible like Global Elements ── */
+                  {/* Global Elements */}
+                  {analysis.global_elements && (
                     <Collapsible>
                       <CollapsibleTrigger className="w-full">
-                        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                        <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                           <div className="flex items-center gap-2">
-                            <Shield className="h-5 w-5 text-primary" />
-                            <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
-                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
-                              <Lock className="h-3 w-3" /> Locked
-                            </span>
+                            <MapPin className="h-5 w-5 text-primary" />
+                            <h3 className="font-display text-lg font-bold">Global Elements</h3>
                           </div>
-                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          <div className="flex items-center gap-2">
+                            {allElementsReviewed ? (
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            ) : (
+                              <AlertCircle className="h-4 w-4 text-yellow-500" />
+                            )}
+                            <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                          </div>
                         </div>
                       </CollapsibleTrigger>
                       <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-muted-foreground">
-                              Script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
-                            </p>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 ml-4"
-                              onClick={handleUnlockScript}
-                              disabled={locking}
-                            >
-                              {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
-                              Unlock
-                            </Button>
-                          </div>
-                          <ContentSafetyMatrix
-                            scenes={devParsedScenes as any[] || []}
-                            storagePath={analysis?.storage_path || ""}
-                            filmId={filmId}
-                            language={language}
-                            nudity={nudity}
-                            violence={violence}
-                            handleToggle={handleToggle}
-                            setLanguage={setLanguage}
-                            setNudity={setNudity}
-                            setViolence={setViolence}
-                            alreadyAnalyzed={ratingsApproved}
-                          />
+                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                          <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
-                  ) : (
-                    <>
-                    <Collapsible>
-                      <CollapsibleTrigger className="w-full">
+                  )}
+
+                  {/* AI Generation Notes */}
+                  {directorProfile && <EditableAIGenerationNotes
+                    initialValue={analysis.ai_generation_notes as any}
+                    visualSummary={(analysis.visual_summary as string) || ""}
+                    timePeriod={film?.time_period || timePeriod}
+                    signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
+                    visualDesign={(analysis.global_elements as any)?.visual_design || null}
+                    analysisId={analysis.id}
+                    approved={aiNotesApproved}
+                    onApprovedChange={(v: boolean) => {
+                      setAiNotesApproved(v);
+                      persistApproval("ai_notes_approved", v);
+                    }}
+                  />}
+                </>
+              ) : (
+                <div className="rounded-xl border border-border bg-card p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Complete your script analysis in the Fundamentals tab to unlock the Vision section.</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </TabsContent>
+
+        {/* ═══ SCENE BREAKDOWN TAB ═══ */}
+        <TabsContent value="breakdown" className="flex-1 overflow-hidden m-0">
+          <ScrollArea className="h-full">
+            <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
+              {analysis?.status === "complete" ? (
+                <>
+                  <SceneBreakdownFromDB
+                    filmId={filmId!}
+                    storagePath={analysis.storage_path}
+                    breakdownOpen={breakdownOpen}
+                    setBreakdownOpen={setBreakdownOpen}
+                    onAllApprovedChange={setAllScenesApproved}
+                    onReviewStatsChange={setReviewStats}
+                    analysisId={analysis.id}
+                    reviewStats={reviewStats}
+                  />
+
+                  {/* ── Lock Script ── */}
+                  {devParsedScenes && devParsedScenes.length > 0 && !scriptLocked && ratingsApproved && (
+                    <section>
+                      <Collapsible defaultOpen>
+                        <CollapsibleTrigger className="w-full">
                           <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                             <div className="flex items-center gap-2">
-                              <Film className="h-5 w-5 text-primary" />
-                              <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                              <h3 className="font-display text-lg font-bold">Lock Script</h3>
                             </div>
                             <div className="flex items-center gap-2">
-                              {ratingsApproved ? (
+                              {allScenesApproved && allElementsReviewed && film?.time_period && visualSummaryApproved && ratingsApproved ? (
                                 <CheckCircle className="h-4 w-4 text-green-500" />
                               ) : (
                                 <AlertCircle className="h-4 w-4 text-yellow-500" />
@@ -1799,253 +2019,67 @@ const Development = () => {
                               <ChevronDown className="h-5 w-5 text-muted-foreground" />
                             </div>
                           </div>
-                      </CollapsibleTrigger>
-                      <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                          {!contentSafetyRun ? (
-                            <div className="flex flex-col items-center gap-4 text-center py-4">
-                              <p className="text-sm text-muted-foreground max-w-md">
-                                Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
-                              </p>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
+                                <Lock className="h-6 w-6 text-destructive" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
+                                </p>
+                                {!allElementsReviewed && (
+                                  <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1.5">
+                                    <AlertCircle className="h-3.5 w-3.5" />
+                                    All Global Elements sections must be marked as "Completed" before locking.
+                                  </p>
+                                )}
+                              </div>
                               <Button
-                                onClick={() => setContentSafetyRun(true)}
+                                onClick={handleLockScript}
+                                disabled={locking || !film?.time_period || !allElementsReviewed}
                                 size="lg"
-                                className="gap-2"
+                                variant="destructive"
+                                className="gap-2 shrink-0"
                               >
-                                Run Content Safety Analysis
+                                {locking ? (
+                                  <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
+                                ) : (
+                                  <><Lock className="h-4 w-4" /> Lock Script</>
+                                )}
                               </Button>
                             </div>
-                          ) : (
-                            <div className="space-y-6">
-                              <ContentSafetyMatrix
-                                scenes={devParsedScenes as any[] || []}
-                                storagePath={analysis?.storage_path || ""}
-                                filmId={filmId}
-                                language={language}
-                                nudity={nudity}
-                                violence={violence}
-                                handleToggle={handleToggle}
-                                setLanguage={setLanguage}
-                                setNudity={setNudity}
-                                setViolence={setViolence}
-                                alreadyAnalyzed={ratingsApproved}
-                              />
+                            <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
+                              <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+                                ⚠ This action cannot be undone
+                              </p>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
+                              </p>
                             </div>
-                          )}
-                            <div className="flex justify-end pt-4 border-t border-border mt-4">
-                              <Button
-                                size="sm"
-                                variant={ratingsApproved ? "default" : "outline"}
-                                className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                                onClick={() => {
-                                  const next = !ratingsApproved;
-                                  setRatingsApproved(next);
-                                  persistApproval("ratings_approved", next);
-                                }}
-                              >
-                                <ThumbsUp className="h-3 w-3" />
-                                {ratingsApproved ? "Approved" : "Approve"}
-                              </Button>
-                            </div>
-                        </div>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </>
+                            {!film?.time_period && (
+                              <p className="text-xs text-destructive flex items-center gap-1.5">
+                                <Clock className="h-3 w-3" /> A time period must be set before locking.
+                              </p>
+                            )}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </section>
                   )}
-                </section>
-              )}
-
-              {/* Visual Story Summary */}
-              {analysis.visual_summary && directorProfile && (
-                <Collapsible>
-                  <CollapsibleTrigger className="w-full">
-                    <div data-help-id="dev-visual-summary" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <Film className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Visual Story Summary</h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {visualSummaryApproved ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-500" />
-                        )}
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                   <CollapsibleContent>
-                    <EditableVisualSummary
-                      analysisId={analysis.id}
-                      initialSummary={analysis.visual_summary as string || ""}
-                      initialStyle={(analysis.global_elements as any)?.signature_style || ""}
-                      globalElements={analysis.global_elements as any}
-                      approved={visualSummaryApproved}
-                      onApprovedChange={(v: boolean) => {
-                        setVisualSummaryApproved(v);
-                        persistApproval("visual_summary_approved", v);
-                      }}
-                    />
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
-              {/* ── Director's Vision ── */}
-              <Collapsible>
-                <CollapsibleTrigger className="w-full">
-                  <div data-help-id="dev-director-vision" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Camera className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Director's Vision</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {directorProfile ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
-                      )}
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                    <DirectorVisionPanel disabled={scriptLocked} />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-
-              {/* Global Elements — collapsed by default */}
-              {analysis.global_elements && (
-                <Collapsible>
-                  <CollapsibleTrigger className="w-full">
-                    <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-primary" />
-                        <h3 className="font-display text-lg font-bold">Global Elements</h3>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {allElementsReviewed ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <AlertCircle className="h-4 w-4 text-yellow-500" />
-                        )}
-                        <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    </div>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                    <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                      <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
-                    </div>
-                  </CollapsibleContent>
-                </Collapsible>
-              )}
-
-              {/* AI Generation Notes — gated behind Director's Vision confirmation */}
-              {directorProfile && <EditableAIGenerationNotes
-                initialValue={analysis.ai_generation_notes as any}
-                visualSummary={(analysis.visual_summary as string) || ""}
-                timePeriod={film?.time_period || timePeriod}
-                signatureStyle={(analysis.global_elements as any)?.signature_style || ""}
-                visualDesign={(analysis.global_elements as any)?.visual_design || null}
-                analysisId={analysis.id}
-                approved={aiNotesApproved}
-                onApprovedChange={(v: boolean) => {
-                  setAiNotesApproved(v);
-                  persistApproval("ai_notes_approved", v);
-                }}
-              />}
-
-              {analysis?.status === "complete" && (
-                <SceneBreakdownFromDB
-                  filmId={filmId!}
-                  storagePath={analysis.storage_path}
-                  breakdownOpen={breakdownOpen}
-                  setBreakdownOpen={setBreakdownOpen}
-                  onAllApprovedChange={setAllScenesApproved}
-                  onReviewStatsChange={setReviewStats}
-                  analysisId={analysis.id}
-                  reviewStats={reviewStats}
-                />
+                </>
+              ) : (
+                <div className="rounded-xl border border-border bg-card p-8 text-center">
+                  <p className="text-sm text-muted-foreground">Complete your script analysis in the Fundamentals tab to unlock the Scene Breakdown.</p>
+                </div>
               )}
             </div>
-          )}
-        </section>
-      )}
-
-
-
-      {/* ── Step 4: Lock Script ── */}
-      {devParsedScenes && devParsedScenes.length > 0 && !scriptLocked && ratingsApproved && (
-        <section>
-          <Collapsible defaultOpen>
-            <CollapsibleTrigger className="w-full">
-              <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="h-5 w-5 text-destructive" />
-                  <h3 className="font-display text-lg font-bold">Lock Script</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  {allScenesApproved && allElementsReviewed && film?.time_period && visualSummaryApproved && ratingsApproved ? (
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  ) : (
-                    <AlertCircle className="h-4 w-4 text-yellow-500" />
-                  )}
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </div>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center shrink-0">
-                    <Lock className="h-6 w-6 text-destructive" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-display font-semibold text-foreground">Ready to Lock Script</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Locking finalizes your script breakdown, visual settings, and content safety classifications. All data will be propagated throughout Production and Post-Production.
-                    </p>
-                    {!allElementsReviewed && (
-                      <p className="text-xs text-yellow-500 mt-2 flex items-center gap-1.5">
-                        <AlertCircle className="h-3.5 w-3.5" />
-                        All Global Elements sections must be marked as "Completed" before locking.
-                      </p>
-                    )}
-                  </div>
-                  <Button
-                    onClick={handleLockScript}
-                    disabled={locking || !film?.time_period || !allElementsReviewed}
-                    size="lg"
-                    variant="destructive"
-                    className="gap-2 shrink-0"
-                  >
-                    {locking ? (
-                      <><Loader2 className="h-4 w-4 animate-spin" /> Locking…</>
-                    ) : (
-                      <><Lock className="h-4 w-4" /> Lock Script</>
-                    )}
-                  </Button>
-                </div>
-                <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 space-y-1.5">
-                  <p className="text-xs font-semibold text-destructive flex items-center gap-1.5">
-                    ⚠ This action cannot be undone
-                  </p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    Once locked, all settings — characters, locations, visual direction, and ratings — become permanent for this version. If you need to make changes after locking, you must create a new version copy from the Project Versions page with the option to reset specific settings.
-                  </p>
-                </div>
-                {!film?.time_period && (
-                  <p className="text-xs text-destructive flex items-center gap-1.5">
-                    <Clock className="h-3 w-3" /> A time period must be set before locking.
-                  </p>
-                )}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </section>
-      )}
+          </ScrollArea>
+        </TabsContent>
+      </Tabs>
 
       {/* Script text preview popup — draggable & resizable, top-level so it works from any section */}
       <DraggableScriptPopup
@@ -2109,8 +2143,6 @@ const Development = () => {
           </div>
         </div>
       </DraggableScriptPopup>
-      </div>
-      </ScrollArea>
     </div>
   );
 };
@@ -3774,5 +3806,15 @@ const SecondaryTimePeriodInput = ({ initialValue, placeholder, disabled, analysi
     />
   );
 };
+
+const DevelopmentTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
+  <TabsTrigger
+    value={value}
+    className="relative gap-2 px-5 py-2 text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all rounded-t-lg rounded-b-none border border-border/60 border-b-0 -mb-px bg-secondary/40 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:border-border data-[state=active]:shadow-[0_-2px_8px_-2px_rgba(47,125,255,0.15)] data-[state=active]:z-10 data-[state=inactive]:hover:bg-secondary/70"
+  >
+    <Icon className="h-3.5 w-3.5" />
+    {label}
+  </TabsTrigger>
+);
 
 export default Development;
