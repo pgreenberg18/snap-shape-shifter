@@ -34,7 +34,7 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function ArtifactScannerPanel() {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [progress, setProgress] = useState(0);
   const [issues, setIssues] = useState<ArtifactIssue[]>([]);

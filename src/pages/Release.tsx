@@ -43,7 +43,7 @@ function Section({
   icon: Icon,
   title,
   subtitle,
-  defaultOpen = true,
+  defaultOpen = false,
   children,
   className,
   iconClassName,
