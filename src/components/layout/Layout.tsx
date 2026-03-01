@@ -258,7 +258,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           </FlareTooltip>
 
           <div className={expanded ? "w-full" : ""}>
-            {renderNavItem("settings", PrecisionGearIcon, "Settings")}
+            {renderNavItem("settings", PrecisionGearIcon, "Integrations")}
           </div>
 
           <FlareTooltip label="Global Settings">
