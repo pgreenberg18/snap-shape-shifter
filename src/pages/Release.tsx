@@ -11,8 +11,11 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
   Download, ShieldCheck, FileVideo, Sparkles, Smartphone, Image, Film,
-  Loader2, Package, Upload, Lock, Monitor, Trash2, FolderDown,
+  Loader2, Package, Upload, Lock, Monitor, Trash2, FolderDown, ChevronDown, Eye,
 } from "lucide-react";
 import { type ExportRecord, triggerDownload } from "@/components/release/ExportHistoryPanel";
 import ArtifactScannerPanel from "@/components/release/ArtifactScannerPanel";
@@ -34,6 +37,54 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
   c2pa: <Lock className="h-3 w-3" />,
   master: <FileVideo className="h-3 w-3" />,
 };
+
+/* ── Collapsible Section wrapper ── */
+function Section({
+  icon: Icon,
+  title,
+  subtitle,
+  defaultOpen = true,
+  children,
+  className,
+  iconClassName,
+  iconBg,
+  ...props
+}: {
+  icon: React.ElementType;
+  title: string;
+  subtitle?: string;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+  className?: string;
+  iconClassName?: string;
+  iconBg?: string;
+  [key: string]: any;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} {...props}>
+      <div className={cn("rounded-lg border border-border bg-card cinema-inset overflow-hidden", className)}>
+        <CollapsibleTrigger asChild>
+          <button className="flex items-center gap-2 w-full px-4 py-3 hover:bg-secondary/40 transition-colors text-left">
+            <div className={cn("h-7 w-7 rounded-md flex items-center justify-center shrink-0", iconBg || "bg-primary/10")}>
+              <Icon className={cn("h-3.5 w-3.5", iconClassName || "text-primary")} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest">{title}</h3>
+              {subtitle && <p className="text-[9px] font-mono text-muted-foreground">{subtitle}</p>}
+            </div>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200", open && "rotate-180")} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-4 pb-4 pt-1">
+            {children}
+          </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
+  );
+}
 
 const Release = () => {
   const [topaz, setTopaz] = useState(false);
@@ -88,16 +139,6 @@ const Release = () => {
     }, 4000);
   }, [toast]);
 
-  /* Small section header */
-  const SH = ({ icon: Icon, label }: { icon: React.ElementType; label: string }) => (
-    <div className="flex items-center gap-2 mb-2.5">
-      <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-        <Icon className="h-3.5 w-3.5 text-primary" />
-      </div>
-      <h3 className="font-display text-sm font-bold uppercase tracking-widest">{label}</h3>
-    </div>
-  );
-
   /* Processing button helper */
   const ProcBtn = ({ id, icon: Icon, label, variant = "secondary" }: { id: string; icon: React.ElementType; label: string; variant?: "secondary" | "outline" }) => (
     <Button
@@ -124,259 +165,248 @@ const Release = () => {
     <div className="flex flex-1 min-h-0">
       {/* ═══ LEFT — All Controls ═══ */}
       <ScrollArea className="flex-1 min-w-0">
-        <div className="p-4 space-y-4">
-          {/* Row 1: Export Master + Deliverables side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Export Master Film */}
-            <div data-help-id="release-export" className="rounded-lg border border-border bg-card p-4 cinema-inset">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-                    <FileVideo className="h-3.5 w-3.5 text-primary" />
+        <div className="p-4 space-y-3">
+
+          {/* ── Export Master Film ── */}
+          <Section icon={FileVideo} title="Export Master Film" data-help-id="release-export">
+            <div className="flex items-center justify-end mb-3">
+              <Button size="sm" className="gap-1.5 h-7 px-4 text-[10px]" disabled={processing === "master"} onClick={() => handleProcess("master")}>
+                {processing === "master" ? (
+                  <><Loader2 className="h-3 w-3 animate-spin" /> Exporting…</>
+                ) : (
+                  <><Download className="h-3 w-3" /> Export</>
+                )}
+              </Button>
+            </div>
+
+            {/* Format spec */}
+            <div className="rounded-md border border-border bg-secondary/50 px-3 py-2 cinema-inset mb-3">
+              <div className="flex items-center gap-4 text-[10px] font-mono flex-wrap">
+                <span className="text-muted-foreground">Type: <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "—"}</span></span>
+                <span className="text-muted-foreground">Res: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "—"}</span></span>
+                <span className="text-muted-foreground">FPS: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_rate || "—"}</span></span>
+              </div>
+            </div>
+
+            <Tabs defaultValue="auto" className="w-full">
+              <TabsList className="w-full bg-secondary h-7 mb-2.5">
+                <TabsTrigger value="auto" className="flex-1 text-[10px] h-6">Auto</TabsTrigger>
+                <TabsTrigger value="templates" className="flex-1 text-[10px] h-6">Templates</TabsTrigger>
+                <TabsTrigger value="custom" className="flex-1 text-[10px] h-6">Custom</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="auto">
+                <div className="space-y-2">
+                  <p className="text-[9px] text-muted-foreground font-mono mb-1.5">
+                    Auto-configured from your format settings:
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-border bg-secondary/50 px-3 py-2.5 cinema-inset">
+                    {[
+                      { label: "Codec", value: (film as any)?.format_type === "Feature Film" || (film as any)?.format_type === "Short Film" ? "H.264 (High)" : "H.264 (Main)" },
+                      { label: "Container", value: ".mp4" },
+                      { label: "Resolution", value: (film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "1920×1080" },
+                      { label: "Frame Rate", value: `${(film as any)?.frame_rate || 24} fps` },
+                      { label: "Bitrate", value: ((film as any)?.frame_height ?? 1080) >= 2160 ? "50 Mbps" : ((film as any)?.frame_height ?? 1080) >= 1080 ? "25 Mbps" : "15 Mbps" },
+                      { label: "Encoding", value: "2-Pass VBR" },
+                      { label: "Color Space", value: "Rec. 709" },
+                      { label: "Pixel Format", value: "yuv420p" },
+                      { label: "Audio Codec", value: "AAC-LC" },
+                      { label: "Audio Bitrate", value: "320 kbps" },
+                      { label: "Sample Rate", value: "48.0 kHz" },
+                      { label: "Channels", value: "Stereo (2.0)" },
+                    ].map(({ label, value }) => (
+                      <div key={label} className="flex justify-between py-0.5">
+                        <span className="text-[9px] font-mono text-muted-foreground">{label}</span>
+                        <span className="text-[9px] font-mono text-foreground/90 font-semibold">{value}</span>
+                      </div>
+                    ))}
                   </div>
-                  <h2 className="font-display text-xs font-bold uppercase tracking-widest">Export Master Film</h2>
                 </div>
-                <Button size="sm" className="gap-1.5 h-7 px-4 text-[10px]" disabled={processing === "master"} onClick={() => handleProcess("master")}>
-                  {processing === "master" ? (
-                    <><Loader2 className="h-3 w-3 animate-spin" /> Exporting…</>
-                  ) : (
-                    <><Download className="h-3 w-3" /> Export</>
-                  )}
-                </Button>
-              </div>
+              </TabsContent>
 
-              {/* Format spec */}
-              <div className="rounded-md border border-border bg-secondary/50 px-3 py-2 cinema-inset mb-3">
-                <div className="flex items-center gap-4 text-[10px] font-mono flex-wrap">
-                  <span className="text-muted-foreground">Type: <span className="text-foreground/90 font-semibold">{(film as any)?.format_type || "—"}</span></span>
-                  <span className="text-muted-foreground">Res: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "—"}</span></span>
-                  <span className="text-muted-foreground">FPS: <span className="text-foreground/90 font-semibold">{(film as any)?.frame_rate || "—"}</span></span>
-                </div>
-              </div>
-
-              <Tabs defaultValue="auto" className="w-full">
-                <TabsList className="w-full bg-secondary h-7 mb-2.5">
-                  <TabsTrigger value="auto" className="flex-1 text-[10px] h-6">Auto</TabsTrigger>
-                  <TabsTrigger value="templates" className="flex-1 text-[10px] h-6">Templates</TabsTrigger>
-                  <TabsTrigger value="custom" className="flex-1 text-[10px] h-6">Custom</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="auto">
-                  <div className="space-y-2">
-                    <p className="text-[9px] text-muted-foreground font-mono mb-1.5">
-                      Auto-configured from your format settings:
-                    </p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 rounded-md border border-border bg-secondary/50 px-3 py-2.5 cinema-inset">
-                      {[
-                        { label: "Codec", value: (film as any)?.format_type === "Feature Film" || (film as any)?.format_type === "Short Film" ? "H.264 (High)" : "H.264 (Main)" },
-                        { label: "Container", value: ".mp4" },
-                        { label: "Resolution", value: (film as any)?.frame_width && (film as any)?.frame_height ? `${(film as any).frame_width}×${(film as any).frame_height}` : "1920×1080" },
-                        { label: "Frame Rate", value: `${(film as any)?.frame_rate || 24} fps` },
-                        { label: "Bitrate", value: ((film as any)?.frame_height ?? 1080) >= 2160 ? "50 Mbps" : ((film as any)?.frame_height ?? 1080) >= 1080 ? "25 Mbps" : "15 Mbps" },
-                        { label: "Encoding", value: "2-Pass VBR" },
-                        { label: "Color Space", value: "Rec. 709" },
-                        { label: "Pixel Format", value: "yuv420p" },
-                        { label: "Audio Codec", value: "AAC-LC" },
-                        { label: "Audio Bitrate", value: "320 kbps" },
-                        { label: "Sample Rate", value: "48.0 kHz" },
-                        { label: "Channels", value: "Stereo (2.0)" },
-                      ].map(({ label, value }) => (
-                        <div key={label} className="flex justify-between py-0.5">
-                          <span className="text-[9px] font-mono text-muted-foreground">{label}</span>
-                          <span className="text-[9px] font-mono text-foreground/90 font-semibold">{value}</span>
-                        </div>
-                      ))}
+              <TabsContent value="templates">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-md bg-secondary px-2.5 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="h-3 w-3 text-primary" />
+                      <Label htmlFor="topaz" className="text-[10px] font-medium cursor-pointer">Topaz 4K Upscale</Label>
                     </div>
+                    <Switch id="topaz" checked={topaz} onCheckedChange={setTopaz} />
                   </div>
-                </TabsContent>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {["YouTube 4K", "Netflix ProRes", "Theater DCP"].map((t) => (
+                      <button key={t} className="rounded-md border border-border bg-secondary px-2 py-2 text-[10px] font-medium hover:border-primary/50 transition-colors text-center">
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </TabsContent>
 
-                <TabsContent value="templates">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between rounded-md bg-secondary px-2.5 py-1.5">
+              <TabsContent value="custom">
+                <div className="space-y-3">
+                  {/* Video Settings */}
+                  <div>
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Video</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
+                        <Select value={customCodec} onValueChange={setCustomCodec}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["h264", "h265", "prores_422", "prores_4444", "dnxhd", "vp9", "av1"].map(c => (
+                              <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Container</Label>
+                        <Select value={customContainer} onValueChange={setCustomContainer}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["mp4", "mov", "mkv", "mxf", "avi", "webm"].map(c => (
+                              <SelectItem key={c} value={c} className="text-[10px]">.{c}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="flex justify-between">
+                        <Label className="text-[9px] text-muted-foreground">Bitrate</Label>
+                        <span className="text-[9px] font-mono text-foreground/80">{customBitrate[0]} Mbps</span>
+                      </div>
+                      <Slider value={customBitrate} onValueChange={setCustomBitrate} min={1} max={200} step={1} className="mt-1" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Width</Label>
+                        <Input value={customWidth} onChange={e => setCustomWidth(e.target.value)} className="h-7 text-[10px] font-mono" />
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Height</Label>
+                        <Input value={customHeight} onChange={e => setCustomHeight(e.target.value)} className="h-7 text-[10px] font-mono" />
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">FPS</Label>
+                        <Select value={customFps} onValueChange={setCustomFps}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["23.976", "24", "25", "29.97", "30", "48", "50", "59.94", "60"].map(f => (
+                              <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Color Space</Label>
+                        <Select value={customColorSpace} onValueChange={setCustomColorSpace}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["rec709", "rec2020", "dci_p3", "srgb", "aces_cg"].map(c => (
+                              <SelectItem key={c} value={c} className="text-[10px]">{c.replace("_", " ").toUpperCase()}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Pixel Format</Label>
+                        <Select value={customPixelFormat} onValueChange={setCustomPixelFormat}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["yuv420p", "yuv422p", "yuv444p", "yuv420p10le", "yuv422p10le", "rgb48"].map(p => (
+                              <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex gap-4 mt-2">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles className="h-3 w-3 text-primary" />
-                        <Label htmlFor="topaz" className="text-[10px] font-medium cursor-pointer">Topaz 4K Upscale</Label>
+                        <Switch id="2pass" checked={custom2Pass} onCheckedChange={setCustom2Pass} />
+                        <Label htmlFor="2pass" className="text-[9px] cursor-pointer">2-Pass Encode</Label>
                       </div>
-                      <Switch id="topaz" checked={topaz} onCheckedChange={setTopaz} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {["YouTube 4K", "Netflix ProRes", "Theater DCP"].map((t) => (
-                        <button key={t} className="rounded-md border border-border bg-secondary px-2 py-2 text-[10px] font-medium hover:border-primary/50 transition-colors text-center">
-                          {t}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="custom">
-                  <div className="space-y-3">
-                    {/* Video Settings */}
-                    <div>
-                      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Video</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
-                          <Select value={customCodec} onValueChange={setCustomCodec}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["h264", "h265", "prores_422", "prores_4444", "dnxhd", "vp9", "av1"].map(c => (
-                                <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Container</Label>
-                          <Select value={customContainer} onValueChange={setCustomContainer}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["mp4", "mov", "mkv", "mxf", "avi", "webm"].map(c => (
-                                <SelectItem key={c} value={c} className="text-[10px]">.{c}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between">
-                          <Label className="text-[9px] text-muted-foreground">Bitrate</Label>
-                          <span className="text-[9px] font-mono text-foreground/80">{customBitrate[0]} Mbps</span>
-                        </div>
-                        <Slider value={customBitrate} onValueChange={setCustomBitrate} min={1} max={200} step={1} className="mt-1" />
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 mt-2">
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Width</Label>
-                          <Input value={customWidth} onChange={e => setCustomWidth(e.target.value)} className="h-7 text-[10px] font-mono" />
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Height</Label>
-                          <Input value={customHeight} onChange={e => setCustomHeight(e.target.value)} className="h-7 text-[10px] font-mono" />
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">FPS</Label>
-                          <Select value={customFps} onValueChange={setCustomFps}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["23.976", "24", "25", "29.97", "30", "48", "50", "59.94", "60"].map(f => (
-                                <SelectItem key={f} value={f} className="text-[10px]">{f}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mt-2">
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Color Space</Label>
-                          <Select value={customColorSpace} onValueChange={setCustomColorSpace}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["rec709", "rec2020", "dci_p3", "srgb", "aces_cg"].map(c => (
-                                <SelectItem key={c} value={c} className="text-[10px]">{c.replace("_", " ").toUpperCase()}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Pixel Format</Label>
-                          <Select value={customPixelFormat} onValueChange={setCustomPixelFormat}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["yuv420p", "yuv422p", "yuv444p", "yuv420p10le", "yuv422p10le", "rgb48"].map(p => (
-                                <SelectItem key={p} value={p} className="text-[10px]">{p}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      </div>
-                      <div className="flex gap-4 mt-2">
-                        <div className="flex items-center gap-1.5">
-                          <Switch id="2pass" checked={custom2Pass} onCheckedChange={setCustom2Pass} />
-                          <Label htmlFor="2pass" className="text-[9px] cursor-pointer">2-Pass Encode</Label>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <Switch id="deinterlace" checked={customDeinterlace} onCheckedChange={setCustomDeinterlace} />
-                          <Label htmlFor="deinterlace" className="text-[9px] cursor-pointer">Deinterlace</Label>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Audio Settings */}
-                    <div>
-                      <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Audio</p>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
-                          <Select value={customAudioCodec} onValueChange={setCustomAudioCodec}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["aac", "pcm_s24le", "pcm_s16le", "flac", "ac3", "eac3", "opus"].map(c => (
-                                <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Bitrate</Label>
-                          <Select value={String(customAudioBitrate[0])} onValueChange={v => setCustomAudioBitrate([Number(v)])}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["128", "192", "256", "320", "512", "1536"].map(b => (
-                                <SelectItem key={b} value={b} className="text-[10px]">{b} kbps</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[9px] text-muted-foreground mb-0.5 block">Sample Rate</Label>
-                          <Select value={customSampleRate} onValueChange={setCustomSampleRate}>
-                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {["44100", "48000", "96000"].map(s => (
-                                <SelectItem key={s} value={s} className="text-[10px]">{(Number(s)/1000).toFixed(1)} kHz</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                      <div className="flex items-center gap-1.5">
+                        <Switch id="deinterlace" checked={customDeinterlace} onCheckedChange={setCustomDeinterlace} />
+                        <Label htmlFor="deinterlace" className="text-[9px] cursor-pointer">Deinterlace</Label>
                       </div>
                     </div>
                   </div>
-                </TabsContent>
-              </Tabs>
-            </div>
 
-            {/* Deliverables & Marketing */}
-            <div className="rounded-lg border border-border bg-card p-4 cinema-inset">
-              <SH icon={Sparkles} label="Deliverables & Marketing" />
-              <div className="grid grid-cols-1 gap-2.5">
-                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
-                  <p className="text-[10px] font-mono font-semibold mb-0.5">Multi-Ratio Social Masters</p>
-                  <p className="text-[9px] text-muted-foreground mb-2">Auto-reframe 16:9 → 9:16 via object tracking.</p>
-                  <ProcBtn id="social" icon={Smartphone} label="Generate Social Cutdowns" />
+                  {/* Audio Settings */}
+                  <div>
+                    <p className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">Audio</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Codec</Label>
+                        <Select value={customAudioCodec} onValueChange={setCustomAudioCodec}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["aac", "pcm_s24le", "pcm_s16le", "flac", "ac3", "eac3", "opus"].map(c => (
+                              <SelectItem key={c} value={c} className="text-[10px]">{c.toUpperCase().replace("_", " ")}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Bitrate</Label>
+                        <Select value={String(customAudioBitrate[0])} onValueChange={v => setCustomAudioBitrate([Number(v)])}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["128", "192", "256", "320", "512", "1536"].map(b => (
+                              <SelectItem key={b} value={b} className="text-[10px]">{b} kbps</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-[9px] text-muted-foreground mb-0.5 block">Sample Rate</Label>
+                        <Select value={customSampleRate} onValueChange={setCustomSampleRate}>
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {["44100", "48000", "96000"].map(s => (
+                              <SelectItem key={s} value={s} className="text-[10px]">{(Number(s)/1000).toFixed(1)} kHz</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
-                  <p className="text-[10px] font-mono font-semibold mb-0.5">Marketing Assets</p>
-                  <p className="text-[9px] text-muted-foreground mb-2">27×40 theatrical poster & Electronic Press Kit.</p>
-                  <ProcBtn id="poster" icon={Image} label="Generate Poster & EPK" />
-                </div>
-                <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
-                  <p className="text-[10px] font-mono font-semibold mb-0.5">Trailer Engine</p>
-                  <p className="text-[9px] text-muted-foreground mb-2">Auto-cut 60s trailer from high-action beats.</p>
-                  <ProcBtn id="trailer" icon={Film} label="Generate 60s Trailer" />
-                </div>
+              </TabsContent>
+            </Tabs>
+          </Section>
+
+          {/* ── Deliverables & Marketing ── */}
+          <Section icon={Sparkles} title="Deliverables & Marketing">
+            <div className="grid grid-cols-1 gap-2.5">
+              <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                <p className="text-[10px] font-mono font-semibold mb-0.5">Multi-Ratio Social Masters</p>
+                <p className="text-[9px] text-muted-foreground mb-2">Auto-reframe 16:9 → 9:16 via object tracking.</p>
+                <ProcBtn id="social" icon={Smartphone} label="Generate Social Cutdowns" />
+              </div>
+              <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                <p className="text-[10px] font-mono font-semibold mb-0.5">Marketing Assets</p>
+                <p className="text-[9px] text-muted-foreground mb-2">27×40 theatrical poster & Electronic Press Kit.</p>
+                <ProcBtn id="poster" icon={Image} label="Generate Poster & EPK" />
+              </div>
+              <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
+                <p className="text-[10px] font-mono font-semibold mb-0.5">Trailer Engine</p>
+                <p className="text-[9px] text-muted-foreground mb-2">Auto-cut 60s trailer from high-action beats.</p>
+                <ProcBtn id="trailer" icon={Film} label="Generate 60s Trailer" />
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* Row 2: QC + Distribution side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Artifact Scanner & QC */}
-            <div data-help-id="release-artifact-scanner"><ArtifactScannerPanel /></div>
+          {/* ── Technical QC ── */}
+          <div data-help-id="release-artifact-scanner"><ArtifactScannerPanel /></div>
 
-            {/* Distribution Packaging */}
-            <div data-help-id="release-distribution" className="rounded-lg border border-border bg-card p-4 cinema-inset space-y-2.5">
-              <SH icon={Package} label="Distribution Packaging" />
+          {/* ── Distribution Packaging ── */}
+          <Section icon={Package} title="Distribution Packaging" data-help-id="release-distribution">
+            <div className="space-y-2.5">
               <div className="rounded-md border border-border bg-secondary/50 p-3 cinema-inset">
                 <p className="text-[9px] font-mono text-muted-foreground mb-1.5">Festival Package</p>
                 <ProcBtn id="filmfreeway" icon={Download} label="Export Festival ZIP (Screener + Poster + Script)" />
@@ -408,35 +438,31 @@ const Release = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Section>
 
-          {/* Row 3: Topaz DI + C2PA side by side */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Topaz DI Engine */}
-            <div data-help-id="release-topaz"><TopazDIPanel /></div>
+          {/* ── Topaz DI Engine ── */}
+          <div data-help-id="release-topaz"><TopazDIPanel /></div>
 
-            {/* C2PA Legal Provenance */}
-            <div data-help-id="release-c2pa" className="rounded-lg border bg-card p-4 cinema-inset space-y-2.5" style={{ borderColor: "hsl(145 40% 30% / 0.5)" }}>
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-7 w-7 rounded-md flex items-center justify-center" style={{ background: "hsl(145 40% 20% / 0.3)" }}>
-                  <ShieldCheck className="h-3.5 w-3.5" style={{ color: "hsl(145 50% 50%)" }} />
+          {/* ── C2PA Chain-of-Title & Provenance ── */}
+          <Section
+            icon={ShieldCheck}
+            title="Chain-of-Title & Provenance"
+            subtitle="C2PA Verified"
+            iconBg="bg-[hsl(145_40%_20%/0.3)]"
+            iconClassName="text-[hsl(145_50%_50%)]"
+            className="border-[hsl(145_40%_30%/0.5)]"
+            data-help-id="release-c2pa"
+          >
+            <div className="space-y-2.5">
+              {[
+                { label: "Director / Producer", value: "Paul Greenberg" },
+                { label: "Entity", value: "Greenberg Direct, Inc." },
+              ].map((field) => (
+                <div key={field.label} className="rounded-md bg-secondary/50 border border-border/50 px-3 py-2 cinema-inset">
+                  <p className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">{field.label}</p>
+                  <p className="text-[11px] font-mono text-foreground/90">{field.value}</p>
                 </div>
-                <div>
-                  <h3 className="font-display text-xs font-bold uppercase tracking-widest">Chain-of-Title & Provenance</h3>
-                  <p className="text-[9px] font-mono" style={{ color: "hsl(145 40% 55%)" }}>C2PA Verified</p>
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                {[
-                  { label: "Director / Producer", value: "Paul Greenberg" },
-                  { label: "Entity", value: "Greenberg Direct, Inc." },
-                ].map((field) => (
-                  <div key={field.label} className="rounded-md bg-secondary/50 border border-border/50 px-3 py-2 cinema-inset">
-                    <p className="text-[8px] font-mono uppercase tracking-widest text-muted-foreground/60">{field.label}</p>
-                    <p className="text-[11px] font-mono text-foreground/90">{field.value}</p>
-                  </div>
-                ))}
-              </div>
+              ))}
               <p className="text-[9px] text-muted-foreground leading-relaxed">
                 Cryptographic hashes, API licenses, timestamps, and per-frame provenance claims compiled into a legal PDF.
               </p>
@@ -453,7 +479,8 @@ const Release = () => {
                 )}
               </Button>
             </div>
-          </div>
+          </Section>
+
         </div>
       </ScrollArea>
 

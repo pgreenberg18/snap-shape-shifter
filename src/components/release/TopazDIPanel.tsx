@@ -61,18 +61,24 @@ export default function TopazDIPanel() {
     </div>
   );
 
+  const [topazOpen, setTopazOpen] = useState(true);
+
   return (
-    <div className="rounded-lg border border-border bg-card cinema-inset">
-      {/* Header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50">
-        <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center">
-          <Sparkles className="h-3.5 w-3.5 text-primary" />
-        </div>
-        <div>
-          <h3 className="font-display text-sm font-bold">Topaz DI Engine</h3>
-          <p className="text-[9px] font-mono text-muted-foreground">4K Upscale & Enhancement</p>
-        </div>
-      </div>
+    <Collapsible open={topazOpen} onOpenChange={setTopazOpen}>
+      <div className="rounded-lg border border-border bg-card cinema-inset overflow-hidden">
+        <CollapsibleTrigger asChild>
+          <button className="flex items-center gap-2 w-full px-4 py-3 hover:bg-secondary/40 transition-colors text-left">
+            <div className="h-7 w-7 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+              <Sparkles className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display text-xs font-bold uppercase tracking-widest">Topaz DI Engine</h3>
+              <p className="text-[9px] font-mono text-muted-foreground">4K Upscale & Enhancement</p>
+            </div>
+            <ChevronDown className={cn("h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200", topazOpen && "rotate-180")} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
 
       {/* Model Selection */}
       <div className="px-4 py-3 border-b border-border/40">
@@ -229,6 +235,8 @@ export default function TopazDIPanel() {
           </div>
         </CollapsibleContent>
       </Collapsible>
-    </div>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
