@@ -1,9 +1,11 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
   ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp, GripVertical,
 } from "lucide-react";
+import { useScriptViewer } from "@/components/ScriptViewerDialog";
+import { parseSceneFromPlainText } from "@/lib/parse-script-text";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -85,9 +87,12 @@ function buildVisualDesignCategory(raw: any): CategoryData {
 }
 
 export interface ScenePropData {
+  scene_number: number;
   characters: string[];
   key_objects: string[];
   location_name: string;
+  wardrobe?: any[];
+  picture_vehicles?: string[];
 }
 
 function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnership?: ScenePropData[]): Record<CategoryKey, CategoryData> {
@@ -485,6 +490,105 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   const reviewStatusRef = useRef(reviewStatus);
   categoriesRef.current = categories;
   reviewStatusRef.current = reviewStatus;
+
+  /* Script viewer for scene clicks */
+  const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
+
+  /* Build item → scene numbers map */
+  const itemSceneMap = useMemo(() => {
+    const map = new Map<string, Set<number>>();
+    if (!scenePropOwnership) return map;
+
+    const addToMap = (itemName: string, sceneNum: number) => {
+      const key = itemName.toLowerCase().trim();
+      if (!key) return;
+      if (!map.has(key)) map.set(key, new Set());
+      map.get(key)!.add(sceneNum);
+    };
+
+    for (const scene of scenePropOwnership) {
+      // Props (key_objects)
+      for (const obj of scene.key_objects) {
+        addToMap(obj, scene.scene_number);
+      }
+      // Picture vehicles
+      if (scene.picture_vehicles) {
+        for (const v of scene.picture_vehicles) {
+          addToMap(v, scene.scene_number);
+        }
+      }
+      // Wardrobe
+      if (scene.wardrobe && Array.isArray(scene.wardrobe)) {
+        for (const w of scene.wardrobe) {
+          if (typeof w === "string") {
+            addToMap(w, scene.scene_number);
+          } else if (w && typeof w === "object") {
+            // wardrobe can be {item: string, character: string, ...}
+            const itemName = w.item || w.clothing_item || w.name || "";
+            if (itemName) addToMap(itemName, scene.scene_number);
+            // Also add character-prefixed version
+            const charName = w.character || "";
+            if (charName && itemName) {
+              addToMap(`${charName} - ${itemName}`, scene.scene_number);
+              addToMap(`${charName}'s ${itemName}`, scene.scene_number);
+            }
+          }
+        }
+      }
+    }
+    return map;
+  }, [scenePropOwnership]);
+
+  /** Look up scene numbers for an item (tries exact and fuzzy matching) */
+  const getScenesForItem = useCallback((itemName: string): number[] => {
+    const key = itemName.toLowerCase().trim();
+    const direct = itemSceneMap.get(key);
+    if (direct) return [...direct].sort((a, b) => a - b);
+
+    // Fuzzy: strip possessives and prefixes
+    const stripped = key.replace(/^[a-z]+(?:'s|s)?\s+/i, "").replace(/^(?:his|her|their|the|a|an)\s+/i, "");
+    const fuzzy = itemSceneMap.get(stripped);
+    if (fuzzy) return [...fuzzy].sort((a, b) => a - b);
+
+    // Try partial match: any key that contains this item
+    const matches = new Set<number>();
+    for (const [k, scenes] of itemSceneMap) {
+      if (k.includes(key) || key.includes(k)) {
+        for (const s of scenes) matches.add(s);
+      }
+    }
+    return [...matches].sort((a, b) => a - b);
+  }, [itemSceneMap]);
+
+  /** Open script viewer for a specific scene with item highlighted */
+  const handleSceneClick = useCallback(async (sceneNum: number, highlightTerm: string) => {
+    if (!filmId) return;
+
+    // Fetch the scene data
+    const { data: sceneData } = await supabase
+      .from("parsed_scenes")
+      .select("heading, raw_text")
+      .eq("film_id", filmId)
+      .eq("scene_number", sceneNum)
+      .single();
+
+    if (!sceneData) return;
+
+    const title = sceneData.heading || `Scene ${sceneNum}`;
+    openScriptViewer({
+      title,
+      description: `Scene ${sceneNum} · "${highlightTerm}" highlighted`,
+      highlightTerms: [highlightTerm],
+    });
+
+    // Parse the raw text into paragraphs
+    const paragraphs = parseSceneFromPlainText(sceneData.raw_text, sceneData.heading);
+    setScriptViewerScenes([{
+      sceneNum,
+      heading: title,
+      paragraphs,
+    }]);
+  }, [filmId, openScriptViewer, setScriptViewerScenes]);
 
   /* DnD state */
   const [activeDrag, setActiveDrag] = useState<{ item: string; sourceGroupId: string | null; category: CategoryKey } | null>(null);
@@ -986,6 +1090,8 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                               onRename={(old, newN) => renameItem(old, newN, key)}
                               onEditCancel={() => setEditingItem(null)}
                               onToggleSelect={() => toggleSelect(v, key)}
+                              sceneNumbers={(key === "wardrobe" || key === "props") ? getScenesForItem(v) : undefined}
+                              onSceneClick={(key === "wardrobe" || key === "props") ? handleSceneClick : undefined}
                             />
                           ))}
                         </div>
@@ -1012,6 +1118,8 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                       onEditCancel={() => setEditingItem(null)}
                       onToggleSelect={() => toggleSelect(item, key)}
                       onDelete={() => deleteItem(key, item)}
+                      sceneNumbers={(key === "wardrobe" || key === "props") ? getScenesForItem(item) : undefined}
+                      onSceneClick={(key === "wardrobe" || key === "props") ? handleSceneClick : undefined}
                     />
                   ))}
                 </DroppableGroup>
@@ -1210,6 +1318,8 @@ function DraggableChip({
   onEditCancel,
   onToggleSelect,
   onDelete,
+  sceneNumbers,
+  onSceneClick,
 }: {
   item: string;
   sourceGroupId: string | null;
@@ -1224,6 +1334,8 @@ function DraggableChip({
   onEditCancel: () => void;
   onToggleSelect: () => void;
   onDelete?: () => void;
+  sceneNumbers?: number[];
+  onSceneClick?: (sceneNum: number, highlightTerm: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${category}-${sourceGroupId ?? "ungrouped"}-${item}`,
@@ -1232,58 +1344,75 @@ function DraggableChip({
   });
 
   return (
-    <span
-      ref={setNodeRef}
-      data-chip
-      className={cn(
-        "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
-        isSelected
-          ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_hsl(var(--primary)/0.4)]"
-          : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
-        isDisabled && "opacity-40",
-        isEditing && "ring-2 ring-primary/50",
-        isDragging && "opacity-30",
-      )}
-    >
-      {/* Drag handle */}
-      {!isEditing && (
-        <span {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
-          <GripVertical className="h-3 w-3 opacity-40 hover:opacity-100 transition-opacity" />
+    <div className="inline-flex flex-col items-start gap-0.5">
+      <span
+        ref={setNodeRef}
+        data-chip
+        className={cn(
+          "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
+          isSelected
+            ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_hsl(var(--primary)/0.4)]"
+            : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
+          isDisabled && "opacity-40",
+          isEditing && "ring-2 ring-primary/50",
+          isDragging && "opacity-30",
+        )}
+      >
+        {/* Drag handle */}
+        {!isEditing && (
+          <span {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
+            <GripVertical className="h-3 w-3 opacity-40 hover:opacity-100 transition-opacity" />
+          </span>
+        )}
+        {isEditing ? (
+          <input
+            ref={editInputRef}
+            value={editText}
+            onChange={(e) => onEditChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onRename(item, editText);
+              if (e.key === "Escape") onEditCancel();
+            }}
+            onBlur={() => onRename(item, editText)}
+            className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
+            style={{ width: `${Math.max(editText.length, 3)}ch` }}
+            autoFocus
+          />
+        ) : (
+          <button
+            disabled={isDisabled}
+            onClick={onToggleSelect}
+            className="cursor-pointer"
+          >
+            {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
+            {item}
+          </button>
+        )}
+        {!isEditing && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
+            title="Remove"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        )}
+      </span>
+      {/* Scene number badges */}
+      {!isEditing && sceneNumbers && sceneNumbers.length > 0 && onSceneClick && (
+        <span className="inline-flex flex-wrap gap-0.5 pl-1">
+          {sceneNumbers.map((num) => (
+            <button
+              key={num}
+              onClick={(e) => { e.stopPropagation(); onSceneClick(num, item); }}
+              className="text-[9px] font-mono leading-none px-1 py-0.5 rounded bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer"
+              title={`View Scene ${num} with "${item}" highlighted`}
+            >
+              {num}
+            </button>
+          ))}
         </span>
       )}
-      {isEditing ? (
-        <input
-          ref={editInputRef}
-          value={editText}
-          onChange={(e) => onEditChange(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") onRename(item, editText);
-            if (e.key === "Escape") onEditCancel();
-          }}
-          onBlur={() => onRename(item, editText)}
-          className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
-          style={{ width: `${Math.max(editText.length, 3)}ch` }}
-          autoFocus
-        />
-      ) : (
-        <button
-          disabled={isDisabled}
-          onClick={onToggleSelect}
-          className="cursor-pointer"
-        >
-          {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-          {item}
-        </button>
-      )}
-      {!isEditing && onDelete && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
-          title="Remove"
-        >
-          <X className="h-3 w-3" />
-        </button>
-      )}
-    </span>
+    </div>
   );
 }
