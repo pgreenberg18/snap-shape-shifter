@@ -37,7 +37,7 @@ Phase 2 (Post-Vision Lock): Style enrichment — apply Director DNA, Production 
 6. [x] Lock Vision handler: persist ai_notes_approved, compile style contract, run Phase 2 enrichment
 7. [ ] Wire extract-entities call into Development.tsx as explicit Phase 1 step (after Lock Fundamentals)
 8. [ ] Update finalize-analysis for Phase 1 output schema
-9. [x] Update GlobalElementsManager to use entity registry
+9. [ ] Update GlobalElementsManager to use entity registry
 
 ## Phase 2 — Style Enrichment Engine (Post-Vision Lock)
 1. [ ] Scene style overlay computation from Style Contract + Director DNA

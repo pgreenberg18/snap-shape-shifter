@@ -1,6 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
   ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp, GripVertical,
@@ -565,77 +564,6 @@ const MANAGED_SCHEMA_VERSION = 3;
 let _uid = 0;
 const uid = () => `grp_${++_uid}_${Date.now()}`;
 
-/* ── Entity type → category mapping ───────────────────────── */
-
-const ENTITY_TO_CATEGORY: Record<string, CategoryKey | null> = {
-  CHARACTER: "characters",
-  LOCATION: "locations",
-  WARDROBE: "wardrobe",
-  PROP: "props",
-  VEHICLE: "props",
-  WEAPON: "props",
-  DEVICE: "props",
-  DOCUMENT: "props",
-  FOOD_OR_DRINK: "props",
-  PRACTICAL_LIGHT_SOURCE: "props",
-  ANIMAL: "props",
-  SOUND_EVENT: null, // skip for now
-  ENVIRONMENTAL_CONDITION: null, // skip for now
-};
-
-/** Build category data from the script_entities table (Phase 1 canonical registry) */
-function buildFromEntityRegistry(
-  entities: Array<{
-    id: string;
-    canonical_name: string;
-    entity_type: string;
-    aliases: string[];
-    metadata: any;
-  }>
-): Record<CategoryKey, CategoryData> {
-  const result: Record<CategoryKey, CategoryData> = {
-    characters: { ungrouped: [], groups: [] },
-    locations: { ungrouped: [], groups: [] },
-    wardrobe: { ungrouped: [], groups: [] },
-    props: { ungrouped: [], groups: [] },
-    visual_design: { ungrouped: [], groups: [] },
-  };
-
-  // Group entities by target category
-  const byCategory = new Map<CategoryKey, typeof entities>();
-  for (const entity of entities) {
-    const cat = ENTITY_TO_CATEGORY[entity.entity_type];
-    if (!cat) continue;
-    if (!byCategory.has(cat)) byCategory.set(cat, []);
-    byCategory.get(cat)!.push(entity);
-  }
-
-  for (const [cat, catEntities] of byCategory) {
-    for (const entity of catEntities) {
-      const meaningfulAliases = entity.aliases.filter(
-        (a) => a.toLowerCase() !== entity.canonical_name.toLowerCase()
-      );
-
-      if (meaningfulAliases.length > 0) {
-        // Entity has aliases → create a group
-        result[cat].groups.push({
-          id: uid(),
-          parentName: entity.canonical_name,
-          variants: [entity.canonical_name, ...meaningfulAliases],
-        });
-      } else {
-        result[cat].ungrouped.push(entity.canonical_name);
-      }
-    }
-
-    // Sort for consistent display
-    result[cat].ungrouped.sort((a, b) => a.localeCompare(b));
-    result[cat].groups.sort((a, b) => a.parentName.localeCompare(b.parentName));
-  }
-
-  return result;
-}
-
 /* ── Main Component ───────────────────────────────────────── */
 
 interface Props {
@@ -648,24 +576,6 @@ interface Props {
 }
 
 export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations, scenePropOwnership }: Props) {
-  // ── Fetch canonical entities from script_entities (Phase 1 registry) ──
-  const { data: scriptEntities } = useQuery({
-    queryKey: ["script-entities", filmId],
-    queryFn: async () => {
-      const { data: entities, error } = await supabase
-        .from("script_entities")
-        .select("id, canonical_name, entity_type, aliases, metadata")
-        .eq("film_id", filmId!)
-        .order("entity_type")
-        .order("canonical_name");
-      if (error) throw error;
-      return entities || [];
-    },
-    enabled: !!filmId,
-  });
-
-  const hasEntityRegistry = (scriptEntities?.length ?? 0) > 0;
-
   const managed = data?._managed;
   const managedVersion = typeof managed?.version === "number" ? managed.version : 1;
 
@@ -688,22 +598,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     if (useManagedCategories) return managed.categories;
     return buildInitialData(data, sceneLocations, scenePropOwnership);
   });
-
-  // When script_entities load and have data, rebuild categories from entity registry
-  // This replaces the stale JSON-based approach with live canonical data
-  const entityHydrationDone = useRef(false);
-  useEffect(() => {
-    if (entityHydrationDone.current) return;
-    if (!hasEntityRegistry || !scriptEntities) return;
-
-    // Build from entity registry — this is the canonical source of truth
-    const entityCategories = buildFromEntityRegistry(scriptEntities);
-
-    // Preserve any user review statuses and managed edits
-    // but replace the category items with entity registry data
-    setCategories(entityCategories);
-    entityHydrationDone.current = true;
-  }, [hasEntityRegistry, scriptEntities]);
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -1094,25 +988,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
         .update({ asset_name: trimmed })
         .eq("film_id", filmId)
         .eq("asset_name", oldName);
-
-      // Update script_entities canonical_name + aliases
-      const { data: matchingEntities } = await supabase
-        .from("script_entities")
-        .select("id, canonical_name, aliases")
-        .eq("film_id", filmId)
-        .or(`canonical_name.eq.${oldName},aliases.cs.{${oldName}}`);
-
-      if (matchingEntities) {
-        for (const entity of matchingEntities) {
-          const updates: any = {};
-          if (entity.canonical_name === oldName) {
-            updates.canonical_name = trimmed;
-          }
-          const aliases: string[] = Array.isArray(entity.aliases) ? entity.aliases : [];
-          updates.aliases = aliases.map((a: string) => (a === oldName ? trimmed : a));
-          await supabase.from("script_entities").update(updates).eq("id", entity.id);
-        }
-      }
     } catch (err) {
       console.error("Failed to propagate rename:", err);
     }
