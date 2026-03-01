@@ -18,6 +18,7 @@ import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent,
 } from "@dnd-kit/core";
+import { useQuery } from "@tanstack/react-query";
 
 /* ── Types ────────────────────────────────────────────────── */
 
@@ -48,7 +49,82 @@ const CATEGORIES: CategoryMeta[] = [
   { key: "visual_design", label: "Visual Design", icon: <Paintbrush className="h-4 w-4" /> },
 ];
 
+/* ── Entity type → category mapping ───────────────────────── */
+
+const ENTITY_TYPE_TO_CATEGORY: Record<string, CategoryKey> = {
+  CHARACTER: "characters",
+  LOCATION: "locations",
+  WARDROBE: "wardrobe",
+  PROP: "props",
+  VEHICLE: "props",
+  WEAPON: "props",
+  DEVICE: "props",
+  FOOD_OR_DRINK: "props",
+  DOCUMENT: "props",
+  ANIMAL: "props",
+  PRACTICAL_LIGHT_SOURCE: "props",
+  SOUND_EVENT: "visual_design",
+  ENVIRONMENTAL_CONDITION: "visual_design",
+};
+
 /* ── Helpers ───────────────────────────────────────────────── */
+
+interface ScriptEntity {
+  id: string;
+  canonical_name: string;
+  entity_type: string;
+  aliases: string[];
+  confidence: number;
+  needs_review: boolean;
+  first_appearance_scene: number | null;
+  metadata: any;
+}
+
+function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryKey, CategoryData> {
+  const catMap: Record<CategoryKey, { ungrouped: string[]; groups: ElementGroup[] }> = {
+    characters: { ungrouped: [], groups: [] },
+    locations: { ungrouped: [], groups: [] },
+    wardrobe: { ungrouped: [], groups: [] },
+    props: { ungrouped: [], groups: [] },
+    visual_design: { ungrouped: [], groups: [] },
+  };
+
+  const toTitleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+  for (const entity of entities) {
+    const category = ENTITY_TYPE_TO_CATEGORY[entity.entity_type];
+    if (!category) continue;
+
+    const cat = catMap[category];
+    const displayName = toTitleCase(entity.canonical_name.toLowerCase());
+
+    // If entity has aliases (beyond itself), create a group
+    const meaningfulAliases = entity.aliases.filter(
+      (a) => a.toLowerCase().trim() !== entity.canonical_name.toLowerCase().trim()
+    );
+
+    if (meaningfulAliases.length > 0) {
+      const variants = [displayName, ...meaningfulAliases.map((a) => toTitleCase(a.toLowerCase()))];
+      // Deduplicate variants
+      const uniqueVariants = [...new Set(variants)];
+      cat.groups.push({
+        id: `entity_${entity.id}`,
+        parentName: displayName,
+        variants: uniqueVariants,
+      });
+    } else {
+      cat.ungrouped.push(displayName);
+    }
+  }
+
+  // Sort all categories
+  for (const key of Object.keys(catMap) as CategoryKey[]) {
+    catMap[key].ungrouped.sort((a, b) => a.localeCompare(b));
+    catMap[key].groups.sort((a, b) => a.parentName.localeCompare(b.parentName));
+  }
+
+  return catMap;
+}
 
 function buildVisualDesignCategory(raw: any): CategoryData {
   const vd = raw?.visual_design;
@@ -319,42 +395,34 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
   // Step 1: Filter out vehicles and locations
   const filteredProps = rawProps.filter(p => {
     const normalized = normalizeLocationKey(p);
-    // Remove if it matches a known location
     if (locationNameKeys.has(normalized)) return false;
-    // Remove if it's clearly a vehicle
     if (VEHICLE_PATTERNS_PROPS.test(p) || isLikelyVehicleLocation(p)) return false;
     return true;
   });
 
-  // Step 2: Classify glasses by context (drinking vs eyewear)
+  // Step 2: Classify glasses by context
   const DRINKING_GLASS_CONTEXT = /\b(beer|wine|vodka|whiskey|cocktail|champagne|shot|drinking|water|juice)\b/i;
   const EYEWEAR_CONTEXT = /\b(reading|sun|prescription|spectacle|eyeglasses|wire-rim|thick-frame)\b/i;
 
   const classifyGlasses = (propName: string, sceneContext?: { characters: string[]; key_objects: string[]; location_name: string }): string => {
     const lower = propName.toLowerCase();
     if (!/\bglasses\b/i.test(lower)) return lower;
-    // If explicitly qualified
     if (DRINKING_GLASS_CONTEXT.test(lower) || /\bglass of\b/i.test(lower)) return "drinkware";
     if (EYEWEAR_CONTEXT.test(lower) || /\bspectacles?\b/i.test(lower)) return "eyewear";
-    // Check scene context for nearby drinkware clues
     if (sceneContext) {
       const allObjects = sceneContext.key_objects.join(" ").toLowerCase();
       if (/\b(beer|vodka|wine|whiskey|cocktail|bar|drink)\b/.test(allObjects)) return "drinkware";
     }
-    // Default bare "glasses" to eyewear
     return "eyewear";
   };
 
   // Step 3: Deduplicate similar props by normalizing
   const normalizeProp = (p: string): string => {
     let n = p.toLowerCase().trim();
-    // Strip character ownership prefixes: "Rachel's Phone" / "Rachel - Phone" → "phone"
     n = n
-      .replace(/^([a-z][a-z'.-]*(?:\s+[a-z][a-z'.-]*){0,2})['’]s\s+/i, "")
+      .replace(/^([a-z][a-z'.-]*(?:\s+[a-z][a-z'.-]*){0,2})['']s\s+/i, "")
       .replace(/^([a-z][a-z'.-]*(?:\s+[a-z][a-z'.-]*){0,2})\s*[-–—:]\s+/i, "");
-    // Strip pronouns/articles
     n = n.replace(/^(?:his|her|their|the|a|an)\s+/i, "");
-    // Normalize common synonyms
     n = n.replace(/\btelephone\b/g, "phone")
          .replace(/\bcellphone\b/g, "phone")
          .replace(/\bcell phone\b/g, "phone")
@@ -371,12 +439,10 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
          .replace(/\bnotebook computer\b/g, "computer")
          .replace(/\bphoto(?:graph)?\b/g, "photograph")
          .replace(/\bpic(?:ture)?\b/g, "photograph");
-    // Remove non-alphanumeric for comparison
     return n.replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
   };
 
   // Step 4: Build prop ownership map from scene data
-  // For each prop, track which characters and locations it co-occurs with
   const propOwnerMap = new Map<string, { chars: Map<string, number>; locs: Map<string, number> }>();
 
   if (scenePropOwnership) {
@@ -385,7 +451,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
         const norm = normalizeProp(obj);
         if (!norm) continue;
 
-        // Handle glasses differentiation
         let effectiveNorm = norm;
         if (/\bglasses\b/.test(norm) || /\bglass\b/.test(norm)) {
           const glassType = classifyGlasses(obj, scene);
@@ -395,7 +460,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
         if (!propOwnerMap.has(effectiveNorm)) propOwnerMap.set(effectiveNorm, { chars: new Map(), locs: new Map() });
         const entry = propOwnerMap.get(effectiveNorm)!;
 
-        // Track character co-occurrence
         for (const char of scene.characters) {
           let name = char.replace(/\s*\(.*?\)\s*/g, "").trim();
           const dashIdx = name.indexOf(" - ");
@@ -403,7 +467,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
           if (name) entry.chars.set(name, (entry.chars.get(name) || 0) + 1);
         }
 
-        // Track location co-occurrence
         if (scene.location_name) {
           const locBase = getLocationBase(scene.location_name);
           entry.locs.set(locBase, (entry.locs.get(locBase) || 0) + 1);
@@ -412,17 +475,15 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     }
   }
 
-  // Step 5: Group props by character/location ownership or similarity
+  // Step 5: Group props
   const propGroups: ElementGroup[] = [];
   const propUngrouped: string[] = [];
   const propByNorm = new Map<string, string[]>();
 
-  // Separate glasses by context
   const processedProps: string[] = [];
   for (const p of filteredProps) {
     const lower = p.toLowerCase();
     if (/\bglasses\b/i.test(lower) && !DRINKING_GLASS_CONTEXT.test(lower) && !EYEWEAR_CONTEXT.test(lower)) {
-      // Find this prop's scene context
       const sceneCtx = scenePropOwnership?.find(s =>
         s.key_objects.some(o => o.toLowerCase() === lower)
       );
@@ -437,14 +498,11 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     }
   }
 
-  // Build normalized groups
   for (const p of processedProps) {
-    // Strip the context tag for normalization but keep it for display
     const displayName = p.replace(/ \((drinkware|eyewear)\)$/, "");
     const contextTag = p.match(/ \((drinkware|eyewear)\)$/)?.[1];
 
     let norm = normalizeProp(displayName);
-    // Keep glasses types separate
     if (contextTag === "drinkware") norm = "drinkware glass";
     else if (contextTag === "eyewear" && /\bglass/i.test(norm)) norm = "eyewear glasses";
 
@@ -453,14 +511,13 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     propByNorm.get(norm)!.push(displayName);
   }
 
-  // Now group: first try explicit ownership labels, then scene-based ownership, then fallback to similarity
-  const charGroupMap = new Map<string, string[]>(); // character → props
-  const locGroupMap = new Map<string, string[]>();  // location → props
+  const charGroupMap = new Map<string, string[]>();
+  const locGroupMap = new Map<string, string[]>();
   const remainingProps: string[] = [];
 
   const extractExplicitCharacterOwner = (label: string): string | null => {
-    const possessiveMatch = label.match(/^([A-Za-z][A-Za-z'’.\-\s]{1,60}?)['’]s\s+/i);
-    const dashedMatch = label.match(/^([A-Za-z][A-Za-z'’.\-\s]{1,60}?)\s*[-–—:]\s+/i);
+    const possessiveMatch = label.match(/^([A-Za-z][A-Za-z''.\-\s]{1,60}?)['']s\s+/i);
+    const dashedMatch = label.match(/^([A-Za-z][A-Za-z''.\-\s]{1,60}?)\s*[-–—:]\s+/i);
     const candidate = possessiveMatch?.[1]?.trim() || dashedMatch?.[1]?.trim();
     if (!candidate) return null;
     const norm = resolveCharacterNorm(normalizeCharacterKey(candidate));
@@ -485,7 +542,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     }
 
     if (!assigned && ownership) {
-      // Find dominant character — assign when ownership is reasonably clear
       const sortedChars = [...ownership.chars.entries()].sort((a, b) => b[1] - a[1]);
 
       if (sortedChars.length > 0) {
@@ -501,7 +557,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
         }
       }
 
-      // If not character-owned, try location ownership
       if (!assigned) {
         const sortedLocs = [...ownership.locs.entries()].sort((a, b) => b[1] - a[1]);
         if (sortedLocs.length > 0) {
@@ -528,13 +583,11 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     }
   }
 
-  // Convert character groups to ElementGroups
   for (const [charName, items] of charGroupMap) {
     const label = toCanonicalCharacterLabel(charName) || toTitleCase(stripCharacterMeta(charName).toLowerCase());
     propGroups.push({ id: uid(), parentName: label, variants: [...new Set(items)] });
   }
 
-  // Convert location groups to ElementGroups
   for (const [locName, items] of locGroupMap) {
     const label = locName.charAt(0) + locName.slice(1).toLowerCase();
     propGroups.push({ id: uid(), parentName: `📍 ${label}`, variants: [...new Set(items)] });
@@ -542,7 +595,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
 
   propUngrouped.push(...remainingProps);
 
-  // Title-case all prop labels
   const tcPropUngrouped = propUngrouped.map(toTitleCase);
   const tcPropGroups = propGroups.map(g => ({
     ...g,
@@ -559,7 +611,7 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
   };
 }
 
-const MANAGED_SCHEMA_VERSION = 3;
+const MANAGED_SCHEMA_VERSION = 4; // Bumped to force rebuild from entities
 
 let _uid = 0;
 const uid = () => `grp_${++_uid}_${Date.now()}`;
@@ -576,28 +628,61 @@ interface Props {
 }
 
 export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations, scenePropOwnership }: Props) {
+  // ── Fetch entities from script_entities table (Phase 1 source of truth) ──
+  const { data: scriptEntities } = useQuery({
+    queryKey: ["script-entities", filmId],
+    queryFn: async () => {
+      const { data: entities, error } = await supabase
+        .from("script_entities")
+        .select("id, canonical_name, entity_type, aliases, confidence, needs_review, first_appearance_scene, metadata")
+        .eq("film_id", filmId!)
+        .order("entity_type")
+        .order("canonical_name");
+      if (error) throw error;
+      return entities as ScriptEntity[];
+    },
+    enabled: !!filmId,
+  });
+
+  // Determine data source: prefer script_entities over legacy global_elements
+  const useEntities = !!scriptEntities && scriptEntities.length > 0;
+
   const managed = data?._managed;
   const managedVersion = typeof managed?.version === "number" ? managed.version : 1;
 
-  // Check if managed categories actually have content — if all categories are empty
-  // but raw data exists, we should rebuild from raw data (handles corrupted saves)
+  // When using entities, check if managed state has entity-based version
   const managedCatsExist = Boolean(managed?.categories && managed.categories.locations && managedVersion >= MANAGED_SCHEMA_VERSION);
   const managedCatsEmpty = managedCatsExist && CATEGORIES.every(({ key }) => {
     const cat = managed.categories[key];
     if (!cat) return true;
     return (cat.ungrouped?.length ?? 0) === 0 && (cat.groups?.length ?? 0) === 0;
   });
+
+  // For entities: always rebuild from entities unless managed version matches
+  const hasEntityData = useEntities;
   const hasRawData = Boolean(
     (Array.isArray(data?.recurring_characters) && data.recurring_characters.length > 0) ||
     (Array.isArray(data?.recurring_locations) && data.recurring_locations.length > 0) ||
     (Array.isArray(data?.recurring_props) && data.recurring_props.length > 0)
   );
-  const useManagedCategories = managedCatsExist && !(managedCatsEmpty && hasRawData);
 
-  const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
+  // Use managed categories only if version matches AND we're not switching to entity source
+  const useManagedCategories = managedCatsExist && !managedCatsEmpty && !useEntities;
+
+  const buildCategories = useCallback(() => {
+    if (useEntities) {
+      const entityCats = buildCategoriesFromEntities(scriptEntities!);
+      // Merge visual_design from legacy data if entities don't have enough
+      if (entityCats.visual_design.ungrouped.length === 0 && entityCats.visual_design.groups.length === 0 && data) {
+        entityCats.visual_design = buildVisualDesignCategory(data);
+      }
+      return entityCats;
+    }
     if (useManagedCategories) return managed.categories;
     return buildInitialData(data, sceneLocations, scenePropOwnership);
-  });
+  }, [useEntities, scriptEntities, useManagedCategories, managed, data, sceneLocations, scenePropOwnership]);
+
+  const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(buildCategories);
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -620,6 +705,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   );
   const initialMount = useRef(true);
   const hydratedWithSceneContextRef = useRef(false);
+  const hydratedWithEntitiesRef = useRef(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
   const categoriesRef = useRef(categories);
@@ -627,7 +713,21 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   categoriesRef.current = categories;
   reviewStatusRef.current = reviewStatus;
 
+  // Rebuild categories when entities arrive
   useEffect(() => {
+    if (!useEntities || hydratedWithEntitiesRef.current) return;
+    const entityCats = buildCategoriesFromEntities(scriptEntities!);
+    // Merge visual_design from legacy data
+    if (entityCats.visual_design.ungrouped.length === 0 && entityCats.visual_design.groups.length === 0 && data) {
+      entityCats.visual_design = buildVisualDesignCategory(data);
+    }
+    setCategories(entityCats);
+    hydratedWithEntitiesRef.current = true;
+  }, [useEntities, scriptEntities, data]);
+
+  // Legacy: hydrate from scene context when NOT using entities
+  useEffect(() => {
+    if (useEntities) return; // Skip legacy hydration when entities are available
     if (hydratedWithSceneContextRef.current) return;
     if (typeof scenePropOwnership === "undefined") return;
 
@@ -654,7 +754,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     });
 
     hydratedWithSceneContextRef.current = true;
-  }, [useManagedCategories, data, sceneLocations, scenePropOwnership]);
+  }, [useEntities, useManagedCategories, data, sceneLocations, scenePropOwnership]);
 
   /* Script viewer for scene clicks */
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
@@ -672,26 +772,21 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     };
 
     for (const scene of scenePropOwnership) {
-      // Props (key_objects)
       for (const obj of scene.key_objects) {
         addToMap(obj, scene.scene_number);
       }
-      // Picture vehicles
       if (scene.picture_vehicles) {
         for (const v of scene.picture_vehicles) {
           addToMap(v, scene.scene_number);
         }
       }
-      // Wardrobe
       if (scene.wardrobe && Array.isArray(scene.wardrobe)) {
         for (const w of scene.wardrobe) {
           if (typeof w === "string") {
             addToMap(w, scene.scene_number);
           } else if (w && typeof w === "object") {
-            // wardrobe can be {item: string, character: string, ...}
             const itemName = w.item || w.clothing_item || w.name || "";
             if (itemName) addToMap(itemName, scene.scene_number);
-            // Also add character-prefixed version
             const charName = w.character || "";
             if (charName && itemName) {
               addToMap(`${charName} - ${itemName}`, scene.scene_number);
@@ -704,18 +799,16 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     return map;
   }, [scenePropOwnership]);
 
-  /** Look up scene numbers for an item (tries exact and fuzzy matching) */
+  /** Look up scene numbers for an item */
   const getScenesForItem = useCallback((itemName: string): number[] => {
     const key = itemName.toLowerCase().trim();
     const direct = itemSceneMap.get(key);
     if (direct) return [...direct].sort((a, b) => a - b);
 
-    // Fuzzy: strip possessives and prefixes
     const stripped = key.replace(/^[a-z]+(?:'s|s)?\s+/i, "").replace(/^(?:his|her|their|the|a|an)\s+/i, "");
     const fuzzy = itemSceneMap.get(stripped);
     if (fuzzy) return [...fuzzy].sort((a, b) => a - b);
 
-    // Try partial match: any key that contains this item
     const matches = new Set<number>();
     for (const [k, scenes] of itemSceneMap) {
       if (k.includes(key) || key.includes(k)) {
@@ -725,11 +818,10 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     return [...matches].sort((a, b) => a - b);
   }, [itemSceneMap]);
 
-  /** Open script viewer for a specific scene with item highlighted */
+  /** Open script viewer for a specific scene */
   const handleSceneClick = useCallback(async (sceneNum: number, highlightTerm: string) => {
     if (!filmId) return;
 
-    // Fetch the scene data
     const { data: sceneData } = await supabase
       .from("parsed_scenes")
       .select("heading, raw_text")
@@ -746,7 +838,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
       highlightTerms: [highlightTerm],
     });
 
-    // Parse the raw text into paragraphs
     const paragraphs = parseSceneFromPlainText(sceneData.raw_text, sceneData.heading);
     setScriptViewerScenes([{
       sceneNum,
@@ -769,7 +860,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     onAllReviewedChange?.(allCompleted);
   }, [reviewStatus, categories, onAllReviewedChange]);
 
-  // Persist managed state to DB
+  // Persist managed state to DB (review status + grouping overrides)
   useEffect(() => {
     if (initialMount.current) {
       initialMount.current = false;
@@ -807,7 +898,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
   /* selection — first click selects, second click on same item enters edit mode */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
-    // If already selected, enter edit mode instead of deselecting
     if (selected.has(item) && activeCategory === category) {
       setEditingItem(item);
       setEditText(item);
@@ -866,7 +956,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
       const updated = { ...prev, [category]: cat };
 
-      // When a character is renamed, also update wardrobe group names
       if (category === "characters") {
         const wardrobe = { ...updated.wardrobe };
         const oldUpper = oldName.toUpperCase();
@@ -881,7 +970,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
       return updated;
     });
 
-    // Update selection set
     setSelected((prev) => {
       if (!prev.has(oldName)) return prev;
       const next = new Set(prev);
@@ -892,18 +980,44 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
     setEditingItem(null);
 
-    // Propagate to DB if filmId available
     if (!filmId) return;
 
     try {
+      // ── Update script_entities (new Phase 1 source of truth) ──
+      const entityTypeForCategory: Record<CategoryKey, string[]> = {
+        characters: ["CHARACTER"],
+        locations: ["LOCATION"],
+        wardrobe: ["WARDROBE"],
+        props: ["PROP", "VEHICLE", "WEAPON", "DEVICE", "FOOD_OR_DRINK", "DOCUMENT", "ANIMAL", "PRACTICAL_LIGHT_SOURCE"],
+        visual_design: ["SOUND_EVENT", "ENVIRONMENTAL_CONDITION"],
+      };
+      const entityTypes = entityTypeForCategory[category] || [];
+      if (entityTypes.length > 0) {
+        // Find and update the entity by canonical_name (case-insensitive)
+        const { data: matchingEntities } = await supabase
+          .from("script_entities")
+          .select("id, canonical_name")
+          .eq("film_id", filmId)
+          .in("entity_type", entityTypes)
+          .ilike("canonical_name", oldName);
+
+        if (matchingEntities && matchingEntities.length > 0) {
+          for (const entity of matchingEntities) {
+            await supabase
+              .from("script_entities")
+              .update({ canonical_name: trimmed })
+              .eq("id", entity.id);
+          }
+        }
+      }
+
+      // ── Existing cascade updates (legacy tables) ──
       if (category === "characters") {
-        // Update characters table
         await supabase
           .from("characters")
           .update({ name: trimmed })
           .eq("film_id", filmId)
           .eq("name", oldName);
-        // Update parsed_scenes characters arrays
         const { data: scenes } = await supabase
           .from("parsed_scenes")
           .select("id, characters")
@@ -917,13 +1031,11 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
             }
           }
         }
-        // Update wardrobe_scene_assignments
         await supabase
           .from("wardrobe_scene_assignments")
           .update({ character_name: trimmed })
           .eq("film_id", filmId)
           .eq("character_name", oldName);
-        // Update asset_identity_registry
         await supabase
           .from("asset_identity_registry")
           .update({ display_name: trimmed })
@@ -931,13 +1043,11 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
           .eq("display_name", oldName)
           .eq("asset_type", "character");
       } else if (category === "locations") {
-        // Update parsed_scenes location_name
         await supabase
           .from("parsed_scenes")
           .update({ location_name: trimmed })
           .eq("film_id", filmId)
           .eq("location_name", oldName);
-        // Update asset_identity_registry
         await supabase
           .from("asset_identity_registry")
           .update({ display_name: trimmed })
@@ -945,7 +1055,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
           .eq("display_name", oldName)
           .eq("asset_type", "location");
       } else if (category === "props") {
-        // Update parsed_scenes key_objects arrays
         const { data: scenes } = await supabase
           .from("parsed_scenes")
           .select("id, key_objects")
@@ -959,7 +1068,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
             }
           }
         }
-        // Update asset_identity_registry
         await supabase
           .from("asset_identity_registry")
           .update({ display_name: trimmed })
@@ -967,13 +1075,11 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
           .eq("display_name", oldName)
           .eq("asset_type", "prop");
       } else if (category === "wardrobe") {
-        // Update wardrobe_scene_assignments
         await supabase
           .from("wardrobe_scene_assignments")
           .update({ clothing_item: trimmed })
           .eq("film_id", filmId)
           .eq("clothing_item", oldName);
-        // Update asset_identity_registry
         await supabase
           .from("asset_identity_registry")
           .update({ display_name: trimmed })
@@ -982,7 +1088,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
           .eq("asset_type", "wardrobe");
       }
 
-      // Update film_assets
       await supabase
         .from("film_assets")
         .update({ asset_name: trimmed })
@@ -1021,7 +1126,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
       const updated = { ...prev, [activeCategory]: cat };
 
-      // When characters are merged, also consolidate their wardrobe groups
       if (activeCategory === "characters") {
         const mergedCharNames = new Set(items.map((n) => n.toUpperCase()));
         const parentUpper = mergeParentName.trim().toUpperCase();
@@ -1039,7 +1143,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
           }
         }
 
-        // Also pull matching ungrouped wardrobe items
         const remainingUngrouped: string[] = [];
         for (const item of wardrobe.ungrouped) {
           const upper = item.toUpperCase();
@@ -1130,13 +1233,12 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     const source = active.data.current as { item: string; sourceGroupId: string | null; category: CategoryKey };
     const target = over.data.current as { groupId: string | null; category: CategoryKey } | undefined;
     if (!source || !target) return;
-    if (source.category !== target.category) return; // only within same category
+    if (source.category !== target.category) return;
     const targetGroupId = target.groupId;
-    if (source.sourceGroupId === targetGroupId) return; // same container
+    if (source.sourceGroupId === targetGroupId) return;
 
     setCategories((prev) => {
       const cat = { ...prev[source.category] };
-      // Remove from source
       if (source.sourceGroupId) {
         cat.groups = cat.groups.map((g) =>
           g.id === source.sourceGroupId
@@ -1146,7 +1248,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
       } else {
         cat.ungrouped = cat.ungrouped.filter((u) => u !== source.item);
       }
-      // Add to target
       if (targetGroupId) {
         cat.groups = cat.groups.map((g) =>
           g.id === targetGroupId
@@ -1502,82 +1603,79 @@ function DraggableChip({
   sceneNumbers?: number[];
   onSceneClick?: (sceneNum: number, highlightTerm: string) => void;
 }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `${category}-${sourceGroupId ?? "ungrouped"}-${item}`,
     data: { item, sourceGroupId, category },
-    disabled: isEditing,
   });
 
-  return (
-    <div className="inline-flex flex-col items-start gap-0.5">
-      <span
-        ref={setNodeRef}
+  const style = transform
+    ? { transform: `translate(${transform.x}px, ${transform.y}px)` }
+    : undefined;
+
+  if (isEditing) {
+    return (
+      <input
+        ref={editInputRef}
         data-chip
-        className={cn(
-          "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
-          isSelected
-            ? "bg-primary text-primary-foreground border-primary ring-2 ring-primary/30 shadow-[0_0_8px_-2px_hsl(var(--primary)/0.4)]"
-            : "bg-secondary text-muted-foreground border-border hover:border-primary/40 hover:bg-accent",
-          isDisabled && "opacity-40",
-          isEditing && "ring-2 ring-primary/50",
-          isDragging && "opacity-30",
-        )}
-      >
-        {/* Drag handle */}
-        {!isEditing && (
-          <span {...listeners} {...attributes} className="cursor-grab active:cursor-grabbing touch-none">
-            <GripVertical className="h-3 w-3 opacity-40 hover:opacity-100 transition-opacity" />
-          </span>
-        )}
-        {isEditing ? (
-          <input
-            ref={editInputRef}
-            value={editText}
-            onChange={(e) => onEditChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onRename(item, editText);
-              if (e.key === "Escape") onEditCancel();
-            }}
-            onBlur={() => onRename(item, editText)}
-            className="bg-transparent outline-none text-xs w-auto min-w-[40px] text-inherit"
-            style={{ width: `${Math.max(editText.length, 3)}ch` }}
-            autoFocus
-          />
-        ) : (
-          <button
-            disabled={isDisabled}
-            onClick={onToggleSelect}
-            className="cursor-pointer"
-          >
-            {isSelected && <Check className="inline h-3 w-3 mr-0.5" />}
-            {item}
-          </button>
-        )}
-        {!isEditing && onDelete && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            className="ml-0.5 opacity-50 hover:opacity-100 hover:text-destructive transition-opacity"
-            title="Remove"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        )}
-      </span>
-      {/* Scene number badges */}
-      {!isEditing && sceneNumbers && sceneNumbers.length > 0 && onSceneClick && (
-        <span className="inline-flex flex-wrap gap-0.5 pl-1">
-          {sceneNumbers.map((num) => (
+        className="text-xs rounded-full px-2.5 py-0.5 border border-primary bg-background text-foreground outline-none ring-1 ring-primary/50 min-w-[80px]"
+        value={editText}
+        onChange={(e) => onEditChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") onRename(item, editText);
+          if (e.key === "Escape") onEditCancel();
+        }}
+        onBlur={() => onRename(item, editText)}
+      />
+    );
+  }
+
+  return (
+    <span
+      ref={setNodeRef}
+      data-chip
+      {...attributes}
+      {...listeners}
+      style={style}
+      onClick={onToggleSelect}
+      className={cn(
+        "text-xs rounded-full px-2.5 py-0.5 border cursor-pointer transition-all select-none inline-flex items-center gap-1",
+        isDragging && "opacity-50",
+        isSelected
+          ? "bg-primary/15 text-primary border-primary/40 ring-2 ring-primary/30 shadow-[0_0_8px_hsl(var(--primary)/0.25)]"
+          : "bg-secondary text-secondary-foreground border-border hover:bg-accent hover:text-accent-foreground",
+        isDisabled && "opacity-40 pointer-events-none"
+      )}
+    >
+      <GripVertical className="h-3 w-3 opacity-40 flex-shrink-0" />
+      {item}
+      {sceneNumbers && sceneNumbers.length > 0 && (
+        <span className="ml-0.5 text-[10px] text-muted-foreground opacity-70">
+          {sceneNumbers.slice(0, 3).map((sn, i) => (
             <button
-              key={num}
-              onClick={(e) => { e.stopPropagation(); onSceneClick(num, item); }}
-              className="text-[9px] font-mono leading-none px-1 py-0.5 rounded bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary transition-colors cursor-pointer"
-              title={`View Scene ${num} with "${item}" highlighted`}
+              key={sn}
+              className="hover:text-primary hover:underline"
+              onClick={(e) => {
+                e.stopPropagation();
+                onSceneClick?.(sn, item);
+              }}
             >
-              {num}
+              {i > 0 ? "," : ""}Sc{sn}
             </button>
           ))}
+          {sceneNumbers.length > 3 && `+${sceneNumbers.length - 3}`}
         </span>
       )}
-    </div>
+      {onDelete && (
+        <button
+          className="ml-0.5 hover:text-destructive"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </span>
   );
 }

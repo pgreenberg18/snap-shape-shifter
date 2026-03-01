@@ -2102,7 +2102,7 @@ const Development = () => {
                       </div>
 
                       {/* Global Elements */}
-                      {analysis.global_elements && (
+                      {(analysis.global_elements || analysis.film_id) && (
                         <Collapsible>
                           <CollapsibleTrigger className="w-full">
                             <div data-help-id="dev-global-elements" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
