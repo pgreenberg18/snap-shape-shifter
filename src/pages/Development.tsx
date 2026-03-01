@@ -419,6 +419,7 @@ const Development = () => {
   const [fundamentalsLocked, setFundamentalsLocked] = useState(false);
   const [visionComplete, setVisionComplete] = useState(false);
   const [activeTab, setActiveTab] = useState("fundamentals");
+  const [reanalyzeDialogOpen, setReanalyzeDialogOpen] = useState(false);
 
   // Restore fundamentalsLocked & visionComplete from DB state on mount
   useEffect(() => {
@@ -721,7 +722,32 @@ const Development = () => {
     let analysisId: string;
 
     if (analysis?.id) {
-      // Reanalyze: reset existing record
+      // Reanalyze: wipe all downstream data for this film
+      const wipePromises = [
+        supabase.from("parsed_scenes").delete().eq("film_id", filmId!),
+        supabase.from("characters").delete().eq("film_id", filmId!),
+        supabase.from("shots").delete().eq("film_id", filmId!),
+        supabase.from("film_assets").delete().eq("film_id", filmId!),
+        supabase.from("film_director_profiles").delete().eq("film_id", filmId!),
+        supabase.from("film_style_contracts").delete().eq("film_id", filmId!),
+        supabase.from("content_safety").delete().eq("film_id", filmId!),
+        supabase.from("production_bibles").delete().eq("film_id", filmId!),
+        supabase.from("scene_style_overrides").delete().eq("film_id", filmId!),
+        supabase.from("vice_conflicts").delete().eq("film_id", filmId!),
+        supabase.from("vice_dependencies").delete().eq("film_id", filmId!),
+        supabase.from("vice_dirty_queue").delete().eq("film_id", filmId!),
+        supabase.from("asset_identity_registry").delete().eq("film_id", filmId!),
+        supabase.from("wardrobe_fitting_views").delete().eq("film_id", filmId!),
+        supabase.from("wardrobe_scene_assignments").delete().eq("film_id", filmId!),
+        supabase.from("post_production_clips").delete().eq("film_id", filmId!),
+        supabase.from("production_presets").delete().eq("film_id", filmId!),
+      ];
+      await Promise.all(wipePromises);
+
+      // Unlock script so user starts fresh
+      await supabase.from("films").update({ script_locked: false }).eq("id", filmId!);
+
+      // Reset existing analysis record
       const { error: resetErr } = await supabase
         .from("script_analyses")
         .update({
@@ -730,6 +756,11 @@ const Development = () => {
           global_elements: null,
           visual_summary: null,
           ai_generation_notes: null,
+          ai_notes_approved: false,
+          visual_summary_approved: false,
+          ratings_approved: false,
+          scene_approvals: null,
+          scene_rejections: null,
           error_message: null,
           updated_at: new Date().toISOString(),
         })
@@ -740,6 +771,12 @@ const Development = () => {
         setAnalyzing(false);
         return;
       }
+
+      // Reset local UI state
+      setFundamentalsLocked(false);
+      setVisionComplete(false);
+      setActiveTab("fundamentals");
+
       analysisId = analysis.id;
     } else {
       // First analysis: insert new record
@@ -1194,7 +1231,7 @@ const Development = () => {
                             </div>
                             {analysis.status === "complete" && !scriptLocked && (
                               <Button
-                                onClick={handleAnalyze}
+                                onClick={() => setReanalyzeDialogOpen(true)}
                                 disabled={isAnalyzing}
                                 variant="outline"
                                 size="sm"
@@ -1204,6 +1241,41 @@ const Development = () => {
                                 Reanalyze
                               </Button>
                             )}
+
+                            {/* Reanalyze confirmation dialog */}
+                            <AlertDialog open={reanalyzeDialogOpen} onOpenChange={setReanalyzeDialogOpen}>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                                    Reanalyze Script?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription className="text-left space-y-3">
+                                    <p>
+                                      Reanalyzing will <strong>permanently wipe all existing work</strong> in this version — including characters, shots, assets, director vision, content ratings, production bible, and all post-production data.
+                                    </p>
+                                    <p>
+                                      The entire pipeline will start from scratch.
+                                    </p>
+                                    <p className="rounded-lg bg-muted p-3 text-sm">
+                                      <strong>Recommendation:</strong> Duplicate this version first and import the updated script there instead. This preserves your current work as a backup.
+                                    </p>
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    onClick={() => {
+                                      setReanalyzeDialogOpen(false);
+                                      handleAnalyze();
+                                    }}
+                                  >
+                                    Wipe & Reanalyze
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           </div>
                         ) : (
                           <>
