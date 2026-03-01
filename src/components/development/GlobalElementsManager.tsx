@@ -437,6 +437,8 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     };
   }, []);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   /* selection — first click selects, second click on same item enters edit mode */
   const toggleSelect = useCallback((item: string, category: CategoryKey) => {
     // If already selected, enter edit mode instead of deselecting
@@ -465,6 +467,18 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     setActiveCategory(null);
     setEditingItem(null);
   }, []);
+
+  /* Click outside any chip to deselect all */
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (selected.size === 0 && !editingItem) return;
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-chip], button, input, [role='dialog']")) return;
+      clearSelection();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [selected, editingItem, clearSelection]);
 
   /* rename item — update local state + propagate to DB */
   const renameItem = useCallback(async (oldName: string, newName: string, category: CategoryKey) => {
@@ -1123,6 +1137,7 @@ function DraggableChip({
   return (
     <span
       ref={setNodeRef}
+      data-chip
       className={cn(
         "text-xs rounded-full px-2.5 py-1 border transition-all select-none inline-flex items-center gap-1 cursor-pointer",
         isSelected
