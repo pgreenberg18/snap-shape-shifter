@@ -283,12 +283,6 @@ const Projects = () => {
                   </div>
                 )}
               </div>
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3">
-                <span className="text-xs text-muted-foreground">Total Versions</span>
-                <span className="text-sm font-display font-bold text-foreground">
-                  {Object.values(versionCounts || {}).reduce((s, n) => s + n, 0)}
-                </span>
-              </div>
             </div>
           </div>
 
