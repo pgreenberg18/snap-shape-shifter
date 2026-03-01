@@ -374,20 +374,16 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     let assigned = false;
 
     if (ownership) {
-      // Find dominant character (appears in >60% of scenes with this prop, and prop appears with ≤3 chars total)
-      const totalScenes = [...ownership.chars.values()].reduce((a, b) => a + b, 0) / Math.max(ownership.chars.size, 1);
+      // Find dominant character — assign to the character with the most co-occurrences
       const sortedChars = [...ownership.chars.entries()].sort((a, b) => b[1] - a[1]);
 
-      if (sortedChars.length > 0 && sortedChars.length <= 3) {
+      if (sortedChars.length > 0) {
         const [topChar, topCount] = sortedChars[0];
         const totalCharScenes = [...ownership.chars.values()].reduce((a, b) => a + b, 0);
-        if (topCount / totalCharScenes >= 0.5) {
-          // Check if the prop name already implies this character (possessive)
-          const charUpper = topChar.toUpperCase();
-          const anyItemMentionsChar = items.some(i => i.toUpperCase().includes(charUpper));
-          const ownerLabel = anyItemMentionsChar ? topChar : topChar;
-          if (!charGroupMap.has(ownerLabel)) charGroupMap.set(ownerLabel, []);
-          charGroupMap.get(ownerLabel)!.push(...items);
+        // Assign if the top character accounts for ≥40% of co-occurrences
+        if (topCount / totalCharScenes >= 0.4) {
+          if (!charGroupMap.has(topChar)) charGroupMap.set(topChar, []);
+          charGroupMap.get(topChar)!.push(...items);
           assigned = true;
         }
       }
@@ -395,12 +391,15 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
       // If not character-owned, try location ownership
       if (!assigned) {
         const sortedLocs = [...ownership.locs.entries()].sort((a, b) => b[1] - a[1]);
-        if (sortedLocs.length === 1 && items.length <= 2) {
-          // Only at one location
-          const [locName] = sortedLocs[0];
-          if (!locGroupMap.has(locName)) locGroupMap.set(locName, []);
-          locGroupMap.get(locName)!.push(...items);
-          assigned = true;
+        if (sortedLocs.length > 0) {
+          const [locName, locCount] = sortedLocs[0];
+          const totalLocScenes = [...ownership.locs.values()].reduce((a, b) => a + b, 0);
+          // Assign if the top location accounts for ≥40% of co-occurrences
+          if (locCount / totalLocScenes >= 0.4) {
+            if (!locGroupMap.has(locName)) locGroupMap.set(locName, []);
+            locGroupMap.get(locName)!.push(...items);
+            assigned = true;
+          }
         }
       }
     }
