@@ -1006,7 +1006,16 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
               <label className="text-xs font-semibold text-foreground mb-1.5 block">Items being linked</label>
               <div className="flex flex-wrap gap-1.5">
                 {Array.from(selected).map((item) => (
-                  <span key={item} className="text-xs bg-secondary text-muted-foreground rounded-full px-2.5 py-0.5 border border-border">
+                  <span
+                    key={item}
+                    onClick={() => setMergeParentName(item)}
+                    className={cn(
+                      "text-xs rounded-full px-2.5 py-0.5 border cursor-pointer transition-colors",
+                      mergeParentName === item
+                        ? "bg-primary/15 text-primary border-primary/40 ring-1 ring-primary/30"
+                        : "bg-secondary text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+                    )}
+                  >
                     {item}
                   </span>
                 ))}
