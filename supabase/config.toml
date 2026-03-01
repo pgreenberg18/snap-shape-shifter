@@ -29,3 +29,24 @@ verify_jwt = false
 
 [functions.generate-production-bible]
 verify_jwt = false
+
+[functions.analyze-director-fit]
+verify_jwt = false
+
+[functions.compile-style-contract]
+verify_jwt = false
+
+[functions.detect-continuity-conflicts]
+verify_jwt = false
+
+[functions.finalize-analysis]
+verify_jwt = false
+
+[functions.generate-consistency-views]
+verify_jwt = false
+
+[functions.generate-wardrobe-fitting]
+verify_jwt = false
+
+[functions.propagate-intent-change]
+verify_jwt = false

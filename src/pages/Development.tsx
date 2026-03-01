@@ -420,6 +420,22 @@ const Development = () => {
   const [visionComplete, setVisionComplete] = useState(false);
   const [activeTab, setActiveTab] = useState("fundamentals");
 
+  // Restore fundamentalsLocked & visionComplete from DB state on mount
+  useEffect(() => {
+    if (!analysis) return;
+    const scriptIsLocked = !!(film as any)?.script_locked;
+    const visionDone = !!(analysis as any).ai_notes_approved && !!directorProfile;
+    if (analysis.status && scriptIsLocked) {
+      setFundamentalsLocked(true);
+      if (visionDone) {
+        setVisionComplete(true);
+        setActiveTab("breakdown");
+      } else {
+        setActiveTab("vision");
+      }
+    }
+  }, [analysis?.id, (film as any)?.script_locked, (analysis as any)?.ai_notes_approved, directorProfile]);
+
   // Post-enrichment: finalize analysis then auto-run director fit
   const runPostEnrichment = useCallback(async (analysisId: string) => {
     try {
