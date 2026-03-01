@@ -33,7 +33,7 @@ export interface CategoryData {
   groups: ElementGroup[];
 }
 
-type CategoryKey = "locations" | "characters" | "wardrobe" | "props" | "visual_design";
+type CategoryKey = "locations" | "characters" | "wardrobe" | "props";
 
 interface CategoryMeta {
   key: CategoryKey;
@@ -46,7 +46,6 @@ const CATEGORIES: CategoryMeta[] = [
   { key: "locations", label: "Locations", icon: <MapPin className="h-4 w-4" /> },
   { key: "wardrobe", label: "Wardrobe", icon: <Shirt className="h-4 w-4" /> },
   { key: "props", label: "Props", icon: <Box className="h-4 w-4" /> },
-  { key: "visual_design", label: "Visual Design", icon: <Paintbrush className="h-4 w-4" /> },
 ];
 
 /* ── Entity type → category mapping ───────────────────────── */
@@ -63,8 +62,8 @@ const ENTITY_TYPE_TO_CATEGORY: Record<string, CategoryKey> = {
   DOCUMENT: "props",
   ANIMAL: "props",
   PRACTICAL_LIGHT_SOURCE: "props",
-  SOUND_EVENT: "visual_design",
-  ENVIRONMENTAL_CONDITION: "visual_design",
+  SOUND_EVENT: "props",
+  ENVIRONMENTAL_CONDITION: "props",
 };
 
 /* ── Helpers ───────────────────────────────────────────────── */
@@ -86,7 +85,6 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
     locations: { ungrouped: [], groups: [] },
     wardrobe: { ungrouped: [], groups: [] },
     props: { ungrouped: [], groups: [] },
-    visual_design: { ungrouped: [], groups: [] },
   };
 
   const toTitleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
@@ -635,7 +633,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     characters: { ungrouped: characterUngrouped, groups: characterGroups },
     wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
     props: { ungrouped: tcPropUngrouped, groups: tcPropGroups },
-    visual_design: buildVisualDesignCategory(raw),
   };
 }
 
@@ -776,10 +773,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   const buildCategories = useCallback(() => {
     if (useEntities) {
       const entityCats = buildCategoriesFromEntities(scriptEntities!);
-      // Merge visual_design from legacy data if entities don't have enough
-      if (entityCats.visual_design.ungrouped.length === 0 && entityCats.visual_design.groups.length === 0 && data) {
-        entityCats.visual_design = buildVisualDesignCategory(data);
-      }
       return entityCats;
     }
     if (useManagedCategories) return managed.categories;
@@ -804,7 +797,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
       locations: "unreviewed",
       wardrobe: "unreviewed",
       props: "unreviewed",
-      visual_design: "unreviewed",
     },
   );
   const initialMount = useRef(true);
@@ -821,10 +813,6 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   useEffect(() => {
     if (!useEntities || hydratedWithEntitiesRef.current) return;
     const entityCats = buildCategoriesFromEntities(scriptEntities!);
-    // Merge visual_design from legacy data
-    if (entityCats.visual_design.ungrouped.length === 0 && entityCats.visual_design.groups.length === 0 && data) {
-      entityCats.visual_design = buildVisualDesignCategory(data);
-    }
     setCategories(entityCats);
     hydratedWithEntitiesRef.current = true;
   }, [useEntities, scriptEntities, data]);
@@ -1092,8 +1080,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
         characters: ["CHARACTER"],
         locations: ["LOCATION"],
         wardrobe: ["WARDROBE"],
-        props: ["PROP", "VEHICLE", "WEAPON", "DEVICE", "FOOD_OR_DRINK", "DOCUMENT", "ANIMAL", "PRACTICAL_LIGHT_SOURCE"],
-        visual_design: ["SOUND_EVENT", "ENVIRONMENTAL_CONDITION"],
+        props: ["PROP", "VEHICLE", "WEAPON", "DEVICE", "FOOD_OR_DRINK", "DOCUMENT", "ANIMAL", "PRACTICAL_LIGHT_SOURCE", "SOUND_EVENT", "ENVIRONMENTAL_CONDITION"],
       };
       const entityTypes = entityTypeForCategory[category] || [];
       if (entityTypes.length > 0) {
