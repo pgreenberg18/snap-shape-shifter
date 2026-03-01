@@ -730,7 +730,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
             <div className="flex items-center gap-2 pt-1">
               <Button
                 onClick={() => saveMutation.mutate()}
-                disabled={disabled || !primaryDirector || saveMutation.isPending}
+                disabled={!primaryDirector || saveMutation.isPending}
                 variant={saveMutation.isSuccess ? "success" : "default"}
                 className="gap-1.5 flex-1"
                 size="sm"
