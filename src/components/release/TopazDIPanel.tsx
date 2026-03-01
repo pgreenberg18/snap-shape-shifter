@@ -61,7 +61,7 @@ export default function TopazDIPanel() {
     </div>
   );
 
-  const [topazOpen, setTopazOpen] = useState(true);
+  const [topazOpen, setTopazOpen] = useState(false);
 
   return (
     <Collapsible open={topazOpen} onOpenChange={setTopazOpen}>
