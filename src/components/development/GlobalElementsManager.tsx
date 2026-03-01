@@ -106,15 +106,102 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     return [...new Set(items)];
   };
 
-  const charNames = extract(["recurring_characters", "characters"]).map((c) => {
-    // Strip descriptions: "JOHN - a middle-aged teacher" → "JOHN", "HOWARD WELLS (40s)" → "HOWARD WELLS"
-    let name = c.replace(/\s*\(.*?\)\s*/g, "").replace(/\s*\([^)]*$/g, "").trim();
-    const dashIdx = name.indexOf(" - ");
-    const colonIdx = name.indexOf(": ");
-    const commaIdx = name.indexOf(", ");
+  const toTitleCase = (s: string) => s.replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const TITLE_PREFIXES = /^(?:professor|prof\.?|doctor|dr\.?|mr\.?|mrs\.?|ms\.?|miss|sir|lady|lord|detective|det\.?|officer|agent|captain|capt\.?|sergeant|sgt\.?|lieutenant|lt\.?|reverend|rev\.?|father|mother|sister|brother|judge|king|queen|prince|princess)\s+/i;
+
+  const stripCharacterMeta = (name: string): string => {
+    let cleaned = name.replace(/\s*\(.*?\)\s*/g, "").replace(/\s*\([^)]*$/g, "").trim();
+    const dashIdx = cleaned.indexOf(" - ");
+    const colonIdx = cleaned.indexOf(": ");
+    const commaIdx = cleaned.indexOf(", ");
     const cutIdx = [dashIdx, colonIdx, commaIdx].filter((i) => i > 0).sort((a, b) => a - b)[0];
-    return cutIdx ? name.substring(0, cutIdx).trim() : name.trim();
-  });
+    cleaned = cutIdx ? cleaned.substring(0, cutIdx).trim() : cleaned;
+    return cleaned;
+  };
+
+  const normalizeCharacterKey = (name: string): string =>
+    stripCharacterMeta(name)
+      .replace(TITLE_PREFIXES, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+
+  const rawCharacterSources = [
+    ...extract(["recurring_characters", "characters"]),
+    ...(scenePropOwnership?.flatMap((scene) => scene.characters || []) ?? []),
+  ];
+  const cleanedCharacterNames = rawCharacterSources.map(stripCharacterMeta).filter(Boolean);
+
+  const characterCanonicalByNorm = new Map<string, string>();
+  for (const rawName of cleanedCharacterNames) {
+    const norm = normalizeCharacterKey(rawName);
+    if (!norm) continue;
+    const display = toTitleCase(rawName.toLowerCase());
+    const existing = characterCanonicalByNorm.get(norm);
+    if (!existing || display.length > existing.length) {
+      characterCanonicalByNorm.set(norm, display);
+    }
+  }
+
+  const normKeys = [...characterCanonicalByNorm.keys()];
+  const mergeNormMap = new Map<string, string>();
+  for (const a of normKeys) {
+    const aParts = a.split(/\s+/).filter(Boolean);
+    for (const b of normKeys) {
+      if (a === b) continue;
+      const bParts = b.split(/\s+/).filter(Boolean);
+      if (aParts.length < bParts.length && aParts.every((part) => bParts.includes(part))) {
+        mergeNormMap.set(a, b);
+      }
+    }
+  }
+
+  const resolveCharacterNorm = (norm: string): string => {
+    let resolved = norm;
+    const visited = new Set<string>();
+    while (mergeNormMap.has(resolved) && !visited.has(resolved)) {
+      visited.add(resolved);
+      resolved = mergeNormMap.get(resolved)!;
+    }
+    return resolved;
+  };
+
+  const toCanonicalCharacterLabel = (name: string): string | null => {
+    const norm = resolveCharacterNorm(normalizeCharacterKey(name));
+    if (!norm) return null;
+    return characterCanonicalByNorm.get(norm) || toTitleCase(stripCharacterMeta(name).toLowerCase()) || null;
+  };
+
+  const characterVariantMap = new Map<string, Set<string>>();
+  for (const rawName of cleanedCharacterNames) {
+    const normalized = normalizeCharacterKey(rawName);
+    if (!normalized) continue;
+    const resolvedNorm = resolveCharacterNorm(normalized);
+    const display = toTitleCase(stripCharacterMeta(rawName).toLowerCase());
+    if (!display) continue;
+    if (!characterVariantMap.has(resolvedNorm)) characterVariantMap.set(resolvedNorm, new Set());
+    characterVariantMap.get(resolvedNorm)!.add(display);
+  }
+
+  const characterGroups: ElementGroup[] = [];
+  const characterUngrouped: string[] = [];
+
+  for (const [norm, variantsSet] of characterVariantMap) {
+    const variants = [...variantsSet];
+    const canonical = characterCanonicalByNorm.get(norm) || [...variants].sort((a, b) => b.length - a.length)[0];
+    if (!canonical) continue;
+
+    if (variants.length > 1) {
+      const orderedVariants = [canonical, ...variants.filter((v) => v !== canonical)];
+      characterGroups.push({ id: uid(), parentName: canonical, variants: orderedVariants });
+    } else {
+      characterUngrouped.push(canonical);
+    }
+  }
+
+  characterGroups.sort((a, b) => b.variants.length - a.variants.length || a.parentName.localeCompare(b.parentName));
+  characterUngrouped.sort((a, b) => a.localeCompare(b));
 
   // Auto-group wardrobe by character name
   const wardrobeItems = extract(["recurring_wardrobe"]);
@@ -261,9 +348,11 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
   // Step 3: Deduplicate similar props by normalizing
   const normalizeProp = (p: string): string => {
     let n = p.toLowerCase().trim();
-    // Strip possessives and character prefixes: "Rachel's Phone" → "phone"
-    n = n.replace(/^[a-z]+(?:'s|s)?\s+/i, "");
-    // Strip "his/her/their/the/a/an"
+    // Strip character ownership prefixes: "Rachel's Phone" / "Rachel - Phone" → "phone"
+    n = n
+      .replace(/^([a-z][a-z'.-]*(?:\s+[a-z][a-z'.-]*){0,2})['’]s\s+/i, "")
+      .replace(/^([a-z][a-z'.-]*(?:\s+[a-z][a-z'.-]*){0,2})\s*[-–—:]\s+/i, "");
+    // Strip pronouns/articles
     n = n.replace(/^(?:his|her|their|the|a|an)\s+/i, "");
     // Normalize common synonyms
     n = n.replace(/\btelephone\b/g, "phone")
@@ -364,26 +453,50 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
     propByNorm.get(norm)!.push(displayName);
   }
 
-  // Now group: first try character/location ownership, then fallback to similarity
+  // Now group: first try explicit ownership labels, then scene-based ownership, then fallback to similarity
   const charGroupMap = new Map<string, string[]>(); // character → props
   const locGroupMap = new Map<string, string[]>();  // location → props
   const remainingProps: string[] = [];
+
+  const extractExplicitCharacterOwner = (label: string): string | null => {
+    const possessiveMatch = label.match(/^([A-Za-z][A-Za-z'’.\-\s]{1,60}?)['’]s\s+/i);
+    const dashedMatch = label.match(/^([A-Za-z][A-Za-z'’.\-\s]{1,60}?)\s*[-–—:]\s+/i);
+    const candidate = possessiveMatch?.[1]?.trim() || dashedMatch?.[1]?.trim();
+    if (!candidate) return null;
+    const norm = resolveCharacterNorm(normalizeCharacterKey(candidate));
+    if (!norm || !characterCanonicalByNorm.has(norm)) return null;
+    return characterCanonicalByNorm.get(norm)!;
+  };
 
   for (const [norm, items] of propByNorm) {
     const ownership = propOwnerMap.get(norm);
     let assigned = false;
 
-    if (ownership) {
-      // Find dominant character — assign to the character with the most co-occurrences
+    let explicitOwner: string | null = null;
+    for (const item of items) {
+      explicitOwner = extractExplicitCharacterOwner(item);
+      if (explicitOwner) break;
+    }
+
+    if (explicitOwner) {
+      if (!charGroupMap.has(explicitOwner)) charGroupMap.set(explicitOwner, []);
+      charGroupMap.get(explicitOwner)!.push(...items);
+      assigned = true;
+    }
+
+    if (!assigned && ownership) {
+      // Find dominant character — assign when ownership is reasonably clear
       const sortedChars = [...ownership.chars.entries()].sort((a, b) => b[1] - a[1]);
 
       if (sortedChars.length > 0) {
         const [topChar, topCount] = sortedChars[0];
         const totalCharScenes = [...ownership.chars.values()].reduce((a, b) => a + b, 0);
-        // Assign if the top character accounts for ≥40% of co-occurrences
-        if (topCount / totalCharScenes >= 0.4) {
-          if (!charGroupMap.has(topChar)) charGroupMap.set(topChar, []);
-          charGroupMap.get(topChar)!.push(...items);
+        const canonicalChar = toCanonicalCharacterLabel(topChar) || toTitleCase(stripCharacterMeta(topChar).toLowerCase());
+        const strongCharOwnership = topCount >= 2 || topCount / Math.max(totalCharScenes, 1) >= 0.34;
+
+        if (canonicalChar && strongCharOwnership) {
+          if (!charGroupMap.has(canonicalChar)) charGroupMap.set(canonicalChar, []);
+          charGroupMap.get(canonicalChar)!.push(...items);
           assigned = true;
         }
       }
@@ -394,8 +507,9 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
         if (sortedLocs.length > 0) {
           const [locName, locCount] = sortedLocs[0];
           const totalLocScenes = [...ownership.locs.values()].reduce((a, b) => a + b, 0);
-          // Assign if the top location accounts for ≥40% of co-occurrences
-          if (locCount / totalLocScenes >= 0.4) {
+          const strongLocOwnership = locCount >= 2 || locCount / Math.max(totalLocScenes, 1) >= 0.34;
+
+          if (strongLocOwnership) {
             if (!locGroupMap.has(locName)) locGroupMap.set(locName, []);
             locGroupMap.get(locName)!.push(...items);
             assigned = true;
@@ -416,7 +530,7 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
 
   // Convert character groups to ElementGroups
   for (const [charName, items] of charGroupMap) {
-    const label = charName.charAt(0).toUpperCase() + charName.slice(1).toLowerCase();
+    const label = toCanonicalCharacterLabel(charName) || toTitleCase(stripCharacterMeta(charName).toLowerCase());
     propGroups.push({ id: uid(), parentName: label, variants: [...new Set(items)] });
   }
 
@@ -429,7 +543,6 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
   propUngrouped.push(...remainingProps);
 
   // Title-case all prop labels
-  const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
   const tcPropUngrouped = propUngrouped.map(toTitleCase);
   const tcPropGroups = propGroups.map(g => ({
     ...g,
@@ -439,7 +552,7 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
 
   return {
     locations: { ungrouped: locationUngrouped, groups: locationGroups },
-    characters: { ungrouped: [...new Set(charNames)], groups: [] },
+    characters: { ungrouped: characterUngrouped, groups: characterGroups },
     wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
     props: { ungrouped: tcPropUngrouped, groups: tcPropGroups },
     visual_design: buildVisualDesignCategory(raw),
@@ -506,12 +619,42 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     },
   );
   const initialMount = useRef(true);
+  const hydratedWithSceneContextRef = useRef(false);
   const editInputRef = useRef<HTMLInputElement>(null);
   const pendingSaveRef = useRef<(() => Promise<void>) | null>(null);
   const categoriesRef = useRef(categories);
   const reviewStatusRef = useRef(reviewStatus);
   categoriesRef.current = categories;
   reviewStatusRef.current = reviewStatus;
+
+  useEffect(() => {
+    if (hydratedWithSceneContextRef.current) return;
+    if (typeof scenePropOwnership === "undefined") return;
+
+    if (!useManagedCategories) {
+      setCategories(buildInitialData(data, sceneLocations, scenePropOwnership));
+      hydratedWithSceneContextRef.current = true;
+      return;
+    }
+
+    setCategories((prev) => {
+      const needsCharacterAutoGrouping = prev.characters.groups.length === 0 && prev.characters.ungrouped.length > 0;
+      const needsPropAutoGrouping = prev.props.groups.length === 0 && prev.props.ungrouped.length > 0;
+
+      if (!needsCharacterAutoGrouping && !needsPropAutoGrouping) {
+        return prev;
+      }
+
+      const rebuilt = buildInitialData(data, sceneLocations, scenePropOwnership);
+      return {
+        ...prev,
+        characters: needsCharacterAutoGrouping ? rebuilt.characters : prev.characters,
+        props: needsPropAutoGrouping ? rebuilt.props : prev.props,
+      };
+    });
+
+    hydratedWithSceneContextRef.current = true;
+  }, [useManagedCategories, data, sceneLocations, scenePropOwnership]);
 
   /* Script viewer for scene clicks */
   const { openScriptViewer, setScriptViewerScenes, setScriptViewerLoading } = useScriptViewer();
