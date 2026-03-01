@@ -437,20 +437,21 @@ const Development = () => {
     }
   }, [analysis?.id, (film as any)?.script_locked, (analysis as any)?.ai_notes_approved, directorProfile]);
 
-  // Post-enrichment: finalize analysis then auto-run director fit
-  const runPostEnrichment = useCallback(async (analysisId: string) => {
+  // Post-enrichment: finalize analysis (always) then optionally run director fit
+  const runPostEnrichment = useCallback(async (analysisId: string, { includeDirectorFit = false } = {}) => {
     try {
       console.log("Running finalize-analysis…");
       const { error: finErr } = await supabase.functions.invoke("finalize-analysis", {
         body: { analysis_id: analysisId },
       });
       if (finErr) console.error("finalize-analysis failed:", finErr);
-      else console.log("Finalization complete, running director fit…");
+      else console.log("Finalization complete");
 
       queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
 
-      // Auto-run director style matching
-      if (filmId) {
+      // Only run director style matching after fundamentals are locked (during enrichment)
+      if (includeDirectorFit && filmId) {
+        console.log("Running director fit analysis…");
         const { error: dirErr } = await supabase.functions.invoke("analyze-director-fit", {
           body: { film_id: filmId, save: true },
         });
@@ -539,8 +540,8 @@ const Development = () => {
         onComplete?.();
         queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
 
-        // Chain: finalize → director fit
-        await runPostEnrichment(analysisId);
+        // Chain: finalize → director fit (only after fundamentals locked + enrichment done)
+        await runPostEnrichment(analysisId, { includeDirectorFit: true });
       } finally {
         enrichingRef.current = false;
       }
