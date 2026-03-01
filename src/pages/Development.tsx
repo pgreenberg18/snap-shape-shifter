@@ -906,12 +906,43 @@ const Development = () => {
       return;
     }
 
-    // Phase 1: parse-script now completes with deterministic data only.
-    // No enrichment is triggered here. Entity extraction and enrichment
-    // happen later: extract-entities during Fundamentals, enrich-scene after Vision Lock.
+    // Phase 1: parse-script completes with deterministic data.
+    // Now run extract-entities for Phase 1 AI entity extraction (objects, vehicles, etc.)
+    queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+
+    try {
+      console.log("Running Phase 1 entity extraction…");
+      const { data: entityResult, error: entityErr } = await supabase.functions.invoke("extract-entities", {
+        body: { film_id: filmId },
+      });
+
+      if (entityErr) {
+        console.error("Phase 1 entity extraction failed:", entityErr);
+      } else if (entityResult?.scene_ids?.length > 0) {
+        // Batch per-scene AI entity extraction
+        const CONCURRENCY = 5;
+        const sceneIds = entityResult.scene_ids as string[];
+        console.log(`Phase 1: Extracting entities from ${sceneIds.length} scenes…`);
+
+        for (let i = 0; i < sceneIds.length; i += CONCURRENCY) {
+          const batch = sceneIds.slice(i, i + CONCURRENCY);
+          await Promise.allSettled(
+            batch.map((sid: string) =>
+              supabase.functions.invoke("extract-entities", {
+                body: { film_id: filmId, scene_id: sid },
+              })
+            )
+          );
+        }
+        console.log("Phase 1 entity extraction complete");
+      }
+    } catch (e) {
+      console.error("Entity extraction error:", e);
+    }
 
     setAnalyzing(false);
     queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+    queryClient.invalidateQueries({ queryKey: ["script-entities", filmId] });
   };
 
   useEffect(() => {
@@ -2374,7 +2405,13 @@ const Development = () => {
                                 console.error("Style contract compilation failed:", e);
                               }
 
-                              // 3. Run Phase 2 enrichment on ALL scenes
+                              // 3. Lock Phase 1 entities — immutable after Vision Lock
+                              await supabase
+                                .from("parsed_scenes")
+                                .update({ phase1_locked: true })
+                                .eq("film_id", filmId);
+
+                              // 4. Run Phase 2 enrichment on ALL scenes (style-informed)
                               const { data: allScenes } = await supabase
                                 .from("parsed_scenes")
                                 .select("id")
