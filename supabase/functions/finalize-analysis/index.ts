@@ -66,6 +66,41 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ── Helper: extract characters from raw screenplay text ──
+    // Character cues are ALL-CAPS lines (possibly with (V.O.), (O.S.) etc.)
+    const extractCharactersFromRawText = (rawText: string): string[] => {
+      const chars = new Set<string>();
+      const lines = rawText.split("\n");
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Character cue: all-caps, 2-40 chars, not a scene heading, not a transition
+        if (!trimmed || trimmed.length < 2 || trimmed.length > 40) continue;
+        // Remove parenthetical extensions like (V.O.), (O.S.), (CONT'D)
+        const withoutExt = trimmed.replace(/\s*\(.*?\)\s*/g, "").trim();
+        if (!withoutExt || withoutExt.length < 2) continue;
+        // Must be all uppercase letters/spaces/hyphens/apostrophes
+        if (!/^[A-Z][A-Z\s\-'\.]+$/.test(withoutExt)) continue;
+        // Exclude common non-character lines
+        const upper = withoutExt.toUpperCase();
+        if (upper.startsWith("INT.") || upper.startsWith("EXT.") || upper.startsWith("INT/EXT")) continue;
+        if (["CUT TO:", "FADE IN:", "FADE OUT:", "FADE TO:", "DISSOLVE TO:", "SMASH CUT TO:", "MATCH CUT TO:", "THE END", "CONTINUED", "MORE"].includes(upper)) continue;
+        if (upper.endsWith(":")) continue; // Transitions
+        chars.add(withoutExt);
+      }
+      return Array.from(chars);
+    };
+
+    // ── Helper: extract location from scene heading ──
+    const extractLocationFromHeading = (heading: string): { location: string; intExt: string; dayNight: string } => {
+      const match = heading.match(/^(INT\.|EXT\.|INT\/EXT\.?)\s*(.+?)(?:\s*-\s*(DAY|NIGHT|DAWN|DUSK|EVENING|MORNING|CONTINUOUS|LATER|SAME|MOMENTS LATER|SAME TIME|A MOMENT LATER|NEXT MORNING|NEXT DAY).*)?$/i);
+      if (!match) return { location: heading, intExt: "", dayNight: "" };
+      return {
+        location: (match[2] || "").replace(/\s*-\s*$/, "").trim(),
+        intExt: (match[1] || "").replace(".", "").trim(),
+        dayNight: (match[3] || "").trim(),
+      };
+    };
+
     // ── Deterministic aggregation of ALL unique elements from scene data ──
     const allCharacters = new Set<string>();
     const allLocationsByKey = new Map<string, string>();
@@ -76,63 +111,85 @@ Deno.serve(async (req) => {
     const allLighting = new Set<string>();
     const allEnvironments = new Set<string>();
 
+    // Check if scenes are enriched — if not, extract from raw text
+    const anyEnriched = (allScenes as any[]).some((s) => s.enriched === true);
+
     for (const s of allScenes as any[]) {
-      // Characters
-      for (const c of (s.characters || [])) {
-        if (typeof c === "string" && c.trim()) {
-          let name = c.replace(/\s*\(.*?\)\s*/g, "").trim();
-          const dashIdx = name.indexOf(" - ");
-          if (dashIdx > 0) name = name.substring(0, dashIdx).trim();
-          if (name) allCharacters.add(name);
+      if (anyEnriched) {
+        // ── Use enriched data when available ──
+        // Characters
+        for (const c of (s.characters || [])) {
+          if (typeof c === "string" && c.trim()) {
+            let name = c.replace(/\s*\(.*?\)\s*/g, "").trim();
+            const dashIdx = name.indexOf(" - ");
+            if (dashIdx > 0) name = name.substring(0, dashIdx).trim();
+            if (name) allCharacters.add(name);
+          }
         }
-      }
 
-      // Locations
-      const pictureVehicles = Array.isArray(s.picture_vehicles)
-        ? (s.picture_vehicles as string[]).filter((v) => typeof v === "string" && v.trim())
-        : [];
-      const normalizedLocations = extractNormalizedLocations(s.location_name, pictureVehicles);
-      for (const loc of normalizedLocations) {
-        const key = normalizeLocationKey(loc);
-        const existing = allLocationsByKey.get(key);
-        if (!existing || loc.length > existing.length) {
-          allLocationsByKey.set(key, loc);
+        // Locations
+        const pictureVehicles = Array.isArray(s.picture_vehicles)
+          ? (s.picture_vehicles as string[]).filter((v) => typeof v === "string" && v.trim())
+          : [];
+        const normalizedLocations = extractNormalizedLocations(s.location_name, pictureVehicles);
+        for (const loc of normalizedLocations) {
+          const key = normalizeLocationKey(loc);
+          const existing = allLocationsByKey.get(key);
+          if (!existing || loc.length > existing.length) {
+            allLocationsByKey.set(key, loc);
+          }
         }
-      }
 
-      // Wardrobe
-      for (const w of (s.wardrobe || [])) {
-        const key = `${(w.character || "").toUpperCase()}: ${w.clothing_style || w.clothing || ""}`.trim();
-        if (key.length > 2 && !wardrobeSeen.has(key)) {
-          wardrobeSeen.add(key);
-          allWardrobe.push(key);
+        // Wardrobe
+        for (const w of (s.wardrobe || [])) {
+          const key = `${(w.character || "").toUpperCase()}: ${w.clothing_style || w.clothing || ""}`.trim();
+          if (key.length > 2 && !wardrobeSeen.has(key)) {
+            wardrobeSeen.add(key);
+            allWardrobe.push(key);
+          }
         }
-      }
 
-      // Props (key_objects)
-      for (const obj of (s.key_objects || [])) {
-        if (typeof obj === "string" && obj.trim()) allProps.add(obj.trim());
-      }
+        // Props (key_objects)
+        for (const obj of (s.key_objects || [])) {
+          if (typeof obj === "string" && obj.trim()) allProps.add(obj.trim());
+        }
 
-      // Mood / atmosphere
-      if (s.mood && typeof s.mood === "string" && s.mood.trim()) {
-        allMoods.add(s.mood.trim());
-      }
+        // Mood / atmosphere
+        if (s.mood && typeof s.mood === "string" && s.mood.trim()) {
+          allMoods.add(s.mood.trim());
+        }
 
-      // Day/Night as lighting context
-      if (s.day_night && typeof s.day_night === "string" && s.day_night.trim()) {
-        allLighting.add(s.day_night.trim());
-      }
+        // Day/Night as lighting context
+        if (s.day_night && typeof s.day_night === "string" && s.day_night.trim()) {
+          allLighting.add(s.day_night.trim());
+        }
 
-      // Environment details for atmosphere
-      if (s.environment_details && typeof s.environment_details === "string" && s.environment_details.trim()) {
-        allEnvironments.add(s.environment_details.trim());
-      }
+        // Environment details for atmosphere
+        if (s.environment_details && typeof s.environment_details === "string" && s.environment_details.trim()) {
+          allEnvironments.add(s.environment_details.trim());
+        }
 
-      // Cinematic elements for lighting/camera
-      const cin = s.cinematic_elements;
-      if (cin && typeof cin === "object") {
-        if (cin.camera_feel) allLighting.add(`Camera: ${cin.camera_feel}`);
+        // Cinematic elements for lighting/camera
+        const cin = s.cinematic_elements;
+        if (cin && typeof cin === "object") {
+          if (cin.camera_feel) allLighting.add(`Camera: ${cin.camera_feel}`);
+        }
+      } else {
+        // ── Fallback: extract from raw text and headings ──
+        // Characters from raw text
+        const rawChars = extractCharactersFromRawText(s.raw_text || "");
+        for (const c of rawChars) allCharacters.add(c);
+
+        // Location from heading
+        const { location, intExt, dayNight } = extractLocationFromHeading(s.heading || "");
+        if (location) {
+          const key = normalizeLocationKey(location);
+          const existing = allLocationsByKey.get(key);
+          if (!existing || location.length > existing.length) {
+            allLocationsByKey.set(key, location);
+          }
+        }
+        if (dayNight) allLighting.add(dayNight);
       }
     }
 
