@@ -48,9 +48,8 @@ const FORMAT_PRESETS: { value: string; label: string; width: number; height: num
   { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
-  // Animated Feature
-  { value: "animated_feature", label: "Animated Feature", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animated Feature" },
   // Animation
+  { value: "animated_feature", label: "Animated Feature", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
   { value: "animation_series", label: "Animation Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
   { value: "animation_short", label: "Animation Short", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
   { value: "animation_web", label: "Animation — Web Series", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
