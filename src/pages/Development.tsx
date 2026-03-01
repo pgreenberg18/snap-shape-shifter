@@ -482,6 +482,10 @@ const Development = () => {
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [visualSummaryApproved, setVisualSummaryApproved] = useState(false);
   const [ratingsApproved, setRatingsApproved] = useState(false);
+  const [formatApproved, setFormatApproved] = useState(false);
+  const [timePeriodApproved, setTimePeriodApproved] = useState(false);
+  const [genreApproved, setGenreApproved] = useState(false);
+  const [globalElementsApproved, setGlobalElementsApproved] = useState(false);
   
   const enrichingRef = useRef(false);
   const [devComplete, setDevComplete] = useState(false);
@@ -653,10 +657,14 @@ const Development = () => {
       setRatingsApproved(true);
       setContentSafetyRun(true);
     }
+    if ((analysis as any).format_approved) setFormatApproved(true);
+    if ((analysis as any).time_period_approved) setTimePeriodApproved(true);
+    if ((analysis as any).genre_approved) setGenreApproved(true);
+    if ((analysis as any).global_elements_approved) setGlobalElementsApproved(true);
     if ((analysis as any).ai_notes_approved && directorProfile) {
       setVisionComplete(true);
     }
-  }, [analysis?.id, (analysis as any)?.visual_summary_approved, (analysis as any)?.ratings_approved, (analysis as any)?.ai_notes_approved, directorProfile]);
+  }, [analysis?.id, (analysis as any)?.visual_summary_approved, (analysis as any)?.ratings_approved, (analysis as any)?.ai_notes_approved, (analysis as any)?.format_approved, (analysis as any)?.time_period_approved, (analysis as any)?.genre_approved, (analysis as any)?.global_elements_approved, directorProfile]);
 
   const persistApproval = useCallback(async (field: string, value: boolean) => {
     if (!analysis?.id) return;
@@ -1743,7 +1751,7 @@ const Development = () => {
                                   </div>
                                 )}
 
-                                <div className="flex justify-end">
+                                <div className="flex justify-end gap-2">
                                   <Button
                                     onClick={handleSaveFormat}
                                     disabled={formatSaving || scriptLocked}
@@ -1753,6 +1761,19 @@ const Development = () => {
                                   >
                                     {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : formatSaved ? <CheckCircle className="h-4 w-4" /> : <Save className="h-4 w-4" />}
                                     {formatSaved ? "Saved" : "Save Format"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant={formatApproved ? "default" : "outline"}
+                                    className={cn("gap-1.5", formatApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                    onClick={() => {
+                                      const next = !formatApproved;
+                                      setFormatApproved(next);
+                                      persistApproval("format_approved", next);
+                                    }}
+                                  >
+                                    <ThumbsUp className="h-3 w-3" />
+                                    {formatApproved ? "Approved" : "Approve"}
                                   </Button>
                                 </div>
                               </>
@@ -2011,6 +2032,21 @@ const Development = () => {
                                 </div>
                               </div>
                             )}
+                              <div className="flex justify-end pt-4 border-t border-border mt-4">
+                                <Button
+                                  size="sm"
+                                  variant={timePeriodApproved ? "default" : "outline"}
+                                  className={cn("gap-1.5", timePeriodApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                  onClick={() => {
+                                    const next = !timePeriodApproved;
+                                    setTimePeriodApproved(next);
+                                    persistApproval("time_period_approved", next);
+                                  }}
+                                >
+                                  <ThumbsUp className="h-3 w-3" />
+                                  {timePeriodApproved ? "Approved" : "Approve"}
+                                </Button>
+                              </div>
                           </div>
                         </CollapsibleContent>
                       </Collapsible>
@@ -2094,6 +2130,21 @@ const Development = () => {
                                 {genres.length === 0 && (
                                   <p className="text-xs text-muted-foreground/50 italic">No genres set — run script analysis to auto-detect</p>
                                 )}
+                                <div className="flex justify-end pt-4 border-t border-border mt-4">
+                                  <Button
+                                    size="sm"
+                                    variant={genreApproved ? "default" : "outline"}
+                                    className={cn("gap-1.5", genreApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                    onClick={() => {
+                                      const next = !genreApproved;
+                                      setGenreApproved(next);
+                                      persistApproval("genre_approved", next);
+                                    }}
+                                  >
+                                    <ThumbsUp className="h-3 w-3" />
+                                    {genreApproved ? "Approved" : "Approve"}
+                                  </Button>
+                                </div>
                               </div>
                             </CollapsibleContent>
                           </Collapsible>
@@ -2121,8 +2172,23 @@ const Development = () => {
                             </div>
                           </CollapsibleTrigger>
                           <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                            <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                            <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
                               <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} scenePropOwnership={scenePropOwnership} />
+                              <div className="flex justify-end pt-4 border-t border-border">
+                                <Button
+                                  size="sm"
+                                  variant={globalElementsApproved ? "default" : "outline"}
+                                  className={cn("gap-1.5", globalElementsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                  onClick={() => {
+                                    const next = !globalElementsApproved;
+                                    setGlobalElementsApproved(next);
+                                    persistApproval("global_elements_approved", next);
+                                  }}
+                                >
+                                  <ThumbsUp className="h-3 w-3" />
+                                  {globalElementsApproved ? "Approved" : "Approve"}
+                                </Button>
+                              </div>
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
