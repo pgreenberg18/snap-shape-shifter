@@ -613,7 +613,7 @@ const Development = () => {
   }, [filmId, queryClient]);
 
   // Parallel batch enrichment helper (5 concurrent)
-  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void, { includeDirectorFit = true }: { includeDirectorFit?: boolean } = {}) => {
+  const runEnrichmentBatches = useCallback((sceneIds: string[], analysisId: string, onComplete?: () => void, { includeDirectorFit = false }: { includeDirectorFit?: boolean } = {}) => {
     if (enrichingRef.current || !analysisId) return; // prevent duplicate loops
     enrichingRef.current = true;
 
