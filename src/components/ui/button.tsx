@@ -11,6 +11,7 @@ const buttonVariants = cva(
       variant: {
         default: "text-foreground [background:linear-gradient(180deg,#1E293B,#0F172A)] [border:1px_solid_rgba(255,255,255,0.1)] [border-top-color:rgba(255,255,255,0.16)] [border-bottom-color:rgba(0,0,0,0.4)] [box-shadow:inset_0_1px_0_rgba(255,255,255,0.12),0_4px_16px_rgba(0,0,0,0.5)] hover:[background:linear-gradient(180deg,#263548,#162235)] hover:[box-shadow:inset_0_1px_0_rgba(255,255,255,0.15),0_4px_16px_rgba(0,0,0,0.5),0_0_20px_-3px_rgba(47,125,255,0.4)]",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+        success: "bg-success text-success-foreground border border-success/70 hover:bg-success/90 hover:border-success",
         outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
         ghost: "hover:bg-accent hover:text-accent-foreground",
