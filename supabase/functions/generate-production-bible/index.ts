@@ -201,6 +201,7 @@ CRITICAL RULES:
 - When axis scores are extreme (≥9 or ≤2), generate absolute rules (non-negotiables)
 - Department doctrines must have concrete, actionable constraints
 - The document must feel like it was written by a veteran production designer
+- CRITICAL AUDIO RULE: All audio generated for scenes must be PRODUCTION SOUND ONLY — meaning only sounds that would be physically recorded on set by a production sound mixer. This means: dialogue, ambient environment sounds, practical sound effects from on-screen actions, and room tone. NO musical score, NO non-diegetic music, NO synthesized sound design, NO sounds from sources not physically present in the scene. This rule must be reflected in the Sound & Score department doctrine and in the CIC engine compiler instructions for all engines.
 
 Return ONLY valid JSON matching this exact structure (no markdown, no code fences):
 {
@@ -280,11 +281,11 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
     "props": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
     "casting_performance": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
     "editing": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
-    "sound_score": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] }
+    "sound_score": { "primary_objective": "Production sound only — capture what exists on set", "governing_constraints": ["All audio must be diegetic production sound only", "No musical score or non-diegetic music permitted", "No synthesized or non-present sound sources"], "motif_alignment": "...", "forbidden_moves": ["Adding musical score", "Non-diegetic sound effects", "Sounds from sources not physically present in scene"] }
   },
   "non_negotiables": [
-    "Absolute rule 1 derived from extreme axis scores",
-    "Absolute rule 2"
+    "ALL AUDIO MUST BE PRODUCTION SOUND ONLY — no score, no music, no non-diegetic sound. Only sounds physically present in the scene are permitted.",
+    "Absolute rule derived from extreme axis scores"
   ],
   "style_contract_summary": {
     "final_vector": { "scale": 8, "structure": 6, "visual": 7, "darkness": 5, "dialogue": 4, "spectacle": 8, "genreFluidity": 3, "emotion": 7 },
@@ -318,25 +319,25 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
     },
     "engine_compilers": {
       "veo": {
-        "prompt_strategy": "description of how Veo prompts are structured (natural language cinematic descriptions, camera movement instructions, environmental continuity)",
+        "prompt_strategy": "description of how Veo prompts are structured (natural language cinematic descriptions, camera movement instructions, environmental continuity). AUDIO CONSTRAINT: Any audio generation must produce ONLY production sound — dialogue, ambient environment, practical on-screen effects. No score or music.",
         "intensity_multiplier": 1.0,
         "key_translations": ["visual_control → camera movement limits", "darkness → lighting description phrasing", "scale → environmental scale", "lens_doctrine → focal length language"],
         "strengths": ["natural language cinema", "camera movement", "realistic lighting"],
-        "constraints": ["description of Veo-specific limits"]
+        "constraints": ["Audio limited to production sound only — no score, no music, no non-present sounds"]
       },
       "sora": {
-        "prompt_strategy": "description of Sora prompt approach (rich environmental detail, temporal continuity, physical realism, motion continuity)",
+        "prompt_strategy": "description of Sora prompt approach (rich environmental detail, temporal continuity, physical realism, motion continuity). AUDIO CONSTRAINT: Only diegetic production sound permitted.",
         "intensity_multiplier": 1.3,
         "key_translations": ["scale → environmental extension", "spectacle → kinetic choreography", "structure → temporal continuity"],
         "strengths": ["spatial coherence", "scene duration continuity", "object physics"],
-        "constraints": ["description of Sora-specific limits"]
+        "constraints": ["Audio limited to production sound only — no score, no music, no non-present sounds"]
       },
       "seedance": {
-        "prompt_strategy": "description of Seedance prompt approach (stylization descriptors, visual motif reinforcement, texture layering)",
+        "prompt_strategy": "description of Seedance prompt approach (stylization descriptors, visual motif reinforcement, texture layering). AUDIO CONSTRAINT: Only diegetic production sound permitted.",
         "intensity_multiplier": 0.9,
         "key_translations": ["genre_fluidity → stylistic blending", "emotional_temperature → color/emotional intensity"],
         "strengths": ["stylization", "motif reinforcement", "aesthetic layering"],
-        "constraints": ["description of Seedance-specific limits"]
+        "constraints": ["Audio limited to production sound only — no score, no music, no non-present sounds"]
       }
     },
     "blend_director_logic": {
