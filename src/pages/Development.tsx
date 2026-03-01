@@ -1409,12 +1409,14 @@ const Development = () => {
                                   const { error: invokeErr } = await supabase.functions.invoke("parse-script", {
                                     body: { analysis_id: analysis.id },
                                   });
-                                  setAnalyzing(false);
                                   if (invokeErr) {
+                                    setAnalyzing(false);
                                     toast({ title: "Retry failed", description: invokeErr.message, variant: "destructive" });
                                   } else {
+                                    // Run finalize + director fit (same as main analyze flow)
+                                    runPostEnrichment(analysis.id);
+                                    setAnalyzing(false);
                                     queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
-                                    toast({ title: "Re-analysis started", description: "Your script is being analyzed again." });
                                   }
                                 }}
                                 disabled={isAnalyzing}
