@@ -317,7 +317,14 @@ const IntegrationsPanel = () => {
   const handleConnect = async (id: string) => {
     const key = keys[id];
     if (!key) return;
-    await supabase.from("integrations").update({ api_key_encrypted: key, is_verified: true }).eq("id", id);
+    const { error } = await supabase.rpc("update_integration_key", {
+      p_integration_id: id,
+      p_api_key: key,
+    });
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to update key.", variant: "destructive" });
+      return;
+    }
     queryClient.invalidateQueries({ queryKey: ["integrations"] });
     setKeys((p) => { const n = { ...p }; delete n[id]; return n; });
     setEditingId(null);
@@ -333,12 +340,10 @@ const IntegrationsPanel = () => {
       ? `${svc?.name} (${svc?.variants?.find(v => v.id === selectedVariant)?.label || selectedVariant})`
       : svc?.name || selectedService;
     try {
-      const { error } = await supabase.from("integrations").insert({
-        section_id: sectionId,
-        provider_name: providerName,
-        api_key_encrypted: serviceKey,
-        is_verified: true,
-        user_id: user?.id,
+      const { error } = await supabase.rpc("store_integration_key", {
+        p_section_id: sectionId,
+        p_provider_name: providerName,
+        p_api_key: serviceKey,
       });
       if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
@@ -494,7 +499,7 @@ const IntegrationsPanel = () => {
 
                         {!isEditing ? (
                           <div className="flex items-center justify-between">
-                            <span className="font-mono text-xs text-muted-foreground tracking-wider">{provider.api_key_encrypted || "—"}</span>
+                            <span className="font-mono text-xs text-muted-foreground tracking-wider">{(provider as any).key_hint || "•••• (encrypted)"}</span>
                             <div className="flex items-center gap-2">
                               {matchedSvc?.variants && matchedSvc.variants.length > 0 && (
                                 <Select
@@ -578,8 +583,10 @@ const IntegrationsPanel = () => {
                               const matchedSvc = cat.find((s) => int.provider_name.startsWith(s.name));
                               return matchedSvc && providerGroup.includes(matchedSvc.id) && int.is_verified && int.api_key_encrypted;
                             });
-                            if (existingInt?.api_key_encrypted) {
-                              setServiceKey(existingInt.api_key_encrypted);
+                            if (existingInt) {
+                              // Decrypt the key server-side for auto-fill
+                              supabase.rpc("get_integration_key", { p_integration_id: existingInt.id })
+                                .then(({ data }) => { if (data) setServiceKey(data); });
                               return;
                             }
                           }
