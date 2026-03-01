@@ -8,6 +8,21 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+/**
+ * PHASE 2: Style Enrichment (Post-Vision Lock)
+ * 
+ * This function ONLY runs after Vision Lock. It applies the Style Contract,
+ * Production Bible, and Director DNA to each scene to produce:
+ * - Scene description (narrative summary)
+ * - Mood/atmosphere
+ * - Cinematic elements (camera feel, motion cues, shot suggestions)
+ * - Visual design (color palette, lighting style, atmosphere)
+ * - Environment details
+ * - Estimated page count
+ * 
+ * It does NOT re-extract Phase 1 data (characters, locations, objects, etc.)
+ * Those are immutable after Phase 1 lock.
+ */
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -45,14 +60,13 @@ Deno.serve(async (req) => {
       .single();
 
     if (sceneErr || !scene) {
-      // Scene was deleted (e.g. by a re-analysis) — return success so the caller moves on
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "scene_deleted" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Skip if already enriched
+    // Skip if already enriched (Phase 2 done)
     if (scene.enriched) {
       return new Response(
         JSON.stringify({ success: true, skipped: true }),
@@ -60,17 +74,49 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Call Gemini via Lovable AI gateway using tool calling for structured output
-    const systemPrompt = `You are a professional script breakdown analyst for film production. Given a screenplay scene, extract structured production data. Be thorough and precise. Only include items that are explicitly mentioned or strongly implied in the scene text.`;
+    // ── Fetch Style Contract + Production Bible for Phase 2 context ──
+    const { data: styleContract } = await supabase
+      .from("film_style_contracts")
+      .select("*")
+      .eq("film_id", scene.film_id)
+      .order("version", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    const userPrompt = `Analyze this screenplay scene and extract a COMPLETE production breakdown. Be thorough — extract ALL characters, props, wardrobe details, vehicles, environmental details, stunts, effects, sound cues, animals, extras, makeup notes, and mood.
+    const { data: productionBible } = await supabase
+      .from("production_bibles")
+      .select("content")
+      .eq("film_id", scene.film_id)
+      .maybeSingle();
 
-Also parse the scene heading to extract: INT/EXT, DAY/NIGHT, and the cleaned location name. Estimate the page count based on the text length (1 page ≈ 55 lines of screenplay text).
+    const { data: directorProfile } = await supabase
+      .from("film_director_profiles")
+      .select("primary_director_name, secondary_director_name, quadrant, cluster, visual_mandate, blend_weight")
+      .eq("film_id", scene.film_id)
+      .maybeSingle();
+
+    // Build style context for the AI prompt
+    const styleContext = buildStyleContext(styleContract, productionBible?.content, directorProfile);
+
+    // ── Phase 2 AI enrichment — stylistic interpretation ──
+    const systemPrompt = `You are a cinematic style interpreter for film production. You have been given the Director's Style Contract, Production Bible mandates, and Director DNA. Your job is to apply these stylistic rules to each scene to produce a cinematic interpretation.
+
+STYLE CONTRACT:
+${styleContext}
+
+IMPORTANT: Apply the style rules to your interpretation. Your output should reflect the director's vision, not generic defaults.`;
+
+    const userPrompt = `Apply the director's style contract to this scene and produce a cinematic interpretation.
 
 SCENE HEADING: ${scene.heading}
+INT/EXT: ${scene.int_ext || ""}
+TIME OF DAY: ${scene.day_night || ""}
+LOCATION: ${scene.location_name || ""}
 
 SCENE TEXT:
-${scene.raw_text}`;
+${scene.raw_text}
+
+Produce a style-informed breakdown including mood, cinematic direction, visual design, and environment details. The description should be a narrative summary. Estimate the page count (1 page ≈ 55 lines).`;
 
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -88,149 +134,76 @@ ${scene.raw_text}`;
           {
             type: "function",
             function: {
-              name: "scene_breakdown",
-              description: "Return structured breakdown data for a screenplay scene.",
+              name: "scene_style_enrichment",
+              description: "Return the style-informed cinematic interpretation for this scene.",
               parameters: {
                 type: "object",
                 properties: {
                   description: {
                     type: "string",
-                    description: "A concise 1-3 sentence description of what happens in this scene.",
-                  },
-                  characters: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "List of ALL character names who appear, speak, or are referenced in this scene. Use UPPERCASE names as written in the script.",
-                  },
-                  character_details: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string", description: "Character name in UPPERCASE." },
-                        emotional_tone: { type: "string", description: "The character's emotional state in this scene (e.g. 'anxious', 'defiant', 'grief-stricken'). Use 'neutral' if not clear." },
-                        key_expressions: { type: "string", description: "Notable facial expressions or looks described or implied (e.g. 'clenched jaw', 'tearful eyes', 'forced smile'). Use 'not specified' if none." },
-                        physical_behavior: { type: "string", description: "Physical actions, gestures, or body language (e.g. 'pacing nervously', 'slumps into chair', 'reaches for weapon'). Use 'not specified' if none." },
-                      },
-                      required: ["name", "emotional_tone", "key_expressions", "physical_behavior"],
-                    },
-                    description: "Detailed emotional and behavioral breakdown for each character in the scene.",
-                  },
-                  key_objects: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Notable props and objects mentioned or used in the scene (exclude locations, weather, lighting). Include items characters interact with.",
-                  },
-                  wardrobe: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        character: { type: "string", description: "Character name in UPPERCASE." },
-                        clothing_style: { type: "string", description: "Description of what they are wearing — outfit, style, colours." },
-                        condition: { type: "string", description: "Condition of the clothing — e.g. pristine, muddy, torn, blood-stained, wet. Use 'normal' if not specified." },
-                        hair_makeup: { type: "string", description: "Hair and makeup details if described. Use 'not specified' if not mentioned." },
-                      },
-                      required: ["character", "clothing_style", "condition", "hair_makeup"],
-                    },
-                    description: "Wardrobe details for characters whose clothing, appearance, or condition is described or implied.",
-                  },
-                  picture_vehicles: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Any vehicles that appear on screen in this scene.",
-                  },
-                  environment_details: {
-                    type: "string",
-                    description: "Describe the environment: weather, time of day, lighting, atmosphere, set dressing details. Be specific.",
-                  },
-                  stunts: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Any stunts, action sequences, or physical feats in this scene. Empty array if none.",
-                  },
-                  sfx: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Practical special effects needed (explosions, rain, fire, smoke, breakaway glass, etc). Empty array if none.",
-                  },
-                  vfx: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Visual effects needed (green screen, CGI, compositing, digital set extensions, etc). Empty array if none.",
-                  },
-                  sound_cues: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Specific sound effects, music cues, or audio requirements mentioned or implied. Empty array if none.",
-                  },
-                  animals: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Any animals that appear on screen. Empty array if none.",
-                  },
-                  extras: {
-                    type: "string",
-                    description: "Description of background extras/crowd needed (e.g. '20 bar patrons', 'busy street crowd'). Empty string if none.",
-                  },
-                  special_makeup: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "Special makeup, prosthetics, or body effects (scars, wounds, aging, tattoos, etc). Empty array if none.",
+                    description: "A concise 1-3 sentence narrative description of what happens in this scene.",
                   },
                   mood: {
                     type: "string",
-                    description: "Overall mood/tone of the scene (e.g. 'tense', 'romantic', 'chaotic', 'melancholic'). One or two words.",
+                    description: "Overall mood/tone informed by the style contract (e.g. 'tense noir', 'warm pastoral', 'chaotic frenetic').",
                   },
-                  int_ext: {
+                  environment_details: {
                     type: "string",
-                    description: "Whether the scene is INT, EXT, or INT/EXT. Parsed from the heading.",
-                  },
-                  day_night: {
-                    type: "string",
-                    description: "Time of day from the heading: DAY, NIGHT, DAWN, DUSK, MORNING, EVENING, CONTINUOUS, etc.",
-                  },
-                  location_name: {
-                    type: "string",
-                    description: "The cleaned location name extracted from the heading (e.g. 'JOHN'S APARTMENT - KITCHEN').",
+                    description: "Environment description applying the style contract's lighting doctrine, color mandate, and temporal rules.",
                   },
                   estimated_page_count: {
                     type: "number",
-                    description: "Estimated page count for this scene. 1 page ≈ 55 lines. Use fractions like 0.125 for 1/8 page.",
+                    description: "Estimated page count. 1 page ≈ 55 lines. Use fractions like 0.125 for 1/8 page.",
                   },
                   cinematic_elements: {
                     type: "object",
                     properties: {
-                      camera_feel: { type: "string", description: "Overall camera style/feel for this scene (e.g. 'handheld, intimate', 'steady, observational', 'frenetic, chaotic'). Infer from the scene's tone and action." },
-                      motion_cues: { type: "string", description: "Camera motion suggestions (e.g. 'slow push-in on face', 'tracking shot following character', 'static wide'). Infer from the action described." },
+                      camera_feel: {
+                        type: "string",
+                        description: "Camera style/feel informed by the style contract's lens philosophy and director's quadrant.",
+                      },
+                      motion_cues: {
+                        type: "string",
+                        description: "Camera motion suggestions informed by the director's visual mandate.",
+                      },
                       shot_suggestions: {
                         type: "array",
                         items: { type: "string" },
-                        description: "2-4 specific shot type suggestions for key moments (e.g. 'ECU on hands trembling', 'Wide establishing shot of empty street', 'OTS during confrontation').",
+                        description: "2-4 specific shot type suggestions applying the director's style.",
                       },
                     },
                     required: ["camera_feel", "motion_cues", "shot_suggestions"],
-                    description: "Cinematic direction suggestions inferred from the scene's content, tone, and action.",
                   },
-                    visual_design: {
+                  visual_design: {
                     type: "object",
                     properties: {
-                      color_palette: { type: "string", description: "ONLY extract colors, hues, tones, or palette descriptions that are explicitly mentioned in the script text (e.g. 'red neon glow', 'white walls', 'golden light'). If none are mentioned, return an empty string." },
-                      lighting_style: { type: "string", description: "ONLY extract lighting descriptions that are explicitly written in the script text (e.g. 'fluorescent lights flicker', 'candlelight', 'harsh sunlight'). If none are mentioned, return an empty string." },
-                      visual_references: { type: "string", description: "ONLY extract visual or cinematic references that are explicitly mentioned in the script text. If none are mentioned, return an empty string. Do NOT infer or suggest references." },
-                      atmosphere: { type: "string", description: "ONLY extract atmosphere or mood descriptions that are explicitly written in the script text (e.g. 'eerie silence', 'chaotic', 'smoke fills the room'). If none are mentioned, return an empty string." },
+                      color_palette: {
+                        type: "string",
+                        description: "Color palette applying the style contract's color mandate to this scene's context.",
+                      },
+                      lighting_style: {
+                        type: "string",
+                        description: "Lighting approach applying the style contract's lighting doctrine to this scene.",
+                      },
+                      visual_references: {
+                        type: "string",
+                        description: "Visual references informed by the director DNA and style contract.",
+                      },
+                      atmosphere: {
+                        type: "string",
+                        description: "Atmospheric description applying the style contract's texture mandate.",
+                      },
                     },
                     required: ["color_palette", "lighting_style", "visual_references", "atmosphere"],
-                    description: "CRITICAL: Only populate these fields with visual elements that are EXPLICITLY written in the script text. Do NOT infer, interpret, or create visual design elements. If the script does not mention a specific visual element, return an empty string for that field.",
                   },
                 },
-                required: ["description", "characters", "character_details", "key_objects", "wardrobe", "picture_vehicles", "environment_details", "stunts", "sfx", "vfx", "sound_cues", "animals", "extras", "special_makeup", "mood", "int_ext", "day_night", "location_name", "estimated_page_count", "cinematic_elements", "visual_design"],
+                required: ["description", "mood", "environment_details", "estimated_page_count", "cinematic_elements", "visual_design"],
                 additionalProperties: false,
               },
             },
           },
         ],
-        tool_choice: { type: "function", function: { name: "scene_breakdown" } },
+        tool_choice: { type: "function", function: { name: "scene_style_enrichment" } },
       }),
     });
 
@@ -238,16 +211,10 @@ ${scene.raw_text}`;
       const errText = await aiResponse.text();
       console.error("AI gateway error:", aiResponse.status, errText);
       const statusCode = aiResponse.status;
-      // Surface rate limit / payment / capacity errors as retryable
       if (statusCode === 429 || statusCode === 402 || statusCode === 503) {
-        const msg = statusCode === 429
-          ? "Rate limit exceeded. Please try again shortly."
-          : statusCode === 402
-          ? "Payment required. Please add credits."
-          : "AI model temporarily unavailable. Retrying...";
         return new Response(
-          JSON.stringify({ error: msg, retryable: true }),
-          { status: statusCode === 402 ? 402 : 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          JSON.stringify({ error: "Rate limited", retryable: true }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
       return new Response(
@@ -266,74 +233,31 @@ ${scene.raw_text}`;
       );
     }
 
-    let breakdown: {
-      description: string;
-      characters: string[];
-      character_details: { name: string; emotional_tone: string; key_expressions: string; physical_behavior: string }[];
-      key_objects: string[];
-      wardrobe: { character: string; clothing_style: string; condition: string; hair_makeup: string }[];
-      picture_vehicles: string[];
-      environment_details: string;
-      stunts: string[];
-      sfx: string[];
-      vfx: string[];
-      sound_cues: string[];
-      animals: string[];
-      extras: string;
-      special_makeup: string[];
-      mood: string;
-      int_ext: string;
-      day_night: string;
-      location_name: string;
-      estimated_page_count: number;
-      cinematic_elements: { camera_feel: string; motion_cues: string; shot_suggestions: string[] };
-      visual_design: { color_palette: string; lighting_style: string; visual_references: string; atmosphere: string };
-    };
-
+    let enrichment: any;
     try {
-      breakdown = JSON.parse(toolCall.function.arguments);
+      enrichment = JSON.parse(toolCall.function.arguments);
     } catch {
-      console.error("Failed to parse tool call arguments:", toolCall.function.arguments);
       return new Response(
         JSON.stringify({ error: "Failed to parse AI response" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
-    // Normalize wardrobe entries — handle both old "clothing" key and new "clothing_style" key
-    const normalizedWardrobe = (breakdown.wardrobe || []).map((w: any) => ({
-      character: w.character || "",
-      clothing_style: w.clothing_style || w.clothing || "",
-      condition: w.condition || "normal",
-      hair_makeup: w.hair_makeup || "not specified",
-    }));
-
-    // Write enrichment data back to parsed_scenes
+    // Phase 2 update — ONLY stylistic fields, never overwrite Phase 1 data
     const { error: updateErr } = await supabase
       .from("parsed_scenes")
       .update({
-        description: breakdown.description || "",
-        characters: breakdown.characters || [],
-        character_details: breakdown.character_details || [],
-        key_objects: breakdown.key_objects || [],
-        wardrobe: normalizedWardrobe,
-        picture_vehicles: breakdown.picture_vehicles || [],
-        environment_details: breakdown.environment_details || "",
-        stunts: breakdown.stunts || [],
-        sfx: breakdown.sfx || [],
-        vfx: breakdown.vfx || [],
-        sound_cues: breakdown.sound_cues || [],
-        animals: breakdown.animals || [],
-        extras: breakdown.extras || "",
-        special_makeup: breakdown.special_makeup || [],
-        mood: breakdown.mood || "",
-        int_ext: breakdown.int_ext || "",
-        day_night: breakdown.day_night || "",
-        location_name: breakdown.location_name || "",
-        estimated_page_count: breakdown.estimated_page_count || 0,
-        cinematic_elements: breakdown.cinematic_elements || {},
-        visual_design: breakdown.visual_design || {},
+        description: enrichment.description || "",
+        mood: enrichment.mood || "",
+        environment_details: enrichment.environment_details || "",
+        estimated_page_count: enrichment.estimated_page_count || 0,
+        cinematic_elements: enrichment.cinematic_elements || {},
+        visual_design: enrichment.visual_design || {},
         enriched: true,
+        // Phase 1 fields are NOT touched:
+        // int_ext, day_night, location_name, sublocation, continuity_marker,
+        // is_flashback, is_dream, is_montage, line_count, dialogue_*,
+        // characters, phase1_locked — all remain as-is
       })
       .eq("id", scene_id);
 
@@ -348,7 +272,7 @@ ${scene.raw_text}`;
     // Update enrichment progress on parse_jobs
     await supabase.rpc("increment_scenes_enriched" as any, { p_analysis_id: analysis_id });
 
-    // Check if all scenes for this analysis are now enriched
+    // Check if all scenes are now enriched
     const { data: analysis } = await supabase
       .from("script_analyses")
       .select("film_id")
@@ -368,72 +292,6 @@ ${scene.raw_text}`;
         .eq("enriched", true);
 
       if (totalCount && enrichedCount && enrichedCount >= totalCount) {
-        // All scenes enriched — parsed_scenes table is the source of truth.
-        // scene_breakdown JSON is deprecated and no longer written.
-        const { data: allScenes } = await supabase
-          .from("parsed_scenes")
-          .select("*")
-          .eq("film_id", analysis.film_id)
-          .order("scene_number");
-
-        // Auto-detect primary time period from scene headings
-        const yearCounts: Record<string, number> = {};
-        for (const s of (allScenes || [])) {
-          const heading = s.heading || "";
-          const yearMatch = heading.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
-          if (yearMatch) {
-            yearCounts[yearMatch[1]] = (yearCounts[yearMatch[1]] || 0) + 1;
-          } else {
-            const currentYear = String(new Date().getFullYear());
-            yearCounts[currentYear] = (yearCounts[currentYear] || 0) + 1;
-          }
-        }
-
-        let primaryYear = "";
-        let maxCount = 0;
-        for (const [year, count] of Object.entries(yearCounts)) {
-          if (count > maxCount) {
-            maxCount = count;
-            primaryYear = year;
-          }
-        }
-
-        if (primaryYear) {
-          const { data: film } = await supabase
-            .from("films")
-            .select("time_period")
-            .eq("id", analysis.film_id)
-            .single();
-
-          if (film && !film.time_period) {
-            await supabase
-              .from("films")
-              .update({ time_period: primaryYear })
-              .eq("id", analysis.film_id);
-          }
-        }
-
-        // Invoke finalize-analysis to generate visual_summary, global_elements, ai_generation_notes
-        try {
-          const finalizeResponse = await fetch(
-            `${supabaseUrl}/functions/v1/finalize-analysis`,
-            {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${supabaseServiceKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ analysis_id }),
-            },
-          );
-          if (!finalizeResponse.ok) {
-            console.error("finalize-analysis failed:", await finalizeResponse.text());
-          }
-        } catch (e) {
-          console.error("Failed to invoke finalize-analysis:", e);
-        }
-
-        // Mark as complete
         await supabase
           .from("script_analyses")
           .update({
@@ -446,9 +304,9 @@ ${scene.raw_text}`;
 
     await logCreditUsage({
       userId: authResult.userId,
-      serviceName: "Gemini Pro",
+      serviceName: "Gemini Flash",
       serviceCategory: "script-analysis",
-      operation: "enrich-scene",
+      operation: "enrich-scene-phase2",
     });
 
     return new Response(
@@ -463,3 +321,68 @@ ${scene.raw_text}`;
     );
   }
 });
+
+/**
+ * Build a concise style context string from the Style Contract, Production Bible, and Director Profile.
+ */
+function buildStyleContext(
+  styleContract: any | null,
+  bibleContent: any | null,
+  directorProfile: any | null,
+): string {
+  const parts: string[] = [];
+
+  if (directorProfile) {
+    parts.push(`DIRECTOR DNA:`);
+    parts.push(`  Primary: ${directorProfile.primary_director_name || "unset"}`);
+    if (directorProfile.secondary_director_name) {
+      parts.push(`  Secondary: ${directorProfile.secondary_director_name} (blend: ${directorProfile.blend_weight || 1.0})`);
+    }
+    if (directorProfile.quadrant) parts.push(`  Quadrant: ${directorProfile.quadrant}`);
+    if (directorProfile.cluster) parts.push(`  Cluster: ${directorProfile.cluster}`);
+    if (directorProfile.visual_mandate) {
+      const vm = directorProfile.visual_mandate;
+      if (typeof vm === "object") {
+        parts.push(`  Visual Mandate: ${JSON.stringify(vm)}`);
+      }
+    }
+  }
+
+  if (styleContract) {
+    parts.push(`\nSTYLE CONTRACT (v${styleContract.version || 1}):`);
+    if (styleContract.visual_dna) parts.push(`  Visual DNA: ${styleContract.visual_dna}`);
+    if (styleContract.world_rules) parts.push(`  World Rules: ${styleContract.world_rules}`);
+    if (styleContract.negative_prompt_base) parts.push(`  Negative: ${styleContract.negative_prompt_base}`);
+    
+    const jsonFields = [
+      ["Color Mandate", styleContract.color_mandate],
+      ["Lighting Doctrine", styleContract.lighting_doctrine],
+      ["Lens Philosophy", styleContract.lens_philosophy],
+      ["Texture Mandate", styleContract.texture_mandate],
+      ["Temporal Rules", styleContract.temporal_rules],
+      ["Genre Visual Profile", styleContract.genre_visual_profile],
+      ["Content Guardrails", styleContract.content_guardrails],
+    ];
+    for (const [label, val] of jsonFields) {
+      if (val && typeof val === "object" && Object.keys(val).length > 0) {
+        parts.push(`  ${label}: ${JSON.stringify(val)}`);
+      }
+    }
+  }
+
+  if (bibleContent && typeof bibleContent === "object") {
+    const bible = bibleContent as Record<string, any>;
+    // Extract key mandates from the production bible
+    const mandateKeys = ["sound_design", "lighting_rules", "color_rules", "camera_rules", "world_building", "tone"];
+    const mandates: string[] = [];
+    for (const key of mandateKeys) {
+      if (bible[key]) mandates.push(`  ${key}: ${typeof bible[key] === "string" ? bible[key] : JSON.stringify(bible[key])}`);
+    }
+    if (mandates.length > 0) {
+      parts.push(`\nPRODUCTION BIBLE MANDATES:`);
+      parts.push(...mandates);
+    }
+  }
+
+  return parts.length > 0 ? parts.join("\n") : "No style contract available. Use professional defaults.";
+}
