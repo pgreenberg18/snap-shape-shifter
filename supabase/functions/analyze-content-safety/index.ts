@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
+        model: "openai/gpt-5",
         max_tokens: 8192,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },

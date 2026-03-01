@@ -398,7 +398,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "openai/gpt-5",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Generate the complete Production Bible for this film project:\n\n${JSON.stringify(contextPayload, null, 2)}` },
