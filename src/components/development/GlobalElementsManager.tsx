@@ -429,11 +429,20 @@ function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnershi
 
   propUngrouped.push(...remainingProps);
 
+  // Title-case all prop labels
+  const toTitleCase = (s: string) => s.replace(/\b\w/g, c => c.toUpperCase());
+  const tcPropUngrouped = propUngrouped.map(toTitleCase);
+  const tcPropGroups = propGroups.map(g => ({
+    ...g,
+    parentName: toTitleCase(g.parentName),
+    variants: g.variants.map(toTitleCase),
+  }));
+
   return {
     locations: { ungrouped: locationUngrouped, groups: locationGroups },
     characters: { ungrouped: [...new Set(charNames)], groups: [] },
     wardrobe: { ungrouped: wardrobeUngrouped, groups: wardrobeGroups },
-    props: { ungrouped: propUngrouped, groups: propGroups },
+    props: { ungrouped: tcPropUngrouped, groups: tcPropGroups },
     visual_design: buildVisualDesignCategory(raw),
   };
 }
