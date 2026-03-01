@@ -1914,18 +1914,6 @@ const Development = () => {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-              {analysis?.status === "complete" && (
-                <SceneBreakdownFromDB
-                  filmId={filmId!}
-                  storagePath={analysis.storage_path}
-                  breakdownOpen={breakdownOpen}
-                  setBreakdownOpen={setBreakdownOpen}
-                  onAllApprovedChange={setAllScenesApproved}
-                  onReviewStatsChange={setReviewStats}
-                  analysisId={analysis.id}
-                  reviewStats={reviewStats}
-                />
-              )}
 
               {/* Global Elements — collapsed by default */}
               {analysis.global_elements && (
@@ -1968,6 +1956,19 @@ const Development = () => {
                   persistApproval("ai_notes_approved", v);
                 }}
               />}
+
+              {analysis?.status === "complete" && (
+                <SceneBreakdownFromDB
+                  filmId={filmId!}
+                  storagePath={analysis.storage_path}
+                  breakdownOpen={breakdownOpen}
+                  setBreakdownOpen={setBreakdownOpen}
+                  onAllApprovedChange={setAllScenesApproved}
+                  onReviewStatsChange={setReviewStats}
+                  analysisId={analysis.id}
+                  reviewStats={reviewStats}
+                />
+              )}
             </div>
           )}
         </section>
