@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useFilmId } from "@/hooks/useFilm";
+import { useFilmId, useFilm } from "@/hooks/useFilm";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,8 +9,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   BookOpen, ChevronDown, RefreshCw, Loader2, CheckCircle, AlertCircle,
   Camera, Palette, Film, Users, Scissors, Music, Clapperboard, Eye,
-  ShieldAlert, Layers, Target, Ban, Lightbulb, Aperture, PaintBucket
+  ShieldAlert, Layers, Target, Ban, Lightbulb, Aperture, PaintBucket,
+  Download
 } from "lucide-react";
+import { downloadProductionBiblePdf } from "@/lib/production-bible-pdf";
 
 // ═══════════════════════════════════════════════════════════
 // TYPES
@@ -216,6 +218,7 @@ const DEPT_LABELS: Record<string, string> = {
 
 const ProductionBiblePanel = () => {
   const filmId = useFilmId();
+  const { data: film } = useFilm();
   const { toast } = useToast();
   const [bible, setBible] = useState<ProductionBibleContent | null>(null);
   const [status, setStatus] = useState<string>("idle");
@@ -315,10 +318,21 @@ const ProductionBiblePanel = () => {
             </span>
           )}
         </div>
-        <Button size="sm" variant="outline" onClick={generateBible} disabled={loading} className="gap-1.5 h-7 text-xs">
-          {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-          Regenerate
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => downloadProductionBiblePdf(bible, film?.title || "Untitled Film")}
+            className="gap-1.5 h-7 text-xs"
+          >
+            <Download className="h-3 w-3" />
+            Download PDF
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateBible} disabled={loading} className="gap-1.5 h-7 text-xs">
+            {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+            Regenerate
+          </Button>
+        </div>
       </div>
 
       {/* ═══ SECTION 1: CORE CINEMATIC IDENTITY ═══ */}
