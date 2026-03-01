@@ -1586,8 +1586,8 @@ const Development = () => {
                                 <h3 className="font-display text-sm font-bold">Format</h3>
                               </div>
                               <div className="flex items-center gap-2">
-                                {formatType ? (
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                {formatApproved ? (
+                                  <ThumbsUp className="h-4 w-4 text-green-500" />
                                 ) : (
                                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                                 )}
@@ -1753,21 +1753,12 @@ const Development = () => {
 
                                 <div className="flex justify-end gap-2">
                                   <Button
-                                    onClick={handleSaveFormat}
-                                    disabled={formatSaving || scriptLocked}
-                                    variant={formatSaved ? "success" : "default"}
-                                    className="gap-1.5"
-                                    size="sm"
-                                  >
-                                    {formatSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : formatSaved ? <CheckCircle className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-                                    {formatSaved ? "Saved" : "Save Format"}
-                                  </Button>
-                                  <Button
                                     size="sm"
                                     variant={formatApproved ? "default" : "outline"}
                                     className={cn("gap-1.5", formatApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                                    onClick={() => {
+                                    onClick={async () => {
                                       const next = !formatApproved;
+                                      if (next) await handleSaveFormat();
                                       setFormatApproved(next);
                                       persistApproval("format_approved", next);
                                     }}
@@ -1792,8 +1783,8 @@ const Development = () => {
                                 <h3 className="font-display text-sm font-bold">Time Period</h3>
                               </div>
                               <div className="flex items-center gap-2">
-                                {film?.time_period ? (
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                {timePeriodApproved ? (
+                                  <ThumbsUp className="h-4 w-4 text-green-500" />
                                 ) : (
                                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                                 )}
@@ -2077,8 +2068,8 @@ const Development = () => {
                                     <h3 className="font-display text-sm font-bold">Genre</h3>
                                   </div>
                                   <div className="flex items-center gap-2">
-                                    {genres.length > 0 ? (
-                                      <CheckCircle className="h-4 w-4 text-green-500" />
+                                    {genreApproved ? (
+                                      <ThumbsUp className="h-4 w-4 text-green-500" />
                                     ) : (
                                       <AlertCircle className="h-4 w-4 text-yellow-500" />
                                     )}
@@ -2162,8 +2153,8 @@ const Development = () => {
                                 <h3 className="font-display text-lg font-bold">Global Elements</h3>
                               </div>
                               <div className="flex items-center gap-2">
-                                {allElementsReviewed ? (
-                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                {globalElementsApproved ? (
+                                  <ThumbsUp className="h-4 w-4 text-green-500" />
                                 ) : (
                                   <AlertCircle className="h-4 w-4 text-yellow-500" />
                                 )}
