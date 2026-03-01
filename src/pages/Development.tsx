@@ -52,7 +52,7 @@ const FORMAT_PRESETS: { value: string; label: string; width: number; height: num
   { value: "animated_feature", label: "Animated Feature", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
   { value: "animation_series", label: "Animation Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
   { value: "animation_short", label: "Animation Short", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
-  { value: "animation_web", label: "Animation — Web Series", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Animation" },
+  
   // Social & Digital
   { value: "tiktok", label: "TikTok", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
   { value: "instagram_reel", label: "Instagram Reel", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
