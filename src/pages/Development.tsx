@@ -737,7 +737,10 @@ const Development = () => {
       setRatingsApproved(true);
       setContentSafetyRun(true);
     }
-  }, [analysis?.id, (analysis as any)?.visual_summary_approved, (analysis as any)?.ratings_approved]);
+    if ((analysis as any).ai_notes_approved && directorProfile) {
+      setVisionComplete(true);
+    }
+  }, [analysis?.id, (analysis as any)?.visual_summary_approved, (analysis as any)?.ratings_approved, (analysis as any)?.ai_notes_approved, directorProfile]);
 
   const persistApproval = useCallback(async (field: string, value: boolean) => {
     if (!analysis?.id) return;
