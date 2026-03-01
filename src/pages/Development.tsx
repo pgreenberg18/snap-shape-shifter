@@ -777,6 +777,30 @@ const Development = () => {
       setVisionComplete(false);
       setActiveTab("fundamentals");
 
+      // Invalidate all downstream query caches so UI reflects the wipe
+      queryClient.invalidateQueries({ queryKey: ["parsed-scenes"] });
+      queryClient.invalidateQueries({ queryKey: ["characters"] });
+      queryClient.invalidateQueries({ queryKey: ["shots"] });
+      queryClient.invalidateQueries({ queryKey: ["film-assets"] });
+      queryClient.invalidateQueries({ queryKey: ["director-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["style-contract"] });
+      queryClient.invalidateQueries({ queryKey: ["content-safety"] });
+      queryClient.invalidateQueries({ queryKey: ["production-bible"] });
+      queryClient.invalidateQueries({ queryKey: ["scene-style-overrides"] });
+      queryClient.invalidateQueries({ queryKey: ["vice-conflicts"] });
+      queryClient.invalidateQueries({ queryKey: ["vice-dependencies"] });
+      queryClient.invalidateQueries({ queryKey: ["vice-dirty-queue"] });
+      queryClient.invalidateQueries({ queryKey: ["asset-identity-registry"] });
+      queryClient.invalidateQueries({ queryKey: ["wardrobe-fitting-views"] });
+      queryClient.invalidateQueries({ queryKey: ["wardrobe-scene-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["post-production-clips"] });
+      queryClient.invalidateQueries({ queryKey: ["production-presets"] });
+      queryClient.invalidateQueries({ queryKey: ["voice-auditions"] });
+      queryClient.invalidateQueries({ queryKey: ["enrichment-progress"] });
+      queryClient.invalidateQueries({ queryKey: ["scene-locations"] });
+      queryClient.invalidateQueries({ queryKey: ["scene-prop-ownership"] });
+      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+
       analysisId = analysis.id;
     } else {
       // First analysis: insert new record
