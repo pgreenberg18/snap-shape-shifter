@@ -318,21 +318,10 @@ const Projects = () => {
                 onClick={() => navigate("/settings/admin")}
                 className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
               >
-                <PrecisionGearIcon className="h-5 w-5 icon-glow" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top"><p>Settings & Admin</p></TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => navigate("/settings/admin")}
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-all duration-200"
-              >
                 <MixingConsoleIcon className="h-5 w-5 icon-glow" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="top"><p>Global Settings</p></TooltipContent>
+            <TooltipContent side="top"><p>Settings</p></TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
