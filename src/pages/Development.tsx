@@ -43,8 +43,10 @@ const FORMAT_PRESETS: { value: string; label: string; width: number; height: num
   // Live-Action
   { value: "feature_film", label: "Feature Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "feature_film_scope", label: "Feature Film — Widescreen", width: 2048, height: 858, fps: 24, aspect: "2.39:1", fourK: { width: 4096, height: 1716 }, category: "Live-Action" },
+  { value: "imax", label: "Feature Film — IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1", category: "Live-Action" },
   { value: "tv_series", label: "TV Series", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "tv_sitcom", label: "TV Sitcom", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
+  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "short_film", label: "Short Film", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "documentary", label: "Documentary", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
   { value: "music_video", label: "Music Video", width: 1920, height: 1080, fps: 24, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Live-Action" },
@@ -65,10 +67,8 @@ const FORMAT_PRESETS: { value: string; label: string; width: number; height: num
   { value: "facebook", label: "Facebook Video", width: 1280, height: 720, fps: 30, aspect: "16:9", category: "Social & Digital" },
   { value: "snapchat", label: "Snapchat", width: 1080, height: 1920, fps: 30, aspect: "9:16", category: "Social & Digital" },
   { value: "linkedin", label: "LinkedIn Video", width: 1920, height: 1080, fps: 30, aspect: "16:9", category: "Social & Digital" },
-  // Commercial & Specialty
-  { value: "commercial", label: "TV Commercial", width: 1920, height: 1080, fps: 30, aspect: "16:9", fourK: { width: 3840, height: 2160 }, category: "Commercial & Specialty" },
-  { value: "imax", label: "IMAX", width: 4096, height: 2160, fps: 24, aspect: "1.9:1", category: "Commercial & Specialty" },
-  { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1", category: "Commercial & Specialty" },
+  // Specialty
+  { value: "vr_360", label: "VR / 360°", width: 4096, height: 2048, fps: 30, aspect: "2:1", category: "Specialty" },
 ];
 
 /* ── Hooks ── */
