@@ -135,19 +135,21 @@ export const DeliveryIcon = ({ className }: IconProps) => {
   );
 };
 
-/* ── Settings: Gear with precision teeth ── */
-export const PrecisionGearIcon = ({ className }: IconProps) => (
+/* ── Integrations: Plug / connector ── */
+export const IntegrationsPlugIcon = ({ className }: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={cn(base, className)}>
-    <path d="M12 2l1.4 2.5a1 1 0 00.9.5h2.8l.7 2.7-2.3 1.3a1 1 0 00-.5.9l.3 2.8-2.7.7-1.3-2.3a1 1 0 00-.9 0L9.1 12.4l-.7-2.7 2.3-1.3a1 1 0 00.5-.9L10.9 4.7l2.7-.7z" stroke="currentColor" strokeWidth="1.3" opacity="0.5" />
-    <circle cx="12" cy="12" r="6" stroke="currentColor" strokeWidth="1" opacity="0.25" strokeDasharray="2 2.5" />
-    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.3" opacity="0.6" />
-    <circle cx="12" cy="12" r="1.2" fill="hsl(38 92% 55%)" opacity="0.9" />
-    <line x1="12" y1="2.5" x2="12" y2="4.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
-    <line x1="12" y1="19.5" x2="12" y2="21.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
-    <line x1="2.5" y1="12" x2="4.5" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
-    <line x1="19.5" y1="12" x2="21.5" y2="12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" opacity="0.5" />
+    <path d="M17 7l-1.4 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
+    <path d="M9 15l-1.4 1.4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" opacity="0.5" />
+    <path d="M13 6l1.5-1.5a3.5 3.5 0 015 5L18 11l-5-5z" stroke="currentColor" strokeWidth="1.3" opacity="0.6" />
+    <path d="M11 18l-1.5 1.5a3.5 3.5 0 01-5-5L6 13l5 5z" stroke="currentColor" strokeWidth="1.3" opacity="0.6" />
+    <line x1="8" y1="16" x2="16" y2="8" stroke="hsl(38 92% 55%)" strokeWidth="1.6" strokeLinecap="round" opacity="0.85" />
+    <circle cx="14.5" cy="9.5" r="1" fill="currentColor" opacity="0.3" />
+    <circle cx="9.5" cy="14.5" r="1" fill="currentColor" opacity="0.3" />
   </svg>
 );
+
+/* ── Settings: Gear with precision teeth (legacy alias) ── */
+export const PrecisionGearIcon = IntegrationsPlugIcon;
 
 /* ── Help: Info beacon ── */
 export const InfoBeaconIcon = ({ className }: IconProps) => (
