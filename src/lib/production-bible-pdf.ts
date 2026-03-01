@@ -38,6 +38,8 @@ interface EngineCompiler {
 interface ProductionBibleContent {
   film_id?: string;
   version?: number;
+  version_name?: string;
+  script_file_name?: string;
   generated_at?: string;
   core_identity?: {
     axis_interpretations?: AxisInterpretation[];
@@ -317,8 +319,15 @@ class BiblePdfBuilder {
     this.doc.setFontSize(9);
     this.doc.setTextColor(...C_MUTED);
 
-    if (bible.version) {
+    if (bible.version_name) {
+      this.doc.text(bible.version_name, PAGE_W / 2, this.y, { align: "center" });
+      this.y += 6;
+    } else if (bible.version) {
       this.doc.text(`Version ${bible.version}`, PAGE_W / 2, this.y, { align: "center" });
+      this.y += 6;
+    }
+    if (bible.script_file_name) {
+      this.doc.text(`Script: ${bible.script_file_name}`, PAGE_W / 2, this.y, { align: "center" });
       this.y += 6;
     }
     if (bible.generated_at) {
