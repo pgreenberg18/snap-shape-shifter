@@ -82,14 +82,19 @@ const AllNDAs = () => {
 
   const deleteUser = useMutation({
     mutationFn: async (userId: string) => {
+      // Remove access & activity but preserve signed NDA record
       await supabase.from("user_access_controls").delete().eq("user_id", userId);
       await supabase.from("activity_logs").delete().eq("user_id", userId);
-      await supabase.from("user_profiles").delete().eq("user_id", userId);
+      // Revoke app access but keep the NDA on file
+      await supabase
+        .from("user_profiles")
+        .update({ onboarding_complete: false })
+        .eq("user_id", userId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-profiles"] });
       setDeleteTarget(null);
-      toast.success("User data removed");
+      toast.success("User access revoked — NDA preserved");
     },
     onError: (e) => toast.error(e.message),
   });
@@ -145,9 +150,9 @@ const AllNDAs = () => {
       <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete user "{deleteTarget?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>Revoke access for "{deleteTarget?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will remove their profile, NDA, access controls, and activity logs. This cannot be undone.
+              This will remove their access controls and activity logs. Their signed NDA will be preserved on file.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -156,7 +161,7 @@ const AllNDAs = () => {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               onClick={() => deleteTarget && deleteUser.mutate(deleteTarget.userId)}
             >
-              Delete
+              Revoke Access
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -649,7 +654,7 @@ const SettingsAdmin = () => {
           {activeSection === "all-ndas" && isAdmin && (
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">All Signed NDAs</h2>
-              <p className="text-sm text-muted-foreground mb-6">View and manage all user NDAs. Deleting a user removes their NDA, access controls, and activity logs.</p>
+              <p className="text-sm text-muted-foreground mb-6">View and manage all user NDAs. Revoking a user removes their access controls and activity logs but preserves their signed NDA on file.</p>
               <AllNDAs />
             </div>
           )}
