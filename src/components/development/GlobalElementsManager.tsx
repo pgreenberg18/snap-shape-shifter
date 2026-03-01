@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { getLocationBase, isLikelyVehicleLocation, normalizeLocationKey, splitAndCleanLocations } from "@/lib/global-elements-normalization";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -131,127 +132,60 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
   }
 
   // ── Location processing ──────────────────────────────────
-  const VEHICLE_PATTERNS = /^(?:CAR|HOWARD'S CAR|COP CAR|LARRY'S CAR|RACHEL'S CAR|CORVETTE|CARGO VAN.*|VAN|TRUCK|BUS|SUV|SEDAN|MOTORCYCLE|AMBULANCE|TAXI|LIMOUSINE|CONVERTIBLE)$/i;
-  const VEHICLE_WORDS = /\b(car|truck|van|corvette|sedan|motorcycle|ambulance|taxi|limousine|convertible|suv)\b/i;
-
   const rawLocations = extract(["recurring_locations"]);
-  // Also include locations from parsed scenes for better grouping coverage
   if (sceneLocations) {
     for (const sl of sceneLocations) {
       if (sl && !rawLocations.includes(sl)) rawLocations.push(sl);
     }
   }
-  // Step 1: Split combined sluglines (separated by /)
-  const splitLocations: string[] = [];
-  for (const loc of rawLocations) {
-    // Split on " / " but not on sub-location dashes like "WELLS' HOME - KITCHEN"
-    const parts = loc.split(/\s*\/\s*/);
-    for (const part of parts) {
-      const cleaned = part
-        .replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "")
-        .replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "")
-        .trim();
-      if (cleaned) splitLocations.push(cleaned);
-    }
-  }
 
-  // Step 2: Normalize for deduplication
-  const normalizeLocation = (name: string): string => {
-    let n = name.toUpperCase().trim();
-    // Normalize separators: ". " and "  " → " - "
-    n = n.replace(/\.\s+/g, " - ").replace(/\s{2,}/g, " ");
-    // Normalize possessives: ' and ' → '
-    n = n.replace(/['']/g, "'");
-    // WELLS' HOUSE → WELLS' HOME (normalize variant)
-    n = n.replace(/\bHOUSE\b/g, "HOME");
-    // UNIVERSITY LABORATORY → UNIVERSITY - LABORATORY, UNIVERSITY LAB → UNIVERSITY - LABORATORY
-    n = n.replace(/\bLAB\b/g, "LABORATORY");
-    // Normalize "UNIVERSITY LABORATORY" → "UNIVERSITY - LABORATORY" when no separator exists
-    // but only if it's clearly a sub-location pattern
-    return n;
-  };
+  const cleanedLocations = rawLocations
+    .flatMap((loc) => splitAndCleanLocations(loc))
+    .filter((loc) => !isLikelyVehicleLocation(loc));
 
   // Deduplicate: keep the most descriptive version of each normalized form
   const locByNorm = new Map<string, string>();
-  for (const loc of splitLocations) {
-    const norm = normalizeLocation(loc);
+  for (const loc of cleanedLocations) {
+    const norm = normalizeLocationKey(loc);
     const existing = locByNorm.get(norm);
     if (!existing || loc.length > existing.length) {
       locByNorm.set(norm, loc);
     }
   }
 
-  // Step 3: Filter out vehicles
-  const dedupedLocations = [...locByNorm.values()].filter(loc => {
-    const upper = loc.toUpperCase().trim();
-    if (VEHICLE_PATTERNS.test(upper)) return false;
-    // Filter entries that are purely a vehicle reference (e.g. "HOWARD'S CAR")
-    // Check if the entire location is a vehicle (possessive + vehicle word)
-    const stripped = upper.replace(/^[A-Z']+'S\s+/i, "").trim();
-    if (VEHICLE_WORDS.test(stripped) && stripped.split(/\s+/).length <= 2) return false;
-    if (VEHICLE_WORDS.test(upper) && upper.split(/\s+/).length <= 2) return false;
-    return true;
-  });
+  const dedupedLocations = [...locByNorm.values()];
 
-  // Step 4: Group by shared base location
-  // Extract the base/root of a location: "WELLS' HOME - KITCHEN" → "WELLS' HOME"
-  const getLocationBase = (name: string): string => {
-    const upper = name.toUpperCase().replace(/['']/g, "'").replace(/\.\s+/g, " - ");
-    // Normalize HOUSE→HOME
-    const normalized = upper.replace(/\bHOUSE\b/g, "HOME");
-    // Get base before first separator
-    const sepMatch = normalized.match(/^(.+?)\s*[-–—]\s+/);
-    if (sepMatch) return sepMatch[1].trim();
-    // For multi-word locations, try to find a groupable root
-    // e.g., "UNIVERSITY PARKING LOT" → check if "UNIVERSITY" is a base
-    return normalized.trim();
-  };
-
-  // Build a map of base → locations
+  // Group by shared base location
   const baseMap = new Map<string, string[]>();
-  const COMMON_SUFFIXES_LOC = new Set(["ROOM", "HALLWAY", "CORRIDOR", "LOBBY", "ENTRANCE", "EXIT", "OFFICE", "FLOOR", "LOT", "AREA", "PARKING LOT", "STAIR WELL", "SIDE STREET", "FRONT ENTRANCE", "SIDE ENTRANCE", "BACK DECK", "DECK"]);
 
   for (const loc of dedupedLocations) {
     const base = getLocationBase(loc);
-    // Try to find if this location's base matches or is contained in an existing base
+
     let matched = false;
     for (const [existingBase, items] of baseMap) {
-      // Check if bases are essentially the same or one contains the other
-      if (existingBase === base ||
-          existingBase.startsWith(base + " ") || base.startsWith(existingBase + " ") ||
-          existingBase.startsWith(base + "'") || base.startsWith(existingBase + "'")) {
-        // Use the shorter base as the canonical one
+      const existingNorm = normalizeLocationKey(existingBase);
+      const baseNorm = normalizeLocationKey(base);
+      if (
+        existingNorm === baseNorm ||
+        existingNorm.startsWith(baseNorm + " ") ||
+        baseNorm.startsWith(existingNorm + " ") ||
+        existingNorm.replace(/'S\b/g, "") === baseNorm.replace(/'S\b/g, "")
+      ) {
         const canonBase = existingBase.length <= base.length ? existingBase : base;
         if (canonBase !== existingBase) {
-          const items2 = baseMap.get(existingBase)!;
+          const moved = baseMap.get(existingBase)!;
           baseMap.delete(existingBase);
-          baseMap.set(canonBase, items2);
+          baseMap.set(canonBase, moved);
         }
         baseMap.get(canonBase)!.push(loc);
         matched = true;
         break;
       }
     }
+
     if (!matched) {
       if (!baseMap.has(base)) baseMap.set(base, []);
       baseMap.get(base)!.push(loc);
-    }
-  }
-
-  // Now also try to merge bases that share a significant word (e.g., "UNIVERSITY" groups with "UNIVERSITY PARKING LOT")
-  const bases = [...baseMap.keys()];
-  for (let i = 0; i < bases.length; i++) {
-    for (let j = i + 1; j < bases.length; j++) {
-      if (!baseMap.has(bases[i]) || !baseMap.has(bases[j])) continue;
-      const a = bases[i], b = bases[j];
-      // Check if one base starts with the other (e.g., "HOSPITAL" matches "HOSPITAL CORRIDOR")
-      if (a.startsWith(b + " ") || a.startsWith(b + "'") || b.startsWith(a + " ") || b.startsWith(a + "'") || a === b) {
-        const canon = a.length <= b.length ? a : b;
-        const other = canon === a ? b : a;
-        const merged = [...baseMap.get(canon)!, ...baseMap.get(other)!];
-        baseMap.delete(other);
-        baseMap.set(canon, merged);
-      }
     }
   }
 
@@ -259,16 +193,19 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
   const locationUngrouped: string[] = [];
 
   for (const [base, items] of baseMap) {
-    // Deduplicate within group
-    const unique = [...new Set(items)];
-    // Group if 2+ items, OR if there's a single item with a sub-location separator
-    // (meaning it's a sub-location like "DOCTOR'S OFFICE - ULTRASOUND ROOM")
-    const hasSubLocations = unique.some(loc => {
-      const upper = loc.toUpperCase().replace(/['']/g, "'").replace(/\.\s+/g, " - ");
-      return upper.replace(/\bHOUSE\b/g, "HOME").includes(" - ");
-    });
+    const uniqueByNorm = new Map<string, string>();
+    for (const item of items) {
+      const norm = normalizeLocationKey(item);
+      const existing = uniqueByNorm.get(norm);
+      if (!existing || item.length > existing.length) {
+        uniqueByNorm.set(norm, item);
+      }
+    }
+    const unique = [...uniqueByNorm.values()];
+
+    const hasSubLocations = unique.some((loc) => normalizeLocationKey(loc).includes(" - "));
     if (unique.length >= 2 || (unique.length === 1 && hasSubLocations)) {
-      const parentName = base.charAt(0) + base.slice(1).toLowerCase().replace(/'/g, "'");
+      const parentName = base.charAt(0) + base.slice(1).toLowerCase();
       locationGroups.push({ id: uid(), parentName, variants: unique });
     } else {
       locationUngrouped.push(...unique);
@@ -276,17 +213,18 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
   }
 
   // Filter vehicles and locations out of props, then deduplicate similar items
-  const VEHICLE_PATTERNS_PROPS = /\b(car|truck|van|bus|suv|sedan|pickup|motorcycle|bike|bicycle|helicopter|plane|airplane|aircraft|jet|boat|ship|yacht|ambulance|taxi|cab|limousine|limo|convertible|coupe|wagon|minivan|rv|trailer|tractor|forklift|scooter|moped|hovercraft|submarine)\b/i;
+  const VEHICLE_PATTERNS_PROPS = /\b(car|truck|van|bus|suv|sedan|pickup|motorcycle|bike|bicycle|helicopter|plane|airplane|aircraft|jet|boat|ship|yacht|ambulance|taxi|cab|limousine|limo|convertible|coupe|wagon|minivan|rv|trailer|tractor|forklift|scooter|moped|hovercraft|submarine|tesla|miata|corvette)\b/i;
   const rawProps = extract(["recurring_props"]);
-  const locationNamesUpper = new Set([...locationUngrouped, ...locationGroups.flatMap(g => g.variants)].map(l => l.toUpperCase()));
+  const locationNames = [...locationUngrouped, ...locationGroups.flatMap(g => g.variants)];
+  const locationNameKeys = new Set(locationNames.map((l) => normalizeLocationKey(l)));
 
   // Step 1: Filter out vehicles and locations
   const filteredProps = rawProps.filter(p => {
-    const upper = p.toUpperCase().trim();
+    const normalized = normalizeLocationKey(p);
     // Remove if it matches a known location
-    if (locationNamesUpper.has(upper)) return false;
+    if (locationNameKeys.has(normalized)) return false;
     // Remove if it's clearly a vehicle
-    if (VEHICLE_PATTERNS_PROPS.test(p)) return false;
+    if (VEHICLE_PATTERNS_PROPS.test(p) || isLikelyVehicleLocation(p)) return false;
     return true;
   });
 
@@ -348,6 +286,8 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
   };
 }
 
+const MANAGED_SCHEMA_VERSION = 2;
+
 let _uid = 0;
 const uid = () => `grp_${++_uid}_${Date.now()}`;
 
@@ -363,9 +303,11 @@ interface Props {
 
 export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations }: Props) {
   const managed = data?._managed;
-  // Use managed data only if locations are present (not null), otherwise rebuild
+  const managedVersion = typeof managed?.version === "number" ? managed.version : 1;
+  const useManagedCategories = Boolean(managed?.categories && managed.categories.locations && managedVersion >= MANAGED_SCHEMA_VERSION);
+
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
-    if (managed?.categories && managed.categories.locations) return managed.categories;
+    if (useManagedCategories) return managed.categories;
     return buildInitialData(data, sceneLocations);
   });
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
@@ -414,11 +356,18 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   useEffect(() => {
     if (initialMount.current) {
       initialMount.current = false;
-      return;
+      if (useManagedCategories) return;
     }
     if (!analysisId) return;
     const save = async () => {
-      const updatedGlobal = { ...data, _managed: { categories: categoriesRef.current, reviewStatus: reviewStatusRef.current } };
+      const updatedGlobal = {
+        ...data,
+        _managed: {
+          version: MANAGED_SCHEMA_VERSION,
+          categories: categoriesRef.current,
+          reviewStatus: reviewStatusRef.current,
+        },
+      };
       await supabase
         .from("script_analyses")
         .update({ global_elements: updatedGlobal as any })
@@ -428,7 +377,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     pendingSaveRef.current = save;
     const timeout = setTimeout(save, 500);
     return () => clearTimeout(timeout);
-  }, [categories, reviewStatus, analysisId]);
+  }, [categories, reviewStatus, analysisId, useManagedCategories]);
 
   // Flush pending save on unmount
   useEffect(() => {

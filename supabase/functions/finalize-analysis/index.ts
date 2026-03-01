@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
 import { logCreditUsage } from "../_shared/credit-logger.ts";
+import { extractNormalizedLocations, normalizeLocationKey } from "../_shared/location-normalization.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,7 +68,7 @@ Deno.serve(async (req) => {
 
     // ── Deterministic aggregation of ALL unique elements from scene data ──
     const allCharacters = new Set<string>();
-    const allLocations = new Set<string>();
+    const allLocationsByKey = new Map<string, string>();
     const allWardrobe: string[] = [];
     const wardrobeSeen = new Set<string>();
     const allProps = new Set<string>();
@@ -87,11 +88,16 @@ Deno.serve(async (req) => {
       }
 
       // Locations
-      if (s.location_name) {
-        let loc = (s.location_name as string).trim();
-        loc = loc.replace(/^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i, "").trim();
-        loc = loc.replace(/\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER)\s*$/i, "").trim();
-        if (loc) allLocations.add(loc);
+      const pictureVehicles = Array.isArray(s.picture_vehicles)
+        ? (s.picture_vehicles as string[]).filter((v) => typeof v === "string" && v.trim())
+        : [];
+      const normalizedLocations = extractNormalizedLocations(s.location_name, pictureVehicles);
+      for (const loc of normalizedLocations) {
+        const key = normalizeLocationKey(loc);
+        const existing = allLocationsByKey.get(key);
+        if (!existing || loc.length > existing.length) {
+          allLocationsByKey.set(key, loc);
+        }
       }
 
       // Wardrobe
@@ -324,7 +330,7 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
     const vd = result.visual_design || {};
     const globalElements = {
       recurring_characters: Array.from(allCharacters),
-      recurring_locations: Array.from(allLocations),
+      recurring_locations: Array.from(allLocationsByKey.values()),
       recurring_wardrobe: allWardrobe,
       recurring_props: Array.from(allProps),
       // Keep legacy visual_motifs for backward compat, plus new structured data
