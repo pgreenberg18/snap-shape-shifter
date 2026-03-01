@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import {
-  Trash2, Pencil, Check, X, ChevronRight,
+  Trash2, Pencil, Check, X, ChevronRight, ChevronDown,
 } from "lucide-react";
 import {
   AddProjectIcon, FilmStripIcon, PrecisionGearIcon, InfoBeaconIcon, ProfileIcon,
@@ -50,6 +50,8 @@ const Projects = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [expandedProjects, setExpandedProjects] = useState(false);
+  const [expandedProjectId, setExpandedProjectId] = useState<string | null>(null);
 
   const { data: projects, isLoading } = useQuery({
     queryKey: ["projects"],
@@ -63,18 +65,30 @@ const Projects = () => {
     },
   });
 
-  const { data: versionCounts } = useQuery({
-    queryKey: ["project-version-counts"],
+  const { data: allFilms } = useQuery({
+    queryKey: ["project-films-all"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("films").select("project_id");
+      const { data, error } = await supabase
+        .from("films")
+        .select("id, title, project_id, version_number, version_name")
+        .order("version_number", { ascending: true });
       if (error) throw error;
-      const counts: Record<string, number> = {};
-      for (const f of data || []) {
-        if (f.project_id) counts[f.project_id] = (counts[f.project_id] || 0) + 1;
-      }
-      return counts;
+      return data;
     },
   });
+
+  const versionCounts: Record<string, number> = {};
+  for (const f of allFilms || []) {
+    if (f.project_id) versionCounts[f.project_id] = (versionCounts[f.project_id] || 0) + 1;
+  }
+
+  const filmsByProject: Record<string, typeof allFilms> = {};
+  for (const f of allFilms || []) {
+    if (f.project_id) {
+      if (!filmsByProject[f.project_id]) filmsByProject[f.project_id] = [];
+      filmsByProject[f.project_id]!.push(f);
+    }
+  }
 
   const createProject = useMutation({
     mutationFn: async () => {
@@ -182,7 +196,7 @@ const Projects = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
-      queryClient.invalidateQueries({ queryKey: ["project-version-counts"] });
+      queryClient.invalidateQueries({ queryKey: ["project-films-all"] });
       setDeleteTarget(null);
       toast.success("Project deleted");
     },
@@ -225,11 +239,49 @@ const Projects = () => {
               Studio Overview
             </h3>
             <div className="space-y-3">
-              <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3">
-                <span className="text-xs text-muted-foreground">Film Projects</span>
-                <span className="text-sm font-display font-bold text-foreground">
-                  {projects?.length || 0}
-                </span>
+              <div>
+                <button
+                  onClick={() => setExpandedProjects((p) => !p)}
+                  className="flex w-full items-center justify-between rounded-lg bg-secondary/50 px-4 py-3 hover:bg-secondary/80 transition-colors"
+                >
+                  <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                    {expandedProjects ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                    Film Projects
+                  </span>
+                  <span className="text-sm font-display font-bold text-foreground">
+                    {projects?.length || 0}
+                  </span>
+                </button>
+                {expandedProjects && projects && projects.length > 0 && (
+                  <div className="mt-1 ml-2 border-l border-border pl-2 space-y-0.5">
+                    {projects.map((project) => (
+                      <div key={project.id}>
+                        <button
+                          onClick={() => setExpandedProjectId(expandedProjectId === project.id ? null : project.id)}
+                          className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-foreground hover:bg-accent transition-colors"
+                        >
+                          {expandedProjectId === project.id ? <ChevronDown className="h-3 w-3 text-muted-foreground shrink-0" /> : <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />}
+                          <span className="truncate">{project.title}</span>
+                          <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{versionCounts[project.id] || 0}v</span>
+                        </button>
+                        {expandedProjectId === project.id && filmsByProject[project.id] && (
+                          <div className="ml-4 border-l border-border/50 pl-2 space-y-0.5 py-0.5">
+                            {filmsByProject[project.id]!.map((film) => (
+                              <button
+                                key={film.id}
+                                onClick={() => navigate(`/projects/${project.id}`)}
+                                className="flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                              >
+                                <FilmStripIcon className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{film.version_name || `Version ${film.version_number}`}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex items-center justify-between rounded-lg bg-secondary/50 px-4 py-3">
                 <span className="text-xs text-muted-foreground">Total Versions</span>
