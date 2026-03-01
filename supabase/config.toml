@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.propagate-intent-change]
 verify_jwt = false
+
+[functions.extract-entities]
+verify_jwt = false
