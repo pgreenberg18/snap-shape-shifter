@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
-  Users, Settings, Image, Gauge, Plug,
+  Users, Settings, Image, Gauge, Plug, FileText,
   Lock, Unlock, ShieldAlert,
 } from "lucide-react";
 import {
@@ -654,10 +654,49 @@ const SettingsAdmin = () => {
             <div>
               <h2 className="font-display text-lg font-bold text-foreground mb-4">Downloads</h2>
               <p className="text-sm text-muted-foreground mb-6">Export content as PDF, images, text, or HTML files.</p>
-              <div className="rounded-lg border border-dashed border-border bg-secondary/20 p-8 text-center">
-                <Download className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <p className="text-sm text-muted-foreground">Download center coming soon.</p>
-                <p className="text-sm text-muted-foreground/60 mt-1">Frame grabs, instruction manuals, and script breakdowns will be exportable here.</p>
+              <div className="space-y-3">
+                <button
+                  onClick={async () => {
+                    const { HELP_ARTICLES } = await import("@/components/help/HelpPanel");
+                    const categories = new Map<string, { title: string; content: string }[]>();
+                    for (const article of HELP_ARTICLES) {
+                      if (!categories.has(article.category)) categories.set(article.category, []);
+                      categories.get(article.category)!.push({ title: article.title, content: article.content });
+                    }
+                    const lines: string[] = [
+                      "VIRTUAL FILM STUDIO — INSTRUCTIONS & HELP GUIDE",
+                      "=".repeat(52),
+                      `Generated: ${new Date().toLocaleString()}`,
+                      "",
+                    ];
+                    for (const [cat, articles] of categories) {
+                      lines.push("", "━".repeat(52), cat.toUpperCase(), "━".repeat(52), "");
+                      for (const a of articles) {
+                        const plain = a.content
+                          .replace(/\*\*(.+?)\*\*/g, "$1")
+                          .replace(/\*(.+?)\*/g, "$1")
+                          .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+                        lines.push(`── ${a.title} ──`, "", plain, "");
+                      }
+                    }
+                    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement("a");
+                    link.href = url;
+                    link.download = "Virtual-Film-Studio-Instructions.txt";
+                    link.click();
+                    URL.revokeObjectURL(url);
+                    toast.success("Instructions downloaded");
+                  }}
+                  className="flex items-center gap-3 w-full rounded-lg border border-border bg-card p-4 hover:bg-accent transition-colors text-left"
+                >
+                  <FileText className="h-5 w-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">Instructions & Help Guide</p>
+                    <p className="text-xs text-muted-foreground">Download all help articles as a text file, organized by section.</p>
+                  </div>
+                  <Download className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
+                </button>
               </div>
             </div>
           )}
