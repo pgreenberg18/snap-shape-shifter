@@ -636,7 +636,7 @@ const ProjectVersions = () => {
               />
             </label>
           </div>
-          <div className="flex flex-1 flex-col p-3">
+          <div className="flex flex-1 flex-col p-2">
             {renamingId === v.id ? (
               <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                 <Input
@@ -657,11 +657,11 @@ const ProjectVersions = () => {
                 </Button>
               </div>
             ) : (
-              <h3 className="font-display text-sm font-semibold text-foreground">
+              <h3 className="font-display text-xs font-semibold text-foreground truncate">
                 {v.version_name || `Version ${v.version_number}`}
               </h3>
             )}
-            <div className="mt-auto flex items-center justify-between pt-2 text-[11px] text-muted-foreground">
+            <div className="mt-auto flex items-center justify-between pt-1 text-[9px] text-muted-foreground">
               <span className="flex items-center gap-1">
                 <Calendar className="h-3 w-3" />
                 {new Date(v.created_at).toLocaleDateString()}
@@ -673,27 +673,19 @@ const ProjectVersions = () => {
             </div>
           </div>
         </button>
-        <div className="border-t border-border p-2 flex items-center gap-1">
-          <Button variant="ghost" size="sm" className="gap-1.5 text-xs" onClick={(e) => { e.stopPropagation(); setRenamingId(v.id); setRenameValue(v.version_name || `Version ${v.version_number}`); }}>
-            <Pencil className="h-3 w-3" /> Rename
+        <div className="border-t border-border p-1 flex items-center gap-0.5">
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); setRenamingId(v.id); setRenameValue(v.version_name || `Version ${v.version_number}`); }}>
+            <Pencil className="h-3 w-3" />
           </Button>
           {!isArchived && (
-            <Button variant="ghost" size="sm" className="flex-1 gap-2 text-xs" onClick={() => copyVersion.mutate(v.id)} disabled={copyVersion.isPending}>
-              <Copy className="h-3 w-3" /> {copyVersion.isPending ? "Copying…" : "Duplicate"}
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => copyVersion.mutate(v.id)} disabled={copyVersion.isPending}>
+              <Copy className="h-3 w-3" />
             </Button>
           )}
-          <Button
-            variant="ghost" size="sm" className="gap-1.5 text-xs"
-            onClick={(e) => { e.stopPropagation(); archiveVersion.mutate({ id: v.id, archive: !isArchived }); }}
-            title={isArchived ? "Restore from archive" : "Move to archive"}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={(e) => { e.stopPropagation(); archiveVersion.mutate({ id: v.id, archive: !isArchived }); }} title={isArchived ? "Restore" : "Archive"}>
             {isArchived ? <ArchiveRestore className="h-3 w-3" /> : <Archive className="h-3 w-3" />}
           </Button>
-          <Button
-            variant="ghost" size="sm"
-            className="gap-1.5 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-            onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: v.id, name: v.version_name || `Version ${v.version_number}` }); }}
-          >
+          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: v.id, name: v.version_name || `Version ${v.version_number}` }); }}>
             <Trash2 className="h-3 w-3" />
           </Button>
         </div>
@@ -878,12 +870,12 @@ const ProjectVersions = () => {
 
             {/* Version Grid/List */}
             {isLoading ? (
-              <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
+              <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8" : "flex flex-col gap-3"}>
                 {[1, 2].map((i) => <div key={i} className={viewMode === "grid" ? "h-48 animate-pulse rounded-xl bg-card" : "h-16 animate-pulse rounded-xl bg-card"} />)}
               </div>
             ) : (
               <div className="space-y-8">
-                <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
+                <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8" : "flex flex-col gap-3"}>
                   {activeVersions.map((v) => renderVersionCard(v, false))}
                 </div>
 
@@ -898,7 +890,7 @@ const ProjectVersions = () => {
                       Archived ({archivedVersions.length})
                     </button>
                     {archiveOpen && (
-                      <div className={viewMode === "grid" ? "grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "flex flex-col gap-3"}>
+                      <div className={viewMode === "grid" ? "grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8" : "flex flex-col gap-3"}>
                         {archivedVersions.map((v) => renderVersionCard(v, true))}
                       </div>
                     )}
