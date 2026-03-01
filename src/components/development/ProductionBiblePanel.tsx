@@ -405,11 +405,41 @@ const ProductionBiblePanel = () => {
   }
 
   if (status === "generating" && !bible) {
+    const bibleSteps = [
+      { label: "Core Identity & Title Card", detail: "Film title, version, format, genre classification" },
+      { label: "Visual Mandate", detail: "Color doctrine, lighting philosophy, texture rules" },
+      { label: "Director DNA Profile", detail: "Matched director style vectors and blend weights" },
+      { label: "Story Intelligence", detail: "Temporal structure, narrative arc, tonal shifts" },
+      { label: "Character Directives", detail: "Physical descriptions, wardrobe anchors, continuity notes" },
+      { label: "Location Doctrine", detail: "Set dressing mandates, environment texture, lighting per location" },
+      { label: "Department Doctrines", detail: "Camera, lighting, sound, wardrobe, props, VFX rules" },
+      { label: "Content Guardrails", detail: "Safety ratings, flagged content, generation boundaries" },
+      { label: "CIC Configuration", detail: "Consistency pipeline: 8-view turnarounds, 5-variation auditions" },
+      { label: "Non-Negotiables", detail: "Absolute rules that override all other directives" },
+      { label: "Style Contract Summary", detail: "Compiled negative prompts and visual DNA fingerprint" },
+    ];
+
     return (
-      <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center gap-3">
+      <div className="rounded-xl border border-border bg-card p-8 flex flex-col items-center gap-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Generating Production Bible…</p>
+        <p className="text-sm font-medium text-foreground">Generating Production Bible…</p>
         <p className="text-[10px] text-muted-foreground">Analyzing style vectors, director mandates, and script structure</p>
+        
+        <div className="w-full max-w-sm mt-2 space-y-0">
+          {bibleSteps.map((step, i) => (
+            <div
+              key={step.label}
+              className="flex items-start gap-2.5 py-1.5 opacity-0 animate-fade-in"
+              style={{ animationDelay: `${i * 600}ms`, animationFillMode: "forwards" }}
+            >
+              <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary/60 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-foreground leading-tight">{step.label}</p>
+                <p className="text-[10px] text-muted-foreground leading-tight">{step.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
