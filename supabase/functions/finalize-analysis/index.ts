@@ -207,27 +207,27 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
                   },
                   visual_design: {
                     type: "object",
-                    description: "Structured visual design categories.",
+                    description: "CRITICAL: Only include visual design elements that are EXPLICITLY mentioned in the script text. Do NOT infer, interpret, or create elements. Only extract what the screenwriter actually wrote.",
                     properties: {
                       color_palette: {
                         type: "array",
                         items: { type: "string" },
-                        description: "Recurring color schemes, dominant hues, palette shifts, contrast patterns.",
+                        description: "ONLY colors, hues, or palette descriptions explicitly mentioned in the script text (e.g. 'red neon', 'white walls', 'golden light'). Return empty array if none are written in the script.",
                       },
                       lighting_language: {
                         type: "array",
                         items: { type: "string" },
-                        description: "Key lighting approaches, narrative use of light, recurring setups.",
+                        description: "ONLY lighting descriptions explicitly written in the script text (e.g. 'fluorescent lights', 'candlelight', 'moonlight'). Return empty array if none are written in the script.",
                       },
                       atmospheric_motifs: {
                         type: "array",
                         items: { type: "string" },
-                        description: "Recurring environmental/weather/spatial motifs that create mood.",
+                        description: "ONLY atmospheric or environmental elements explicitly described in the script text (e.g. 'fog rolls in', 'rain pounds the windows', 'smoke-filled room'). Return empty array if none are written in the script.",
                       },
                       symbolic_elements: {
                         type: "array",
                         items: { type: "string" },
-                        description: "Visual symbols, objects-as-metaphor, compositional motifs.",
+                        description: "ONLY visual objects or symbols explicitly mentioned in the script text that recur across scenes (e.g. 'the red scarf', 'a cracked mirror'). Return empty array if none are written in the script.",
                       },
                     },
                     required: ["color_palette", "lighting_language", "atmospheric_motifs", "symbolic_elements"],
