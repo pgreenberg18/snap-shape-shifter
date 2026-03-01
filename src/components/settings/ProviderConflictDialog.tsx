@@ -117,10 +117,11 @@ const ProviderConflictDialog = ({ filmId, projectId, conflicts, open, onResolved
                 {c.providers.map((p) => {
                   const isSelected = selections[c.section] === p.id;
                   return (
-                    <div
+                    <button
+                      type="button"
                       key={p.id}
-                      onClick={() => setSelections((prev) => ({ ...prev, [c.section]: p.id }))}
-                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-all duration-200 ${
+                      onClick={(e) => { e.stopPropagation(); setSelections((prev) => ({ ...prev, [c.section]: p.id })); }}
+                      className={`flex items-center gap-2 rounded-md border px-2.5 py-1.5 cursor-pointer transition-all duration-200 w-full text-left ${
                         isSelected
                           ? "border-green-500/60 bg-green-500/10 shadow-[0_0_8px_hsl(142_71%_45%/0.3)]"
                           : "border-border bg-secondary hover:border-primary/50 hover:shadow-[0_0_12px_hsl(var(--primary)/0.25)]"
@@ -132,7 +133,7 @@ const ProviderConflictDialog = ({ filmId, projectId, conflicts, open, onResolved
                         <div className="h-3.5 w-3.5 rounded-full border border-muted-foreground/40 shrink-0" />
                       )}
                       <span className="text-xs flex-1">{p.provider_name}</span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
