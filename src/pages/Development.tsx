@@ -1001,8 +1001,14 @@ const Development = () => {
       </header>
 
       <Tabs value={activeTab} onValueChange={(v) => {
-          if (v === "vision" && !fundamentalsLocked) return;
-          if (v === "breakdown" && !visionComplete) return;
+          if (v === "vision" && !fundamentalsLocked) {
+            toast({ title: "Fundamentals must be locked first", description: "Complete and lock the Fundamentals section before accessing Vision.", variant: "destructive" });
+            return;
+          }
+          if (v === "breakdown" && !visionComplete) {
+            toast({ title: "Vision must be locked first", description: "Complete and lock the Vision section before accessing Scene Breakdown.", variant: "destructive" });
+            return;
+          }
           setActiveTab(v);
         }} className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
