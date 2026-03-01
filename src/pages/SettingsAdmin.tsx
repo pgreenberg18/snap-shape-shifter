@@ -513,7 +513,6 @@ const SettingsAdmin = () => {
 
   const userSections = [
     { id: "integrations", label: "Integrations", icon: Plug },
-    { id: "credit-usage", label: "Credit Usage", icon: Gauge },
     { id: "media-library", label: "Media Library", icon: Image },
     { id: "downloads", label: "Downloads", icon: Download },
     { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
@@ -605,13 +604,6 @@ const SettingsAdmin = () => {
             </div>
           )}
 
-          {activeSection === "credit-usage" && (
-            <div>
-              <h2 className="font-display text-lg font-bold text-foreground mb-4">Credit Usage</h2>
-              <p className="text-sm text-muted-foreground mb-6">Your personal AI credit consumption breakdown by service and category.</p>
-              <CreditUsageSection />
-            </div>
-          )}
 
           {activeSection === "media-library" && (
             <div>
