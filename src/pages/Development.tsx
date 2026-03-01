@@ -729,15 +729,15 @@ const Development = () => {
     })();
   }, [analysis?.id, analysis?.status, filmId, visionComplete, runEnrichmentBatches]);
 
-  /* Sync section approval states from DB */
+  /* Sync section approval states from DB — only upgrade to true, never downgrade */
   useEffect(() => {
     if (!analysis) return;
-    setVisualSummaryApproved(!!(analysis as any).visual_summary_approved);
-    setRatingsApproved(!!(analysis as any).ratings_approved);
-    
-    // If ratings were previously approved, the content safety analysis was already run
-    if ((analysis as any).ratings_approved) setContentSafetyRun(true);
-  }, [analysis?.id]);
+    if ((analysis as any).visual_summary_approved) setVisualSummaryApproved(true);
+    if ((analysis as any).ratings_approved) {
+      setRatingsApproved(true);
+      setContentSafetyRun(true);
+    }
+  }, [analysis?.id, (analysis as any)?.visual_summary_approved, (analysis as any)?.ratings_approved]);
 
   const persistApproval = useCallback(async (field: string, value: boolean) => {
     if (!analysis?.id) return;
