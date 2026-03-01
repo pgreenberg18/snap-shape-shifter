@@ -358,9 +358,11 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
     const { error: updateErr } = await supabase
       .from("script_analyses")
       .update({
+        status: "complete",
         visual_summary: result.visual_summary || "",
         global_elements: globalElements,
         ai_generation_notes: result.ai_generation_notes || "",
+        error_message: null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", analysis_id);
