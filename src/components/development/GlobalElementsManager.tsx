@@ -676,9 +676,19 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
   const entityExtractionTriggeredRef = useRef(false);
   const [extractingEntities, setExtractingEntities] = useState(false);
 
+  // Check if per-scene AI extraction is needed (has characters/locations but no props/vehicles/wardrobe/etc.)
+  const needsPerSceneExtraction = useMemo(() => {
+    if (!scriptEntities || scriptEntities.length === 0) return false;
+    const aiTypes = new Set(["PROP", "VEHICLE", "WEAPON", "DEVICE", "DOCUMENT", "FOOD_OR_DRINK", "ANIMAL", "PRACTICAL_LIGHT_SOURCE", "SOUND_EVENT", "ENVIRONMENTAL_CONDITION", "WARDROBE"]);
+    return !scriptEntities.some((e) => aiTypes.has(e.entity_type));
+  }, [scriptEntities]);
+
   useEffect(() => {
     if (entityExtractionTriggeredRef.current) return;
-    if (!filmId || !scriptEntities || scriptEntities.length > 0) return;
+    // Trigger if: no entities at all, OR entities exist but only characters/locations (per-scene extraction missing)
+    const noEntities = !scriptEntities || scriptEntities.length === 0;
+    const onlyDeterministic = !noEntities && needsPerSceneExtraction;
+    if (!filmId || (!noEntities && !onlyDeterministic)) return;
     if (!data && !sceneLocations?.length) return;
 
     entityExtractionTriggeredRef.current = true;
@@ -687,19 +697,33 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
     (async () => {
       try {
-        const { data: result, error } = await supabase.functions.invoke("extract-entities", {
-          body: { film_id: filmId },
-        });
+        let sceneIds: string[] = [];
 
-        if (error) {
-          console.error("Entity extraction failed:", error);
-          setExtractingEntities(false);
-          return;
+        if (noEntities) {
+          // Full extraction needed (deterministic + AI)
+          const { data: result, error } = await supabase.functions.invoke("extract-entities", {
+            body: { film_id: filmId },
+          });
+
+          if (error) {
+            console.error("Entity extraction failed:", error);
+            setExtractingEntities(false);
+            return;
+          }
+          sceneIds = result?.scene_ids || [];
+        } else {
+          // Only per-scene AI extraction needed — fetch scene IDs directly
+          console.log("[GlobalElements] Characters/locations exist but props missing — running per-scene AI extraction…");
+          const { data: scenes } = await supabase
+            .from("parsed_scenes")
+            .select("id")
+            .eq("film_id", filmId!)
+            .order("scene_number");
+          sceneIds = scenes?.map((s: any) => s.id) || [];
         }
 
-        if (result?.scene_ids?.length > 0) {
+        if (sceneIds.length > 0) {
           const CONCURRENCY = 5;
-          const sceneIds = result.scene_ids as string[];
           console.log(`[GlobalElements] Extracting entities from ${sceneIds.length} scenes…`);
 
           for (let i = 0; i < sceneIds.length; i += CONCURRENCY) {
@@ -722,7 +746,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
         setExtractingEntities(false);
       }
     })();
-  }, [filmId, scriptEntities, data, sceneLocations, refetchEntities]);
+  }, [filmId, scriptEntities, needsPerSceneExtraction, data, sceneLocations, refetchEntities]);
 
   // Determine data source: prefer script_entities over legacy global_elements
   const useEntities = !!scriptEntities && scriptEntities.length > 0;

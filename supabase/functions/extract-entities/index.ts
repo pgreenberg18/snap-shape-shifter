@@ -246,12 +246,43 @@ async function extractSingleScene(
     );
   }
 
-  // Skip if already enriched (Phase 1 extraction done)
-  if (scene.enriched) {
-    return new Response(
-      JSON.stringify({ success: true, skipped: true }),
-      { headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" } },
-    );
+  // Skip if entity extraction already done for this scene (check for existing entity links)
+  const { count: existingLinks } = await supabase
+    .from("scene_entity_links")
+    .select("id", { count: "exact", head: true })
+    .eq("scene_id", sceneId)
+    .eq("film_id", filmId);
+
+  // If we already have non-character/location entity links, skip
+  // (character/location links are created in full-film step, so check for other types)
+  if (existingLinks && existingLinks > 0) {
+    // Check if any are from AI extraction (non-CHARACTER, non-LOCATION)
+    const { data: aiLinks } = await supabase
+      .from("scene_entity_links")
+      .select("entity_id")
+      .eq("scene_id", sceneId)
+      .eq("film_id", filmId)
+      .limit(5);
+
+    if (aiLinks && aiLinks.length > 0) {
+      // Check entity types
+      const entityIds = aiLinks.map((l: any) => l.entity_id);
+      const { data: entities } = await supabase
+        .from("script_entities")
+        .select("entity_type")
+        .in("id", entityIds);
+
+      const hasAiEntities = entities?.some((e: any) =>
+        !["CHARACTER", "LOCATION"].includes(e.entity_type)
+      );
+
+      if (hasAiEntities) {
+        return new Response(
+          JSON.stringify({ success: true, skipped: true, reason: "already_extracted" }),
+          { headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "application/json" } },
+        );
+      }
+    }
   }
 
   const systemPrompt = `You are a professional script breakdown analyst. Extract ONLY what is explicitly written in the screenplay text. Do NOT infer, interpret, or add anything not written. No aesthetic judgments. No style suggestions. Only factual extraction.`;
