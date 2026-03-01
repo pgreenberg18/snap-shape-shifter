@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useFilmId, useIntegrations } from "@/hooks/useFilm";
+import { mapLegacySection } from "@/lib/map-legacy-section";
 
 /** Fetches the provider selection for a specific version */
 export const useVersionProviderSelections = (filmId?: string) => {
@@ -57,11 +58,10 @@ export const useProviderConflicts = (filmId?: string) => {
   if (!integrations || !selections) return [];
 
   // Group verified integrations by section
-  const LEGACY_MAP: Record<string, string> = { "writers-room": "script-analysis" };
   const bySection: Record<string, typeof integrations> = {};
   for (const int of integrations) {
     if (!int.is_verified) continue;
-    const section = LEGACY_MAP[int.section_id] || int.section_id;
+    const section = mapLegacySection(int.section_id, int.provider_name);
     (bySection[section] ??= []).push(int);
   }
 
