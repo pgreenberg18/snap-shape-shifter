@@ -288,9 +288,6 @@ const Projects = () => {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-              Quick Actions
-            </h3>
             <div className="space-y-1">
               <Dialog open={open} onOpenChange={setOpen}>
                 <DialogTrigger asChild>
