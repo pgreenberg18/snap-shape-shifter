@@ -1710,6 +1710,131 @@ const Development = () => {
                 );
               })()}
 
+              {/* ── Ratings Classification (Content Safety) ── */}
+              {devParsedScenes && devParsedScenes.length > 0 && (
+                <section data-help-id="dev-content-safety">
+                  {scriptLocked ? (
+                    /* ── LOCKED STATE — collapsible like Global Elements ── */
+                    <Collapsible>
+                      <CollapsibleTrigger className="w-full">
+                        <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                          <div className="flex items-center gap-2">
+                            <Shield className="h-5 w-5 text-primary" />
+                            <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                            <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
+                              <Lock className="h-3 w-3" /> Locked
+                            </span>
+                          </div>
+                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent forceMount className="data-[state=closed]:hidden">
+                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
+                          <div className="flex items-center justify-between">
+                            <p className="text-sm text-muted-foreground">
+                              Script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 ml-4"
+                              onClick={handleUnlockScript}
+                              disabled={locking}
+                            >
+                              {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
+                              Unlock
+                            </Button>
+                          </div>
+                          <ContentSafetyMatrix
+                            scenes={devParsedScenes as any[] || []}
+                            storagePath={analysis?.storage_path || ""}
+                            filmId={filmId}
+                            language={language}
+                            nudity={nudity}
+                            violence={violence}
+                            handleToggle={handleToggle}
+                            setLanguage={setLanguage}
+                            setNudity={setNudity}
+                            setViolence={setViolence}
+                            alreadyAnalyzed={ratingsApproved}
+                          />
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  ) : (
+                    <>
+                    <Collapsible>
+                      <CollapsibleTrigger className="w-full">
+                          <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
+                            <div className="flex items-center gap-2">
+                              <Film className="h-5 w-5 text-primary" />
+                              <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {ratingsApproved ? (
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <AlertCircle className="h-4 w-4 text-yellow-500" />
+                              )}
+                              <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent forceMount className="data-[state=closed]:hidden">
+                        <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
+                          {!contentSafetyRun ? (
+                            <div className="flex flex-col items-center gap-4 text-center py-4">
+                              <p className="text-sm text-muted-foreground max-w-md">
+                                Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
+                              </p>
+                              <Button
+                                onClick={() => setContentSafetyRun(true)}
+                                size="lg"
+                                className="gap-2"
+                              >
+                                Run Content Safety Analysis
+                              </Button>
+                            </div>
+                          ) : (
+                            <div className="space-y-6">
+                              <ContentSafetyMatrix
+                                scenes={devParsedScenes as any[] || []}
+                                storagePath={analysis?.storage_path || ""}
+                                filmId={filmId}
+                                language={language}
+                                nudity={nudity}
+                                violence={violence}
+                                handleToggle={handleToggle}
+                                setLanguage={setLanguage}
+                                setNudity={setNudity}
+                                setViolence={setViolence}
+                                alreadyAnalyzed={ratingsApproved}
+                              />
+                            </div>
+                          )}
+                            <div className="flex justify-end pt-4 border-t border-border mt-4">
+                              <Button
+                                size="sm"
+                                variant={ratingsApproved ? "default" : "outline"}
+                                className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                                onClick={() => {
+                                  const next = !ratingsApproved;
+                                  setRatingsApproved(next);
+                                  persistApproval("ratings_approved", next);
+                                }}
+                              >
+                                <ThumbsUp className="h-3 w-3" />
+                                {ratingsApproved ? "Approved" : "Approve"}
+                              </Button>
+                            </div>
+                        </div>
+                      </CollapsibleContent>
+                    </Collapsible>
+                  </>
+                  )}
+                </section>
+              )}
+
               {/* ── Director's Vision ── */}
               <Collapsible>
                 <CollapsibleTrigger className="w-full">
@@ -1828,130 +1953,7 @@ const Development = () => {
         </section>
       )}
 
-      {/* ── Step 3: Content Safety Matrix ── */}
-      {devParsedScenes && devParsedScenes.length > 0 && directorProfile && (
-        <section data-help-id="dev-content-safety">
-          {scriptLocked ? (
-            /* ── LOCKED STATE — collapsible like Global Elements ── */
-            <Collapsible>
-              <CollapsibleTrigger className="w-full">
-                <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-5 w-5 text-primary" />
-                    <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
-                    <span className="text-xs text-muted-foreground bg-secondary px-2 py-0.5 rounded flex items-center gap-1">
-                      <Lock className="h-3 w-3" /> Locked
-                    </span>
-                  </div>
-                  <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">
-                      Script breakdown and content safety analysis are locked. Changes are propagated to Production and downstream phases.
-                    </p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 shrink-0 ml-4"
-                      onClick={handleUnlockScript}
-                      disabled={locking}
-                    >
-                      {locking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Unlock className="h-3.5 w-3.5" />}
-                      Unlock
-                    </Button>
-                  </div>
-                  <ContentSafetyMatrix
-                    scenes={devParsedScenes as any[] || []}
-                    storagePath={analysis?.storage_path || ""}
-                    filmId={filmId}
-                    language={language}
-                    nudity={nudity}
-                    violence={violence}
-                    handleToggle={handleToggle}
-                    setLanguage={setLanguage}
-                    setNudity={setNudity}
-                    setViolence={setViolence}
-                    alreadyAnalyzed={ratingsApproved}
-                  />
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          ) : (
-            <>
-            <Collapsible>
-              <CollapsibleTrigger className="w-full">
-                  <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
-                    <div className="flex items-center gap-2">
-                      <Film className="h-5 w-5 text-primary" />
-                      <h3 className="font-display text-lg font-bold">Ratings Classification</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {ratingsApproved ? (
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-yellow-500" />
-                      )}
-                      <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                  </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent forceMount className="data-[state=closed]:hidden">
-                <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                  {!contentSafetyRun ? (
-                    <div className="flex flex-col items-center gap-4 text-center py-4">
-                      <p className="text-sm text-muted-foreground max-w-md">
-                        Run the AI-powered content safety analysis to scan your script against MPAA guidelines and flag potential concerns.
-                      </p>
-                      <Button
-                        onClick={() => setContentSafetyRun(true)}
-                        size="lg"
-                        className="gap-2"
-                      >
-                        Run Content Safety Analysis
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-6">
-                      <ContentSafetyMatrix
-                        scenes={devParsedScenes as any[] || []}
-                        storagePath={analysis?.storage_path || ""}
-                        filmId={filmId}
-                        language={language}
-                        nudity={nudity}
-                        violence={violence}
-                        handleToggle={handleToggle}
-                        setLanguage={setLanguage}
-                        setNudity={setNudity}
-                        setViolence={setViolence}
-                        alreadyAnalyzed={ratingsApproved}
-                      />
-                    </div>
-                  )}
-                    <div className="flex justify-end pt-4 border-t border-border mt-4">
-                      <Button
-                        size="sm"
-                        variant={ratingsApproved ? "default" : "outline"}
-                        className={cn("gap-1.5", ratingsApproved ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
-                        onClick={() => {
-                          const next = !ratingsApproved;
-                          setRatingsApproved(next);
-                          persistApproval("ratings_approved", next);
-                        }}
-                      >
-                        <ThumbsUp className="h-3 w-3" />
-                        {ratingsApproved ? "Approved" : "Approve"}
-                      </Button>
-                    </div>
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
-          </>
-          )}
-        </section>
-      )}
+
 
       {/* ── Step 4: Lock Script ── */}
       {devParsedScenes && devParsedScenes.length > 0 && !scriptLocked && ratingsApproved && (
