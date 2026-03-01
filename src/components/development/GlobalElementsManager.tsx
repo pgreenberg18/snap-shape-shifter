@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   MapPin, Users, Shirt, Box, Paintbrush, Link2, Unlink, ChevronDown,
-  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp, GripVertical,
+  ChevronRight, Check, Merge, Tag, X, Plus, AlertCircle, CheckCircle2, ThumbsUp, GripVertical, Loader2,
 } from "lucide-react";
 import { useScriptViewer } from "@/components/ScriptViewerDialog";
 import { parseSceneFromPlainText } from "@/lib/parse-script-text";
@@ -657,7 +657,7 @@ interface Props {
 
 export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations, scenePropOwnership }: Props) {
   // ── Fetch entities from script_entities table (Phase 1 source of truth) ──
-  const { data: scriptEntities } = useQuery({
+  const { data: scriptEntities, refetch: refetchEntities } = useQuery({
     queryKey: ["script-entities", filmId],
     queryFn: async () => {
       const { data: entities, error } = await supabase
@@ -671,6 +671,58 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
     },
     enabled: !!filmId,
   });
+
+  // Auto-trigger entity extraction when no entities exist but scenes do
+  const entityExtractionTriggeredRef = useRef(false);
+  const [extractingEntities, setExtractingEntities] = useState(false);
+
+  useEffect(() => {
+    if (entityExtractionTriggeredRef.current) return;
+    if (!filmId || !scriptEntities || scriptEntities.length > 0) return;
+    if (!data && !sceneLocations?.length) return;
+
+    entityExtractionTriggeredRef.current = true;
+    setExtractingEntities(true);
+    console.log("[GlobalElements] No entities found — auto-triggering extract-entities…");
+
+    (async () => {
+      try {
+        const { data: result, error } = await supabase.functions.invoke("extract-entities", {
+          body: { film_id: filmId },
+        });
+
+        if (error) {
+          console.error("Entity extraction failed:", error);
+          setExtractingEntities(false);
+          return;
+        }
+
+        if (result?.scene_ids?.length > 0) {
+          const CONCURRENCY = 5;
+          const sceneIds = result.scene_ids as string[];
+          console.log(`[GlobalElements] Extracting entities from ${sceneIds.length} scenes…`);
+
+          for (let i = 0; i < sceneIds.length; i += CONCURRENCY) {
+            const batch = sceneIds.slice(i, i + CONCURRENCY);
+            await Promise.allSettled(
+              batch.map((sid: string) =>
+                supabase.functions.invoke("extract-entities", {
+                  body: { film_id: filmId, scene_id: sid },
+                })
+              )
+            );
+          }
+        }
+
+        console.log("[GlobalElements] Entity extraction complete — refreshing…");
+        refetchEntities();
+      } catch (e) {
+        console.error("Entity extraction error:", e);
+      } finally {
+        setExtractingEntities(false);
+      }
+    })();
+  }, [filmId, scriptEntities, data, sceneLocations, refetchEntities]);
 
   // Determine data source: prefer script_entities over legacy global_elements
   const useEntities = !!scriptEntities && scriptEntities.length > 0;
@@ -1291,6 +1343,12 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
 
   return (
     <div className="space-y-3">
+      {extractingEntities && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 animate-pulse">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-sm text-foreground">Extracting entities from your script… This may take a minute.</span>
+        </div>
+      )}
       {CATEGORIES.map(({ key, label, icon }) => {
         const cat = categories[key];
         const showSection = hasItems(cat) || key === expandedCategory;
