@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,8 +15,15 @@ import {
   FileSignature, Shield, Download, RotateCcw, Activity,
   Trash2, ChevronDown, ChevronRight, ArrowLeft, Eye,
   Users, Settings, Image, Gauge, Plug, FileText,
-  Lock, Unlock, ShieldAlert,
+  Lock, Unlock, ShieldAlert, Pencil, Save, X,
 } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { HELP_ARTICLES } from "@/components/help/HelpPanel";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
@@ -503,6 +510,19 @@ const SettingsAdmin = () => {
   const searchParams = new URLSearchParams(window.location.search);
   const sectionParam = searchParams.get("section");
   const [activeSection, setActiveSection] = useState<string | null>(sectionParam);
+  const [helpEditorOpen, setHelpEditorOpen] = useState(false);
+  const [helpSearch, setHelpSearch] = useState("");
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+
+  const filteredArticles = useMemo(() => {
+    if (!helpSearch.trim()) return HELP_ARTICLES;
+    const q = helpSearch.toLowerCase();
+    return HELP_ARTICLES.filter(
+      (a) => a.title.toLowerCase().includes(q) || a.category.toLowerCase().includes(q) || a.content.toLowerCase().includes(q)
+    );
+  }, [helpSearch]);
 
   const handleReset = () => {
     localStorage.clear();
@@ -689,6 +709,17 @@ const SettingsAdmin = () => {
                   </div>
                   <Download className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
                 </button>
+                <button
+                  onClick={() => setHelpEditorOpen(true)}
+                  className="flex items-center gap-3 w-full rounded-lg border border-border bg-card p-4 hover:bg-accent transition-colors text-left"
+                >
+                  <Pencil className="h-5 w-5 text-primary shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">View & Edit Help Guide</p>
+                    <p className="text-xs text-muted-foreground">Browse, search, and edit all help articles inside the app.</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto shrink-0" />
+                </button>
               </div>
             </div>
           )}
@@ -712,6 +743,119 @@ const SettingsAdmin = () => {
           )}
         </div>
       </main>
+
+      {/* Help Editor Dialog */}
+      <Dialog open={helpEditorOpen} onOpenChange={setHelpEditorOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0">
+          <DialogHeader className="px-6 pt-6 pb-3 border-b border-border shrink-0">
+            <DialogTitle className="font-display text-lg">Help Guide Editor</DialogTitle>
+            <div className="relative mt-2">
+              <Input
+                placeholder="Search articles…"
+                value={helpSearch}
+                onChange={(e) => setHelpSearch(e.target.value)}
+                className="pl-3 pr-8 h-9 text-sm"
+              />
+              {helpSearch && (
+                <button onClick={() => setHelpSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <X className="h-3.5 w-3.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+          </DialogHeader>
+          <ScrollArea className="flex-1 px-6 py-4">
+            <div className="space-y-4">
+              {(() => {
+                let lastCat = "";
+                return filteredArticles.map((article) => {
+                  const showCat = article.category !== lastCat;
+                  lastCat = article.category;
+                  const isEditing = editingArticleId === article.id;
+                  return (
+                    <div key={article.id}>
+                      {showCat && (
+                        <h3 className="font-display text-xs font-bold uppercase tracking-widest text-muted-foreground mt-4 mb-2">
+                          {article.category}
+                        </h3>
+                      )}
+                      <div className="rounded-lg border border-border bg-card p-4">
+                        {isEditing ? (
+                          <div className="space-y-3">
+                            <Input
+                              value={editTitle}
+                              onChange={(e) => setEditTitle(e.target.value)}
+                              className="text-sm font-medium"
+                              placeholder="Article title"
+                            />
+                            <Textarea
+                              value={editContent}
+                              onChange={(e) => setEditContent(e.target.value)}
+                              className="text-sm min-h-[200px] font-mono"
+                              placeholder="Article content (supports **bold**, *italic*, bullet points)"
+                            />
+                            <div className="flex gap-2 justify-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => setEditingArticleId(null)}
+                                className="gap-1.5"
+                              >
+                                <X className="h-3.5 w-3.5" /> Cancel
+                              </Button>
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  const idx = HELP_ARTICLES.findIndex((a) => a.id === article.id);
+                                  if (idx !== -1) {
+                                    HELP_ARTICLES[idx] = { ...HELP_ARTICLES[idx], title: editTitle, content: editContent };
+                                  }
+                                  setEditingArticleId(null);
+                                  toast.success("Article updated");
+                                }}
+                                className="gap-1.5"
+                              >
+                                <Save className="h-3.5 w-3.5" /> Save
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="flex items-start justify-between gap-2">
+                              <h4 className="text-sm font-medium text-foreground">{article.title}</h4>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  setEditingArticleId(article.id);
+                                  setEditTitle(article.title);
+                                  setEditContent(article.content);
+                                }}
+                                className="shrink-0 h-7 w-7 p-0"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1 line-clamp-3 whitespace-pre-line">
+                              {article.content
+                                .replace(/\*\*(.+?)\*\*/g, "$1")
+                                .replace(/\*(.+?)\*/g, "$1")
+                                .slice(0, 200)}
+                              {article.content.length > 200 ? "…" : ""}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+              {filteredArticles.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">No articles match your search.</p>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
