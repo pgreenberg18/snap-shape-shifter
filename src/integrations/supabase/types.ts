@@ -1302,7 +1302,10 @@ export type Database = {
           error_message: string | null
           file_name: string
           film_id: string
+          format_approved: boolean
+          genre_approved: boolean
           global_elements: Json | null
+          global_elements_approved: boolean
           id: string
           ratings_approved: boolean
           scene_approvals: Json | null
@@ -1310,6 +1313,7 @@ export type Database = {
           scene_rejections: Json | null
           status: string
           storage_path: string
+          time_period_approved: boolean
           updated_at: string
           visual_summary: string | null
           visual_summary_approved: boolean
@@ -1321,7 +1325,10 @@ export type Database = {
           error_message?: string | null
           file_name: string
           film_id: string
+          format_approved?: boolean
+          genre_approved?: boolean
           global_elements?: Json | null
+          global_elements_approved?: boolean
           id?: string
           ratings_approved?: boolean
           scene_approvals?: Json | null
@@ -1329,6 +1336,7 @@ export type Database = {
           scene_rejections?: Json | null
           status?: string
           storage_path: string
+          time_period_approved?: boolean
           updated_at?: string
           visual_summary?: string | null
           visual_summary_approved?: boolean
@@ -1340,7 +1348,10 @@ export type Database = {
           error_message?: string | null
           file_name?: string
           film_id?: string
+          format_approved?: boolean
+          genre_approved?: boolean
           global_elements?: Json | null
+          global_elements_approved?: boolean
           id?: string
           ratings_approved?: boolean
           scene_approvals?: Json | null
@@ -1348,6 +1359,7 @@ export type Database = {
           scene_rejections?: Json | null
           status?: string
           storage_path?: string
+          time_period_approved?: boolean
           updated_at?: string
           visual_summary?: string | null
           visual_summary_approved?: boolean
