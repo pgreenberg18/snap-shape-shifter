@@ -395,7 +395,7 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
 
     // Build global_elements — deterministic lists + AI creative analysis
     const vd = result.visual_design || {};
-    const globalElements = {
+    const globalElements: Record<string, any> = {
       recurring_characters: Array.from(allCharacters),
       recurring_locations: Array.from(allLocationsByKey.values()),
       recurring_wardrobe: allWardrobe,
@@ -421,6 +421,15 @@ ${JSON.stringify(sceneSummaries, null, 1)}`;
       signature_style: result.signature_style || "",
       temporal_analysis: result.temporal_analysis || null,
     };
+
+    // ── CRITICAL: Preserve user-managed data (review statuses, groupings) ──
+    // The GlobalElementsManager saves review/approval state into _managed.
+    // We must not overwrite it when finalize-analysis runs again.
+    const existingGlobal = analysis.global_elements as Record<string, any> | null;
+    if (existingGlobal?._managed) {
+      globalElements._managed = existingGlobal._managed;
+    }
+
     // Update analysis with all the generated data
     const { error: updateErr } = await supabase
       .from("script_analyses")
