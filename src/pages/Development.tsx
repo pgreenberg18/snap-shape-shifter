@@ -2396,7 +2396,7 @@ const Development = () => {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                        <DirectorVisionPanel disabled={scriptLocked} />
+                        <DirectorVisionPanel disabled={visionComplete} />
                       </div>
                     </CollapsibleContent>
                   </Collapsible>
