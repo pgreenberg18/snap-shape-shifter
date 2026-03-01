@@ -92,30 +92,39 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
   // Vehicle pattern to filter from locations
   const VEHICLE_RE = /\b(CAR|TRUCK|VAN|BUS|SUV|SEDAN|CORVETTE|TESLA|MIATA|MUSTANG|AMBULANCE|TAXI|CAB|LIMO|MOTORCYCLE|HELICOPTER|BOAT|YACHT|JET|PLANE)\b/i;
 
+  // ── Process Characters ──
   for (const entity of entities) {
-    const category = ENTITY_TYPE_TO_CATEGORY[entity.entity_type];
-    if (!category) continue;
-
-    // Filter vehicles out of locations
-    if (category === "locations" && VEHICLE_RE.test(entity.canonical_name)) continue;
-
-    const cat = catMap[category];
+    if (entity.entity_type !== "CHARACTER") continue;
     const displayName = toTitleCase(entity.canonical_name.toLowerCase());
-
-    // If entity has aliases (beyond itself), create a group
     const meaningfulAliases = entity.aliases.filter(
       (a) => a.toLowerCase().trim() !== entity.canonical_name.toLowerCase().trim()
     );
+    if (meaningfulAliases.length > 0) {
+      const variants = [displayName, ...meaningfulAliases.map((a) => toTitleCase(a.toLowerCase()))];
+      catMap.characters.groups.push({
+        id: `entity_${entity.id}`,
+        parentName: displayName,
+        variants: [...new Set(variants)],
+      });
+    } else {
+      catMap.characters.ungrouped.push(displayName);
+    }
+  }
 
-    // For locations, check metadata for sublocations too
+  // ── Process Locations ──
+  for (const entity of entities) {
+    if (entity.entity_type !== "LOCATION") continue;
+    if (VEHICLE_RE.test(entity.canonical_name)) continue;
+    const displayName = toTitleCase(entity.canonical_name.toLowerCase());
+    const meaningfulAliases = entity.aliases.filter(
+      (a) => a.toLowerCase().trim() !== entity.canonical_name.toLowerCase().trim()
+    );
     const sublocations: string[] = [];
-    if (entity.entity_type === "LOCATION" && entity.metadata?.sublocations) {
+    if (entity.metadata?.sublocations) {
       const subs = entity.metadata.sublocations as string[];
       if (Array.isArray(subs)) sublocations.push(...subs.filter(Boolean));
     }
-
     const hasVariants = meaningfulAliases.length > 0 || sublocations.length > 0;
-
     if (hasVariants) {
       const variants = [displayName];
       if (meaningfulAliases.length > 0) {
@@ -124,17 +133,98 @@ function buildCategoriesFromEntities(entities: ScriptEntity[]): Record<CategoryK
       if (sublocations.length > 0) {
         variants.push(...sublocations.map((s) => `${displayName} - ${toTitleCase(s.toLowerCase())}`));
       }
-      // Deduplicate variants
-      const uniqueVariants = [...new Set(variants)];
-      cat.groups.push({
+      catMap.locations.groups.push({
         id: `entity_${entity.id}`,
         parentName: displayName,
-        variants: uniqueVariants,
+        variants: [...new Set(variants)],
       });
     } else {
-      cat.ungrouped.push(displayName);
+      catMap.locations.ungrouped.push(displayName);
     }
   }
+
+  // ── Process Wardrobe — group by character ──
+  const wardrobeByChar = new Map<string, string[]>();
+  const wardrobeUngrouped: string[] = [];
+  for (const entity of entities) {
+    if (entity.entity_type !== "WARDROBE") continue;
+    const displayName = toTitleCase(entity.canonical_name.toLowerCase());
+    const charName = entity.metadata?.character as string | undefined;
+    if (charName && charName.toUpperCase() !== "UNKNOWN") {
+      const charKey = toTitleCase(charName.toLowerCase());
+      if (!wardrobeByChar.has(charKey)) wardrobeByChar.set(charKey, []);
+      // Show just the description, not "CHARACTER: description"
+      const desc = entity.metadata?.description as string | undefined;
+      const itemLabel = desc ? toTitleCase(desc.toLowerCase()) : displayName;
+      wardrobeByChar.get(charKey)!.push(itemLabel);
+    } else {
+      wardrobeUngrouped.push(displayName);
+    }
+  }
+  for (const [charName, items] of wardrobeByChar) {
+    // Deduplicate similar items (normalize and merge)
+    const seen = new Map<string, string>();
+    for (const item of items) {
+      const norm = item.toLowerCase().replace(/^(a|an|the|his|her|their)\s+/i, "").trim();
+      if (!seen.has(norm) || item.length > seen.get(norm)!.length) {
+        seen.set(norm, item);
+      }
+    }
+    const uniqueItems = [...seen.values()];
+    if (uniqueItems.length > 0) {
+      catMap.wardrobe.groups.push({
+        id: uid(),
+        parentName: charName,
+        variants: uniqueItems,
+      });
+    }
+  }
+  catMap.wardrobe.ungrouped = wardrobeUngrouped;
+
+  // ── Process Props — group by associated character, then by location context ──
+  const propsByChar = new Map<string, string[]>();
+  const propsUngrouped: string[] = [];
+  
+  // Build a set of known character names for matching
+  const knownCharNames = new Set<string>();
+  for (const entity of entities) {
+    if (entity.entity_type === "CHARACTER") {
+      knownCharNames.add(entity.canonical_name.toUpperCase());
+      for (const alias of entity.aliases) knownCharNames.add(alias.toUpperCase());
+    }
+  }
+
+  for (const entity of entities) {
+    const category = ENTITY_TYPE_TO_CATEGORY[entity.entity_type];
+    if (category !== "props") continue;
+    if (entity.entity_type === "LOCATION") continue; // safety
+
+    const displayName = toTitleCase(entity.canonical_name.toLowerCase());
+    const assocChar = entity.metadata?.associated_character as string | undefined;
+
+    if (assocChar && assocChar.trim()) {
+      // Normalize the character name
+      const charKey = toTitleCase(assocChar.trim().toLowerCase());
+      if (!propsByChar.has(charKey)) propsByChar.set(charKey, []);
+      propsByChar.get(charKey)!.push(displayName);
+    } else {
+      propsUngrouped.push(displayName);
+    }
+  }
+
+  // Create prop groups by character
+  for (const [charName, items] of propsByChar) {
+    // Deduplicate
+    const uniqueItems = [...new Set(items)];
+    if (uniqueItems.length > 0) {
+      catMap.props.groups.push({
+        id: uid(),
+        parentName: charName,
+        variants: uniqueItems,
+      });
+    }
+  }
+  catMap.props.ungrouped = propsUngrouped;
 
   // Deduplicate ungrouped items (case-insensitive)
   for (const key of Object.keys(catMap) as CategoryKey[]) {
