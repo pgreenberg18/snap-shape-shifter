@@ -16,249 +16,294 @@ const CONTEXTUAL_HELP: Record<string, ContextualEntry> = {
   /* ── Sidebar navigation ── */
   "nav-development": {
     label: "Development",
-    description: "Upload your screenplay, set format specs, and run AI-powered script analysis.",
+    description: "Three-tab workflow: Fundamentals (script & format), Vision (director style & production bible), and Scene Breakdown (enriched scene data).",
     articleId: "dev-overview",
   },
   "nav-pre-production": {
     label: "Pre-Production",
-    description: "Cast characters, design locations, select wardrobe and props, and build storyboards.",
+    description: "Audition actors, design locations, select wardrobe and props, build storyboards, and cast voices.",
     articleId: "preprod-overview",
   },
   "nav-production": {
     label: "Production",
-    description: "Build shots scene-by-scene with camera, lighting, and lens controls, then generate imagery.",
+    description: "Build shots scene-by-scene with the Optics Suite, generate imagery, and monitor continuity via VICE.",
     articleId: "prod-overview",
   },
   "nav-post-production": {
     label: "Post-Production",
-    description: "Arrange clips on a multi-track timeline; add VFX fixes, color grading, sound, and music.",
+    description: "Multi-track timeline editing with VFX Fix-It Bay, Style Drift Detector, and Localization Suite.",
     articleId: "postprod-overview",
   },
   "nav-release": {
     label: "Release",
-    description: "Export master files, generate marketing assets, and produce provenance documentation.",
+    description: "Export masters, run Topaz DI upscaling, Artifact Scanner QC, and generate C2PA provenance documentation.",
     articleId: "release-overview",
   },
   "nav-settings": {
     label: "Settings",
-    description: "Configure version-specific integrations, providers, and format specifications.",
+    description: "Configure version-specific integrations, providers, media library, and format specifications.",
     articleId: "settings",
   },
   "nav-help": {
     label: "Help Center",
-    description: "Browse context-aware help articles for guidance on every phase and feature.",
+    description: "Browse context-aware help articles for guidance on every phase, panel, button, and feature.",
   },
   "nav-versions": {
     label: "Versions",
-    description: "Go back to the project version list to switch, duplicate, or archive versions.",
+    description: "Switch, duplicate, or archive versions. Each version carries independent data and settings.",
     articleId: "versions",
   },
   "nav-global-settings": {
     label: "Global Settings",
-    description: "Manage admin controls, access permissions, and workspace-level configuration.",
+    description: "Manage admin controls, access permissions, NDA settings, and workspace-level configuration.",
     articleId: "settings",
   },
   "nav-credit-meter": {
     label: "Credit Meter",
-    description: "Shows your remaining AI generation credits. Credits are consumed by analysis, image, and video tasks.",
+    description: "Shows remaining AI credits. Click for usage history and threshold settings. Credits are consumed by analysis, image, video, and voice tasks.",
+    articleId: "credits",
   },
 
   /* ── Development phase ── */
   "dev-film-details": {
-    label: "Film Details",
-    description: "Set the film's title, version name, writers, genres, and time period.",
-    articleId: "dev-overview",
+    label: "Script & Film Details",
+    description: "Set the film's title, version name, and writers. Upload your screenplay (.fdx, .txt, .pdf) and trigger AI analysis.",
+    articleId: "upload-script",
   },
   "dev-format-specs": {
     label: "Format Specifications",
-    description: "Choose resolution, frame rate, and aspect ratio from industry-standard presets.",
+    description: "Choose resolution, frame rate, and aspect ratio from 20+ presets. Toggle 4K. Click 'Save Format' to persist (turns green on success).",
     articleId: "format-specs",
   },
   "dev-script-upload": {
     label: "Script Upload",
-    description: "Upload .fdx, .fountain, or .txt screenplay files for AI analysis.",
+    description: "Upload .fdx, .txt, or .pdf screenplay files. Click 'Analyze Script' to run multi-pass AI analysis with per-scene retry logic.",
     articleId: "upload-script",
   },
   "dev-script-breakdown": {
     label: "Script Breakdown",
-    description: "AI-generated scene-by-scene breakdown with characters, locations, props, and mood.",
+    description: "AI-generated scene-by-scene breakdown. All fields editable inline. Data saved to parsed_scenes table as single source of truth.",
     articleId: "script-analysis",
   },
   "dev-visual-summary": {
     label: "Visual Summary",
-    description: "AI interpretation of the script's visual style, tone, and cinematic identity.",
-    articleId: "dev-overview",
+    description: "AI interpretation of the script's visual style and cinematic identity. Approve to proceed, or edit to refine.",
+    articleId: "visual-summary",
   },
   "dev-content-safety": {
-    label: "Content Safety",
-    description: "Flag violence, nudity, and language to set generation guardrails.",
+    label: "Ratings Classification",
+    description: "MPAA-style content safety analysis. Auto-scans all scenes for violence, nudity, and language. Approve ratings to satisfy Vision lock gate.",
     articleId: "content-safety",
   },
   "dev-global-elements": {
     label: "Global Elements",
-    description: "Cross-cutting themes, motifs, and tonal threads extracted from the screenplay.",
+    description: "Auto-grouped characters, locations, props, wardrobe, and vehicles. Double-click to rename. Multi-select to link. Approve each category.",
     articleId: "global-elements",
   },
   "dev-ai-notes": {
     label: "AI Generation Notes",
-    description: "Director's notes prepended to every AI prompt for consistent creative direction.",
-    articleId: "global-elements",
+    description: "Director's notes prepended to every AI prompt. Approve or write your own for consistent creative direction across all generation.",
+    articleId: "visual-summary",
   },
   "dev-director-vision": {
-    label: "Director Vision",
-    description: "AI-matched director profile that shapes the film's visual DNA and style contract.",
-    articleId: "dev-overview",
+    label: "Director's Vision",
+    description: "Neural style engine matches your script to iconic director profiles. Produces the Style Contract governing all downstream generation.",
+    articleId: "director-vision",
+  },
+  "dev-production-bible": {
+    label: "Production Bible",
+    description: "AI-generated reference document compiling creative direction, character summaries, and scene notes. Download as PDF. Approve to satisfy Vision lock.",
+    articleId: "production-bible",
   },
 
   /* ── Pre-Production ── */
   "preprod-characters": {
-    label: "Characters",
-    description: "Cast and audition AI-generated headshots. Rate, rank, and lock your cast.",
+    label: "Actors",
+    description: "Audition AI headshots via 'Casting Call'. Rate, rank, and lock your cast. Generate consistency views. Upload reference photos.",
     articleId: "characters",
   },
   "preprod-locations": {
     label: "Locations",
-    description: "Design and approve AI-generated location concepts for each scene.",
+    description: "Generate AI concept art for each location. Auto-grouped from Global Elements. Rate, lock, and approve designs.",
     articleId: "locations-props",
   },
   "preprod-props": {
     label: "Props",
-    description: "Browse and lock key objects and props identified from the script.",
+    description: "Props auto-grouped by character ownership or location co-occurrence. Generate options, rate, and lock for downstream consistency.",
     articleId: "locations-props",
   },
   "preprod-wardrobe": {
     label: "Wardrobe",
-    description: "Manage costume designs linked to characters and per-scene assignments.",
+    description: "Character-linked costumes with per-scene assignments. Generate fitting views from multiple angles. Lock for production.",
     articleId: "locations-props",
   },
   "preprod-vehicles": {
     label: "Picture Vehicles",
-    description: "Manage vehicle assets identified from the script for visual consistency.",
+    description: "Design and lock picture vehicles identified from the script for consistent visual reference.",
     articleId: "locations-props",
   },
   "preprod-storyboards": {
     label: "Storyboards",
-    description: "Build shot-by-shot visual sequences with AI-generated storyboard artwork.",
+    description: "Build shot-by-shot visual sequences. Add frames, describe composition, generate AI artwork, and drag to reorder.",
     articleId: "storyboards",
   },
   "preprod-voice-casting": {
     label: "Voice Casting",
-    description: "Preview and select AI voice options for each character.",
+    description: "Preview AI voice options per character. Audition with sample dialogue. Lock your chosen voice for all dialogue generation.",
     articleId: "voice-casting",
   },
 
   /* ── Production ── */
   "prod-scene-navigator": {
     label: "Scene Navigator",
-    description: "Browse all scenes from the script breakdown. Click a scene to load it.",
+    description: "Browse all scenes with INT/EXT badges, time-of-day icons, and shot counts. Click to load. Drag edge to resize.",
     articleId: "scene-navigator",
   },
   "prod-script-workspace": {
     label: "Script Workspace",
-    description: "The scene's raw text. Highlight text to create new shot objects.",
+    description: "Syntax-highlighted scene text. Highlight any passage and click 'Create Shot' to build a shot from that text.",
     articleId: "script-workspace",
   },
   "prod-shot-builder": {
     label: "Shot Builder",
-    description: "Configure the selected shot's prompt, camera angle, and generation settings.",
+    description: "Configure shot prompt, camera angle, and elements. Use 'Rehearsal' for quick previews or 'Roll Camera' for full-quality generation.",
     articleId: "shot-builder",
   },
   "prod-playback-monitor": {
     label: "Playback Monitor",
-    description: "Preview generated imagery with a professional camera HUD overlay.",
+    description: "Cinematic viewport with camera HUD overlay. 5-slot Take Bin below for rating, circling, and managing generated takes.",
     articleId: "playback-monitor",
   },
   "prod-optics-suite": {
     label: "Optics Suite",
-    description: "Master controls for camera, lighting, and lens settings applied to all generation.",
+    description: "Master controls for camera (aspect, movement, height), lens (focal length, aperture, focus), and lighting (key, fill, rim, practicals).",
     articleId: "optics-suite",
   },
   "prod-shot-list": {
     label: "Shot List",
-    description: "All shots created for the current scene with status indicators.",
+    description: "Color-coded shot chips for the current scene. Click to select. Add new shots with (+). Shows generation status per shot.",
     articleId: "shot-builder",
   },
   "prod-vice": {
     label: "VICE System",
-    description: "Visual Integrity & Continuity Engine — detects conflicts across shots and scenes.",
+    description: "Visual Integrity & Continuity Engine. Detects conflicts across shots, shows dependency graphs, and manages dirty-queue regeneration.",
     articleId: "vice",
   },
 
   /* ── Post-Production ── */
   "postprod-media-bin": {
     label: "Media Bin",
-    description: "Organized library of all shots, sound, score, effects, and color assets for your edit.",
-    articleId: "postprod-overview",
+    description: "Shots organized by scene folders. Imported media in tabbed sections (Sound, Color, Score, FX). Drag items onto timeline tracks.",
+    articleId: "media-bin",
   },
   "postprod-timeline": {
     label: "Timeline",
-    description: "Multi-track timeline for arranging clips, audio, and effects with drag-and-drop editing.",
-    articleId: "postprod-overview",
+    description: "Multi-track NLE with drag, trim, undo/redo (100 steps), zoom (25%–400%), and FCPXML export. Double-click clips for VFX Fix-It Bay.",
+    articleId: "timeline",
   },
   "postprod-vfx": {
     label: "VFX Fix-It Bay",
-    description: "AI-powered inpainting and visual effects repair on individual clips.",
-    articleId: "postprod-overview",
+    description: "AI-powered inpainting. Paint a mask, type a surgical prompt, and apply. Use for artifact removal, set changes, and continuity fixes.",
+    articleId: "vfx-fix-it",
   },
   "postprod-style-drift": {
     label: "Style Drift Detector",
-    description: "Monitors visual consistency across your edit and flags shots that deviate from the style contract.",
-    articleId: "postprod-overview",
+    description: "Monitors shots against the Style Contract. Flags color, lighting, texture, and mood deviations with severity indicators.",
+    articleId: "style-drift",
   },
   "postprod-localization": {
     label: "Localization Suite",
-    description: "Subtitle, dubbing, and language adaptation tools.",
-    articleId: "postprod-overview",
+    description: "AI subtitles, translation, and dubbing. Export as SRT, VTT, or ASS. Preview subtitles overlaid on the monitor.",
+    articleId: "localization",
   },
 
   /* ── Release ── */
   "release-export": {
-    label: "Export",
-    description: "Render master files in various formats and resolutions.",
-    articleId: "release-overview",
+    label: "Export Master Film",
+    description: "Three modes: Auto (from format specs), Templates (YouTube 4K, Netflix ProRes, Theater DCP), and Custom (full codec control).",
+    articleId: "export-master",
   },
   "release-topaz": {
-    label: "Topaz DI",
-    description: "AI upscaling and enhancement for final delivery.",
-    articleId: "release-overview",
+    label: "Topaz DI Engine",
+    description: "AI upscaling (2x/4x), noise reduction, sharpening, and frame rate conversion for final delivery enhancement.",
+    articleId: "topaz-di",
   },
   "release-artifact-scanner": {
-    label: "Artifact Scanner",
-    description: "Scans rendered output for compression artifacts and quality issues.",
-    articleId: "release-overview",
+    label: "Artifact Scanner (Technical QC)",
+    description: "Scans renders for compression artifacts, banding, frame drops, and quality issues. Grades as Pass / Warning / Fail.",
+    articleId: "artifact-scanner",
   },
   "release-c2pa": {
     label: "C2PA Provenance",
-    description: "Cryptographic chain-of-title and provenance ledger documenting AI generation lineage.",
-    articleId: "release-overview",
+    description: "Cryptographic chain-of-title ledger documenting AI generation lineage, authorship claims, and licensed API usage.",
+    articleId: "c2pa-provenance",
   },
   "release-distribution": {
     label: "Distribution Packaging",
-    description: "Package your film for festivals, direct upload to YouTube/Vimeo/TikTok, or ProRes export.",
-    articleId: "release-overview",
+    description: "Festival bundle (ZIP), ProRes 422 HQ master, and direct upload to YouTube, Vimeo, and TikTok with OAuth.",
+    articleId: "distribution",
   },
-
   "release-export-history": {
     label: "Finished Exports",
-    description: "History of all exported files with download links and metadata.",
-    articleId: "release-overview",
+    description: "Session history of all exports with download links. Hover for download button. Clear All removes the list only.",
+    articleId: "finished-exports",
   },
 
-  /* ── Common UI ── */
+  /* ── Common UI buttons ── */
   "btn-analyze": {
     label: "Analyze Script",
-    description: "Run multi-pass AI analysis to extract scenes, characters, locations, and visual elements.",
+    description: "Runs multi-pass AI analysis: scene parsing → enrichment (with retry) → global analysis → finalization. Progress shown as scrolling scene list.",
     articleId: "script-analysis",
   },
   "btn-generate": {
     label: "Generate",
-    description: "Submit the current shot configuration for AI image or video generation.",
+    description: "Submits the current shot configuration for AI generation. Combines prompt, Optics Suite settings, and Style Contract.",
     articleId: "shot-builder",
   },
   "btn-lock": {
     label: "Lock Asset",
-    description: "Locks this asset as the canonical reference for visual consistency downstream.",
+    description: "Locks this asset as the canonical reference for visual consistency. Changes after locking flag dependent shots for regeneration via VICE.",
     articleId: "locations-props",
+  },
+  "btn-lock-fundamentals": {
+    label: "Lock Fundamentals",
+    description: "Freezes all script, format, time period, and genre data. Unlocks the Vision tab. Cannot be undone within this version.",
+    articleId: "dev-overview",
+  },
+  "btn-lock-vision": {
+    label: "Lock Vision",
+    description: "Freezes Director's Vision, Global Elements, Ratings, and Production Bible. Triggers Vision Propagation Pipeline enriching all scenes. Unlocks Scene Breakdown.",
+    articleId: "dev-overview",
+  },
+  "btn-save-format": {
+    label: "Save Format",
+    description: "Persists format specifications (resolution, frame rate, aspect ratio) to the database. Turns green and shows 'Saved' on success.",
+    articleId: "format-specs",
+  },
+  "btn-casting-call": {
+    label: "Casting Call",
+    description: "Generates 10 AI headshot candidates across multiple angles. Shows 'Casting…' during generation. Changes to 'Recast' if candidates already exist.",
+    articleId: "characters",
+  },
+  "btn-cast-actor": {
+    label: "Cast This Actor",
+    description: "Locks the selected headshot as the character's canonical identity. All future generation references this image for visual consistency.",
+    articleId: "characters",
+  },
+  "btn-approve": {
+    label: "Approve",
+    description: "Signs off on the current section. Button turns green and shows 'Approved' with a checkmark. Required for Vision lock gate.",
+    articleId: "dev-overview",
+  },
+  "btn-rehearsal": {
+    label: "Rehearsal",
+    description: "Fast, low-quality preview generation for composition checks. Uses fewer credits than full generation.",
+    articleId: "shot-builder",
+  },
+  "btn-roll-camera": {
+    label: "Roll Camera",
+    description: "Full-quality AI generation. Consumes standard credits. Results appear in the Playback Monitor's Take Bin.",
+    articleId: "shot-builder",
   },
 };
 
