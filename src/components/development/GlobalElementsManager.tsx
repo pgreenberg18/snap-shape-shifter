@@ -1342,11 +1342,11 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                   </Button>
                   <Button
                     size="sm"
-                    variant={reviewStatus[key] === "completed" ? "default" : "outline"}
-                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] === "completed" ? "bg-green-600 hover:bg-green-700 text-white" : "opacity-60")}
+                    variant={reviewStatus[key] === "completed" ? "success" : "outline"}
+                    className={cn("h-7 text-xs gap-1.5", reviewStatus[key] !== "completed" && "opacity-60")}
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: prev[key] === "completed" ? "unreviewed" : "completed" }))}
                   >
-                    <ThumbsUp className="h-3 w-3" />
+                    {reviewStatus[key] === "completed" ? <CheckCircle2 className="h-3 w-3" /> : <ThumbsUp className="h-3 w-3" />}
                     {reviewStatus[key] === "completed" ? "Approved" : "Approve"}
                   </Button>
                 </div>
