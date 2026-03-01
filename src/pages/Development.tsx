@@ -563,20 +563,19 @@ const Development = () => {
   
   const enrichingRef = useRef(false);
   const [devComplete, setDevComplete] = useState(false);
-  const [fundamentalsLocked, setFundamentalsLocked] = useState(false);
+  const scriptLocked = !!(film as any)?.script_locked;
+  const fundamentalsLocked = scriptLocked;
   const [visionComplete, setVisionComplete] = useState(false);
   const [propagating, setPropagating] = useState(false);
   const [propagationDone, setPropagationDone] = useState(false);
   const [activeTab, setActiveTab] = useState("fundamentals");
   const [reanalyzeDialogOpen, setReanalyzeDialogOpen] = useState(false);
 
-  // Restore fundamentalsLocked & visionComplete from DB state on mount
+  // Restore visionComplete & activeTab from DB state on mount
   useEffect(() => {
     if (!analysis) return;
-    const scriptIsLocked = !!(film as any)?.script_locked;
     const visionDone = !!(analysis as any).ai_notes_approved && !!directorProfile;
-    if (analysis.status && scriptIsLocked) {
-      setFundamentalsLocked(true);
+    if (scriptLocked) {
       if (visionDone) {
         setVisionComplete(true);
         setActiveTab("breakdown");
@@ -584,7 +583,7 @@ const Development = () => {
         setActiveTab("vision");
       }
     }
-  }, [analysis?.id, (film as any)?.script_locked, (analysis as any)?.ai_notes_approved, directorProfile]);
+  }, [analysis?.id, scriptLocked, (analysis as any)?.ai_notes_approved, directorProfile]);
 
   // Post-enrichment: finalize analysis (always) then optionally run director fit
   const runPostEnrichment = useCallback(async (analysisId: string, { includeDirectorFit = false } = {}) => {
@@ -766,7 +765,7 @@ const Development = () => {
     }
   }, [temporalAnalysis, film?.time_period, filmId]);
 
-  const scriptLocked = !!(film as any)?.script_locked;
+  // scriptLocked already declared above
 
   /* Sync film metadata from DB */
   useEffect(() => {
@@ -925,7 +924,6 @@ const Development = () => {
       }
 
       // Reset local UI state
-      setFundamentalsLocked(false);
       setVisionComplete(false);
       setActiveTab("fundamentals");
 
@@ -1648,7 +1646,7 @@ const Development = () => {
 
                             <div className="space-y-1.5">
                               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Format Type</Label>
-                              <Select value={formatType || undefined} onValueChange={handleFormatChange}>
+                              <Select value={formatType || undefined} onValueChange={handleFormatChange} disabled={scriptLocked}>
                                 <SelectTrigger className="bg-background">
                                   <SelectValue placeholder="Select a format…" />
                                 </SelectTrigger>
@@ -1709,6 +1707,7 @@ const Development = () => {
                                           <div className="flex items-center gap-2">
                                             <Switch
                                               checked={fourKEnabled}
+                                              disabled={scriptLocked}
                                               onCheckedChange={(val) => {
                                                 setFourKEnabled(val);
                                                 if (!formatOverride) {
@@ -1751,7 +1750,7 @@ const Development = () => {
                                         }
                                       }
                                     }}
-                                    disabled={false}
+                                    disabled={scriptLocked}
                                   />
                                   <Label className="text-xs text-muted-foreground">Override defaults</Label>
                                 </div>
@@ -1764,7 +1763,7 @@ const Development = () => {
                                         type="number"
                                         value={frameWidth ?? ""}
                                         onChange={(e) => setFrameWidth(e.target.value ? parseInt(e.target.value) : null)}
-                                        disabled={false}
+                                        disabled={scriptLocked}
                                       />
                                     </div>
                                     <div className="space-y-1.5">
@@ -1773,7 +1772,7 @@ const Development = () => {
                                         type="number"
                                         value={frameHeight ?? ""}
                                         onChange={(e) => setFrameHeight(e.target.value ? parseInt(e.target.value) : null)}
-                                        disabled={false}
+                                        disabled={scriptLocked}
                                       />
                                     </div>
                                     <div className="space-y-1.5">
@@ -1782,7 +1781,7 @@ const Development = () => {
                                         type="number"
                                         value={frameRate ?? ""}
                                         onChange={(e) => setFrameRate(e.target.value ? parseFloat(e.target.value) : null)}
-                                        disabled={false}
+                                        disabled={scriptLocked}
                                       />
                                     </div>
                                   </div>
@@ -1791,7 +1790,7 @@ const Development = () => {
                                 <div className="flex justify-end">
                                   <Button
                                     onClick={handleSaveFormat}
-                                    disabled={formatSaving}
+                                    disabled={formatSaving || scriptLocked}
                                     className="gap-1.5"
                                     size="sm"
                                   >
@@ -2336,7 +2335,12 @@ const Development = () => {
                 <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
                   <Button
                     size="lg"
-                    onClick={() => { setFundamentalsLocked(true); setActiveTab("vision"); }}
+                    onClick={async () => {
+                      if (!filmId) return;
+                      await supabase.from("films").update({ script_locked: true } as any).eq("id", filmId);
+                      queryClient.invalidateQueries({ queryKey: ["film", filmId] });
+                      setActiveTab("vision");
+                    }}
                     className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
                   >
                     <Lock className="h-4 w-4" /> Lock Fundamentals
