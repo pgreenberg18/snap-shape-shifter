@@ -10,7 +10,7 @@ import {
   BookOpen, ChevronDown, RefreshCw, Loader2, CheckCircle, AlertCircle,
   Camera, Palette, Film, Users, Scissors, Music, Clapperboard, Eye,
   ShieldAlert, Layers, Target, Ban, Lightbulb, Aperture, PaintBucket,
-  Download
+  Download, Cpu, GitBranch, Shield, ScanLine, Blend, MonitorCheck
 } from "lucide-react";
 import { downloadProductionBiblePdf } from "@/lib/production-bible-pdf";
 
@@ -40,6 +40,14 @@ interface CharacterTemp {
   power_shift_moments: string[];
 }
 
+interface EngineCompiler {
+  prompt_strategy?: string;
+  intensity_multiplier?: number;
+  key_translations?: string[];
+  strengths?: string[];
+  constraints?: string[];
+}
+
 interface ProductionBibleContent {
   film_id?: string;
   version?: number;
@@ -47,6 +55,13 @@ interface ProductionBibleContent {
   data_sources?: any;
   core_identity?: {
     axis_interpretations?: AxisInterpretation[];
+    director_match_metadata?: {
+      primary_director?: string;
+      secondary_director?: string | null;
+      cluster?: string;
+      quadrant?: string;
+      emotional_depth_tier?: string;
+    };
     director_summary?: {
       match_reasoning?: string;
       aesthetic_tensions?: string;
@@ -80,6 +95,10 @@ interface ProductionBibleContent {
       archetype?: string;
       pacing_curve?: string;
       emotional_escalation_map?: string;
+      scene_count?: number;
+      turning_points?: string[];
+      midpoint_intensity?: number;
+      climax_escalation?: string;
     };
     character_temperature_chart?: CharacterTemp[];
   };
@@ -108,6 +127,39 @@ interface ProductionBibleContent {
       negative_constraints?: string[];
     };
     constraint_enforcement_level?: string;
+    prompt_layering_model?: {
+      layer_1_scene_intent?: string;
+      layer_2_character_location_locks?: string;
+      layer_3_style_mandate?: string;
+      layer_4_engine_enhancements?: string;
+      layer_5_constraint_filters?: string;
+    };
+    engine_compilers?: Record<string, EngineCompiler>;
+    blend_director_logic?: {
+      interpolation_method?: string;
+      conflict_resolution?: string;
+      merge_rules?: string[];
+    };
+    vice_integration?: {
+      color_lut_bias?: string;
+      grain_bias?: string;
+      lighting_consistency?: string;
+      lens_distortion_consistency?: string;
+      depth_of_field_consistency?: string;
+    };
+    character_consistency?: {
+      facial_geometry?: string;
+      wardrobe_compliance?: string;
+      color_compliance?: string;
+      silhouette_integrity?: string;
+      prohibited_mutations?: string[];
+    };
+    post_generation_validation?: {
+      frame_sampling_strategy?: string;
+      compliance_scoring_method?: string;
+      deviation_tolerance?: string;
+      auto_regeneration_policy?: string;
+    };
   };
 }
 
@@ -130,12 +182,12 @@ const SectionHeader = ({ icon: Icon, title, children }: { icon: any; title: stri
   </CollapsibleTrigger>
 );
 
-const DoctrineField = ({ label, value }: { label: string; value?: string | boolean | null }) => {
+const DoctrineField = ({ label, value }: { label: string; value?: string | boolean | number | null }) => {
   if (value === undefined || value === null || value === "") return null;
   return (
     <div className="flex flex-col gap-0.5">
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">{label}</span>
-      <span className="text-xs text-foreground">{typeof value === "boolean" ? (value ? "Yes" : "No") : value}</span>
+      <span className="text-xs text-foreground">{typeof value === "boolean" ? (value ? "Yes" : "No") : String(value)}</span>
     </div>
   );
 };
@@ -192,6 +244,52 @@ const DepartmentCard = ({ name, doctrine, icon: Icon }: { name: string; doctrine
   </Collapsible>
 );
 
+const EngineCompilerCard = ({ name, compiler }: { name: string; compiler: EngineCompiler }) => (
+  <div className="rounded-lg border border-border p-3 space-y-2">
+    <div className="flex items-center justify-between">
+      <span className="text-[10px] uppercase tracking-wider font-bold">{name} Compiler</span>
+      {compiler.intensity_multiplier != null && (
+        <Badge variant="outline" className="text-[10px] font-mono">{compiler.intensity_multiplier}×</Badge>
+      )}
+    </div>
+    {compiler.prompt_strategy && (
+      <p className="text-xs text-muted-foreground leading-relaxed">{compiler.prompt_strategy}</p>
+    )}
+    {compiler.key_translations?.length ? (
+      <div>
+        <span className="text-[10px] text-muted-foreground font-medium">Key Translations</span>
+        <div className="flex flex-wrap gap-1 mt-0.5">
+          {compiler.key_translations.map((t, i) => (
+            <span key={i} className="text-[10px] bg-accent/50 text-accent-foreground px-1.5 py-0.5 rounded">{t}</span>
+          ))}
+        </div>
+      </div>
+    ) : null}
+    {compiler.strengths?.length ? (
+      <div>
+        <span className="text-[10px] text-muted-foreground font-medium">Strengths</span>
+        <div className="flex flex-wrap gap-1 mt-0.5">
+          {compiler.strengths.map((s, i) => (
+            <Badge key={i} variant="secondary" className="text-[10px]">{s}</Badge>
+          ))}
+        </div>
+      </div>
+    ) : null}
+    {compiler.constraints?.length ? (
+      <div>
+        <span className="text-[10px] text-destructive font-medium">Constraints</span>
+        <ul className="mt-0.5 space-y-0.5">
+          {compiler.constraints.map((c, i) => (
+            <li key={i} className="text-[10px] text-destructive/80 flex gap-1">
+              <Ban className="h-2.5 w-2.5 mt-0.5 shrink-0" /> {c}
+            </li>
+          ))}
+        </ul>
+      </div>
+    ) : null}
+  </div>
+);
+
 const DEPT_ICONS: Record<string, any> = {
   camera: Camera,
   production_design: Palette,
@@ -210,6 +308,12 @@ const DEPT_LABELS: Record<string, string> = {
   casting_performance: "Casting & Performance",
   editing: "Editing",
   sound_score: "Sound & Score",
+};
+
+const ENGINE_LABELS: Record<string, string> = {
+  veo: "Veo (Video)",
+  sora: "Sora (Video)",
+  seedance: "Seedance (Video)",
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -342,6 +446,20 @@ const ProductionBiblePanel = () => {
         </SectionHeader>
         <CollapsibleContent>
           <div className="px-3 pb-3 space-y-4">
+            {/* Director Match Metadata */}
+            {ci?.director_match_metadata && (
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+                <span className="text-[10px] uppercase tracking-wider text-primary font-bold">Director Match</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <DoctrineField label="Primary Director" value={ci.director_match_metadata.primary_director} />
+                  <DoctrineField label="Secondary Director" value={ci.director_match_metadata.secondary_director} />
+                  <DoctrineField label="Cluster" value={ci.director_match_metadata.cluster} />
+                  <DoctrineField label="Quadrant" value={ci.director_match_metadata.quadrant} />
+                  <DoctrineField label="Emotional Depth Tier" value={ci.director_match_metadata.emotional_depth_tier} />
+                </div>
+              </div>
+            )}
+
             {/* Axis Interpretations */}
             {ci?.axis_interpretations?.map((axis, i) => (
               <div key={i} className="rounded-lg border border-border p-3 space-y-2">
@@ -402,7 +520,6 @@ const ProductionBiblePanel = () => {
           <SectionHeader icon={Lightbulb} title="Visual Mandate" />
           <CollapsibleContent>
             <div className="px-3 pb-3 space-y-3">
-              {/* Lighting */}
               {vm.lighting_doctrine && (
                 <div className="rounded-lg border border-border p-3 space-y-2">
                   <div className="flex items-center gap-1.5">
@@ -417,8 +534,6 @@ const ProductionBiblePanel = () => {
                   </div>
                 </div>
               )}
-
-              {/* Lens */}
               {vm.lens_doctrine && (
                 <div className="rounded-lg border border-border p-3 space-y-2">
                   <div className="flex items-center gap-1.5">
@@ -434,8 +549,6 @@ const ProductionBiblePanel = () => {
                   </div>
                 </div>
               )}
-
-              {/* Color & Texture */}
               {vm.color_texture_authority && (
                 <div className="rounded-lg border border-border p-3 space-y-2">
                   <div className="flex items-center gap-1.5">
@@ -493,6 +606,21 @@ const ProductionBiblePanel = () => {
                   <DoctrineField label="Archetype" value={si.structure_map.archetype} />
                   <DoctrineField label="Pacing Curve" value={si.structure_map.pacing_curve} />
                   <DoctrineField label="Emotional Escalation" value={si.structure_map.emotional_escalation_map} />
+                  <DoctrineField label="Scene Count" value={si.structure_map.scene_count} />
+                  <DoctrineField label="Midpoint Intensity" value={si.structure_map.midpoint_intensity != null ? `${si.structure_map.midpoint_intensity}/10` : null} />
+                  <DoctrineField label="Climax Escalation" value={si.structure_map.climax_escalation} />
+                  {si.structure_map.turning_points?.length ? (
+                    <div>
+                      <span className="text-[10px] text-muted-foreground font-medium">Turning Points</span>
+                      <ul className="mt-0.5 space-y-0.5">
+                        {si.structure_map.turning_points.map((tp, i) => (
+                          <li key={i} className="text-xs text-foreground flex gap-1.5">
+                            <span className="text-primary">•</span> {tp}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               )}
 
@@ -586,13 +714,13 @@ const ProductionBiblePanel = () => {
         </Collapsible>
       )}
 
-      {/* ═══ SECTION 6: STYLE CONTRACT SUMMARY ═══ */}
+      {/* ═══ SECTION 6: STYLE CONTRACT & CIC ═══ */}
       {scs && (
         <Collapsible>
-          <SectionHeader icon={Clapperboard} title="Style Contract & CIC Configuration" />
+          <SectionHeader icon={Clapperboard} title="Style Contract & CIC" />
           <CollapsibleContent>
             <div className="px-3 pb-3 space-y-3">
-              {/* Summary */}
+              {/* 6.1 Aesthetic Fingerprint */}
               <div className="rounded-lg border border-border p-3 space-y-2">
                 <span className="text-[10px] uppercase tracking-wider font-bold">Aesthetic Fingerprint</span>
                 <div className="grid grid-cols-2 gap-3">
@@ -624,12 +752,12 @@ const ProductionBiblePanel = () => {
                 </div>
               )}
 
-              {/* CIC */}
+              {/* CIC Core */}
               {cic && (
                 <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
                   <span className="text-[10px] uppercase tracking-wider text-primary font-bold">Cinematic Intent Compiler</span>
                   <DoctrineField label="Enforcement Level" value={cic.constraint_enforcement_level} />
-                  {cic.engine_neutral_payload?.negative_constraints?.length > 0 && (
+                  {cic.engine_neutral_payload?.negative_constraints?.length ? (
                     <div>
                       <span className="text-[10px] text-muted-foreground font-medium">Negative Constraints</span>
                       <div className="flex flex-wrap gap-1 mt-0.5">
@@ -638,8 +766,8 @@ const ProductionBiblePanel = () => {
                         ))}
                       </div>
                     </div>
-                  )}
-                  {cic.engine_neutral_payload?.framing_rules?.length > 0 && (
+                  ) : null}
+                  {cic.engine_neutral_payload?.framing_rules?.length ? (
                     <div>
                       <span className="text-[10px] text-muted-foreground font-medium">Framing Rules</span>
                       <ul className="mt-0.5 space-y-0.5">
@@ -648,10 +776,175 @@ const ProductionBiblePanel = () => {
                         ))}
                       </ul>
                     </div>
-                  )}
+                  ) : null}
                   <DoctrineField label="Movement Policy" value={cic.engine_neutral_payload?.movement_policy} />
                   <DoctrineField label="Editing Bias" value={cic.engine_neutral_payload?.editing_bias} />
                 </div>
+              )}
+
+              {/* 6.5 Engine-Specific Compilers */}
+              {cic?.engine_compilers && Object.keys(cic.engine_compilers).length > 0 && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <Cpu className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">Engine-Specific Compilers</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-2 pt-1">
+                      {Object.entries(cic.engine_compilers).map(([key, compiler]) => (
+                        <EngineCompilerCard
+                          key={key}
+                          name={ENGINE_LABELS[key] || key.toUpperCase()}
+                          compiler={compiler}
+                        />
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* 6.7 Prompt Layering Model */}
+              {cic?.prompt_layering_model && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <Layers className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">Prompt Layering Model</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-border p-3 space-y-2 mt-1">
+                      <DoctrineField label="Layer 1 — Scene Intent" value={cic.prompt_layering_model.layer_1_scene_intent} />
+                      <DoctrineField label="Layer 2 — Character/Location Locks" value={cic.prompt_layering_model.layer_2_character_location_locks} />
+                      <DoctrineField label="Layer 3 — Style Mandate" value={cic.prompt_layering_model.layer_3_style_mandate} />
+                      <DoctrineField label="Layer 4 — Engine Enhancements" value={cic.prompt_layering_model.layer_4_engine_enhancements} />
+                      <DoctrineField label="Layer 5 — Constraint Filters" value={cic.prompt_layering_model.layer_5_constraint_filters} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* 6.8 Blend Director Logic */}
+              {cic?.blend_director_logic && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <Blend className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">Blend Director Logic</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-border p-3 space-y-2 mt-1">
+                      <DoctrineField label="Interpolation Method" value={cic.blend_director_logic.interpolation_method} />
+                      <DoctrineField label="Conflict Resolution" value={cic.blend_director_logic.conflict_resolution} />
+                      {cic.blend_director_logic.merge_rules?.length ? (
+                        <div>
+                          <span className="text-[10px] text-muted-foreground font-medium">Merge Rules</span>
+                          <ul className="mt-0.5 space-y-0.5">
+                            {cic.blend_director_logic.merge_rules.map((r, i) => (
+                              <li key={i} className="text-xs text-foreground flex gap-1.5">
+                                <span className="text-primary">•</span> {r}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* 6.9 VICE Integration */}
+              {cic?.vice_integration && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <GitBranch className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">VICE Integration</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-border p-3 space-y-2 mt-1">
+                      <DoctrineField label="Color LUT Bias" value={cic.vice_integration.color_lut_bias} />
+                      <DoctrineField label="Grain Bias" value={cic.vice_integration.grain_bias} />
+                      <DoctrineField label="Lighting Consistency" value={cic.vice_integration.lighting_consistency} />
+                      <DoctrineField label="Lens Distortion Consistency" value={cic.vice_integration.lens_distortion_consistency} />
+                      <DoctrineField label="Depth of Field Consistency" value={cic.vice_integration.depth_of_field_consistency} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* 6.10 Character Consistency */}
+              {cic?.character_consistency && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <Shield className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">Character Consistency</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-border p-3 space-y-2 mt-1">
+                      <DoctrineField label="Facial Geometry" value={cic.character_consistency.facial_geometry} />
+                      <DoctrineField label="Wardrobe Compliance" value={cic.character_consistency.wardrobe_compliance} />
+                      <DoctrineField label="Color Compliance" value={cic.character_consistency.color_compliance} />
+                      <DoctrineField label="Silhouette Integrity" value={cic.character_consistency.silhouette_integrity} />
+                      {cic.character_consistency.prohibited_mutations?.length ? (
+                        <div>
+                          <span className="text-[10px] text-destructive font-medium">Prohibited Mutations</span>
+                          <ul className="mt-0.5 space-y-0.5">
+                            {cic.character_consistency.prohibited_mutations.map((m, i) => (
+                              <li key={i} className="text-[10px] text-destructive/80 flex gap-1">
+                                <Ban className="h-2.5 w-2.5 mt-0.5 shrink-0" /> {m}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              )}
+
+              {/* 6.11 Post-Generation Validation */}
+              {cic?.post_generation_validation && (
+                <Collapsible>
+                  <CollapsibleTrigger className="w-full">
+                    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/20 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <MonitorCheck className="h-3.5 w-3.5 text-primary" />
+                        <span className="text-[10px] uppercase tracking-wider font-bold">Post-Generation Validation</span>
+                      </div>
+                      <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-border p-3 space-y-2 mt-1">
+                      <DoctrineField label="Frame Sampling Strategy" value={cic.post_generation_validation.frame_sampling_strategy} />
+                      <DoctrineField label="Compliance Scoring" value={cic.post_generation_validation.compliance_scoring_method} />
+                      <DoctrineField label="Deviation Tolerance" value={cic.post_generation_validation.deviation_tolerance} />
+                      <DoctrineField label="Auto-Regeneration Policy" value={cic.post_generation_validation.auto_regeneration_policy} />
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
               )}
             </div>
           </CollapsibleContent>
