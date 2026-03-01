@@ -5,7 +5,7 @@ import {
   Upload, Type, CheckCircle, FileText, Sparkles, Loader2, Film, Eye,
   Camera, Palette, MapPin, Users, ChevronDown, ChevronUp, ThumbsUp, ThumbsDown,
   AlertTriangle, ScrollText, X, Plus, LocateFixed, Shield, Lock, Unlock,
-  Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw,
+  Clock, Save, Rewind, FastForward, AlertCircle, RefreshCw, Trash2,
   Zap, Volume2, Dog, UserPlus, Paintbrush, Swords, Wand2, Sun, Home, Clapperboard, Monitor,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -1572,22 +1572,55 @@ const Development = () => {
                                               <Rewind className="h-3.5 w-3.5 text-primary" />
                                             )}
                                           </span>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold text-foreground">{period.label}</p>
-                                            <p className="text-[10px] text-muted-foreground">
-                                              {period.type}
-                                              {period.approximate_scene_count ? ` · ~${period.approximate_scene_count} scenes` : ""}
-                                              {period.estimated_percentage_of_script ? ` · ${period.estimated_percentage_of_script}` : ""}
-                                            </p>
+                                          <div className="flex-1 min-w-0 space-y-1">
+                                            <SecondaryTimePeriodField
+                                              initialValue={period.label || ""}
+                                              placeholder="Label…"
+                                              disabled={!!scriptLocked}
+                                              fieldKey="label"
+                                              analysisId={analysis.id}
+                                              periodIndex={i}
+                                              globalElements={analysis.global_elements as any}
+                                              className="text-xs font-semibold text-foreground bg-transparent border-transparent hover:border-border focus:border-primary h-6 px-1"
+                                            />
+                                            <SecondaryTimePeriodField
+                                              initialValue={period.type || ""}
+                                              placeholder="Type (e.g. Flashback)…"
+                                              disabled={!!scriptLocked}
+                                              fieldKey="type"
+                                              analysisId={analysis.id}
+                                              periodIndex={i}
+                                              globalElements={analysis.global_elements as any}
+                                              className="text-[10px] text-muted-foreground bg-transparent border-transparent hover:border-border focus:border-primary h-5 px-1"
+                                            />
                                           </div>
-                                          <SecondaryTimePeriodInput
-                                            initialValue={period.estimated_year_or_range}
+                                          <SecondaryTimePeriodField
+                                            initialValue={period.estimated_year_or_range || ""}
                                             placeholder="e.g. 1955"
                                             disabled={!!scriptLocked}
+                                            fieldKey="estimated_year_or_range"
                                             analysisId={analysis.id}
                                             periodIndex={i}
                                             globalElements={analysis.global_elements as any}
+                                            className="w-32 h-7 text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold text-center"
                                           />
+                                          {!scriptLocked && (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                                              onClick={async () => {
+                                                const updated = { ...analysis.global_elements as any };
+                                                if (updated.temporal_analysis?.secondary_time_periods) {
+                                                  updated.temporal_analysis.secondary_time_periods.splice(i, 1);
+                                                  await supabase.from("script_analyses").update({ global_elements: updated }).eq("id", analysis.id);
+                                                  queryClient.invalidateQueries({ queryKey: ["latest-analysis", filmId] });
+                                                }
+                                              }}
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                            </Button>
+                                          )}
                                         </div>
                                         {matchedScenes.length > 0 && (
                                           <div className="space-y-1 pl-9">
@@ -3876,9 +3909,9 @@ const EditableVisualSummary = ({ analysisId, initialSummary, initialStyle, globa
   );
 };
 
-/* ── Secondary Time Period Input ── */
-const SecondaryTimePeriodInput = ({ initialValue, placeholder, disabled, analysisId, periodIndex, globalElements }: {
-  initialValue: string; placeholder: string; disabled: boolean; analysisId: string; periodIndex: number; globalElements: any;
+/* ── Secondary Time Period Field (generic for any field) ── */
+const SecondaryTimePeriodField = ({ initialValue, placeholder, disabled, fieldKey, analysisId, periodIndex, globalElements, className }: {
+  initialValue: string; placeholder: string; disabled: boolean; fieldKey: string; analysisId: string; periodIndex: number; globalElements: any; className?: string;
 }) => {
   const [value, setValue] = useState(initialValue || "");
   const initialMountRef = useRef(true);
@@ -3888,19 +3921,19 @@ const SecondaryTimePeriodInput = ({ initialValue, placeholder, disabled, analysi
     const timeout = setTimeout(async () => {
       const updated = { ...globalElements };
       if (updated.temporal_analysis?.secondary_time_periods?.[periodIndex]) {
-        updated.temporal_analysis.secondary_time_periods[periodIndex].estimated_year_or_range = value;
+        updated.temporal_analysis.secondary_time_periods[periodIndex][fieldKey] = value;
         await supabase.from("script_analyses").update({ global_elements: updated as any }).eq("id", analysisId);
       }
     }, 800);
     return () => clearTimeout(timeout);
-  }, [value, analysisId, periodIndex]);
+  }, [value, analysisId, periodIndex, fieldKey]);
 
   return (
     <Input
       value={value}
       onChange={(e) => setValue(e.target.value)}
       placeholder={placeholder}
-      className="w-32 h-7 text-xs bg-yellow-500/20 text-yellow-300 border-yellow-500/40 font-semibold text-center"
+      className={className || "w-32 h-7 text-xs"}
       disabled={disabled}
     />
   );
