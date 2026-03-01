@@ -469,42 +469,80 @@ const Development = () => {
 
     const CONCURRENCY = 5;
     const RETRY_DELAY = 3000;
+    const MAX_RETRIES = 4;
+
+    const getErrorText = (reason: unknown) => {
+      if (!reason) return "";
+      if (typeof reason === "string") return reason;
+      if (reason instanceof Error) return `${reason.name}: ${reason.message}`;
+      try {
+        return JSON.stringify(reason);
+      } catch {
+        return String(reason);
+      }
+    };
 
     (async () => {
-      let i = 0;
-      while (i < sceneIds.length) {
-        const batch = sceneIds.slice(i, i + CONCURRENCY);
-        const results = await Promise.allSettled(
-          batch.map((sceneId) => {
-            const payload = { scene_id: sceneId, analysis_id: analysisId };
-            console.log("Enriching scene:", payload);
-            return supabase.functions.invoke("enrich-scene", {
-              body: payload,
-            }).then((res) => {
-              if (res.error) throw res.error;
-              return res;
-            });
-          })
-        );
+      try {
+        let queue = [...sceneIds];
+        const attempts = new Map<string, number>();
 
-        // Check for rate limits — if any 429, wait and retry the whole batch
-        const hasRateLimit = results.some(
-          (r) => r.status === "rejected" && String(r.reason).includes("429")
-        );
-        if (hasRateLimit) {
-          console.warn("Rate limited, waiting before retry…");
-          await new Promise((r) => setTimeout(r, RETRY_DELAY));
-          continue; // retry same batch
+        while (queue.length > 0) {
+          const batch = queue.slice(0, CONCURRENCY);
+          queue = queue.slice(CONCURRENCY);
+
+          const results = await Promise.allSettled(
+            batch.map((sceneId) => {
+              const payload = { scene_id: sceneId, analysis_id: analysisId };
+              console.log("Enriching scene:", payload);
+              return supabase.functions.invoke("enrich-scene", {
+                body: payload,
+              }).then((res) => {
+                if (res.error) throw res.error;
+                return res;
+              });
+            })
+          );
+
+          const retrySceneIds: string[] = [];
+
+          results.forEach((result, index) => {
+            if (result.status !== "rejected") return;
+
+            const sceneId = batch[index];
+            const errorText = getErrorText(result.reason);
+            const isRetryable =
+              errorText.includes("429") ||
+              errorText.includes("503") ||
+              errorText.toLowerCase().includes("rate limit") ||
+              errorText.toLowerCase().includes("temporarily unavailable");
+
+            const attempt = (attempts.get(sceneId) ?? 0) + 1;
+
+            if (isRetryable && attempt < MAX_RETRIES) {
+              attempts.set(sceneId, attempt);
+              retrySceneIds.push(sceneId);
+              return;
+            }
+
+            console.error(`Enrichment failed for scene ${sceneId} after ${attempt} attempts`, result.reason);
+          });
+
+          if (retrySceneIds.length > 0) {
+            console.warn(`Retrying ${retrySceneIds.length} scene(s) after transient errors...`);
+            await new Promise((r) => setTimeout(r, RETRY_DELAY));
+            queue.push(...retrySceneIds);
+          }
         }
 
-        i += CONCURRENCY;
-      }
-      enrichingRef.current = false;
-      onComplete?.();
-      queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
+        onComplete?.();
+        queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
 
-      // Chain: finalize → director fit
-      await runPostEnrichment(analysisId);
+        // Chain: finalize → director fit
+        await runPostEnrichment(analysisId);
+      } finally {
+        enrichingRef.current = false;
+      }
     })();
   }, [filmId, queryClient, runPostEnrichment]);
 
