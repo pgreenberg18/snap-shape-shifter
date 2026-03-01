@@ -1349,7 +1349,9 @@ const Development = () => {
                                               {p.category}
                                             </div>
                                           )}
-                                          <SelectItem value={p.value}>{p.label} ({p.aspect})</SelectItem>
+                                          <SelectItem value={p.value}>
+                                            {p.label}{(p.category === "Social & Digital" || p.category === "Specialty") ? ` (${p.aspect})` : ""}
+                                          </SelectItem>
                                         </span>
                                       );
                                     });
