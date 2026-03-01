@@ -735,7 +735,7 @@ const DirectorVisionPanel = ({ disabled }: { disabled?: boolean }) => {
               </Button>
               <Button
                 onClick={handleAnalyze}
-                disabled={disabled || analyzing}
+                disabled={analyzing}
                 variant="outline"
                 size="sm"
                 className="gap-1.5"
