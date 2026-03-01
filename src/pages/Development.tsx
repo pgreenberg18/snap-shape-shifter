@@ -387,6 +387,7 @@ const Development = () => {
   const [ratingsApproved, setRatingsApproved] = useState(false);
   const [aiNotesApproved, setAiNotesApproved] = useState(false);
   const enrichingRef = useRef(false);
+  const [devComplete, setDevComplete] = useState(false);
 
   // Post-enrichment: finalize analysis then auto-run director fit
   const runPostEnrichment = useCallback(async (analysisId: string) => {
@@ -2080,6 +2081,36 @@ const Development = () => {
           </ScrollArea>
         </TabsContent>
       </Tabs>
+
+      {/* Development Complete */}
+      <div className="shrink-0 border-t border-border bg-card/80 backdrop-blur-sm px-6 py-4 flex flex-col items-center gap-2">
+        <Button
+          size="lg"
+          onClick={() => setDevComplete(true)}
+          disabled={devComplete}
+          className={cn(
+            "w-full max-w-md h-12 text-base font-display font-bold uppercase tracking-wider transition-all duration-300",
+            devComplete
+              ? "bg-green-600 hover:bg-green-600 text-white border-green-500 [box-shadow:0_0_20px_-4px_rgba(22,163,74,0.5)]"
+              : ""
+          )}
+        >
+          {devComplete ? (
+            <>
+              <CheckCircle className="h-5 w-5 mr-2" />
+              Development Complete
+            </>
+          ) : (
+            "Development Complete"
+          )}
+        </Button>
+        {devComplete && (
+          <p className="text-xs font-medium text-green-400 flex items-center gap-1.5">
+            <Lock className="h-3 w-3" />
+            Development is now locked.
+          </p>
+        )}
+      </div>
 
       {/* Script text preview popup — draggable & resizable, top-level so it works from any section */}
       <DraggableScriptPopup
