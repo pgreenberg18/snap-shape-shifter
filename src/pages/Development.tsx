@@ -349,6 +349,22 @@ const Development = () => {
     },
     enabled: !!filmId,
   });
+  const { data: scenePropOwnership } = useQuery({
+    queryKey: ["scene-prop-ownership", filmId],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("parsed_scenes")
+        .select("characters, key_objects, location_name")
+        .eq("film_id", filmId!)
+        .eq("enriched", true);
+      return (data || []).map(d => ({
+        characters: (d.characters || []) as string[],
+        key_objects: (d.key_objects || []) as string[],
+        location_name: (d.location_name || "") as string,
+      }));
+    },
+    enabled: !!filmId,
+  });
   const queryClient = useQueryClient();
   const [language, setLanguage] = useState(false);
   const [nudity, setNudity] = useState(false);
@@ -1928,7 +1944,7 @@ const Development = () => {
                           </CollapsibleTrigger>
                           <CollapsibleContent forceMount className="data-[state=closed]:hidden">
                             <div className="rounded-xl border border-border border-t-0 rounded-t-none bg-card p-6">
-                              <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} />
+                              <GlobalElementsManager data={analysis.global_elements as any} analysisId={analysis.id} filmId={analysis.film_id} onAllReviewedChange={setAllElementsReviewed} sceneLocations={sceneLocations} scenePropOwnership={scenePropOwnership} />
                             </div>
                           </CollapsibleContent>
                         </Collapsible>
