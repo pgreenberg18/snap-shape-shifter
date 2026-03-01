@@ -180,7 +180,7 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
             Elapsed: {formatTime(elapsed)}
             {isEnriching && enrichTotal > 0 && ` · ${enrichDone} of ${enrichTotal} scenes`}
             {isEnriching && estimatedRemaining !== null && ` · ${formatEstimate(estimatedRemaining)}`}
-            {!isEnriching && " · This usually takes a few seconds"}
+            {!isEnriching && " · Please be patient. This highly detailed analysis usually takes a few minutes."}
           </p>
         </div>
         {onCancel && (
