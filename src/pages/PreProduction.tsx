@@ -837,7 +837,7 @@ const PreProduction = () => {
       <Tabs defaultValue="casting" className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-auto bg-transparent gap-0 p-0 border-b border-border items-end">
-            <PreProductionTab value="casting" icon={Users} label="Cast" status={tabStatusMap.casting} />
+            <PreProductionTab value="casting" icon={Users} label="Actors" status={tabStatusMap.casting} />
             <PreProductionTab value="locations" icon={MapPin} label="Locations" status={tabStatusMap.locations} />
             <PreProductionTab value="props" icon={Package} label="Props" status={tabStatusMap.props} />
             <PreProductionTab value="wardrobe" icon={Shirt} label="Wardrobe" status={tabStatusMap.wardrobe} />
