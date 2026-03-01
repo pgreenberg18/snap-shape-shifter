@@ -213,6 +213,13 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
         "department_implications": ["Camera: ...", "Production Design: ...", "Editing: ..."]
       }
     ],
+    "director_match_metadata": {
+      "primary_director": "director name",
+      "secondary_director": "director name or null",
+      "cluster": "e.g. Operatic Mythmakers",
+      "quadrant": "e.g. Epic × Classical",
+      "emotional_depth_tier": "cool/warm/operatic"
+    },
     "director_summary": {
       "match_reasoning": "Why this director matched the script",
       "aesthetic_tensions": "What tensions exist between script and director style",
@@ -229,7 +236,7 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
     "lens_doctrine": {
       "preferred_focal_range": "e.g. 27-50mm",
       "movement_policy": "description of camera movement rules",
-      "handheld_allowed": true/false,
+      "handheld_allowed": true,
       "push_in_frequency": "description",
       "shot_duration_expectation": "description"
     },
@@ -245,7 +252,11 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
     "structure_map": {
       "archetype": "e.g. Three-Act Hero's Journey",
       "pacing_curve": "description",
-      "emotional_escalation_map": "description"
+      "emotional_escalation_map": "description",
+      "scene_count": 45,
+      "turning_points": ["Scene 12: inciting incident", "Scene 30: midpoint"],
+      "midpoint_intensity": 7,
+      "climax_escalation": "description"
     },
     "character_temperature_chart": [
       {
@@ -264,19 +275,19 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
       "motif_alignment": "...",
       "forbidden_moves": ["move1"]
     },
-    "production_design": { same structure },
-    "wardrobe": { same structure },
-    "props": { same structure },
-    "casting_performance": { same structure },
-    "editing": { same structure },
-    "sound_score": { same structure }
+    "production_design": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
+    "wardrobe": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
+    "props": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
+    "casting_performance": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
+    "editing": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] },
+    "sound_score": { "primary_objective": "...", "governing_constraints": [], "motif_alignment": "...", "forbidden_moves": [] }
   },
   "non_negotiables": [
     "Absolute rule 1 derived from extreme axis scores",
     "Absolute rule 2"
   ],
   "style_contract_summary": {
-    "final_vector": { 8 axis scores },
+    "final_vector": { "scale": 8, "structure": 6, "visual": 7, "darkness": 5, "dialogue": 4, "spectacle": 8, "genreFluidity": 3, "emotion": 7 },
     "primary_director": "name",
     "secondary_director": "name or null",
     "blend_weight": 0.7,
@@ -297,7 +308,67 @@ Return ONLY valid JSON matching this exact structure (no markdown, no code fence
       "editing_bias": "...",
       "negative_constraints": ["constraint1"]
     },
-    "constraint_enforcement_level": "strict" or "moderate" or "adaptive"
+    "constraint_enforcement_level": "strict",
+    "prompt_layering_model": {
+      "layer_1_scene_intent": "description of how scene metadata drives prompt foundation",
+      "layer_2_character_location_locks": "description of how locked assets inject into prompts",
+      "layer_3_style_mandate": "description of how style contract governs aesthetic",
+      "layer_4_engine_enhancements": "description of engine-specific optimizations",
+      "layer_5_constraint_filters": "description of final constraint validation pass"
+    },
+    "engine_compilers": {
+      "veo": {
+        "prompt_strategy": "description of how Veo prompts are structured (natural language cinematic descriptions, camera movement instructions, environmental continuity)",
+        "intensity_multiplier": 1.0,
+        "key_translations": ["visual_control → camera movement limits", "darkness → lighting description phrasing", "scale → environmental scale", "lens_doctrine → focal length language"],
+        "strengths": ["natural language cinema", "camera movement", "realistic lighting"],
+        "constraints": ["description of Veo-specific limits"]
+      },
+      "sora": {
+        "prompt_strategy": "description of Sora prompt approach (rich environmental detail, temporal continuity, physical realism, motion continuity)",
+        "intensity_multiplier": 1.3,
+        "key_translations": ["scale → environmental extension", "spectacle → kinetic choreography", "structure → temporal continuity"],
+        "strengths": ["spatial coherence", "scene duration continuity", "object physics"],
+        "constraints": ["description of Sora-specific limits"]
+      },
+      "seedance": {
+        "prompt_strategy": "description of Seedance prompt approach (stylization descriptors, visual motif reinforcement, texture layering)",
+        "intensity_multiplier": 0.9,
+        "key_translations": ["genre_fluidity → stylistic blending", "emotional_temperature → color/emotional intensity"],
+        "strengths": ["stylization", "motif reinforcement", "aesthetic layering"],
+        "constraints": ["description of Seedance-specific limits"]
+      }
+    },
+    "blend_director_logic": {
+      "interpolation_method": "weighted linear interpolation of 8-axis vectors",
+      "conflict_resolution": "conservative enforcement — strictest rule wins",
+      "merge_rules": [
+        "Lighting philosophies blended proportionally by weight",
+        "Lens ranges blended proportionally by weight",
+        "Texture rules merged with strictest enforcement",
+        "Negative constraints: union of both sets, strictest rule wins"
+      ]
+    },
+    "vice_integration": {
+      "color_lut_bias": "description of how VICE applies color LUT corrections",
+      "grain_bias": "description of film grain consistency enforcement",
+      "lighting_consistency": "description of how lighting is kept uniform across shots",
+      "lens_distortion_consistency": "description of lens aberration consistency",
+      "depth_of_field_consistency": "description of DoF uniformity enforcement"
+    },
+    "character_consistency": {
+      "facial_geometry": "description of how facial embeddings maintain consistency",
+      "wardrobe_compliance": "description of how wardrobe locks enforce across shots",
+      "color_compliance": "description of how character color palettes are maintained",
+      "silhouette_integrity": "description of character silhouette preservation",
+      "prohibited_mutations": ["list of prohibited character appearance changes"]
+    },
+    "post_generation_validation": {
+      "frame_sampling_strategy": "description of how generated frames are sampled for analysis",
+      "compliance_scoring_method": "description of how style contract compliance is scored",
+      "deviation_tolerance": "description of acceptable deviation thresholds",
+      "auto_regeneration_policy": "description of when and how auto-regeneration triggers"
+    }
   }
 }`;
 
