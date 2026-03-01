@@ -2,6 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.97.0";
 import { requireAuth, isResponse } from "../_shared/auth.ts";
 import { logCreditUsage } from "../_shared/credit-logger.ts";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.12.1";
+import {
+  parseSceneHeading,
+  computeDialogueMetrics,
+  extractCharacterCues,
+} from "../_shared/entity-normalization.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,44 +67,29 @@ async function parsePdfToPlainText(data: ArrayBuffer): Promise<string> {
   const { text } = await extractText(pdf, { mergePages: true });
   const raw = typeof text === "string" ? text : (text as string[]).join("\n");
   console.log("[PDF] Extracted text length:", raw.length);
-  console.log("[PDF] First 2000 chars:", raw.slice(0, 2000));
   return raw;
 }
 
 /** Strip RTF control codes to extract plain text */
 function parseRtfToPlainText(rtf: string): string {
-  // Remove RTF header/groups, keep text content
   let text = rtf;
-  // Remove {\fonttbl ...}, {\colortbl ...}, {\stylesheet ...}, etc.
   text = text.replace(/\{\\(?:fonttbl|colortbl|stylesheet|info|pict)[^}]*(?:\{[^}]*\}[^}]*)*\}/gi, "");
-  // Remove \par and replace with newlines
   text = text.replace(/\\par\b/g, "\n");
-  // Remove all \command words (with optional numeric arg)
   text = text.replace(/\\[a-z]+[-]?\d*\s?/gi, "");
-  // Remove remaining braces
   text = text.replace(/[{}]/g, "");
-  // Clean up whitespace
   text = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   return text.trim();
 }
 
 /** Extract text from .docx (ZIP containing XML) */
 async function parseDocxToPlainText(data: ArrayBuffer): Promise<string> {
-  // DOCX is a ZIP file; we need to find word/document.xml
-  // Use the built-in DecompressionStream approach or manual ZIP parsing
   const bytes = new Uint8Array(data);
+  const entries = parseZipEntries(bytes);
+  await decompressZipEntries(entries);
+  const docEntry = entries.find(e => e.name === "word/document.xml");
+  if (!docEntry) throw new Error("Invalid DOCX: word/document.xml not found");
 
-  // Find "word/document.xml" inside the ZIP
-  const decoder = new TextDecoder();
-  const zipEntries = parseZipEntries(bytes);
-  const docEntry = zipEntries.find(e => e.name === "word/document.xml");
-
-  if (!docEntry) {
-    throw new Error("Invalid DOCX: word/document.xml not found");
-  }
-
-  const xml = decoder.decode(docEntry.data);
-  // Extract text from <w:t> tags
+  const xml = new TextDecoder().decode(docEntry.data);
   const textParts: string[] = [];
   const wParagraphRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
   let pm: RegExpExecArray | null;
@@ -126,11 +116,10 @@ function parseZipEntries(data: Uint8Array): { name: string; data: Uint8Array }[]
 
   while (offset < data.length - 4) {
     const sig = view.getUint32(offset, true);
-    if (sig !== 0x04034b50) break; // Not a local file header
+    if (sig !== 0x04034b50) break;
 
     const compressionMethod = view.getUint16(offset + 8, true);
     const compressedSize = view.getUint32(offset + 18, true);
-    const uncompressedSize = view.getUint32(offset + 22, true);
     const nameLen = view.getUint16(offset + 26, true);
     const extraLen = view.getUint16(offset + 28, true);
 
@@ -141,28 +130,10 @@ function parseZipEntries(data: Uint8Array): { name: string; data: Uint8Array }[]
     const rawData = data.subarray(dataStart, dataStart + compressedSize);
 
     if (compressionMethod === 0) {
-      // Stored (no compression)
       entries.push({ name, data: rawData });
     } else if (compressionMethod === 8) {
-      // Deflate – use DecompressionStream
-      try {
-        const ds = new DecompressionStream("raw");
-        const writer = ds.writable.getWriter();
-        const reader = ds.readable.getReader();
-        writer.write(rawData);
-        writer.close();
-
-        const chunks: Uint8Array[] = [];
-        let totalLen = 0;
-        // We need to handle this synchronously-ish for the ZIP parser
-        // but DecompressionStream is async, so we'll collect later
-        entries.push({ name, data: rawData }); // placeholder, will decompress below
-        // Mark for async decompression
-        (entries[entries.length - 1] as any)._needsDecompress = true;
-        (entries[entries.length - 1] as any)._reader = reader;
-      } catch {
-        entries.push({ name, data: rawData });
-      }
+      entries.push({ name, data: rawData });
+      (entries[entries.length - 1] as any)._needsDecompress = true;
     } else {
       entries.push({ name, data: rawData });
     }
@@ -203,40 +174,28 @@ async function decompressZipEntries(entries: { name: string; data: Uint8Array }[
         // Leave raw data if decompression fails
       }
       delete (entry as any)._needsDecompress;
-      delete (entry as any)._reader;
     }
   }
 }
 
-/** Parse Fountain format to plain text (scene headings already use INT./EXT.) */
+/** Parse Fountain format to plain text */
 function parseFountainToPlainText(text: string): string {
-  // Fountain is already plain text with screenplay conventions
-  // Strip Fountain-specific metadata (Title:, Credit:, Author:, etc.)
   let result = text;
-  // Remove title page (everything before first blank line pair or scene heading)
   const titlePageEnd = result.search(/\n\s*\n\s*(?:INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i);
   if (titlePageEnd > 0 && titlePageEnd < 500) {
     result = result.slice(titlePageEnd);
   }
-  // Remove forced scene heading markers (leading .)
   result = result.replace(/^\./gm, "");
-  // Remove boneyard markers (/* ... */)
   result = result.replace(/\/\*[\s\S]*?\*\//g, "");
-  // Remove section markers (# heading)
   result = result.replace(/^#{1,6}\s+/gm, "");
-  // Remove synopses (= text)
   result = result.replace(/^=\s+.+$/gm, "");
-  // Remove notes ([[...]])
   result = result.replace(/\[\[[\s\S]*?\]\]/g, "");
-  // Remove emphasis markers (* and _)
   result = result.replace(/[*_]/g, "");
   return result.trim();
 }
 
-/** Extract text from Celtx (.sexp) – it's XML-based */
+/** Extract text from Celtx (.sexp) – XML-based */
 function parseSexpToPlainText(text: string): string {
-  // Celtx files contain screenplay data in XML format
-  // Try to extract text content from <p> or similar tags
   const lines: string[] = [];
   const tagRe = /<(?:p|text|span)[^>]*>([\s\S]*?)<\/(?:p|text|span)>/gi;
   let m: RegExpExecArray | null;
@@ -244,7 +203,6 @@ function parseSexpToPlainText(text: string): string {
     const inner = m[1].replace(/<[^>]+>/g, "").trim();
     if (inner) lines.push(inner);
   }
-  // If no XML content found, return as-is (might be plain text)
   return lines.length > 0 ? lines.join("\n") : text;
 }
 
@@ -256,23 +214,17 @@ function extractScenes(scriptText: string) {
     .replace(/\r\n/g, "\n")
     .replace(/\r/g, "\n");
 
-  // PDF extraction often merges lines. Try to re-split scene headings
-  // that are glued to preceding text by inserting newlines before INT./EXT.
   normalized = normalized.replace(/([^\n])((?:INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s)/g, "$1\n$2");
 
   const sceneRegex = /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)\s.+$/gm;
   let matches = [...normalized.matchAll(sceneRegex)];
 
-  // If still no matches, try case-insensitive
   if (matches.length === 0) {
     const ciRegex = /^(int\.|ext\.|int\/ext\.|i\/e\.)\s.+$/gim;
     matches = [...normalized.matchAll(ciRegex)];
   }
 
   console.log(`[extractScenes] Found ${matches.length} scene headings`);
-  if (matches.length > 0) {
-    console.log("[extractScenes] First heading:", matches[0][0]);
-  }
 
   const scenes: {
     scene_number: number;
@@ -359,46 +311,18 @@ Deno.serve(async (req) => {
 
     try {
       if (fileName.endsWith(".pdf")) {
-        // ── PDF ──
         const arrayBuf = await fileData.arrayBuffer();
         scriptText = await parsePdfToPlainText(arrayBuf);
       } else if (fileName.endsWith(".docx")) {
-        // ── DOCX ──
         const arrayBuf = await fileData.arrayBuffer();
-        const bytes = new Uint8Array(arrayBuf);
-        const entries = parseZipEntries(bytes);
-        await decompressZipEntries(entries);
-        const docEntry = entries.find(e => e.name === "word/document.xml");
-        if (!docEntry) throw new Error("Invalid DOCX: word/document.xml not found");
-        const xml = new TextDecoder().decode(docEntry.data);
-        const textParts: string[] = [];
-        const wParagraphRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
-        let pm: RegExpExecArray | null;
-        while ((pm = wParagraphRe.exec(xml)) !== null) {
-          const inner = pm[1];
-          const wtRe = /<w:t[^>]*>([\s\S]*?)<\/w:t>/gi;
-          let line = "";
-          let tm: RegExpExecArray | null;
-          while ((tm = wtRe.exec(inner)) !== null) {
-            line += tm[1];
-          }
-          textParts.push(line);
-        }
-        scriptText = textParts.join("\n").trim();
+        scriptText = await parseDocxToPlainText(arrayBuf);
       } else if (fileName.endsWith(".rtf")) {
-        // ── RTF ──
-        const rawText = await fileData.text();
-        scriptText = parseRtfToPlainText(rawText);
+        scriptText = parseRtfToPlainText(await fileData.text());
       } else if (fileName.endsWith(".fountain")) {
-        // ── Fountain ──
-        const rawText = await fileData.text();
-        scriptText = parseFountainToPlainText(rawText);
+        scriptText = parseFountainToPlainText(await fileData.text());
       } else if (fileName.endsWith(".sexp")) {
-        // ── Celtx ──
-        const rawText = await fileData.text();
-        scriptText = parseSexpToPlainText(rawText);
+        scriptText = parseSexpToPlainText(await fileData.text());
       } else {
-        // ── FDX, FDR, MMSW, TXT, or unknown ──
         const rawText = await fileData.text();
         if (
           fileName.endsWith(".fdx") ||
@@ -408,7 +332,6 @@ Deno.serve(async (req) => {
         ) {
           scriptText = parseFdxToPlainText(rawText);
         } else if (fileName.endsWith(".mmsw") && rawText.includes("<")) {
-          // Movie Magic Screenwriter – XML variant
           scriptText = parseSexpToPlainText(rawText);
         } else {
           scriptText = rawText;
@@ -462,23 +385,56 @@ Deno.serve(async (req) => {
       .select()
       .single();
 
+    // ── Phase 1: Insert scenes with deterministic heading parse + dialogue metrics ──
     const sceneIds: string[] = [];
+    const allCharacterCues: { name: string; scene: number }[] = [];
+
     for (const scene of scenes) {
+      // Deterministic heading parse (no AI)
+      const parsed = parseSceneHeading(scene.heading);
+      // Dialogue metrics (no AI)
+      const metrics = computeDialogueMetrics(scene.text);
+      // Extract character cues from raw text
+      const cues = extractCharacterCues(scene.text, scene.scene_number);
+      allCharacterCues.push(...cues);
+      // Character names for this scene (deduped)
+      const sceneCharacters = [...new Set(cues.map(c => c.name))];
+
       const { data: insertedScene } = await supabase.from("parsed_scenes").insert({
         film_id: analysis.film_id,
         scene_number: scene.scene_number,
         heading: scene.heading,
         raw_text: scene.text,
+        // Deterministic fields from heading parse
+        int_ext: parsed.int_ext,
+        day_night: parsed.time_of_day,
+        location_name: parsed.location,
+        sublocation: parsed.sublocation,
+        continuity_marker: parsed.continuity_marker,
+        is_flashback: parsed.is_flashback,
+        is_dream: parsed.is_dream,
+        is_montage: parsed.is_montage,
+        // Dialogue metrics
+        line_count: metrics.line_count,
+        dialogue_line_count: metrics.dialogue_line_count,
+        dialogue_word_count: metrics.dialogue_word_count,
+        dialogue_density: metrics.dialogue_density,
+        // Characters from cue detection (deterministic, no AI)
+        characters: sceneCharacters,
+        // Phase 1 is NOT locked yet — extract-entities will do that
+        enriched: false,
+        phase1_locked: false,
       }).select("id").single();
+
       if (insertedScene) sceneIds.push(insertedScene.id);
     }
 
-    // Mark as "enriching" — the enrich-scene function will set "complete"
-    // after all scenes have been processed by Gemini.
-    // NOTE: scene_breakdown JSON is deprecated — parsed_scenes table is the source of truth.
+    // ── Mark analysis as COMPLETE (no enrichment during parse) ──
+    // Phase 1 entity extraction happens separately via extract-entities
+    // Phase 2 enrichment happens after Vision Lock
     await supabase
       .from("script_analyses")
-      .update({ status: "enriching" })
+      .update({ status: "complete" })
       .eq("id", analysis_id);
 
     await logCreditUsage({
@@ -488,6 +444,22 @@ Deno.serve(async (req) => {
       serviceCategory: "script-analysis",
       operation: "parse-script",
     });
+
+    // Run finalize-analysis to populate global_elements
+    try {
+      const finalizeUrl = `${supabaseUrl}/functions/v1/finalize-analysis`;
+      await fetch(finalizeUrl, {
+        method: "POST",
+        headers: {
+          Authorization: req.headers.get("Authorization") || "",
+          "Content-Type": "application/json",
+          apikey: Deno.env.get("SUPABASE_ANON_KEY") || "",
+        },
+        body: JSON.stringify({ analysis_id }),
+      });
+    } catch (e) {
+      console.error("finalize-analysis call failed:", e);
+    }
 
     return new Response(
       JSON.stringify({

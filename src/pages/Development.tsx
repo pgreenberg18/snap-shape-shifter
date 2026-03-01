@@ -102,37 +102,6 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
   const [elapsed, setElapsed] = useState(0);
   const [startTime] = useState(() => Date.now());
 
-  // Poll enrichment progress from DB when enrichment is active
-  const isEnrichingPhase = status === "enriching" || status === "analyzing";
-  const { data: enrichmentProgress } = useQuery({
-    queryKey: ["enrichment-progress", filmId],
-    queryFn: async () => {
-      const { count: total } = await supabase
-        .from("parsed_scenes")
-        .select("id", { count: "exact", head: true })
-        .eq("film_id", filmId!);
-      const { count: enriched } = await supabase
-        .from("parsed_scenes")
-        .select("id", { count: "exact", head: true })
-        .eq("film_id", filmId!)
-        .eq("enriched", true);
-      // Fetch ALL enriched scenes ordered by scene_number
-      const { data: recentScenes } = await supabase
-        .from("parsed_scenes")
-        .select("scene_number, heading, description, characters")
-        .eq("film_id", filmId!)
-        .eq("enriched", true)
-        .order("scene_number", { ascending: true });
-      return {
-        total: total || 0,
-        enriched: enriched || 0,
-        recentScenes: recentScenes || [],
-      };
-    },
-    enabled: !!filmId && isEnrichingPhase,
-    refetchInterval: 3000,
-  });
-
   useEffect(() => {
     const timer = setInterval(() => setElapsed(Date.now() - startTime), 500);
     return () => clearInterval(timer);
@@ -145,28 +114,10 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
     return m > 0 ? `${m}:${rem.toString().padStart(2, "0")}` : `${s}s`;
   };
 
-  const enrichTotal = enrichmentProgress?.total || 0;
-  const enrichDone = enrichmentProgress?.enriched || 0;
-  const enrichPct = enrichTotal > 0 ? Math.round((enrichDone / enrichTotal) * 100) : 0;
-  const recentScenes = enrichmentProgress?.recentScenes || [];
-
-  // Show enrichment progress once we have parsed scenes data
-  const isEnriching = isEnrichingPhase && enrichTotal > 0 && enrichDone > 0;
-  const parsingDone = isEnriching || status === "complete";
+  const parsingDone = status === "complete";
   const overallPct = parsingDone
-    ? (isEnriching ? 30 + Math.round(enrichPct * 0.7) : 100)
-    : Math.min(Math.round((elapsed / 1000 / 15) * 30), 29);
-
-  // Estimate remaining time
-  const estimatedRemaining = isEnriching && enrichDone > 3
-    ? Math.round(((elapsed / 1000) / enrichDone) * (enrichTotal - enrichDone))
-    : null;
-
-  const formatEstimate = (s: number) => {
-    if (s < 60) return `~${s}s remaining`;
-    const m = Math.floor(s / 60);
-    return `~${m}m remaining`;
-  };
+    ? 100
+    : Math.min(Math.round((elapsed / 1000 / 15) * 95), 95);
 
   return (
     <div className="rounded-xl border border-border bg-card p-8 space-y-6">
@@ -174,13 +125,10 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
         <Loader2 className="h-6 w-6 animate-spin text-primary shrink-0 mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="font-display font-semibold text-sm truncate">
-            {isEnriching ? "Analyzing your script…" : "Parsing your screenplay…"}
+            Parsing your screenplay…
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Elapsed: {formatTime(elapsed)}
-            {isEnriching && enrichTotal > 0 && ` · ${enrichDone} of ${enrichTotal} scenes`}
-            {isEnriching && estimatedRemaining !== null && ` · ${formatEstimate(estimatedRemaining)}`}
-            {!isEnriching && " · Please be patient. This highly detailed analysis usually takes a few minutes."}
+            Elapsed: {formatTime(elapsed)} · Extracting scenes, characters, locations, and dialogue metrics…
           </p>
         </div>
         {onCancel && (
@@ -260,18 +208,14 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
             </div>
           );
         })}
-        {/* Enrichment step — shows real progress */}
+        {/* Parsing complete step */}
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <div className={cn(
               "flex h-6 w-6 items-center justify-center rounded-full shrink-0 transition-colors",
-              !isEnriching && !parsingDone && "bg-secondary text-muted-foreground/40",
-              isEnriching && "bg-primary/20 text-primary",
-              parsingDone && !isEnriching && "bg-primary text-primary-foreground",
+              parsingDone ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground/40",
             )}>
-              {isEnriching ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : parsingDone ? (
+              {parsingDone ? (
                 <CheckCircle className="h-3.5 w-3.5" />
               ) : (
                 <span className="text-[10px] font-bold">4</span>
@@ -280,38 +224,15 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
             <div className="flex-1 min-w-0">
               <span className={cn(
                 "text-sm transition-colors",
-                isEnriching && "text-foreground font-semibold",
-                !isEnriching && !parsingDone && "text-muted-foreground/50",
-                parsingDone && !isEnriching && "text-foreground",
+                parsingDone ? "text-foreground" : "text-muted-foreground/50",
               )}>
-                Extracting details from each scene
-                {isEnriching && enrichTotal > 0 && (
-                  <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums font-normal">{enrichDone}/{enrichTotal} · {enrichPct}%</span>
-                )}
-                {parsingDone && !isEnriching && (
+                Finalizing analysis
+                {parsingDone && (
                   <span className="ml-1.5 text-[10px] text-muted-foreground tabular-nums font-normal">100%</span>
                 )}
               </span>
-              {isEnriching && (
-                <p className="text-xs text-muted-foreground mt-0.5 animate-in fade-in slide-in-from-left-2 duration-300">
-                  Identifying characters, wardrobe, props, locations, stunts, VFX, SFX, mood, and cinematic elements…
-                </p>
-              )}
             </div>
           </div>
-          {isEnriching && (
-            <div className="ml-9 h-1.5 rounded-full bg-secondary overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/70 transition-all duration-700 ease-out"
-                style={{ width: `${enrichPct}%` }}
-              />
-            </div>
-          )}
-
-          {/* Live typewriter feed during enrichment */}
-          {isEnriching && recentScenes.length > 0 && (
-            <TypewriterSceneFeed scenes={recentScenes} />
-          )}
         </div>
       </div>
 
@@ -697,19 +618,14 @@ const Development = () => {
     })();
   }, [filmId, queryClient, runPostEnrichment]);
 
-  // Resume enrichment on page load if there are unenriched scenes
-  // This handles both: initial parse enrichment (status === "enriching") and
-  // vision-lock propagation (visionComplete === true)
+  // Resume Phase 2 enrichment on page load ONLY if propagation is active
+  // (Vision has been locked and enrichment is in progress)
   useEffect(() => {
     if (!analysis || !filmId) return;
     if (enrichingRef.current) return;
-
-    // Only resume if analysis is in enriching state OR vision is complete (propagation)
-    const shouldResume = analysis.status === "enriching" || visionComplete;
-    if (!shouldResume) return;
+    if (!propagating) return; // Only resume during active propagation
 
     (async () => {
-      // Find unenriched scene IDs
       const { data: unenriched } = await supabase
         .from("parsed_scenes")
         .select("id")
@@ -718,7 +634,7 @@ const Development = () => {
         .order("scene_number", { ascending: true });
 
       if (unenriched && unenriched.length > 0) {
-        console.log(`Resuming enrichment for ${unenriched.length} remaining scenes`);
+        console.log(`Resuming Phase 2 enrichment for ${unenriched.length} remaining scenes`);
         runEnrichmentBatches(
           unenriched.map((s) => s.id),
           analysis.id,
@@ -727,7 +643,7 @@ const Development = () => {
         );
       }
     })();
-  }, [analysis?.id, analysis?.status, filmId, visionComplete, runEnrichmentBatches]);
+  }, [analysis?.id, filmId, propagating, runEnrichmentBatches]);
 
   /* Sync section approval states from DB — only upgrade to true, never downgrade */
   useEffect(() => {
@@ -902,6 +818,8 @@ const Development = () => {
         supabase.from("wardrobe_scene_assignments").delete().eq("film_id", filmId!),
         supabase.from("post_production_clips").delete().eq("film_id", filmId!),
         supabase.from("production_presets").delete().eq("film_id", filmId!),
+        supabase.from("scene_entity_links").delete().eq("film_id", filmId!),
+        supabase.from("script_entities").delete().eq("film_id", filmId!),
       ];
       await Promise.all(wipePromises);
 
@@ -988,16 +906,9 @@ const Development = () => {
       return;
     }
 
-    const sceneIds: string[] = parseResult?.scene_ids || [];
-
-    // Run enrichment immediately after parsing so scenes get full breakdown data
-    // (characters, wardrobe, props, locations, visual design, etc.)
-    if (sceneIds.length > 0 && analysisId) {
-      runEnrichmentBatches(sceneIds, analysisId, undefined, { includeDirectorFit: false });
-    } else if (analysisId) {
-      // No scene IDs returned — finalize with whatever we have
-      runPostEnrichment(analysisId);
-    }
+    // Phase 1: parse-script now completes with deterministic data only.
+    // No enrichment is triggered here. Entity extraction and enrichment
+    // happen later: extract-entities during Fundamentals, enrich-scene after Vision Lock.
 
     setAnalyzing(false);
     queryClient.invalidateQueries({ queryKey: ["script-analysis", filmId] });
@@ -1147,7 +1058,7 @@ const Development = () => {
     }
   };
 
-  const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing" || analysis?.status === "enriching";
+  const isAnalyzing = analyzing || analysis?.status === "pending" || analysis?.status === "analyzing";
 
   const handleSaveMeta = async () => {
     if (!filmId) return;
@@ -2447,16 +2358,38 @@ const Development = () => {
                           onClick={async () => {
                             setPropagating(true);
                             if (filmId && analysis?.id) {
-                              const { data: unenriched } = await supabase
+                              // 1. Persist ai_notes_approved to DB
+                              await supabase
+                                .from("script_analyses")
+                                .update({ ai_notes_approved: true })
+                                .eq("id", analysis.id);
+
+                              // 2. Compile the Style Contract (Phase 2 input)
+                              try {
+                                await supabase.functions.invoke("compile-style-contract", {
+                                  body: { film_id: filmId },
+                                });
+                                console.log("Style Contract compiled for Vision Lock");
+                              } catch (e) {
+                                console.error("Style contract compilation failed:", e);
+                              }
+
+                              // 3. Run Phase 2 enrichment on ALL scenes
+                              const { data: allScenes } = await supabase
                                 .from("parsed_scenes")
                                 .select("id")
                                 .eq("film_id", filmId)
-                                .eq("enriched", false)
                                 .order("scene_number", { ascending: true });
-                              if (unenriched && unenriched.length > 0) {
-                                runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
+
+                              if (allScenes && allScenes.length > 0) {
+                                // Reset enriched flag so Phase 2 processes all scenes
+                                await supabase
+                                  .from("parsed_scenes")
+                                  .update({ enriched: false })
+                                  .eq("film_id", filmId);
+
+                                runEnrichmentBatches(allScenes.map((s) => s.id), analysis.id);
                               } else {
-                                // All already enriched — skip propagation
                                 setPropagating(false);
                                 setVisionComplete(true);
                                 setActiveTab("breakdown");
