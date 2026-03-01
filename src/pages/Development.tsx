@@ -318,6 +318,140 @@ const AnalysisProgress = ({ status, filmId, onCancel }: { status?: string; filmI
     </div>
   );
 };
+
+/* ── Propagation Progress (shown after Vision is locked) ── */
+const PropagationProgress = ({ filmId, onComplete }: { filmId: string; onComplete: () => void }) => {
+  const [startTime] = useState(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const timer = setInterval(() => setElapsed(Date.now() - startTime), 500);
+    return () => clearInterval(timer);
+  }, [startTime]);
+
+  const { data: progress } = useQuery({
+    queryKey: ["propagation-progress", filmId],
+    queryFn: async () => {
+      const { count: total } = await supabase
+        .from("parsed_scenes")
+        .select("id", { count: "exact", head: true })
+        .eq("film_id", filmId);
+      const { count: enriched } = await supabase
+        .from("parsed_scenes")
+        .select("id", { count: "exact", head: true })
+        .eq("film_id", filmId)
+        .eq("enriched", true);
+      const { data: recentScenes } = await supabase
+        .from("parsed_scenes")
+        .select("scene_number, heading")
+        .eq("film_id", filmId)
+        .eq("enriched", true)
+        .order("scene_number", { ascending: false })
+        .limit(5);
+      return { total: total || 0, enriched: enriched || 0, recentScenes: (recentScenes || []).reverse() };
+    },
+    refetchInterval: done ? false : 2000,
+  });
+
+  const total = progress?.total || 0;
+  const enriched = progress?.enriched || 0;
+  const pct = total > 0 ? Math.round((enriched / total) * 100) : 0;
+  const allDone = total > 0 && enriched >= total;
+
+  useEffect(() => {
+    if (allDone && !done) {
+      setDone(true);
+      const timer = setTimeout(() => onComplete(), 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [allDone, done, onComplete]);
+
+  const formatTime = (ms: number) => {
+    const s = Math.floor(ms / 1000);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return m > 0 ? `${m}:${rem.toString().padStart(2, "0")}` : `${s}s`;
+  };
+
+  return (
+    <div className="rounded-xl border border-primary/30 bg-card p-8 space-y-6 animate-fade-in">
+      {!done ? (
+        <>
+          <div className="flex items-center gap-4">
+            <div className="relative h-14 w-14 shrink-0">
+              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+              <div
+                className="absolute inset-0 rounded-full border-2 border-primary border-t-transparent animate-spin"
+                style={{ animationDuration: "1.5s" }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-display font-bold text-lg text-foreground">
+                Implementing Vision
+              </h3>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Propagating Production Bible into scene-by-scene breakdown…
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 tabular-nums">
+                Elapsed: {formatTime(elapsed)}
+                {total > 0 && ` · ${enriched} of ${total} scenes`}
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div className="space-y-2">
+            <div className="h-3 rounded-full bg-secondary overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-1000 ease-out"
+                style={{ width: `${pct}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground tabular-nums">
+              <span>{enriched} / {total} scenes</span>
+              <span>{pct}%</span>
+            </div>
+          </div>
+
+          {/* Recently processed scenes */}
+          {progress?.recentScenes && progress.recentScenes.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Recently processed</p>
+              <div className="space-y-1">
+                {progress.recentScenes.map((s: any) => (
+                  <div key={s.scene_number} className="flex items-center gap-2 text-xs animate-fade-in">
+                    <CheckCircle className="h-3.5 w-3.5 text-green-500 shrink-0" />
+                    <span className="text-muted-foreground">Scene {s.scene_number}</span>
+                    <span className="text-foreground/70 truncate">{(s.heading || "").split("\n")[0].substring(0, 60)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex flex-col items-center gap-4 py-4 animate-scale-in">
+          <div className="h-16 w-16 rounded-full bg-green-500/10 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-green-500" />
+          </div>
+          <div className="text-center">
+            <h3 className="font-display font-bold text-lg text-green-400">
+              Vision Implemented
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              All {total} scenes have been enriched. Opening Scene Breakdown…
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ── Main Page ── */
 const Development = () => {
   const [searchParams] = useSearchParams();
@@ -431,6 +565,8 @@ const Development = () => {
   const [devComplete, setDevComplete] = useState(false);
   const [fundamentalsLocked, setFundamentalsLocked] = useState(false);
   const [visionComplete, setVisionComplete] = useState(false);
+  const [propagating, setPropagating] = useState(false);
+  const [propagationDone, setPropagationDone] = useState(false);
   const [activeTab, setActiveTab] = useState("fundamentals");
   const [reanalyzeDialogOpen, setReanalyzeDialogOpen] = useState(false);
 
@@ -2268,7 +2404,7 @@ const Development = () => {
                   )}
 
                   {/* Lock Vision */}
-                  {!visionComplete && directorProfile && (() => {
+                  {!visionComplete && !propagating && directorProfile && (() => {
                     const canLockVision = allElementsReviewed && ratingsApproved && !!directorProfile && bibleComplete;
                     const missingItems: string[] = [];
                     if (!allElementsReviewed) missingItems.push("Global Elements");
@@ -2281,8 +2417,7 @@ const Development = () => {
                           size="lg"
                           disabled={!canLockVision}
                           onClick={async () => {
-                            setVisionComplete(true);
-                            setActiveTab("breakdown");
+                            setPropagating(true);
                             if (filmId && analysis?.id) {
                               const { data: unenriched } = await supabase
                                 .from("parsed_scenes")
@@ -2292,6 +2427,11 @@ const Development = () => {
                                 .order("scene_number", { ascending: true });
                               if (unenriched && unenriched.length > 0) {
                                 runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
+                              } else {
+                                // All already enriched — skip propagation
+                                setPropagating(false);
+                                setVisionComplete(true);
+                                setActiveTab("breakdown");
                               }
                             }
                           }}
@@ -2310,10 +2450,24 @@ const Development = () => {
                       </div>
                     );
                   })()}
-                  {visionComplete && (
+
+                  {/* Propagation Progress */}
+                  {propagating && filmId && (
+                    <PropagationProgress
+                      filmId={filmId}
+                      onComplete={() => {
+                        setPropagating(false);
+                        setPropagationDone(true);
+                        setVisionComplete(true);
+                        setActiveTab("breakdown");
+                      }}
+                    />
+                  )}
+
+                  {visionComplete && !propagating && (
                     <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 flex items-center justify-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-500" />
-                      <p className="text-sm font-medium text-green-400">Vision locked</p>
+                      <p className="text-sm font-medium text-green-400">Vision locked & implemented</p>
                     </div>
                   )}
                 </>
