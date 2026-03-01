@@ -84,7 +84,13 @@ function buildVisualDesignCategory(raw: any): CategoryData {
   return { ungrouped, groups };
 }
 
-function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryKey, CategoryData> {
+export interface ScenePropData {
+  characters: string[];
+  key_objects: string[];
+  location_name: string;
+}
+
+function buildInitialData(raw: any, sceneLocations?: string[], scenePropOwnership?: ScenePropData[]): Record<CategoryKey, CategoryData> {
   const extract = (keys: string[]): string[] => {
     const items: string[] = [];
     for (const k of keys) {
@@ -228,10 +234,29 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
     return true;
   });
 
-  // Step 2: Deduplicate similar props by normalizing
+  // Step 2: Classify glasses by context (drinking vs eyewear)
+  const DRINKING_GLASS_CONTEXT = /\b(beer|wine|vodka|whiskey|cocktail|champagne|shot|drinking|water|juice)\b/i;
+  const EYEWEAR_CONTEXT = /\b(reading|sun|prescription|spectacle|eyeglasses|wire-rim|thick-frame)\b/i;
+
+  const classifyGlasses = (propName: string, sceneContext?: { characters: string[]; key_objects: string[]; location_name: string }): string => {
+    const lower = propName.toLowerCase();
+    if (!/\bglasses\b/i.test(lower)) return lower;
+    // If explicitly qualified
+    if (DRINKING_GLASS_CONTEXT.test(lower) || /\bglass of\b/i.test(lower)) return "drinkware";
+    if (EYEWEAR_CONTEXT.test(lower) || /\bspectacles?\b/i.test(lower)) return "eyewear";
+    // Check scene context for nearby drinkware clues
+    if (sceneContext) {
+      const allObjects = sceneContext.key_objects.join(" ").toLowerCase();
+      if (/\b(beer|vodka|wine|whiskey|cocktail|bar|drink)\b/.test(allObjects)) return "drinkware";
+    }
+    // Default bare "glasses" to eyewear
+    return "eyewear";
+  };
+
+  // Step 3: Deduplicate similar props by normalizing
   const normalizeProp = (p: string): string => {
     let n = p.toLowerCase().trim();
-    // Strip possessives and character prefixes: "Rachel's Phone" → "phone", "RACHEL'S PHONE" → "phone"
+    // Strip possessives and character prefixes: "Rachel's Phone" → "phone"
     n = n.replace(/^[a-z]+(?:'s|s)?\s+/i, "");
     // Strip "his/her/their/the/a/an"
     n = n.replace(/^(?:his|her|their|the|a|an)\s+/i, "");
@@ -256,26 +281,148 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
     return n.replace(/[^a-z0-9\s]/g, "").replace(/\s+/g, " ").trim();
   };
 
+  // Step 4: Build prop ownership map from scene data
+  // For each prop, track which characters and locations it co-occurs with
+  const propOwnerMap = new Map<string, { chars: Map<string, number>; locs: Map<string, number> }>();
+
+  if (scenePropOwnership) {
+    for (const scene of scenePropOwnership) {
+      for (const obj of scene.key_objects) {
+        const norm = normalizeProp(obj);
+        if (!norm) continue;
+
+        // Handle glasses differentiation
+        let effectiveNorm = norm;
+        if (/\bglasses\b/.test(norm) || /\bglass\b/.test(norm)) {
+          const glassType = classifyGlasses(obj, scene);
+          effectiveNorm = glassType === "drinkware" ? "drinkware glass" : norm;
+        }
+
+        if (!propOwnerMap.has(effectiveNorm)) propOwnerMap.set(effectiveNorm, { chars: new Map(), locs: new Map() });
+        const entry = propOwnerMap.get(effectiveNorm)!;
+
+        // Track character co-occurrence
+        for (const char of scene.characters) {
+          let name = char.replace(/\s*\(.*?\)\s*/g, "").trim();
+          const dashIdx = name.indexOf(" - ");
+          if (dashIdx > 0) name = name.substring(0, dashIdx).trim();
+          if (name) entry.chars.set(name, (entry.chars.get(name) || 0) + 1);
+        }
+
+        // Track location co-occurrence
+        if (scene.location_name) {
+          const locBase = getLocationBase(scene.location_name);
+          entry.locs.set(locBase, (entry.locs.get(locBase) || 0) + 1);
+        }
+      }
+    }
+  }
+
+  // Step 5: Group props by character/location ownership or similarity
   const propGroups: ElementGroup[] = [];
   const propUngrouped: string[] = [];
   const propByNorm = new Map<string, string[]>();
 
+  // Separate glasses by context
+  const processedProps: string[] = [];
   for (const p of filteredProps) {
-    const norm = normalizeProp(p);
-    if (!norm) { propUngrouped.push(p); continue; }
-    if (!propByNorm.has(norm)) propByNorm.set(norm, []);
-    propByNorm.get(norm)!.push(p);
-  }
-
-  for (const [, items] of propByNorm) {
-    if (items.length >= 2) {
-      // Use the shortest, cleanest item as the parent name
-      const parent = items.sort((a, b) => a.length - b.length)[0];
-      propGroups.push({ id: uid(), parentName: parent, variants: items });
+    const lower = p.toLowerCase();
+    if (/\bglasses\b/i.test(lower) && !DRINKING_GLASS_CONTEXT.test(lower) && !EYEWEAR_CONTEXT.test(lower)) {
+      // Find this prop's scene context
+      const sceneCtx = scenePropOwnership?.find(s =>
+        s.key_objects.some(o => o.toLowerCase() === lower)
+      );
+      const glassType = classifyGlasses(p, sceneCtx);
+      if (glassType === "drinkware") {
+        processedProps.push(p + " (drinkware)");
+      } else {
+        processedProps.push(p + " (eyewear)");
+      }
     } else {
-      propUngrouped.push(...items);
+      processedProps.push(p);
     }
   }
+
+  // Build normalized groups
+  for (const p of processedProps) {
+    // Strip the context tag for normalization but keep it for display
+    const displayName = p.replace(/ \((drinkware|eyewear)\)$/, "");
+    const contextTag = p.match(/ \((drinkware|eyewear)\)$/)?.[1];
+
+    let norm = normalizeProp(displayName);
+    // Keep glasses types separate
+    if (contextTag === "drinkware") norm = "drinkware glass";
+    else if (contextTag === "eyewear" && /\bglass/i.test(norm)) norm = "eyewear glasses";
+
+    if (!norm) { propUngrouped.push(displayName); continue; }
+    if (!propByNorm.has(norm)) propByNorm.set(norm, []);
+    propByNorm.get(norm)!.push(displayName);
+  }
+
+  // Now group: first try character/location ownership, then fallback to similarity
+  const charGroupMap = new Map<string, string[]>(); // character → props
+  const locGroupMap = new Map<string, string[]>();  // location → props
+  const remainingProps: string[] = [];
+
+  for (const [norm, items] of propByNorm) {
+    const ownership = propOwnerMap.get(norm);
+    let assigned = false;
+
+    if (ownership) {
+      // Find dominant character (appears in >60% of scenes with this prop, and prop appears with ≤3 chars total)
+      const totalScenes = [...ownership.chars.values()].reduce((a, b) => a + b, 0) / Math.max(ownership.chars.size, 1);
+      const sortedChars = [...ownership.chars.entries()].sort((a, b) => b[1] - a[1]);
+
+      if (sortedChars.length > 0 && sortedChars.length <= 3) {
+        const [topChar, topCount] = sortedChars[0];
+        const totalCharScenes = [...ownership.chars.values()].reduce((a, b) => a + b, 0);
+        if (topCount / totalCharScenes >= 0.5) {
+          // Check if the prop name already implies this character (possessive)
+          const charUpper = topChar.toUpperCase();
+          const anyItemMentionsChar = items.some(i => i.toUpperCase().includes(charUpper));
+          const ownerLabel = anyItemMentionsChar ? topChar : topChar;
+          if (!charGroupMap.has(ownerLabel)) charGroupMap.set(ownerLabel, []);
+          charGroupMap.get(ownerLabel)!.push(...items);
+          assigned = true;
+        }
+      }
+
+      // If not character-owned, try location ownership
+      if (!assigned) {
+        const sortedLocs = [...ownership.locs.entries()].sort((a, b) => b[1] - a[1]);
+        if (sortedLocs.length === 1 && items.length <= 2) {
+          // Only at one location
+          const [locName] = sortedLocs[0];
+          if (!locGroupMap.has(locName)) locGroupMap.set(locName, []);
+          locGroupMap.get(locName)!.push(...items);
+          assigned = true;
+        }
+      }
+    }
+
+    if (!assigned) {
+      if (items.length >= 2) {
+        const parent = [...items].sort((a, b) => a.length - b.length)[0];
+        propGroups.push({ id: uid(), parentName: parent, variants: [...new Set(items)] });
+      } else {
+        remainingProps.push(...items);
+      }
+    }
+  }
+
+  // Convert character groups to ElementGroups
+  for (const [charName, items] of charGroupMap) {
+    const label = charName.charAt(0).toUpperCase() + charName.slice(1).toLowerCase();
+    propGroups.push({ id: uid(), parentName: label, variants: [...new Set(items)] });
+  }
+
+  // Convert location groups to ElementGroups
+  for (const [locName, items] of locGroupMap) {
+    const label = locName.charAt(0) + locName.slice(1).toLowerCase();
+    propGroups.push({ id: uid(), parentName: `📍 ${label}`, variants: [...new Set(items)] });
+  }
+
+  propUngrouped.push(...remainingProps);
 
   return {
     locations: { ungrouped: locationUngrouped, groups: locationGroups },
@@ -286,7 +433,7 @@ function buildInitialData(raw: any, sceneLocations?: string[]): Record<CategoryK
   };
 }
 
-const MANAGED_SCHEMA_VERSION = 2;
+const MANAGED_SCHEMA_VERSION = 3;
 
 let _uid = 0;
 const uid = () => `grp_${++_uid}_${Date.now()}`;
@@ -299,16 +446,17 @@ interface Props {
   filmId?: string;
   onAllReviewedChange?: (allReviewed: boolean) => void;
   sceneLocations?: string[];
+  scenePropOwnership?: ScenePropData[];
 }
 
-export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations }: Props) {
+export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations, scenePropOwnership }: Props) {
   const managed = data?._managed;
   const managedVersion = typeof managed?.version === "number" ? managed.version : 1;
   const useManagedCategories = Boolean(managed?.categories && managed.categories.locations && managedVersion >= MANAGED_SCHEMA_VERSION);
 
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
     if (useManagedCategories) return managed.categories;
-    return buildInitialData(data, sceneLocations);
+    return buildInitialData(data, sceneLocations, scenePropOwnership);
   });
   const [signatureStyle, setSignatureStyle] = useState<string>(data?.signature_style || "");
   const [expandedCategory, setExpandedCategory] = useState<CategoryKey | null>(null);
