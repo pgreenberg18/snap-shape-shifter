@@ -1190,7 +1190,7 @@ export default function GlobalElementsManager({ data, analysisId, filmId, onAllR
                     onClick={() => setReviewStatus(prev => ({ ...prev, [key]: prev[key] === "completed" ? "unreviewed" : "completed" }))}
                   >
                     <ThumbsUp className="h-3 w-3" />
-                    Approved
+                    {reviewStatus[key] === "completed" ? "Approved" : "Approve"}
                   </Button>
                 </div>
               </div>
