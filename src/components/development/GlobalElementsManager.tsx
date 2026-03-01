@@ -465,7 +465,21 @@ interface Props {
 export default function GlobalElementsManager({ data, analysisId, filmId, onAllReviewedChange, sceneLocations, scenePropOwnership }: Props) {
   const managed = data?._managed;
   const managedVersion = typeof managed?.version === "number" ? managed.version : 1;
-  const useManagedCategories = Boolean(managed?.categories && managed.categories.locations && managedVersion >= MANAGED_SCHEMA_VERSION);
+
+  // Check if managed categories actually have content — if all categories are empty
+  // but raw data exists, we should rebuild from raw data (handles corrupted saves)
+  const managedCatsExist = Boolean(managed?.categories && managed.categories.locations && managedVersion >= MANAGED_SCHEMA_VERSION);
+  const managedCatsEmpty = managedCatsExist && CATEGORIES.every(({ key }) => {
+    const cat = managed.categories[key];
+    if (!cat) return true;
+    return (cat.ungrouped?.length ?? 0) === 0 && (cat.groups?.length ?? 0) === 0;
+  });
+  const hasRawData = Boolean(
+    (Array.isArray(data?.recurring_characters) && data.recurring_characters.length > 0) ||
+    (Array.isArray(data?.recurring_locations) && data.recurring_locations.length > 0) ||
+    (Array.isArray(data?.recurring_props) && data.recurring_props.length > 0)
+  );
+  const useManagedCategories = managedCatsExist && !(managedCatsEmpty && hasRawData);
 
   const [categories, setCategories] = useState<Record<CategoryKey, CategoryData>>(() => {
     if (useManagedCategories) return managed.categories;
