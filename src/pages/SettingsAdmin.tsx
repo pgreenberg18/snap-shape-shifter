@@ -515,6 +515,7 @@ const SettingsAdmin = () => {
     { id: "integrations", label: "Integrations", icon: Plug },
     { id: "credit-usage", label: "Credit Usage", icon: Gauge },
     { id: "media-library", label: "Media Library", icon: Image },
+    { id: "downloads", label: "Downloads", icon: Download },
     { id: "your-nda", label: "Your Signed NDA", icon: FileSignature },
     { id: "reset-app", label: "Reset App", icon: RotateCcw },
   ];
