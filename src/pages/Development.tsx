@@ -388,6 +388,9 @@ const Development = () => {
   const [aiNotesApproved, setAiNotesApproved] = useState(false);
   const enrichingRef = useRef(false);
   const [devComplete, setDevComplete] = useState(false);
+  const [fundamentalsLocked, setFundamentalsLocked] = useState(false);
+  const [visionComplete, setVisionComplete] = useState(false);
+  const [activeTab, setActiveTab] = useState("fundamentals");
 
   // Post-enrichment: finalize analysis then auto-run director fit
   const runPostEnrichment = useCallback(async (analysisId: string) => {
@@ -996,12 +999,16 @@ const Development = () => {
         <p className="text-xs text-muted-foreground truncate">Script analysis, visual DNA, and content safety — the creative blueprint for your film.</p>
       </header>
 
-      <Tabs defaultValue="fundamentals" className="flex-1 flex flex-col overflow-hidden">
+      <Tabs value={activeTab} onValueChange={(v) => {
+          if (v === "vision" && !fundamentalsLocked) return;
+          if (v === "breakdown" && !visionComplete) return;
+          setActiveTab(v);
+        }} className="flex-1 flex flex-col overflow-hidden">
         <div className="shrink-0 bg-card/60 backdrop-blur-sm px-6">
           <TabsList className="h-auto bg-transparent gap-0 p-0 border-b border-border items-end">
-            <DevelopmentTab value="fundamentals" icon={Film} label="Fundamentals" />
-            <DevelopmentTab value="vision" icon={Camera} label="Vision" />
-            <DevelopmentTab value="breakdown" icon={ScrollText} label="Scene Breakdown" />
+            <DevelopmentTab value="fundamentals" icon={Film} label="Fundamentals" locked={fundamentalsLocked} />
+            <DevelopmentTab value="vision" icon={Camera} label="Vision" disabled={!fundamentalsLocked} locked={visionComplete} />
+            <DevelopmentTab value="breakdown" icon={ScrollText} label="Scene Breakdown" disabled={!visionComplete} />
           </TabsList>
         </div>
 
@@ -1898,6 +1905,25 @@ const Development = () => {
                   )}
                 </section>
               )}
+              {/* Lock Fundamentals */}
+              {analysis?.status === "complete" && !fundamentalsLocked && (
+                <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
+                  <Button
+                    size="lg"
+                    onClick={() => { setFundamentalsLocked(true); setActiveTab("vision"); }}
+                    className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
+                  >
+                    <Lock className="h-4 w-4" /> Lock Fundamentals
+                  </Button>
+                  <p className="text-xs text-muted-foreground">Lock fundamentals to proceed to Vision.</p>
+                </div>
+              )}
+              {fundamentalsLocked && (
+                <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 flex items-center justify-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                  <p className="text-sm font-medium text-green-400">Fundamentals locked</p>
+                </div>
+              )}
             </div>
           </ScrollArea>
         </TabsContent>
@@ -1906,7 +1932,7 @@ const Development = () => {
         <TabsContent value="vision" className="flex-1 overflow-hidden m-0">
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
-              {analysis?.status === "complete" ? (
+              {analysis?.status === "complete" && fundamentalsLocked ? (
                 <>
                   {/* ── Director's Vision ── */}
                   <Collapsible defaultOpen>
@@ -1974,10 +2000,29 @@ const Development = () => {
                       persistApproval("ai_notes_approved", v);
                     }}
                   />}
+                  {/* Lock Vision */}
+                  {!visionComplete && directorProfile && aiNotesApproved && (
+                    <div className="rounded-xl border border-border bg-card p-6 flex flex-col items-center gap-3">
+                      <Button
+                        size="lg"
+                        onClick={() => { setVisionComplete(true); setActiveTab("breakdown"); }}
+                        className="w-full max-w-sm h-11 font-display font-bold uppercase tracking-wider gap-2"
+                      >
+                        <Lock className="h-4 w-4" /> Lock Vision
+                      </Button>
+                      <p className="text-xs text-muted-foreground">Lock vision to proceed to Scene Breakdown.</p>
+                    </div>
+                  )}
+                  {visionComplete && (
+                    <div className="rounded-xl border border-green-500/30 bg-green-500/5 p-4 flex items-center justify-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <p className="text-sm font-medium text-green-400">Vision locked</p>
+                    </div>
+                  )}
                 </>
               ) : (
                 <div className="rounded-xl border border-border bg-card p-8 text-center">
-                  <p className="text-sm text-muted-foreground">Complete your script analysis in the Fundamentals tab to unlock the Vision section.</p>
+                  <p className="text-sm text-muted-foreground">Lock Fundamentals to unlock the Vision section.</p>
                 </div>
               )}
             </div>
@@ -1988,7 +2033,7 @@ const Development = () => {
         <TabsContent value="breakdown" className="flex-1 overflow-hidden m-0">
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
-              {analysis?.status === "complete" ? (
+              {analysis?.status === "complete" && visionComplete ? (
                 <>
                   <SceneBreakdownFromDB
                     filmId={filmId!}
@@ -2074,7 +2119,7 @@ const Development = () => {
                 </>
               ) : (
                 <div className="rounded-xl border border-border bg-card p-8 text-center">
-                  <p className="text-sm text-muted-foreground">Complete your script analysis in the Fundamentals tab to unlock the Scene Breakdown.</p>
+                  <p className="text-sm text-muted-foreground">Lock Vision to unlock the Scene Breakdown.</p>
                 </div>
               )}
             </div>
@@ -3838,13 +3883,21 @@ const SecondaryTimePeriodInput = ({ initialValue, placeholder, disabled, analysi
   );
 };
 
-const DevelopmentTab = ({ value, icon: Icon, label }: { value: string; icon: any; label: string }) => (
+const DevelopmentTab = ({ value, icon: Icon, label, disabled, locked }: { value: string; icon: any; label: string; disabled?: boolean; locked?: boolean }) => (
   <TabsTrigger
     value={value}
-    className="relative gap-2 px-5 py-2 text-xs font-display font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-all rounded-t-lg rounded-b-none border border-border/60 border-b-0 -mb-px bg-secondary/40 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:border-border data-[state=active]:shadow-[0_-2px_8px_-2px_rgba(47,125,255,0.15)] data-[state=active]:z-10 data-[state=inactive]:hover:bg-secondary/70"
+    disabled={disabled}
+    className={cn(
+      "relative gap-2 px-5 py-2 text-xs font-display font-semibold uppercase tracking-wider transition-all rounded-t-lg rounded-b-none border border-border/60 border-b-0 -mb-px",
+      disabled
+        ? "text-muted-foreground/40 cursor-not-allowed bg-secondary/20 opacity-50"
+        : "text-muted-foreground hover:text-foreground bg-secondary/40 data-[state=active]:bg-card data-[state=active]:text-primary data-[state=active]:border-border data-[state=active]:shadow-[0_-2px_8px_-2px_rgba(47,125,255,0.15)] data-[state=active]:z-10 data-[state=inactive]:hover:bg-secondary/70"
+    )}
   >
     <Icon className="h-3.5 w-3.5" />
     {label}
+    {locked && <CheckCircle className="h-3 w-3 text-green-500" />}
+    {disabled && <Lock className="h-3 w-3 text-muted-foreground/40" />}
   </TabsTrigger>
 );
 
