@@ -80,11 +80,21 @@ Deno.serve(async (req) => {
         if (!withoutExt || withoutExt.length < 2) continue;
         // Must be all uppercase letters/spaces/hyphens/apostrophes
         if (!/^[A-Z][A-Z\s\-'\.]+$/.test(withoutExt)) continue;
+        // Must not contain periods (scene headings, transitions like "FADE TO BLACK.")
+        if (withoutExt.includes(".")) continue;
         // Exclude common non-character lines
         const upper = withoutExt.toUpperCase();
-        if (upper.startsWith("INT.") || upper.startsWith("EXT.") || upper.startsWith("INT/EXT")) continue;
-        if (["CUT TO:", "FADE IN:", "FADE OUT:", "FADE TO:", "DISSOLVE TO:", "SMASH CUT TO:", "MATCH CUT TO:", "THE END", "CONTINUED", "MORE"].includes(upper)) continue;
-        if (upper.endsWith(":")) continue; // Transitions
+        if (upper.startsWith("INT") || upper.startsWith("EXT")) continue;
+        const NON_CHARS = new Set([
+          "CUT TO", "FADE IN", "FADE OUT", "FADE TO", "FADE TO BLACK",
+          "DISSOLVE TO", "SMASH CUT TO", "MATCH CUT TO", "THE END",
+          "CONTINUED", "MORE", "END FLASHBACK", "FLASHBACK", "QUICK FLASHES",
+          "MONTAGE", "MONTAGE ENDS", "END MONTAGE", "INTERCUT", "BACK TO SCENE",
+          "SUPER", "TITLE CARD", "CHYRON", "SERIES OF SHOTS",
+        ]);
+        if (NON_CHARS.has(upper) || upper.endsWith(":")) continue;
+        // Skip single-word all-caps that are likely not names (common screenplay terms)
+        if (!withoutExt.includes(" ") && withoutExt.length <= 3) continue;
         chars.add(withoutExt);
       }
       return Array.from(chars);
