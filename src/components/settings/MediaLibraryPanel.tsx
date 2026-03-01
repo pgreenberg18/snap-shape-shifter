@@ -674,7 +674,7 @@ const MediaLibraryPanel = () => {
                 )}
               </div>
             )}
-            <ScrollArea className="max-h-[55vh]">
+            <ScrollArea className="h-[55vh]">
               {items.length === 0 ? (
                 <div className="text-center py-12">
                   <Image className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" />
