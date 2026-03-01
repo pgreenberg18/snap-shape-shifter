@@ -1043,7 +1043,7 @@ const Development = () => {
           <ScrollArea className="h-full">
             <div className="mx-auto max-w-5xl px-6 pt-6 pb-10 space-y-6">
               {/* ── Script Details ── */}
-              <Collapsible defaultOpen>
+              <Collapsible defaultOpen={analysis?.status !== "complete"}>
                 <CollapsibleTrigger className="w-full">
                   <div data-help-id="dev-film-details" className="rounded-xl border border-border bg-card p-4 flex items-center justify-between hover:bg-accent/30 transition-colors cursor-pointer">
                     <div className="flex items-center gap-2">
