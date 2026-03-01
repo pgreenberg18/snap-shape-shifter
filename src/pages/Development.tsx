@@ -519,7 +519,8 @@ const Development = () => {
         .from("parsed_scenes")
         .select("id")
         .eq("film_id", filmId)
-        .eq("enriched", false);
+        .eq("enriched", false)
+        .order("scene_number", { ascending: true });
 
       if (unenriched && unenriched.length > 0) {
         console.log(`Resuming enrichment for ${unenriched.length} remaining scenes`);
@@ -2145,7 +2146,8 @@ const Development = () => {
                               .from("parsed_scenes")
                               .select("id")
                               .eq("film_id", filmId)
-                              .eq("enriched", false);
+                              .eq("enriched", false)
+                              .order("scene_number", { ascending: true });
                             if (unenriched && unenriched.length > 0) {
                               runEnrichmentBatches(unenriched.map((s) => s.id), analysis.id);
                             }
