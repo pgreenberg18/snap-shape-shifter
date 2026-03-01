@@ -76,6 +76,23 @@ const MediaLibraryPanel = () => {
     });
   }, []);
 
+  // Fetch projects for folder names
+  const { data: projects } = useQuery({
+    queryKey: ["settings-media-projects"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id, title");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  const projectMap = new Map(
+    (projects || []).map((p) => [p.id, p.title])
+  );
+
   // Fetch films for version links
   const { data: films } = useQuery({
     queryKey: ["settings-media-films"],
@@ -326,59 +343,173 @@ const MediaLibraryPanel = () => {
   }, [selectedInTab, queryClient]);
 
   const renderGroupedItems = (items: MediaItem[]) => {
-    const groups = new Map<string, MediaItem[]>();
+    // Group by project → version → subCategory
+    type VersionGroup = { versionName: string; filmId: string; subGroups: Map<string, MediaItem[]> };
+    type ProjectGroup = { projectName: string; versions: Map<string, VersionGroup> };
+
+    const projectGroups = new Map<string, ProjectGroup>();
+    const ungrouped: MediaItem[] = [];
+
     items.forEach((item) => {
-      const key = item.subCategory || "Ungrouped";
-      const arr = groups.get(key) || [];
-      arr.push(item);
-      groups.set(key, arr);
+      if (!item.filmId) {
+        ungrouped.push(item);
+        return;
+      }
+      const film = filmMap.get(item.filmId);
+      if (!film?.projectId) {
+        ungrouped.push(item);
+        return;
+      }
+      const projectId = film.projectId;
+      const projectName = projectMap.get(projectId) || film.title;
+
+      if (!projectGroups.has(projectId)) {
+        projectGroups.set(projectId, { projectName, versions: new Map() });
+      }
+      const pg = projectGroups.get(projectId)!;
+
+      if (!pg.versions.has(item.filmId)) {
+        pg.versions.set(item.filmId, {
+          versionName: film.versionName || `Version`,
+          filmId: item.filmId,
+          subGroups: new Map(),
+        });
+      }
+      const vg = pg.versions.get(item.filmId)!;
+      const subKey = item.subCategory || "General";
+      if (!vg.subGroups.has(subKey)) vg.subGroups.set(subKey, []);
+      vg.subGroups.get(subKey)!.push(item);
     });
 
-    if (groups.size === 1 && groups.has("Ungrouped")) {
+    // If no project grouping needed, fall back to flat or subCategory grouping
+    if (projectGroups.size === 0) {
       return renderItemList(items);
     }
 
-    const sortedKeys = [...groups.keys()].sort();
+    const sortedProjects = [...projectGroups.entries()].sort((a, b) => a[1].projectName.localeCompare(b[1].projectName));
+
     return (
       <div className="space-y-1">
-        {sortedKeys.map((key) => {
-          const groupItems = groups.get(key)!;
-          const isOpen = openFolders.has(key);
-          const allGroupSelected = groupItems.every((i) => selected.has(i.id));
-          const someGroupSelected = groupItems.some((i) => selected.has(i.id));
+        {sortedProjects.map(([projectId, pg]) => {
+          const projectKey = `proj-${projectId}`;
+          const isProjectOpen = openFolders.has(projectKey);
+          const allProjectItems = [...pg.versions.values()].flatMap((v) => [...v.subGroups.values()].flat());
+          const allProjectSelected = allProjectItems.length > 0 && allProjectItems.every((i) => selected.has(i.id));
+
           return (
-            <div key={key}>
+            <div key={projectId}>
               <div className="flex items-center gap-1">
                 <Checkbox
-                  checked={allGroupSelected}
+                  checked={allProjectSelected}
                   className="h-3.5 w-3.5 ml-1"
                   onCheckedChange={() => {
                     setSelected((prev) => {
                       const next = new Set(prev);
-                      const ids = groupItems.map((i) => i.id);
-                      if (allGroupSelected) {
-                        ids.forEach((id) => next.delete(id));
-                      } else {
-                        ids.forEach((id) => next.add(id));
-                      }
+                      const ids = allProjectItems.map((i) => i.id);
+                      if (allProjectSelected) ids.forEach((id) => next.delete(id));
+                      else ids.forEach((id) => next.add(id));
                       return next;
                     });
                   }}
                 />
                 <button
-                  onClick={() => toggleFolder(key)}
+                  onClick={() => toggleFolder(projectKey)}
                   className="flex flex-1 items-center gap-2 rounded-md px-2 py-2 text-sm hover:bg-accent transition-colors"
                 >
-                  {isOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-                  <Folder className="h-4 w-4 text-primary/60" />
-                  <span className="font-mono text-sm font-medium text-foreground">{key}</span>
-                  <span className="ml-auto text-xs text-muted-foreground/60 font-mono">{groupItems.length}</span>
+                  {isProjectOpen ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                  <Folder className="h-4 w-4 text-primary/70" />
+                  <span className="font-mono text-sm font-semibold text-foreground">{pg.projectName}</span>
+                  <span className="ml-auto text-xs text-muted-foreground/60 font-mono">{allProjectItems.length}</span>
                 </button>
               </div>
-              {isOpen && <div className="ml-5">{renderItemList(groupItems)}</div>}
+              {isProjectOpen && (
+                <div className="ml-5 space-y-0.5">
+                  {[...pg.versions.entries()].map(([filmId, vg]) => {
+                    const versionKey = `ver-${filmId}`;
+                    const isVersionOpen = openFolders.has(versionKey);
+                    const allVersionItems = [...vg.subGroups.values()].flat();
+                    const allVersionSelected = allVersionItems.length > 0 && allVersionItems.every((i) => selected.has(i.id));
+                    const hasSubGroups = vg.subGroups.size > 1 || (vg.subGroups.size === 1 && !vg.subGroups.has("General"));
+
+                    return (
+                      <div key={filmId}>
+                        <div className="flex items-center gap-1">
+                          <Checkbox
+                            checked={allVersionSelected}
+                            className="h-3.5 w-3.5 ml-1"
+                            onCheckedChange={() => {
+                              setSelected((prev) => {
+                                const next = new Set(prev);
+                                const ids = allVersionItems.map((i) => i.id);
+                                if (allVersionSelected) ids.forEach((id) => next.delete(id));
+                                else ids.forEach((id) => next.add(id));
+                                return next;
+                              });
+                            }}
+                          />
+                          <button
+                            onClick={() => toggleFolder(versionKey)}
+                            className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
+                          >
+                            {isVersionOpen ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                            <Folder className="h-3.5 w-3.5 text-primary/40" />
+                            <span className="font-mono text-xs font-medium text-foreground">{vg.versionName}</span>
+                            <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">{allVersionItems.length}</span>
+                          </button>
+                        </div>
+                        {isVersionOpen && (
+                          <div className="ml-5">
+                            {hasSubGroups ? (
+                              <div className="space-y-0.5">
+                                {[...vg.subGroups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([subKey, subItems]) => {
+                                  const subFolderKey = `sub-${filmId}-${subKey}`;
+                                  const isSubOpen = openFolders.has(subFolderKey);
+                                  const allSubSelected = subItems.every((i) => selected.has(i.id));
+                                  return (
+                                    <div key={subKey}>
+                                      <div className="flex items-center gap-1">
+                                        <Checkbox
+                                          checked={allSubSelected}
+                                          className="h-3.5 w-3.5 ml-1"
+                                          onCheckedChange={() => {
+                                            setSelected((prev) => {
+                                              const next = new Set(prev);
+                                              const ids = subItems.map((i) => i.id);
+                                              if (allSubSelected) ids.forEach((id) => next.delete(id));
+                                              else ids.forEach((id) => next.add(id));
+                                              return next;
+                                            });
+                                          }}
+                                        />
+                                        <button
+                                          onClick={() => toggleFolder(subFolderKey)}
+                                          className="flex flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-accent transition-colors"
+                                        >
+                                          {isSubOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+                                          <Folder className="h-3 w-3 text-muted-foreground/50" />
+                                          <span className="font-mono text-xs text-foreground">{subKey}</span>
+                                          <span className="ml-auto text-[10px] text-muted-foreground/60 font-mono">{subItems.length}</span>
+                                        </button>
+                                      </div>
+                                      {isSubOpen && <div className="ml-5">{renderItemList(subItems)}</div>}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ) : (
+                              renderItemList(allVersionItems)
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
+        {ungrouped.length > 0 && renderItemList(ungrouped)}
       </div>
     );
   };
