@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _internal_keys: {
+        Row: {
+          id: string
+          key_value: string
+        }
+        Insert: {
+          id: string
+          key_value: string
+        }
+        Update: {
+          id?: string
+          key_value?: string
+        }
+        Relationships: []
+      }
       activity_logs: {
         Row: {
           city: string | null
@@ -809,6 +824,7 @@ export type Database = {
           created_at: string
           id: string
           is_verified: boolean
+          key_hint: string | null
           provider_name: string
           section_id: string
           updated_at: string
@@ -819,6 +835,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_verified?: boolean
+          key_hint?: string | null
           provider_name: string
           section_id: string
           updated_at?: string
@@ -829,6 +846,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_verified?: boolean
+          key_hint?: string | null
           provider_name?: string
           section_id?: string
           updated_at?: string
@@ -1616,6 +1634,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_integration_key: {
+        Args: { p_integration_id: string }
+        Returns: string
+      }
       increment_scenes_enriched: {
         Args: { p_analysis_id: string }
         Returns: undefined
@@ -1629,6 +1651,18 @@ export type Database = {
           p_service_name: string
           p_user_id: string
         }
+        Returns: undefined
+      }
+      store_integration_key: {
+        Args: {
+          p_api_key: string
+          p_provider_name: string
+          p_section_id: string
+        }
+        Returns: string
+      }
+      update_integration_key: {
+        Args: { p_api_key: string; p_integration_id: string }
         Returns: undefined
       }
       user_owns_film: { Args: { p_film_id: string }; Returns: boolean }
