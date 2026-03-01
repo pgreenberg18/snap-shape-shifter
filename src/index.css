@@ -578,3 +578,12 @@ body::after {
     left: 0;
   }
 }
+
+@keyframes scene-scroll {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-50%); }
+}
+
+.animate-scene-scroll {
+  animation: scene-scroll 12s linear infinite;
+}
