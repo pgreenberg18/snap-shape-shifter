@@ -62,6 +62,28 @@ function normalizeKey(value: string): string {
 const TITLE_RE = /^(DR\.?|MR\.?|MRS\.?|MS\.?|MISS|PROFESSOR|PROF\.?|CAPTAIN|CAPT\.?|DETECTIVE|DET\.?|OFFICER|AGENT|REVEREND|REV\.?|FATHER|SISTER|BROTHER|SERGEANT|SGT\.?|LIEUTENANT|LT\.?|GENERAL|GEN\.?|COLONEL|COL\.?|MAJOR|MAJ\.?|CORPORAL|CPL\.?|PRIVATE|PVT\.?|JUDGE|SENATOR|GOVERNOR|GOV\.?|PRESIDENT|KING|QUEEN|PRINCE|PRINCESS|LORD|LADY|SIR|DAME)\s+/i;
 
 /**
+ * Words that indicate a multi-word cue is NOT a person name.
+ * Prevents "HOWARD ANSWERING MACHINE" from merging with "HOWARD".
+ */
+const NON_PERSON_INDICATORS = new Set([
+  "ANSWERING", "MACHINE", "SPEAKER", "RADIO", "TV", "TELEVISION",
+  "PHONE", "COMPUTER", "VOICE", "SCREEN", "MONITOR", "SIGN",
+  "ALARM", "SYSTEM", "RECORDING", "MESSAGE", "ANNOUNCEMENT",
+  "INTERCOM", "LOUDSPEAKER", "PA", "NARRATOR", "NEWS",
+  "DISPATCHER", "OPERATOR", "911",
+]);
+
+function isLikelyPersonName(name: string): boolean {
+  const clean = name.replace(TITLE_RE, "").trim();
+  const words = clean.split(/\s+/);
+  // If any word is a non-person indicator, it's not a person
+  if (words.some((w) => NON_PERSON_INDICATORS.has(w))) return false;
+  // Likely a person if 1-3 words, all alpha (possibly with apostrophe/hyphen)
+  if (words.length > 3) return false;
+  return words.every((w) => /^[A-Z][A-Z'\-]*$/i.test(w));
+}
+
+/**
  * Resolve character aliases to a canonical name.
  * First full-name appearance defines canonical.
  * Title + surname resolves to canonical.
@@ -103,13 +125,18 @@ export function canonicalizeCharacters(rawNames: { name: string; scene: number }
       }
 
       // Title + surname match (e.g. "DR. WELLS" → "HOWARD WELLS")
+      // Both must be person names
       if (titleMatch && parts.length === 1 && existingLast === lastName && existingParts.length > 1) {
-        foundKey = key;
-        break;
+        if (isLikelyPersonName(group.canonical)) {
+          foundKey = key;
+          break;
+        }
       }
 
       // First name only match (if unambiguous — only one character with that first name)
+      // Both must be likely person names
       if (parts.length === 1 && existingFirst === firstName && existingParts.length > 1) {
+        if (!isLikelyPersonName(group.canonical)) continue;
         // Check ambiguity: are there other groups with this first name?
         let ambiguous = false;
         for (const [otherKey, otherGroup] of groups) {
@@ -128,23 +155,29 @@ export function canonicalizeCharacters(rawNames: { name: string; scene: number }
       }
 
       // Surname only match with existing full name
+      // Both must be person names
       if (parts.length === 1 && existingLast === clean && existingParts.length > 1) {
-        foundKey = key;
-        break;
+        if (isLikelyPersonName(group.canonical)) {
+          foundKey = key;
+          break;
+        }
       }
 
       // Check if this is a longer version of an existing single-name entry
+      // Only if both are person names
       if (existingParts.length === 1 && parts.length > 1 && firstName === existingFirst) {
-        foundKey = key;
-        break;
+        if (isLikelyPersonName(clean)) {
+          foundKey = key;
+          break;
+        }
       }
     }
 
     if (foundKey) {
       const group = groups.get(foundKey)!;
       group.aliases.add(clean);
-      // If this name is longer (more specific), promote it to canonical
-      if (clean.length > group.canonical.length && parts.length > group.canonical.split(/\s+/).length) {
+      // If this name is longer (more specific) AND is a person name, promote it to canonical
+      if (clean.length > group.canonical.length && parts.length > group.canonical.split(/\s+/).length && isLikelyPersonName(clean)) {
         group.aliases.add(group.canonical);
         group.canonical = clean;
       }
@@ -382,8 +415,29 @@ export function classifyEntity(name: string, aiSuggestedType?: string): EntityTy
 // ─── Location normalization ──────────────────────────────────────
 
 const HEADING_PREFIX_RE = /^(?:INT\.?\/EXT\.?|I\/E\.?|INT\.?|EXT\.?)\s*[-–—.\s]*/i;
-const TIME_SUFFIX_RE = /\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|LATER|CONTINUOUS|MOMENTS LATER|SAME|SAME TIME|A MOMENT LATER|NEXT MORNING|NEXT DAY)\s*$/i;
-const CONTINUITY_RE = /[-–—]\s*(CONTINUOUS|LATER|SAME TIME|MOMENTS LATER|A MOMENT LATER|SAME|NEXT MORNING|NEXT DAY)\s*$/i;
+
+/** Time-of-day and continuity markers — broad patterns to strip from location names */
+const TIME_PATTERNS = [
+  // Standard time-of-day with dash
+  /\s*[-–—]\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|SUNRISE|SUNSET|LATE MORNING|LATE AFTERNOON|LATE EVENING|EARLY MORNING|EARLY NEXT MORNING|LATE NIGHT)\s*$/i,
+  // Continuity markers
+  /\s*[-–—]\s*(?:CONTINUOUS|LATER|SAME TIME|MOMENTS LATER|A MOMENT LATER|SAME|NEXT MORNING|NEXT DAY|SAME DAY)\s*$/i,
+  // Relative time markers (e.g., "364 DAYS EARLIER", "ONE YEAR LATER", "A FEW DAYS LATER")
+  /\s*[-–—]?\s*(?:\d+\s+(?:DAYS?|WEEKS?|MONTHS?|YEARS?|HOURS?|MINUTES?)\s+(?:EARLIER|LATER|BEFORE|AFTER|AGO))\s*$/i,
+  /\s*[-–—]?\s*(?:(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|SEVERAL|A FEW|MANY)\s+(?:DAYS?|WEEKS?|MONTHS?|YEARS?|HOURS?|MINUTES?|MOMENTS?)\s+(?:EARLIER|LATER|BEFORE|AFTER|AGO))\s*$/i,
+  // Period-separated time markers (e.g., "HOSPITAL. NIGHT", "RESTAURANT. DAY")
+  /\.\s*(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|SUNRISE|SUNSET)\s*$/i,
+  // Year markers (e.g., "- 1991", "- PRESENT DAY")
+  /\s*[-–—]\s*(?:\d{4}|PRESENT\s*DAY|PRESENT)\s*$/i,
+  // Bare time suffixes without dashes (rare but exists in some scripts)
+  /\.\s*\d+\s+DAYS?\s+EARLIER\s*$/i,
+  // Time marker as suffix with night/day (e.g., "GORDON'S TIME FRAME")
+  /\s*[-–—]\s*[A-Z]+(?:'S)?\s+TIME\s+FRAME\s*$/i,
+  // Anniversary/special markers in period form (e.g., "ANNIVERSARY NIGHT.")
+  /\s*[-–—]?\s*ANNIVERSARY\s+(?:NIGHT|DAY|EVENING)\.?\s*$/i,
+];
+
+const CONTINUITY_RE = /[-–—]\s*(CONTINUOUS|LATER|SAME TIME|MOMENTS LATER|A MOMENT LATER|SAME|NEXT MORNING|NEXT DAY|SAME DAY)\s*$/i;
 
 export interface ParsedHeading {
   int_ext: string;
@@ -394,6 +448,29 @@ export interface ParsedHeading {
   is_flashback: boolean;
   is_dream: boolean;
   is_montage: boolean;
+}
+
+/**
+ * Strip all time/continuity suffixes from a location string, iteratively.
+ */
+function stripTimeSuffixes(value: string): string {
+  let result = value;
+  let changed = true;
+  let passes = 0;
+  while (changed && passes < 5) {
+    changed = false;
+    passes++;
+    for (const pattern of TIME_PATTERNS) {
+      const stripped = result.replace(pattern, "").trim();
+      if (stripped !== result && stripped.length > 0) {
+        result = stripped;
+        changed = true;
+      }
+    }
+    // Also strip trailing periods and dashes
+    result = result.replace(/[.\s]+$/, "").trim();
+  }
+  return result;
 }
 
 /**
@@ -412,29 +489,44 @@ export function parseSceneHeading(heading: string): ParsedHeading {
   const continuity_marker = contMatch ? contMatch[1].toUpperCase() : null;
 
   // Extract time of day
-  const timeMatch = normalized.match(/[-–—]\s*(DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON)\b/i);
+  const timeMatch = normalized.match(/[-–—.]\s*(DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|SUNRISE|SUNSET)\b/i);
   const time_of_day = timeMatch ? timeMatch[1].toUpperCase() : "";
 
-  // Extract location (strip prefix and time suffix)
-  let location = normalized
-    .replace(HEADING_PREFIX_RE, "")
-    .replace(TIME_SUFFIX_RE, "")
-    .replace(CONTINUITY_RE, "")
-    .trim();
+  // Extract location (strip prefix and all time suffixes)
+  let location = normalized.replace(HEADING_PREFIX_RE, "").trim();
+  location = stripTimeSuffixes(location);
+
+  // Also strip CONTINUITY markers
+  location = location.replace(CONTINUITY_RE, "").trim();
+  location = location.replace(/[.\s]+$/, "").trim();
 
   // Check for sublocation (dash-separated)
   let sublocation: string | null = null;
   const dashParts = location.split(/\s*[-–—]\s*/);
   if (dashParts.length >= 2) {
     location = dashParts[0].trim();
-    sublocation = dashParts.slice(1).join(" - ").trim();
+    const rest = dashParts.slice(1).map((p) => p.trim()).filter(Boolean);
+    // Strip any remaining time markers from sublocation parts
+    const cleanedSubs = rest.filter((part) => {
+      const upper = part.toUpperCase();
+      // Filter out parts that are just time markers
+      if (/^(?:DAY|NIGHT|DAWN|DUSK|MORNING|EVENING|AFTERNOON|SUNRISE|SUNSET|CONTINUOUS|LATER|SAME|SAME TIME|PRESENT DAY|PRESENT|NIGHT\s+LATER|EARLY MORNING|LATE NIGHT)$/i.test(upper)) return false;
+      if (/^\d{4}$/.test(upper)) return false; // Year only
+      if (/^\d+\s+(?:DAYS?|YEARS?|MONTHS?|WEEKS?)\s+(?:EARLIER|LATER|AGO|BEFORE|AFTER)$/i.test(upper)) return false;
+      if (/^(?:ONE|TWO|THREE|FOUR|FIVE|SIX|SEVEN|EIGHT|NINE|TEN|SEVERAL|A FEW|MANY)\s+(?:DAYS?|YEARS?|MONTHS?|WEEKS?)\s+(?:EARLIER|LATER|AGO|BEFORE|AFTER)$/i.test(upper)) return false;
+      return true;
+    });
+
+    sublocation = cleanedSubs.length > 0 ? cleanedSubs.join(" - ") : null;
+
     // If sublocation is a vehicle, keep it in the location
-    if (isVehicleEntity(sublocation)) {
+    if (sublocation && isVehicleEntity(sublocation)) {
       location = `${location} - ${sublocation}`;
       sublocation = null;
     }
   }
 
+  // If the entire location is a vehicle, keep it as-is (it's a valid interior)
   // Flags
   const upperHeading = normalized.toUpperCase();
   const is_flashback = /FLASHBACK|FLASH\s*BACK/i.test(upperHeading);
@@ -454,8 +546,23 @@ export function parseSceneHeading(heading: string): ParsedHeading {
 }
 
 /**
+ * Normalize a location key for grouping — collapses common variants.
+ */
+function normalizeLocationKey(value: string): string {
+  return normalizeKey(value)
+    .replace(/\bHOUSE\b/g, "HOME")
+    .replace(/\bLAB\b/g, "LABORATORY")
+    // Strip trailing periods
+    .replace(/\.\s*$/, "")
+    // Normalize possessive forms
+    .replace(/['']S\b/g, "'S")
+    .trim();
+}
+
+/**
  * Build canonical location entities from parsed headings.
  * Groups sublocations under parent locations.
+ * Filters out vehicle-only locations (they become VEHICLE entities).
  */
 export function canonicalizeLocations(headings: { heading: string; scene: number }[]): CanonicalEntity[] {
   const locationGroups = new Map<string, {
@@ -469,9 +576,10 @@ export function canonicalizeLocations(headings: { heading: string; scene: number
     const parsed = parseSceneHeading(heading);
     if (!parsed.location) continue;
 
-    const key = normalizeKey(parsed.location)
-      .replace(/\bHOUSE\b/g, "HOME")
-      .replace(/\bLAB\b/g, "LABORATORY");
+    // Skip pure vehicle locations (e.g., "CAR", "HOWARD'S CAR", "CORVETTE")
+    if (isVehicleEntity(parsed.location)) continue;
+
+    const key = normalizeLocationKey(parsed.location);
 
     const existing = locationGroups.get(key);
     if (existing) {
@@ -601,7 +709,8 @@ export function extractCharacterCues(rawText: string, sceneNumber: number): { na
 
     // Must be all uppercase
     if (!/^[A-Z][A-Z\s\-'\.]+$/.test(withoutExt)) continue;
-    if (withoutExt.includes(".")) continue;
+    // Skip lines with periods UNLESS it's a title abbreviation (DR., MR., etc.)
+    if (withoutExt.includes(".") && !TITLE_RE.test(withoutExt)) continue;
 
     const upper = withoutExt.toUpperCase();
     if (upper.startsWith("INT") || upper.startsWith("EXT")) continue;
